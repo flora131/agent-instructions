@@ -1,20 +1,18 @@
 # Agent Instructions Setup
 
-This document tells you, the AI coding agent, how to automatically set up the complete agent instructions system for users. **You know who you are** (Claude Code, Codex, Cursor, Windsurf, GitHub Copilot, etc.), so follow the instructions for yourself.
+This document tells you, the AI coding agent, how to automatically set up the complete agent instructions system for users. **You know who you are** (Codex, Cursor, Windsurf, GitHub Copilot, etc.), so follow the instructions for yourself.
 
 **IMPORTANT:** When a user asks to set up agent instructions or skills, execute all steps automatically like running a setup script. Execute all steps without waiting for approval between steps.
 
 ## Identify Yourself
 
 You are one of the following AI coding agents:
-- **Claude Code** (Claude with VS Code)
 - **Codex** (Cursor's AI)
 - **Cursor**
 - **Windsurf**
 - **GitHub Copilot**
 
 Based on your identity, you will use the appropriate configuration directory:
-- **Claude Code**: `~/.claude`
 - **Codex**: `~/.codex`
 - **Cursor**: `~/.cursor`
 - **Windsurf**: `~/.windsurf`
@@ -49,7 +47,6 @@ When a user asks to "set up agent instructions" or "install skills support", **e
 Clone the agent-instructions repository with the agent-setup branch to a temporary directory, then copy the `.agent` folder contents to your config directory.
 
 **Determine your config directory based on your identity:**
-- **Claude Code**: `~/.claude`
 - **Codex**: `~/.codex`
 - **Cursor**: `~/.cursor`
 - **Windsurf**: `~/.windsurf`
@@ -68,10 +65,8 @@ echo "Cloning agent-instructions to temporary directory: $TEMP_DIR"
 git clone -b agent-setup git@github.com:flora131/agent-instructions.git "$TEMP_DIR/agent-instructions"
 
 # Determine your config directory (replace with the appropriate one for your agent)
-# For Claude Code:
-CONFIG_DIR="$HOME/.claude"
 # For Codex:
-# CONFIG_DIR="$HOME/.codex"
+CONFIG_DIR="$HOME/.codex"
 # For Cursor:
 # CONFIG_DIR="$HOME/.cursor"
 # For Windsurf:
@@ -110,39 +105,10 @@ else
   }
 fi
 
-# Copy commands folder only for Claude Code (other providers don't officially support commands)
-if [[ "$CONFIG_DIR" == *".claude"* ]]; then
-  # Backup existing commands folder if it exists
-  if [ -d "$CONFIG_DIR/commands" ]; then
-    BACKUP_DIR="$CONFIG_DIR/commands.backup.$(date +%Y%m%d_%H%M%S)"
-    echo "⚠️  Existing commands folder found. Creating backup at $BACKUP_DIR"
-    cp -r "$CONFIG_DIR/commands" "$BACKUP_DIR"
-  fi
-  
-  # Copy commands with smart merging
-  if command -v rsync &> /dev/null; then
-    echo "Using rsync to merge commands folder (won't overwrite existing files)..."
-    rsync -a --ignore-existing "$TEMP_DIR/agent-instructions/.agent/commands/" "$CONFIG_DIR/commands/"
-  else
-    echo "Copying commands folder (existing files will be preserved)..."
-    cp -rn "$TEMP_DIR/agent-instructions/.agent/commands" "$CONFIG_DIR/" 2>/dev/null || {
-      mkdir -p "$CONFIG_DIR/commands"
-      find "$TEMP_DIR/agent-instructions/.agent/commands" -type f | while read file; do
-        rel_path="${file#$TEMP_DIR/agent-instructions/.agent/commands/}"
-        dest="$CONFIG_DIR/commands/$rel_path"
-        if [ ! -f "$dest" ]; then
-          mkdir -p "$(dirname "$dest")"
-          cp "$file" "$dest"
-        fi
-      done
-    }
-  fi
-fi
-
 # Clean up temporary directory
 rm -rf "$TEMP_DIR"
 
-echo "✅ Successfully copied agents and commands to $CONFIG_DIR"
+echo "✅ Successfully copied agents to $CONFIG_DIR"
 echo "ℹ️  Note: Existing files were preserved. Backups created with timestamp if folders existed."
 ```
 
@@ -157,10 +123,8 @@ echo "Cloning agent-instructions to temporary directory: $TEMP_DIR"
 git clone -b agent-setup git@github.com:flora131/agent-instructions.git "$TEMP_DIR/agent-instructions"
 
 # Determine your config directory (replace with the appropriate one for your agent)
-# For Claude Code:
-set CONFIG_DIR "$HOME/.claude"
 # For Codex:
-# set CONFIG_DIR "$HOME/.codex"
+set CONFIG_DIR "$HOME/.codex"
 # For Cursor:
 # set CONFIG_DIR "$HOME/.cursor"
 # For Windsurf:
@@ -196,37 +160,10 @@ else
   end
 end
 
-# Copy commands folder only for Claude Code (other providers don't officially support commands)
-if string match -q "*.claude*" "$CONFIG_DIR"
-  # Backup existing commands folder if it exists
-  if test -d "$CONFIG_DIR/commands"
-    set BACKUP_DIR "$CONFIG_DIR/commands.backup."(date +%Y%m%d_%H%M%S)
-    echo "⚠️  Existing commands folder found. Creating backup at $BACKUP_DIR"
-    cp -r "$CONFIG_DIR/commands" "$BACKUP_DIR"
-  end
-  
-  # Copy commands with smart merging
-  if command -v rsync &> /dev/null
-    echo "Using rsync to merge commands folder (won't overwrite existing files)..."
-    rsync -a --ignore-existing "$TEMP_DIR/agent-instructions/.agent/commands/" "$CONFIG_DIR/commands/"
-  else
-    echo "Copying commands folder (existing files will be preserved)..."
-    mkdir -p "$CONFIG_DIR/commands"
-    for file in (find "$TEMP_DIR/agent-instructions/.agent/commands" -type f)
-      set rel_path (string replace "$TEMP_DIR/agent-instructions/.agent/commands/" "" "$file")
-      set dest "$CONFIG_DIR/commands/$rel_path"
-      if not test -f "$dest"
-        mkdir -p (dirname "$dest")
-        cp "$file" "$dest"
-      end
-    end
-  end
-end
-
 # Clean up temporary directory
 rm -rf "$TEMP_DIR"
 
-echo "✅ Successfully copied agents and commands to $CONFIG_DIR"
+echo "✅ Successfully copied agents to $CONFIG_DIR"
 echo "ℹ️  Note: Existing files were preserved. Backups created with timestamp if folders existed."
 ```
 
@@ -241,10 +178,8 @@ Write-Host "Cloning agent-instructions to temporary directory: $TEMP_DIR"
 git clone -b agent-setup git@github.com:flora131/agent-instructions.git "$TEMP_DIR\agent-instructions"
 
 # Determine your config directory (replace with the appropriate one for your agent)
-# For Claude Code:
-$CONFIG_DIR = "$env:USERPROFILE\.claude"
 # For Codex:
-# $CONFIG_DIR = "$env:USERPROFILE\.codex"
+$CONFIG_DIR = "$env:USERPROFILE\.codex"
 # For Cursor:
 # $CONFIG_DIR = "$env:USERPROFILE\.cursor"
 # For Windsurf:
@@ -282,40 +217,10 @@ Get-ChildItem -Recurse -File "$TEMP_DIR\agent-instructions\.agent\agents" | ForE
     }
 }
 
-# Copy commands folder only for Claude Code (other providers don't officially support commands)
-if ($CONFIG_DIR -like "*.claude*") {
-    # Backup existing commands folder if it exists
-    if (Test-Path "$CONFIG_DIR\commands") {
-        $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-        $BACKUP_DIR = "$CONFIG_DIR\commands.backup.$timestamp"
-        Write-Host "⚠️  Existing commands folder found. Creating backup at $BACKUP_DIR"
-        Copy-Item -Recurse "$CONFIG_DIR\commands" "$BACKUP_DIR"
-    }
-    
-    # Copy commands with smart merging
-    Write-Host "Copying commands folder (existing files will be preserved)..."
-    if (-not (Test-Path "$CONFIG_DIR\commands")) {
-        New-Item -ItemType Directory -Force -Path "$CONFIG_DIR\commands" | Out-Null
-    }
-    
-    Get-ChildItem -Recurse -File "$TEMP_DIR\agent-instructions\.agent\commands" | ForEach-Object {
-        $relativePath = $_.FullName.Substring("$TEMP_DIR\agent-instructions\.agent\commands".Length + 1)
-        $destination = Join-Path "$CONFIG_DIR\commands" $relativePath
-        
-        if (-not (Test-Path $destination)) {
-            $destDir = Split-Path -Parent $destination
-            if (-not (Test-Path $destDir)) {
-                New-Item -ItemType Directory -Force -Path $destDir | Out-Null
-            }
-            Copy-Item $_.FullName $destination
-        }
-    }
-}
-
 # Clean up temporary directory
 Remove-Item -Recurse -Force $TEMP_DIR
 
-Write-Host "✅ Successfully copied agents and commands to $CONFIG_DIR"
+Write-Host "✅ Successfully copied agents to $CONFIG_DIR"
 Write-Host "ℹ️  Note: Existing files were preserved. Backups created with timestamp if folders existed."
 ```
 
@@ -323,8 +228,7 @@ Write-Host "ℹ️  Note: Existing files were preserved. Backups created with ti
 
 **Expected Result:**
 After this step, your config directory should contain:
-- `~/.claude/agents/` (or `~/.codex/agents/`, etc.)
-- `~/.claude/commands/` (only for Claude Code - other providers don't officially support commands)
+- `~/.codex/agents/` (or `~/.cursor/agents/`, `~/.windsurf/agents/`, `~/.github/agents/`, etc.)
 
 **If this step fails:**
 - Check if the error is related to Git authentication (SSH keys)
@@ -342,10 +246,8 @@ Create a skills directory and clone both the Superpowers and Anthropic Skills re
 
 ```bash
 # Use the same CONFIG_DIR determined in Step 1
-# For Claude Code:
-CONFIG_DIR="$HOME/.claude"
 # For Codex:
-# CONFIG_DIR="$HOME/.codex"
+CONFIG_DIR="$HOME/.codex"
 # For Cursor:
 # CONFIG_DIR="$HOME/.cursor"
 # For Windsurf:
@@ -367,10 +269,8 @@ echo "✅ Successfully cloned skills repositories to $CONFIG_DIR/skills"
 
 ```fish
 # Use the same CONFIG_DIR determined in Step 1
-# For Claude Code:
-set CONFIG_DIR "$HOME/.claude"
 # For Codex:
-# set CONFIG_DIR "$HOME/.codex"
+set CONFIG_DIR "$HOME/.codex"
 # For Cursor:
 # set CONFIG_DIR "$HOME/.cursor"
 # For Windsurf:
@@ -392,10 +292,8 @@ echo "✅ Successfully cloned skills repositories to $CONFIG_DIR/skills"
 
 ```powershell
 # Use the same CONFIG_DIR determined in Step 1
-# For Claude Code:
-$CONFIG_DIR = "$env:USERPROFILE\.claude"
 # For Codex:
-# $CONFIG_DIR = "$env:USERPROFILE\.codex"
+$CONFIG_DIR = "$env:USERPROFILE\.codex"
 # For Cursor:
 # $CONFIG_DIR = "$env:USERPROFILE\.cursor"
 # For Windsurf:
@@ -671,7 +569,6 @@ echo "✅ list-skills script installed to /usr/local/bin/list-skills"
 After completing all setup steps, automatically verify everything is working.
 
 **Determine your config directory based on your identity:**
-- **Claude Code**: `~/.claude`
 - **Codex**: `~/.codex`
 - **Cursor**: `~/.cursor`
 - **Windsurf**: `~/.windsurf`
@@ -683,10 +580,8 @@ After completing all setup steps, automatically verify everything is working.
 
 ```bash
 # Replace with your actual config directory
-# For Claude Code:
-CONFIG_DIR="$HOME/.claude"
 # For Codex:
-# CONFIG_DIR="$HOME/.codex"
+CONFIG_DIR="$HOME/.codex"
 # For Cursor:
 # CONFIG_DIR="$HOME/.cursor"
 # For Windsurf:
@@ -703,25 +598,14 @@ else
     echo "❌ Agents folder missing"
 fi
 
-# Test 2: Check commands folder exists (only for Claude Code)
-if [[ "$CONFIG_DIR" == *".claude"* ]]; then
-    if [ -d "$CONFIG_DIR/commands" ]; then
-        echo "✅ Commands folder found"
-    else
-        echo "❌ Commands folder missing"
-    fi
-else
-    echo "ℹ️  Commands folder not applicable (only supported by Claude Code)"
-fi
-
-# Test 3: Check skills directory exists
+# Test 2: Check skills directory exists
 if [ -d "$CONFIG_DIR/skills" ]; then
     echo "✅ Skills directory found"
 else
     echo "❌ Skills directory missing"
 fi
 
-# Test 4: Test list-skills script
+# Test 3: Test list-skills script
 if command -v list-skills &> /dev/null; then
     echo "✅ list-skills command available"
     echo "Testing list-skills script with your skills directory..."
@@ -735,10 +619,8 @@ fi
 
 ```powershell
 # Replace with your actual config directory
-# For Claude Code:
-$CONFIG_DIR = "$env:USERPROFILE\.claude"
 # For Codex:
-# $CONFIG_DIR = "$env:USERPROFILE\.codex"
+$CONFIG_DIR = "$env:USERPROFILE\.codex"
 # For Cursor:
 # $CONFIG_DIR = "$env:USERPROFILE\.cursor"
 # For Windsurf:
@@ -755,25 +637,14 @@ if (Test-Path "$CONFIG_DIR\agents") {
     Write-Host "❌ Agents folder missing"
 }
 
-# Test 2: Check commands folder exists (only for Claude Code)
-if ($CONFIG_DIR -like "*.claude*") {
-    if (Test-Path "$CONFIG_DIR\commands") {
-        Write-Host "✅ Commands folder found"
-    } else {
-        Write-Host "❌ Commands folder missing"
-    }
-} else {
-    Write-Host "ℹ️  Commands folder not applicable (only supported by Claude Code)"
-}
-
-# Test 3: Check skills directory exists
+# Test 2: Check skills directory exists
 if (Test-Path "$CONFIG_DIR\skills") {
     Write-Host "✅ Skills directory found"
 } else {
     Write-Host "❌ Skills directory missing"
 }
 
-# Test 4: Test list-skills script
+# Test 3: Test list-skills script
 if (Get-Command list-skills -ErrorAction SilentlyContinue) {
     Write-Host "✅ list-skills command available"
     Write-Host "Testing list-skills with your skills directory..."
@@ -785,7 +656,6 @@ if (Get-Command list-skills -ErrorAction SilentlyContinue) {
 
 **Expected output:**
 - ✅ Agents folder found
-- ✅ Commands folder found
 - ✅ Skills directory found
 - ✅ list-skills command available
 - JSON array of available skills (showing skills from both superpowers and anthropic-skills repositories)
@@ -796,12 +666,12 @@ if (Get-Command list-skills -ErrorAction SilentlyContinue) {
   {
     "name": "brainstorming",
     "description": "Transform rough ideas into fully-formed designs...",
-    "path": "/Users/username/.claude/skills/superpowers/brainstorming/SKILL.md"
+    "path": "/Users/username/.codex/skills/superpowers/brainstorming/SKILL.md"
   },
   {
     "name": "debugging",
     "description": "Systematic approach to finding and fixing bugs...",
-    "path": "/Users/username/.claude/skills/anthropic-skills/debugging/SKILL.md"
+    "path": "/Users/username/.codex/skills/anthropic-skills/debugging/SKILL.md"
   }
 ]
 ```
@@ -831,9 +701,7 @@ if (Get-Command list-skills -ErrorAction SilentlyContinue) {
 
 If setup verification fails, help the user debug:
 
-### Error: "Agents or commands folder missing"
-
-**Note:** The commands folder is only applicable for Claude Code. Other providers don't officially support commands.
+### Error: "Agents folder missing"
 
 **Diagnosis:**
 
@@ -843,45 +711,34 @@ Check if the folders were copied correctly:
 
 ```bash
 # Replace with your config directory
-CONFIG_DIR="$HOME/.claude"  # or ~/.codex, ~/.cursor, ~/.windsurf, ~/.github
+CONFIG_DIR="$HOME/.codex"  # or ~/.cursor, ~/.windsurf, ~/.github
 
 ls -la "$CONFIG_DIR"
 ls -la "$CONFIG_DIR/agents"
-
-# Check commands folder only for Claude Code
-if [[ "$CONFIG_DIR" == *".claude"* ]]; then
-    ls -la "$CONFIG_DIR/commands"
-fi
 ```
 
 #### For PowerShell:
 
 ```powershell
 # Replace with your config directory
-$CONFIG_DIR = "$env:USERPROFILE\.claude"  # or .codex, .cursor, .windsurf, .github
+$CONFIG_DIR = "$env:USERPROFILE\.codex"  # or .cursor, .windsurf, .github
 
 Get-ChildItem $CONFIG_DIR
 Get-ChildItem "$CONFIG_DIR\agents"
-
-# Check commands folder only for Claude Code
-if ($CONFIG_DIR -like "*.claude*") {
-    Get-ChildItem "$CONFIG_DIR\commands"
-}
 ```
 
 **Possible causes:**
 - Git clone failed
 - Copy commands didn't execute correctly
-- Wrong source path used (should be `.agent/agents` and `.agent/commands` for Claude Code, not `.agent` itself)
+- Wrong source path used (should be `.agent/agents`, not `.agent` itself)
 
 **Fix:**
 
 **First, inform the user:**
-"I found that the agents folder (and/or commands folder for Claude Code) is missing. This usually means the Git clone or copy operation in Step 1 didn't complete successfully. Let me show you what I found and what we can do to fix it."
+"I found that the agents folder is missing. This usually means the Git clone or copy operation in Step 1 didn't complete successfully. Let me show you what I found and what we can do to fix it."
 
-Then offer to re-run Step 1, ensuring the copy commands target the correct source directories:
+Then offer to re-run Step 1, ensuring the copy commands target the correct source directory:
 - Source: `$TEMP_DIR/agent-instructions/.agent/agents` → Destination: `$CONFIG_DIR/agents`
-- Source: `$TEMP_DIR/agent-instructions/.agent/commands` → Destination: `$CONFIG_DIR/commands` (Claude Code only)
 
 **Ask the user:** "Would you like me to try running Step 1 again, or would you prefer to investigate the original error first?"
 
@@ -895,7 +752,7 @@ Check if the skills directory exists:
 
 ```bash
 # Replace with your config directory
-CONFIG_DIR="$HOME/.claude"  # or ~/.codex, ~/.cursor, ~/.windsurf, ~/.github
+CONFIG_DIR="$HOME/.codex"  # or ~/.cursor, ~/.windsurf, ~/.github
 
 ls "$CONFIG_DIR/skills"
 ls "$CONFIG_DIR/skills/superpowers"
@@ -906,7 +763,7 @@ ls "$CONFIG_DIR/skills/anthropic-skills"
 
 ```powershell
 # Replace with your config directory
-$CONFIG_DIR = "$env:USERPROFILE\.claude"  # or .codex, .cursor, .windsurf, .github
+$CONFIG_DIR = "$env:USERPROFILE\.codex"  # or .cursor, .windsurf, .github
 
 Get-ChildItem "$CONFIG_DIR\skills"
 Get-ChildItem "$CONFIG_DIR\skills\superpowers"
@@ -1113,7 +970,7 @@ Verify the directory structure:
 
 ```bash
 # Replace with your config directory
-CONFIG_DIR="$HOME/.claude"  # or ~/.codex, ~/.cursor, ~/.windsurf, ~/.github
+CONFIG_DIR="$HOME/.codex"  # or ~/.cursor, ~/.windsurf, ~/.github
 
 echo "Directory structure:"
 tree -L 2 "$CONFIG_DIR"
@@ -1125,7 +982,7 @@ find "$CONFIG_DIR" -maxdepth 2 -type d
 
 ```powershell
 # Replace with your config directory
-$CONFIG_DIR = "$env:USERPROFILE\.claude"  # or .codex, .cursor, .windsurf, .github
+$CONFIG_DIR = "$env:USERPROFILE\.codex"  # or .cursor, .windsurf, .github
 
 Write-Host "Directory structure:"
 Get-ChildItem -Recurse -Depth 2 $CONFIG_DIR | Where-Object { $_.PSIsContainer }
@@ -1133,19 +990,15 @@ Get-ChildItem -Recurse -Depth 2 $CONFIG_DIR | Where-Object { $_.PSIsContainer }
 
 **Expected structure:**
 ```
-~/.claude/                      (or ~/.codex, ~/.cursor, ~/.windsurf, ~/.github)
+~/.codex/                      (or ~/.cursor, ~/.windsurf, ~/.github)
 ├── agents/
 │   └── [agent config files]
-├── commands/                   # Claude Code only
-│   └── [command files]
 └── skills/
     ├── superpowers/
     │   └── [skill folders with SKILL.md files]
     └── anthropic-skills/
         └── [skill folders with SKILL.md files]
 ```
-
-**Note:** The `commands/` folder only applies to Claude Code.
 
 **Fix:**
 
@@ -1166,7 +1019,7 @@ The mismatch suggests: [explain what might have gone wrong based on the actual s
 4. Investigate further to understand what went wrong?"
 
 If the user agrees to re-run, ensure:
-1. Step 1 copies the `agents` folder (and `commands` folder for Claude Code only) to the root of your config directory
+1. Step 1 copies the `agents` folder to the root of your config directory
 2. Step 2 creates the `skills` directory and clones both skill repositories as subdirectories
 
 ---
@@ -1180,11 +1033,9 @@ Share these tips with users as needed:
 After successful setup, your agent's config directory should contain:
 
 ```
-~/.claude/                      (or ~/.codex, ~/.cursor, ~/.windsurf, ~/.github)
+~/.codex/                      (or ~/.cursor, ~/.windsurf, ~/.github)
 ├── agents/                     # Agent configuration files
 │   └── [config files]
-├── commands/                   # Custom commands (Claude Code only)
-│   └── [command files]
 └── skills/                     # Skills repositories
     ├── superpowers/           # Obra's Superpowers skills
     │   ├── brainstorming/
@@ -1200,7 +1051,6 @@ After successful setup, your agent's config directory should contain:
 ### Multiple Agents on Same Machine
 
 You can set up multiple agents on the same machine. Each agent gets its own config directory:
-- Claude Code: `~/.claude`
 - Codex: `~/.codex`
 - Cursor: `~/.cursor`
 - Windsurf: `~/.windsurf`
@@ -1215,17 +1065,15 @@ Users can create their own skills in their agent's skills directory.
 #### For sh/bash/zsh/fish:
 
 ```bash
-# For Claude Code:
-mkdir -p ~/.claude/skills/my-custom-skill
-# For other agents, replace ~/.claude with appropriate directory
+# For Codex (or replace with your agent's directory):
+mkdir -p ~/.codex/skills/my-custom-skill
 ```
 
 #### For PowerShell:
 
 ```powershell
-# For Claude Code:
-New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude\skills\my-custom-skill"
-# For other agents, replace .claude with appropriate directory
+# For Codex (or replace with your agent's directory):
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.codex\skills\my-custom-skill"
 ```
 
 Then create `SKILL.md` with YAML front-matter:
@@ -1248,8 +1096,8 @@ To update the skills repositories, navigate to your agent's skills directory and
 #### For sh/bash/zsh/fish:
 
 ```bash
-# For Claude Code (replace with your agent's directory):
-CONFIG_DIR="$HOME/.claude"
+# For Codex (replace with your agent's directory):
+CONFIG_DIR="$HOME/.codex"
 
 cd "$CONFIG_DIR/skills/superpowers" && git pull origin main
 cd "$CONFIG_DIR/skills/anthropic-skills" && git pull origin main
@@ -1258,8 +1106,8 @@ cd "$CONFIG_DIR/skills/anthropic-skills" && git pull origin main
 #### For PowerShell:
 
 ```powershell
-# For Claude Code (replace with your agent's directory):
-$CONFIG_DIR = "$env:USERPROFILE\.claude"
+# For Codex (replace with your agent's directory):
+$CONFIG_DIR = "$env:USERPROFILE\.codex"
 
 Set-Location "$CONFIG_DIR\skills\superpowers"
 git pull origin main
@@ -1272,13 +1120,13 @@ Skills update immediately - no agent restart needed.
 
 ### Updating Agent Configuration
 
-To update the agents and commands folders with the latest changes from the agent-instructions repository:
+To update the agents folder with the latest changes from the agent-instructions repository:
 
 #### For sh/bash/zsh/fish:
 
 ```bash
-# For Claude Code (replace with your agent's directory):
-CONFIG_DIR="$HOME/.claude"
+# For Codex (replace with your agent's directory):
+CONFIG_DIR="$HOME/.codex"
 
 # Clone to temporary directory
 TEMP_DIR=$(mktemp -d)
@@ -1290,18 +1138,11 @@ if [ -d "$CONFIG_DIR/agents" ]; then
   cp -r "$CONFIG_DIR/agents" "$CONFIG_DIR/agents.backup.$TIMESTAMP"
   echo "Backed up agents to agents.backup.$TIMESTAMP"
 fi
-if [[ "$CONFIG_DIR" == *".claude"* ]] && [ -d "$CONFIG_DIR/commands" ]; then
-  cp -r "$CONFIG_DIR/commands" "$CONFIG_DIR/commands.backup.$TIMESTAMP"
-  echo "Backed up commands to commands.backup.$TIMESTAMP"
-fi
 
 # Copy updated config (preserve existing files)
 if command -v rsync &> /dev/null; then
   echo "Using rsync to merge updated config (won't overwrite existing files)..."
   rsync -a --ignore-existing "$TEMP_DIR/agent-instructions/.agent/agents/" "$CONFIG_DIR/agents/"
-  if [[ "$CONFIG_DIR" == *".claude"* ]]; then
-    rsync -a --ignore-existing "$TEMP_DIR/agent-instructions/.agent/commands/" "$CONFIG_DIR/commands/"
-  fi
 else
   echo "Copying updated config (existing files will be preserved)..."
   find "$TEMP_DIR/agent-instructions/.agent/agents" -type f | while read file; do
@@ -1312,17 +1153,6 @@ else
       cp "$file" "$dest"
     fi
   done
-  
-  if [[ "$CONFIG_DIR" == *".claude"* ]]; then
-    find "$TEMP_DIR/agent-instructions/.agent/commands" -type f | while read file; do
-      rel_path="${file#$TEMP_DIR/agent-instructions/.agent/commands/}"
-      dest="$CONFIG_DIR/commands/$rel_path"
-      if [ ! -f "$dest" ]; then
-        mkdir -p "$(dirname "$dest")"
-        cp "$file" "$dest"
-      fi
-    done
-  fi
 fi
 
 # Clean up
@@ -1335,8 +1165,8 @@ echo "ℹ️  Note: Existing files were preserved. Backups created with timestam
 #### For PowerShell:
 
 ```powershell
-# For Claude Code (replace with your agent's directory):
-$CONFIG_DIR = "$env:USERPROFILE\.claude"
+# For Codex (replace with your agent's directory):
+$CONFIG_DIR = "$env:USERPROFILE\.codex"
 
 # Clone to temporary directory
 $TEMP_DIR = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
@@ -1347,10 +1177,6 @@ $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 if (Test-Path "$CONFIG_DIR\agents") {
     Copy-Item -Recurse "$CONFIG_DIR\agents" "$CONFIG_DIR\agents.backup.$timestamp"
     Write-Host "Backed up agents to agents.backup.$timestamp"
-}
-if (($CONFIG_DIR -like "*.claude*") -and (Test-Path "$CONFIG_DIR\commands")) {
-    Copy-Item -Recurse "$CONFIG_DIR\commands" "$CONFIG_DIR\commands.backup.$timestamp"
-    Write-Host "Backed up commands to commands.backup.$timestamp"
 }
 
 # Copy updated config (preserve existing files)
@@ -1368,18 +1194,16 @@ Get-ChildItem -Recurse -File "$TEMP_DIR\agent-instructions\.agent\agents" | ForE
     }
 }
 
-if ($CONFIG_DIR -like "*.claude*") {
-    Get-ChildItem -Recurse -File "$TEMP_DIR\agent-instructions\.agent\commands" | ForEach-Object {
-        $relativePath = $_.FullName.Substring("$TEMP_DIR\agent-instructions\.agent\commands".Length + 1)
-        $destination = Join-Path "$CONFIG_DIR\commands" $relativePath
-        
-        if (-not (Test-Path $destination)) {
-            $destDir = Split-Path -Parent $destination
-            if (-not (Test-Path $destDir)) {
-                New-Item -ItemType Directory -Force -Path $destDir | Out-Null
-            }
-            Copy-Item $_.FullName $destination
+# Clean up
+Remove-Item -Recurse -Force $TEMP_DIR
+
+Write-Host "✅ Agent configuration updated"
+Write-Host "ℹ️  Note: Existing files were preserved. Backups created with timestamp."
+        $destDir = Split-Path -Parent $destination
+        if (-not (Test-Path $destDir)) {
+            New-Item -ItemType Directory -Force -Path $destDir | Out-Null
         }
+        Copy-Item $_.FullName $destination
     }
 }
 

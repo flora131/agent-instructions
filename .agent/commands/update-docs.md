@@ -14,7 +14,7 @@ Update project documentation systematically: $ARGUMENTS
 - Specs directory: @specs/ (if exists)
 - Implementation status: !`grep -r "✅\|❌\|⚠️" docs/ specs/ 2>/dev/null | wc -l` status indicators
 - Recent changes: !`git log --oneline --since="1 week ago" -- "*.md" | head -5`
-- Project progress: @CLAUDE.md or @README.md (if exists)
+- Project progress: @AGENTS.md or @README.md (if exists)
 
 ## Task
 
@@ -25,8 +25,8 @@ Update project documentation systematically: $ARGUMENTS
    - Review implemented phase document (`specs/phase{N}_implementation_plan.md`)
    - Review `specs/flutter_structurizr_implementation_spec.md` and `specs/flutter_structurizr_implementation_spec_updated.md`
    - Review `specs/testing_plan.md` to ensure it is current given recent test passes, failures, and changes
-   - Examine `CLAUDE.md` and `README.md` for project-wide documentation
-   - Check for and document any new lessons learned or best practices in CLAUDE.md
+   - Examine `AGENTS.md` and `README.md` for project-wide documentation
+   - Check for and document any new lessons learned or best practices in AGENTS.md
 
 2. Analyze implementation and testing results:
    - Review what was implemented in the last phase
@@ -59,7 +59,7 @@ Update project documentation systematically: $ARGUMENTS
    - Add references to implemented files and classes
    - Update any implementation guidance based on experience
 
-4. Update CLAUDE.md and README.md if necessary:
+4. Update AGENTS.md and README.md if necessary:
    - Add new best practices
    - Update project status
    - Add new implementation guidance

@@ -1,13 +1,13 @@
-# Metaprompt for Auto-Populating AGENTS.md and CLAUDE.md Files
+# Metaprompt for Auto-Populating AGENTS.md Files
 
-You are an expert project analyzer and documentation generator. Your task is to automatically populate AGENTS.md and CLAUDE.md files based on a project's structure and technology stack, then run the SETUP.md configuration to install skills and agents. Follow these instructions precisely to generate comprehensive, accurate documentation and complete the setup.
+You are an expert project analyzer and documentation generator. Your task is to automatically populate AGENTS.md files based on a project's structure and technology stack, then run the SETUP.md configuration to install skills and agents. Follow these instructions precisely to generate comprehensive, accurate documentation and complete the setup.
 
 ## 🚨 CRITICAL: TWO-PHASE PROCESS - BOTH PHASES ARE MANDATORY 🚨
 
 This setup process has TWO REQUIRED PHASES that MUST both be completed:
 
 ### **PHASE 1: Documentation Population** (Steps 1-5)
-Analyze the project and populate AGENTS.md and CLAUDE.md files with project-specific information.
+Analyze the project and populate AGENTS.md files with project-specific information.
 
 ### **PHASE 2: Environment Setup** (SETUP.md execution - MANDATORY!)
 Execute ALL steps in SETUP.md to install skills, agents, and commands for AI coding assistants.
@@ -24,7 +24,7 @@ Populating the documentation files (Phase 1) is only half the work. Without runn
 
 ## Overview
 
-This project contains template AGENTS.md and CLAUDE.md files at multiple levels:
+This project contains template AGENTS.md files at multiple levels:
 - Root level: High-level guidelines applying to the entire project
 - Frontend folder: Frontend-specific development guidelines
 - Backend folder: Backend-specific development guidelines
@@ -245,7 +245,7 @@ Replace placeholders with extracted information:
 
 ### Step 4: Root-Level Files
 
-For root-level AGENTS.md and CLAUDE.md:
+For root-level AGENTS.md:
 - Keep them concise and high-level
 - Include the Smart Scope Selection section for full-stack projects
 - Reference the component-specific files for detailed guidelines
@@ -285,11 +285,10 @@ After completing Step 5 above, you have finished Phase 1 (Documentation Populati
 Phase 2 executes the SETUP.md file, which performs these essential configuration tasks:
 
 1. **Clones the agent-instructions repository** - Gets the actual agent configuration files and command definitions
-2. **Installs agents to your config directory** - Copies agent configurations to `~/.claude/agents/`, `~/.codex/agents/`, etc.
-3. **Installs commands** (for Claude Code) - Copies command definitions to `~/.claude/commands/`
-4. **Clones skills repositories** - Downloads Superpowers and Anthropic skills libraries
-5. **Installs list-skills command** - Makes the `list-skills` tool available globally
-6. **Verifies the installation** - Confirms everything is working correctly
+2. **Installs agents to your config directory** - Copies agent configurations to, `~/.codex/agents/`, `~/.cursor/agents/`, `~/.windsurf/agents/`, `~/.github/agents/`, etc.
+3. **Clones skills repositories** - Downloads Superpowers and Anthropic skills libraries
+4. **Installs list-skills command** - Makes the `list-skills` tool available globally
+5. **Verifies the installation** - Confirms everything is working correctly
 
 **Without Phase 2, you only have documentation files - no actual working system!**
 
@@ -311,12 +310,12 @@ Phase 2 executes the SETUP.md file, which performs these essential configuration
 
 2. Read the SETUP.md file completely
 
-3. Identify which AI coding assistant you are (Claude Code, Codex, Cursor, Windsurf, or GitHub Copilot)
+3. Identify which AI coding assistant you are (Codex, Cursor, Windsurf, or GitHub Copilot)
 
 4. Execute Step 1 of SETUP.md: Clone agent-instructions and copy agents/commands
    - Run the appropriate commands for the user's shell (bash/zsh/fish/PowerShell)
    - Use the correct config directory for your identity
-   - Verify the agents folder (and commands folder for Claude Code) were created
+   - Verify the agents folder was created
 
 5. Execute Step 2 of SETUP.md: Clone skills repositories
    - Clone obra/superpowers to the skills directory
@@ -331,7 +330,6 @@ Phase 2 executes the SETUP.md file, which performs these essential configuration
 
 7. Execute Step 4 of SETUP.md: Verify the complete setup
    - Check agents folder exists
-   - Check commands folder exists (Claude Code only)
    - Check skills directory exists
    - Test list-skills command works
    - Display the list of available skills
@@ -345,11 +343,9 @@ After Phase 2 completion, you should have:
 
 **Directory Structure:**
 ```
-~/.claude/              (or ~/.codex/, ~/.cursor/, ~/.windsurf/, ~/.github/)
+~/.cursor/              (or ~/.cursor/, ~/.windsurf/, ~/.github/)
 ├── agents/
 │   └── [agent configuration files]
-├── commands/           (Claude Code only)
-│   └── [command files]
 └── skills/
     ├── superpowers/
     │   └── [skills from obra/superpowers]
@@ -358,7 +354,7 @@ After Phase 2 completion, you should have:
 ```
 
 **Working Commands:**
-- `list-skills ~/.claude/skills` (or appropriate config directory) returns JSON array of available skills
+- `list-skills ~/.codex/skills` (or appropriate config directory) returns JSON array of available skills
 - Skills from both repositories are discoverable
 - Agents are configured and ready to use
 
@@ -395,9 +391,9 @@ When executing this metaprompt:
 When generating the files:
 
 1. **File Organization**:
-   - Create/update `/AGENTS.md` and `/CLAUDE.md` at root
-   - Create/update `/frontend/AGENTS.md` and `/frontend/CLAUDE.md` if applicable
-   - Create/update `/backend/AGENTS.md` and `/backend/CLAUDE.md` if applicable
+   - Create/update `/AGENTS.md` at root
+   - Create/update `/frontend/AGENTS.md` if applicable
+   - Create/update `/backend/AGENTS.md` if applicable
    - Keep frontend and backend files nearly identical in structure
 
 2. **Content Priorities**:
@@ -474,14 +470,13 @@ If unable to detect certain information:
 - [ ] No contradictions between files
 - [ ] Examples relevant to actual project
 - [ ] Documentation is actionable and clear
-- [ ] Both AGENTS.md and CLAUDE.md updated at all levels
+- [ ] AGENTS.md updated at all levels
 
 ### Phase 2: Environment Setup (MANDATORY!)
 - [ ] SETUP.md has been read completely
-- [ ] AI coding assistant identity determined (Claude Code/Codex/Cursor/Windsurf/GitHub Copilot)
+- [ ] AI coding assistant identity determined (Codex/Cursor/Windsurf/GitHub Copilot)
 - [ ] Step 1 executed: agent-instructions repository cloned
 - [ ] Step 1 verified: agents folder exists in config directory
-- [ ] Step 1 verified: commands folder exists (Claude Code only)
 - [ ] Step 2 executed: Skills repositories cloned (Superpowers + Anthropic)
 - [ ] Step 2 verified: Both skills repos exist in skills directory
 - [ ] Step 3 executed: `list-skills` script installed to PATH location
@@ -629,7 +624,7 @@ When populating skill templates:
 
 ### Installing Custom Skills
 
-After creating custom skills, document in AGENTS.md/CLAUDE.md:
+After creating custom skills, document in AGENTS.md:
 
 ```markdown
 ## Custom Development Skills
@@ -639,8 +634,6 @@ This project includes custom skills for common workflows:
 ### Installation
 
 ```bash
-# Claude Code (if custom skills created)
-ln -s $(pwd)/.claude/skills/custom-skill-name ~/.claude/skills/
 
 # Cursor
 # Custom rules already in .cursor/rules/
@@ -674,7 +667,7 @@ ln -s $(pwd)/.claude/skills/custom-skill-name ~/.claude/skills/
 7. **ExecPlans**: Keep references to specs/PLANS.md for complex feature development
 8. **Code Style**: Derive conventions from existing code, don't impose new ones
 9. **Testing**: Document actual test infrastructure, not ideal practices
-10. **Update Both Files**: Always update both AGENTS.md and CLAUDE.md simultaneously to keep them in sync
+10. **Update AGENTS.md**: Always update AGENTS.md simultaneously to keep them in sync
 11. **Verify Everything**: Use the verification steps in SETUP.md to confirm successful installation
 12. **Handle Errors Properly**: If Phase 2 fails, stop and troubleshoot before declaring completion
 
