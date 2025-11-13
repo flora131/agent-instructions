@@ -218,7 +218,7 @@ $TEMP_DIR = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemT
 Write-Host "Cloning agent-instructions to temporary directory: $TEMP_DIR"
 
 # Clone the repository with agent-setup branch
-git clone -b agent-setup git@github.com:flora131/agent-instructions.git "$TEMP_DIR\agent-instructions"
+git clone -b agent-setup https://github.com/flora131/agent-instructions.git "$TEMP_DIR\agent-instructions"
 
 # Determine your config directory (replace with the appropriate one for your agent)
 # For Codex:
@@ -1245,7 +1245,7 @@ $CONFIG_DIR = "$env:USERPROFILE\.codex"
 
 # Clone to temporary directory
 $TEMP_DIR = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
-git clone -b agent-setup git@github.com:flora131/agent-instructions.git "$TEMP_DIR\agent-instructions"
+git clone -b agent-setup https://github.com/flora131/agent-instructions.git "$TEMP_DIR\agent-instructions"
 
 # Backup existing config with timestamp
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
