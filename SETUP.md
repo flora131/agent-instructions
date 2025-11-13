@@ -111,14 +111,14 @@ else
 fi
 
 # Copy the skills folder from the repository to the config directory
-if [ -d "$TEMP_DIR/agent-instructions/skills" ]; then
+if [ -d "$TEMP_DIR/agent-instructions/.agent/skills" ]; then
   echo "Copying skills folder from repository..."
   if command -v rsync &> /dev/null; then
-    rsync -a --ignore-existing "$TEMP_DIR/agent-instructions/skills/" "$CONFIG_DIR/skills/"
+    rsync -a --ignore-existing "$TEMP_DIR/agent-instructions/.agent/skills/" "$CONFIG_DIR/skills/"
   else
     mkdir -p "$CONFIG_DIR/skills"
-    find "$TEMP_DIR/agent-instructions/skills" -type f | while read file; do
-      rel_path="${file#$TEMP_DIR/agent-instructions/skills/}"
+    find "$TEMP_DIR/agent-instructions/.agent/skills" -type f | while read file; do
+      rel_path="${file#$TEMP_DIR/agent-instructions/.agent/skills/}"
       dest="$CONFIG_DIR/skills/$rel_path"
       if [ ! -f "$dest" ]; then
         mkdir -p "$(dirname "$dest")"
@@ -186,14 +186,14 @@ else
 end
 
 # Copy the skills folder from the repository to the config directory
-if test -d "$TEMP_DIR/agent-instructions/skills"
+if test -d "$TEMP_DIR/agent-instructions/.agent/skills"
   echo "Copying skills folder from repository..."
   if command -v rsync &> /dev/null
-    rsync -a --ignore-existing "$TEMP_DIR/agent-instructions/skills/" "$CONFIG_DIR/skills/"
+    rsync -a --ignore-existing "$TEMP_DIR/agent-instructions/.agent/skills/" "$CONFIG_DIR/skills/"
   else
     mkdir -p "$CONFIG_DIR/skills"
-    for file in (find "$TEMP_DIR/agent-instructions/skills" -type f)
-      set rel_path (string replace "$TEMP_DIR/agent-instructions/skills/" "" "$file")
+    for file in (find "$TEMP_DIR/agent-instructions/.agent/skills" -type f)
+      set rel_path (string replace "$TEMP_DIR/agent-instructions/.agent/skills/" "" "$file")
       set dest "$CONFIG_DIR/skills/$rel_path"
       if not test -f "$dest"
         mkdir -p (dirname "$dest")
@@ -263,16 +263,16 @@ Get-ChildItem -Recurse -File "$TEMP_DIR\agent-instructions\.agent\agents" | ForE
 }
 
 # Copy the skills folder from the repository to the config directory
-if (Test-Path "$TEMP_DIR\agent-instructions\skills") {
+if (Test-Path "$TEMP_DIR\agent-instructions\.agent\skills") {
     Write-Host "Copying skills folder from repository..."
     if (-not (Test-Path "$CONFIG_DIR\skills")) {
         New-Item -ItemType Directory -Force -Path "$CONFIG_DIR\skills" | Out-Null
     }
-    
-    Get-ChildItem -Recurse -File "$TEMP_DIR\agent-instructions\skills" | ForEach-Object {
-        $relativePath = $_.FullName.Substring("$TEMP_DIR\agent-instructions\skills".Length + 1)
+
+    Get-ChildItem -Recurse -File "$TEMP_DIR\agent-instructions\.agent\skills" | ForEach-Object {
+        $relativePath = $_.FullName.Substring("$TEMP_DIR\agent-instructions\.agent\skills".Length + 1)
         $destination = Join-Path "$CONFIG_DIR\skills" $relativePath
-        
+
         if (-not (Test-Path $destination)) {
             $destDir = Split-Path -Parent $destination
             if (-not (Test-Path $destDir)) {
@@ -294,8 +294,8 @@ Write-Host "ℹ️  Note: Existing files were preserved. Backups created with ti
 
 **Expected Result:**
 After this step, your config directory should contain:
-- `~/.codex/agents/` (or `~/.cursor/agents/`, `~/.windsurf/agents/`, `~/.kiro/agents/`, `~/.github/agents/`, etc.)
-- `~/.codex/skills/` (or `~/.cursor/skills/`, etc.) - if the skills folder exists in the repository
+- `~/.codex/agents/` (or `~/.cursor/agents/`, `~/.windsurf/agents/`, `~/.kiro/agents/`, `~/.github/agents/`, etc.) - copied from `.agent/agents/` in the repository
+- `~/.codex/skills/` (or `~/.cursor/skills/`, etc.) - copied from `.agent/skills/` in the repository, including the `prompt-engineer` skill
 
 **If this step fails:**
 - Check if the error is related to Git authentication (SSH keys)
