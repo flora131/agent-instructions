@@ -1,6 +1,6 @@
 # Agent Instructions Setup
 
-This document tells you, the AI coding agent, how to automatically set up the complete agent instructions system for users. **You know who you are** (Codex, Cursor, Windsurf, Kiro, GitHub Copilot, etc.), so follow the instructions for yourself.
+This document tells you, the AI coding agent, how to automatically set up the complete agent instructions system for users. **You know who you are** (Codex, Cursor, Windsurf, Kiro, Cline, GitHub Copilot, etc.), so follow the instructions for yourself.
 
 **IMPORTANT:** When a user asks to set up agent instructions or skills, execute all steps automatically like running a setup script. Execute all steps without waiting for approval between steps.
 
@@ -11,6 +11,7 @@ You are one of the following AI coding agents:
 - **Cursor**
 - **Windsurf**
 - **Kiro**
+- **Cline**
 - **GitHub Copilot**
 
 Based on your identity, you will use the appropriate configuration directory:
@@ -18,6 +19,7 @@ Based on your identity, you will use the appropriate configuration directory:
 - **Cursor**: `~/.cursor`
 - **Windsurf**: `~/.windsurf`
 - **Kiro**: `~/.kiro`
+- **Cline**: `~/.cline`
 - **GitHub Copilot**: `~/.github`
 
 ## Your Role
@@ -53,6 +55,7 @@ Clone the agent-instructions repository with the agent-setup branch to a tempora
 - **Cursor**: `~/.cursor`
 - **Windsurf**: `~/.windsurf`
 - **Kiro**: `~/.kiro`
+- **Cline**: `~/.cline`
 - **GitHub Copilot**: `~/.github`
 
 **Execute the following commands for the user's shell:**
@@ -76,6 +79,8 @@ CONFIG_DIR="$HOME/.codex"
 # CONFIG_DIR="$HOME/.windsurf"
 # For Kiro:
 # CONFIG_DIR="$HOME/.kiro"
+# For Cline:
+# CONFIG_DIR="$HOME/.cline"
 # For GitHub Copilot:
 # CONFIG_DIR="$HOME/.github"
 
@@ -154,6 +159,8 @@ set CONFIG_DIR "$HOME/.codex"
 # set CONFIG_DIR "$HOME/.windsurf"
 # For Kiro:
 # set CONFIG_DIR "$HOME/.kiro"
+# For Cline:
+# set CONFIG_DIR "$HOME/.cline"
 # For GitHub Copilot:
 # set CONFIG_DIR "$HOME/.github"
 
@@ -229,6 +236,8 @@ $CONFIG_DIR = "$env:USERPROFILE\.codex"
 # $CONFIG_DIR = "$env:USERPROFILE\.windsurf"
 # For Kiro:
 # $CONFIG_DIR = "$env:USERPROFILE\.kiro"
+# For Cline:
+# $CONFIG_DIR = "$env:USERPROFILE\.cline"
 # For GitHub Copilot:
 # $CONFIG_DIR = "$env:USERPROFILE\.github"
 
@@ -294,7 +303,7 @@ Write-Host "ℹ️  Note: Existing files were preserved. Backups created with ti
 
 **Expected Result:**
 After this step, your config directory should contain:
-- `~/.codex/agents/` (or `~/.cursor/agents/`, `~/.windsurf/agents/`, `~/.kiro/agents/`, `~/.github/agents/`, etc.) - copied from `.agent/agents/` in the repository
+- `~/.codex/agents/` (or `~/.cursor/agents/`, `~/.windsurf/agents/`, `~/.kiro/agents/`, `~/.cline/agents/`, `~/.github/agents/`, etc.) - copied from `.agent/agents/` in the repository
 - `~/.codex/skills/` (or `~/.cursor/skills/`, etc.) - copied from `.agent/skills/` in the repository, including the `prompt-engineer` skill
 
 **If this step fails:**
@@ -646,6 +655,7 @@ After completing all setup steps, automatically verify everything is working.
 - **Cursor**: `~/.cursor`
 - **Windsurf**: `~/.windsurf`
 - **Kiro**: `~/.kiro`
+- **Cline**: `~/.cline`
 - **GitHub Copilot**: `~/.github`
 
 **Run verification tests:**
@@ -785,7 +795,7 @@ Check if the folders were copied correctly:
 
 ```bash
 # Replace with your config directory
-CONFIG_DIR="$HOME/.codex"  # or ~/.cursor, ~/.windsurf, ~/.kiro, ~/.github
+CONFIG_DIR="$HOME/.codex"  # or ~/.cursor, ~/.windsurf, ~/.kiro, ~/.cline, ~/.github
 
 ls -la "$CONFIG_DIR"
 ls -la "$CONFIG_DIR/agents"
@@ -795,7 +805,7 @@ ls -la "$CONFIG_DIR/agents"
 
 ```powershell
 # Replace with your config directory
-$CONFIG_DIR = "$env:USERPROFILE\.codex"  # or .cursor, .windsurf, .kiro, .github
+$CONFIG_DIR = "$env:USERPROFILE\.codex"  # or .cursor, .windsurf, .kiro, .cline, .github
 
 Get-ChildItem $CONFIG_DIR
 Get-ChildItem "$CONFIG_DIR\agents"
@@ -826,7 +836,7 @@ Check if the skills directory exists:
 
 ```bash
 # Replace with your config directory
-CONFIG_DIR="$HOME/.codex"  # or ~/.cursor, ~/.windsurf, ~/.kiro, ~/.github
+CONFIG_DIR="$HOME/.codex"  # or ~/.cursor, ~/.windsurf, ~/.kiro, ~/.cline, ~/.github
 
 ls "$CONFIG_DIR/skills"
 ls "$CONFIG_DIR/skills/superpowers"
@@ -837,7 +847,7 @@ ls "$CONFIG_DIR/skills/anthropic-skills"
 
 ```powershell
 # Replace with your config directory
-$CONFIG_DIR = "$env:USERPROFILE\.codex"  # or .cursor, .windsurf, .kiro, .github
+$CONFIG_DIR = "$env:USERPROFILE\.codex"  # or .cursor, .windsurf, .kiro, .cline, .github
 
 Get-ChildItem "$CONFIG_DIR\skills"
 Get-ChildItem "$CONFIG_DIR\skills\superpowers"
@@ -1044,7 +1054,7 @@ Verify the directory structure:
 
 ```bash
 # Replace with your config directory
-CONFIG_DIR="$HOME/.codex"  # or ~/.cursor, ~/.windsurf, ~/.kiro, ~/.github
+CONFIG_DIR="$HOME/.codex"  # or ~/.cursor, ~/.windsurf, ~/.kiro, ~/.cline, ~/.github
 
 echo "Directory structure:"
 tree -L 2 "$CONFIG_DIR"
@@ -1056,7 +1066,7 @@ find "$CONFIG_DIR" -maxdepth 2 -type d
 
 ```powershell
 # Replace with your config directory
-$CONFIG_DIR = "$env:USERPROFILE\.codex"  # or .cursor, .windsurf, .kiro, .github
+$CONFIG_DIR = "$env:USERPROFILE\.codex"  # or .cursor, .windsurf, .kiro, .cline, .github
 
 Write-Host "Directory structure:"
 Get-ChildItem -Recurse -Depth 2 $CONFIG_DIR | Where-Object { $_.PSIsContainer }
@@ -1064,7 +1074,7 @@ Get-ChildItem -Recurse -Depth 2 $CONFIG_DIR | Where-Object { $_.PSIsContainer }
 
 **Expected structure:**
 ```
-~/.codex/                      (or ~/.cursor, ~/.windsurf, ~/.kiro, ~/.github)
+~/.codex/                      (or ~/.cursor, ~/.windsurf, ~/.kiro, ~/.cline, ~/.github)
 ├── agents/
 │   └── [agent config files]
 └── skills/
@@ -1107,7 +1117,7 @@ Share these tips with users as needed:
 After successful setup, your agent's config directory should contain:
 
 ```
-~/.codex/                      (or ~/.cursor, ~/.windsurf, ~/.kiro, ~/.github)
+~/.codex/                      (or ~/.cursor, ~/.windsurf, ~/.kiro, ~/.cline, ~/.github)
 ├── agents/                     # Agent configuration files
 │   └── [config files]
 └── skills/                     # Skills repositories
@@ -1129,6 +1139,7 @@ You can set up multiple agents on the same machine. Each agent gets its own conf
 - Cursor: `~/.cursor`
 - Windsurf: `~/.windsurf`
 - Kiro: `~/.kiro`
+- Cline: `~/.cline`
 - GitHub Copilot: `~/.github`
 
 All agents can coexist and share the same `list-skills` script installation.
