@@ -1,6 +1,6 @@
 # Agent Instructions Setup
 
-This document tells you, the AI coding agent, how to automatically set up the complete agent instructions system for users. **You know who you are** (Codex, Cursor, Windsurf, GitHub Copilot, etc.), so follow the instructions for yourself.
+This document tells you, the AI coding agent, how to automatically set up the complete agent instructions system for users. **You know who you are** (Codex, Cursor, Windsurf, Kiro, GitHub Copilot, etc.), so follow the instructions for yourself.
 
 **IMPORTANT:** When a user asks to set up agent instructions or skills, execute all steps automatically like running a setup script. Execute all steps without waiting for approval between steps.
 
@@ -10,12 +10,14 @@ You are one of the following AI coding agents:
 - **Codex** (Cursor's AI)
 - **Cursor**
 - **Windsurf**
+- **Kiro**
 - **GitHub Copilot**
 
 Based on your identity, you will use the appropriate configuration directory:
 - **Codex**: `~/.codex`
 - **Cursor**: `~/.cursor`
 - **Windsurf**: `~/.windsurf`
+- **Kiro**: `~/.kiro`
 - **GitHub Copilot**: `~/.github`
 
 ## Your Role
@@ -50,6 +52,7 @@ Clone the agent-instructions repository with the agent-setup branch to a tempora
 - **Codex**: `~/.codex`
 - **Cursor**: `~/.cursor`
 - **Windsurf**: `~/.windsurf`
+- **Kiro**: `~/.kiro`
 - **GitHub Copilot**: `~/.github`
 
 **Execute the following commands for the user's shell:**
@@ -62,7 +65,7 @@ TEMP_DIR=$(mktemp -d)
 echo "Cloning agent-instructions to temporary directory: $TEMP_DIR"
 
 # Clone the repository with agent-setup branch
-git clone -b agent-setup git@github.com:flora131/agent-instructions.git "$TEMP_DIR/agent-instructions"
+git clone -b agent-setup https://github.com/flora131/agent-instructions.git "$TEMP_DIR/agent-instructions"
 
 # Determine your config directory (replace with the appropriate one for your agent)
 # For Codex:
@@ -71,6 +74,8 @@ CONFIG_DIR="$HOME/.codex"
 # CONFIG_DIR="$HOME/.cursor"
 # For Windsurf:
 # CONFIG_DIR="$HOME/.windsurf"
+# For Kiro:
+# CONFIG_DIR="$HOME/.kiro"
 # For GitHub Copilot:
 # CONFIG_DIR="$HOME/.github"
 
@@ -138,7 +143,7 @@ set TEMP_DIR (mktemp -d)
 echo "Cloning agent-instructions to temporary directory: $TEMP_DIR"
 
 # Clone the repository with agent-setup branch
-git clone -b agent-setup git@github.com:flora131/agent-instructions.git "$TEMP_DIR/agent-instructions"
+git clone -b agent-setup https://github.com/flora131/agent-instructions.git "$TEMP_DIR/agent-instructions"
 
 # Determine your config directory (replace with the appropriate one for your agent)
 # For Codex:
@@ -147,6 +152,8 @@ set CONFIG_DIR "$HOME/.codex"
 # set CONFIG_DIR "$HOME/.cursor"
 # For Windsurf:
 # set CONFIG_DIR "$HOME/.windsurf"
+# For Kiro:
+# set CONFIG_DIR "$HOME/.kiro"
 # For GitHub Copilot:
 # set CONFIG_DIR "$HOME/.github"
 
@@ -220,6 +227,8 @@ $CONFIG_DIR = "$env:USERPROFILE\.codex"
 # $CONFIG_DIR = "$env:USERPROFILE\.cursor"
 # For Windsurf:
 # $CONFIG_DIR = "$env:USERPROFILE\.windsurf"
+# For Kiro:
+# $CONFIG_DIR = "$env:USERPROFILE\.kiro"
 # For GitHub Copilot:
 # $CONFIG_DIR = "$env:USERPROFILE\.github"
 
@@ -285,7 +294,7 @@ Write-Host "ℹ️  Note: Existing files were preserved. Backups created with ti
 
 **Expected Result:**
 After this step, your config directory should contain:
-- `~/.codex/agents/` (or `~/.cursor/agents/`, `~/.windsurf/agents/`, `~/.github/agents/`, etc.)
+- `~/.codex/agents/` (or `~/.cursor/agents/`, `~/.windsurf/agents/`, `~/.kiro/agents/`, `~/.github/agents/`, etc.)
 - `~/.codex/skills/` (or `~/.cursor/skills/`, etc.) - if the skills folder exists in the repository
 
 **If this step fails:**
@@ -310,6 +319,8 @@ CONFIG_DIR="$HOME/.codex"
 # CONFIG_DIR="$HOME/.cursor"
 # For Windsurf:
 # CONFIG_DIR="$HOME/.windsurf"
+# For Kiro:
+# CONFIG_DIR="$HOME/.kiro"
 # For GitHub Copilot:
 # CONFIG_DIR="$HOME/.github"
 
@@ -333,6 +344,8 @@ set CONFIG_DIR "$HOME/.codex"
 # set CONFIG_DIR "$HOME/.cursor"
 # For Windsurf:
 # set CONFIG_DIR "$HOME/.windsurf"
+# For Kiro:
+# set CONFIG_DIR "$HOME/.kiro"
 # For GitHub Copilot:
 # set CONFIG_DIR "$HOME/.github"
 
@@ -356,6 +369,8 @@ $CONFIG_DIR = "$env:USERPROFILE\.codex"
 # $CONFIG_DIR = "$env:USERPROFILE\.cursor"
 # For Windsurf:
 # $CONFIG_DIR = "$env:USERPROFILE\.windsurf"
+# For Kiro:
+# $CONFIG_DIR = "$env:USERPROFILE\.kiro"
 # For GitHub Copilot:
 # $CONFIG_DIR = "$env:USERPROFILE\.github"
 
@@ -630,6 +645,7 @@ After completing all setup steps, automatically verify everything is working.
 - **Codex**: `~/.codex`
 - **Cursor**: `~/.cursor`
 - **Windsurf**: `~/.windsurf`
+- **Kiro**: `~/.kiro`
 - **GitHub Copilot**: `~/.github`
 
 **Run verification tests:**
@@ -769,7 +785,7 @@ Check if the folders were copied correctly:
 
 ```bash
 # Replace with your config directory
-CONFIG_DIR="$HOME/.codex"  # or ~/.cursor, ~/.windsurf, ~/.github
+CONFIG_DIR="$HOME/.codex"  # or ~/.cursor, ~/.windsurf, ~/.kiro, ~/.github
 
 ls -la "$CONFIG_DIR"
 ls -la "$CONFIG_DIR/agents"
@@ -779,7 +795,7 @@ ls -la "$CONFIG_DIR/agents"
 
 ```powershell
 # Replace with your config directory
-$CONFIG_DIR = "$env:USERPROFILE\.codex"  # or .cursor, .windsurf, .github
+$CONFIG_DIR = "$env:USERPROFILE\.codex"  # or .cursor, .windsurf, .kiro, .github
 
 Get-ChildItem $CONFIG_DIR
 Get-ChildItem "$CONFIG_DIR\agents"
@@ -810,7 +826,7 @@ Check if the skills directory exists:
 
 ```bash
 # Replace with your config directory
-CONFIG_DIR="$HOME/.codex"  # or ~/.cursor, ~/.windsurf, ~/.github
+CONFIG_DIR="$HOME/.codex"  # or ~/.cursor, ~/.windsurf, ~/.kiro, ~/.github
 
 ls "$CONFIG_DIR/skills"
 ls "$CONFIG_DIR/skills/superpowers"
@@ -821,7 +837,7 @@ ls "$CONFIG_DIR/skills/anthropic-skills"
 
 ```powershell
 # Replace with your config directory
-$CONFIG_DIR = "$env:USERPROFILE\.codex"  # or .cursor, .windsurf, .github
+$CONFIG_DIR = "$env:USERPROFILE\.codex"  # or .cursor, .windsurf, .kiro, .github
 
 Get-ChildItem "$CONFIG_DIR\skills"
 Get-ChildItem "$CONFIG_DIR\skills\superpowers"
@@ -1028,7 +1044,7 @@ Verify the directory structure:
 
 ```bash
 # Replace with your config directory
-CONFIG_DIR="$HOME/.codex"  # or ~/.cursor, ~/.windsurf, ~/.github
+CONFIG_DIR="$HOME/.codex"  # or ~/.cursor, ~/.windsurf, ~/.kiro, ~/.github
 
 echo "Directory structure:"
 tree -L 2 "$CONFIG_DIR"
@@ -1040,7 +1056,7 @@ find "$CONFIG_DIR" -maxdepth 2 -type d
 
 ```powershell
 # Replace with your config directory
-$CONFIG_DIR = "$env:USERPROFILE\.codex"  # or .cursor, .windsurf, .github
+$CONFIG_DIR = "$env:USERPROFILE\.codex"  # or .cursor, .windsurf, .kiro, .github
 
 Write-Host "Directory structure:"
 Get-ChildItem -Recurse -Depth 2 $CONFIG_DIR | Where-Object { $_.PSIsContainer }
@@ -1048,7 +1064,7 @@ Get-ChildItem -Recurse -Depth 2 $CONFIG_DIR | Where-Object { $_.PSIsContainer }
 
 **Expected structure:**
 ```
-~/.codex/                      (or ~/.cursor, ~/.windsurf, ~/.github)
+~/.codex/                      (or ~/.cursor, ~/.windsurf, ~/.kiro, ~/.github)
 ├── agents/
 │   └── [agent config files]
 └── skills/
@@ -1091,7 +1107,7 @@ Share these tips with users as needed:
 After successful setup, your agent's config directory should contain:
 
 ```
-~/.codex/                      (or ~/.cursor, ~/.windsurf, ~/.github)
+~/.codex/                      (or ~/.cursor, ~/.windsurf, ~/.kiro, ~/.github)
 ├── agents/                     # Agent configuration files
 │   └── [config files]
 └── skills/                     # Skills repositories
@@ -1112,6 +1128,7 @@ You can set up multiple agents on the same machine. Each agent gets its own conf
 - Codex: `~/.codex`
 - Cursor: `~/.cursor`
 - Windsurf: `~/.windsurf`
+- Kiro: `~/.kiro`
 - GitHub Copilot: `~/.github`
 
 All agents can coexist and share the same `list-skills` script installation.
@@ -1188,7 +1205,7 @@ CONFIG_DIR="$HOME/.codex"
 
 # Clone to temporary directory
 TEMP_DIR=$(mktemp -d)
-git clone -b agent-setup git@github.com:flora131/agent-instructions.git "$TEMP_DIR/agent-instructions"
+git clone -b agent-setup https://github.com/flora131/agent-instructions.git "$TEMP_DIR/agent-instructions"
 
 # Backup existing config with timestamp
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)

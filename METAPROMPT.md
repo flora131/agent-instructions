@@ -285,7 +285,7 @@ After completing Step 5 above, you have finished Phase 1 (Documentation Populati
 Phase 2 executes the SETUP.md file, which performs these essential configuration tasks:
 
 1. **Clones the agent-instructions repository** - Gets the actual agent configuration files and command definitions
-2. **Installs agents to your config directory** - Copies agent configurations to, `~/.codex/agents/`, `~/.cursor/agents/`, `~/.windsurf/agents/`, `~/.github/agents/`, etc.
+2. **Installs agents to your config directory** - Copies agent configurations to, `~/.codex/agents/`, `~/.cursor/agents/`, `~/.windsurf/agents/`, `~/.kiro/agents/`, `~/.github/agents/`, etc.
 3. **Clones skills repositories** - Downloads Superpowers and Anthropic skills libraries
 4. **Installs list-skills command** - Makes the `list-skills` tool available globally
 5. **Verifies the installation** - Confirms everything is working correctly
@@ -343,7 +343,7 @@ After Phase 2 completion, you should have:
 
 **Directory Structure:**
 ```
-~/.cursor/              (or ~/.cursor/, ~/.windsurf/, ~/.github/)
+~/.codex/              (or ~/.cursor/, ~/.windsurf/, ~/.kiro/, ~/.github/)
 ├── agents/
 │   └── [agent configuration files]
 └── skills/
@@ -474,7 +474,7 @@ If unable to detect certain information:
 
 ### Phase 2: Environment Setup (MANDATORY!)
 - [ ] SETUP.md has been read completely
-- [ ] AI coding assistant identity determined (Codex/Cursor/Windsurf/GitHub Copilot)
+- [ ] AI coding assistant identity determined (Codex/Cursor/Windsurf/Kiro/GitHub Copilot)
 - [ ] Step 1 executed: agent-instructions repository cloned
 - [ ] Step 1 verified: agents folder exists in config directory
 - [ ] Step 2 executed: Skills repositories cloned (Superpowers + Anthropic)
