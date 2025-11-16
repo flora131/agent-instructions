@@ -1,13 +1,15 @@
-# Metaprompt for Auto-Populating AGENTS.md Files
+# Metaprompt for Auto-Populating Agent Instructions Files
 
-You are an expert project analyzer and documentation generator. Your task is to automatically populate AGENTS.md files based on a project's structure and technology stack, then run the SETUP.md configuration to install skills and agents. Follow these instructions precisely to generate comprehensive, accurate documentation and complete the setup.
+You are an expert project analyzer and documentation generator. Your task is to automatically populate agent instructions files (CLAUDE.md for Claude Code, AGENTS.md for other agents) based on a project's structure and technology stack, then run the SETUP.md configuration to install skills and agents. Follow these instructions precisely to generate comprehensive, accurate documentation and complete the setup.
 
 ## 🚨 CRITICAL: TWO-PHASE PROCESS - BOTH PHASES ARE MANDATORY 🚨
 
 This setup process has TWO REQUIRED PHASES that MUST both be completed:
 
 ### **PHASE 1: Documentation Population** (Steps 1-5)
-Analyze the project and populate AGENTS.md files with project-specific information.
+Analyze the project and populate agent instructions files with project-specific information:
+- **Claude Code**: Populate CLAUDE.md
+- **Other agents** (Cursor, Windsurf, Kiro, Cline, GitHub Copilot): Populate AGENTS.md
 
 ### **PHASE 2: Environment Setup** (SETUP.md execution - MANDATORY!)
 Execute ALL steps in SETUP.md to install skills, agents, and commands for AI coding assistants.
@@ -24,10 +26,18 @@ Populating the documentation files (Phase 1) is only half the work. Without runn
 
 ## Overview
 
-This project contains template AGENTS.md files at multiple levels:
+This project contains template agent instructions files at multiple levels:
+- **For Claude Code**: Template CLAUDE.md files
+- **For other agents**: Template AGENTS.md files
+
+Both templates are structured at multiple levels:
 - Root level: High-level guidelines applying to the entire project
 - Frontend folder: Frontend-specific development guidelines
 - Backend folder: Backend-specific development guidelines
+
+**IMPORTANT: Identify the coding agent first**:
+- If you are **Claude Code**, populate CLAUDE.md files
+- If you are **any other agent** (Cursor, Windsurf, Kiro, Cline, GitHub Copilot), populate AGENTS.md files
 
 The templates contain placeholder sections marked with brackets like `[YOUR_PROJECT_DESCRIPTION]` that need to be replaced with actual project information.
 
@@ -245,7 +255,11 @@ Replace placeholders with extracted information:
 
 ### Step 4: Root-Level Files
 
-For root-level AGENTS.md:
+**First, identify which agent you are**:
+- If you are **Claude Code**: Work with CLAUDE.md files
+- If you are **any other agent**: Work with AGENTS.md files
+
+For root-level files (CLAUDE.md or AGENTS.md):
 - Keep them concise and high-level
 - Include the Smart Scope Selection section for full-stack projects
 - Reference the component-specific files for detailed guidelines
@@ -391,9 +405,17 @@ When executing this metaprompt:
 When generating the files:
 
 1. **File Organization**:
-   - Create/update `/AGENTS.md` at root
-   - Create/update `/frontend/AGENTS.md` if applicable
-   - Create/update `/backend/AGENTS.md` if applicable
+
+   **First, identify which agent you are**:
+   - If you are **Claude Code**:
+     - Create/update `/CLAUDE.md` at root
+     - Create/update `/frontend/CLAUDE.md` if applicable
+     - Create/update `/backend/CLAUDE.md` if applicable
+   - If you are **any other agent** (Cursor, Windsurf, Kiro, Cline, GitHub Copilot):
+     - Create/update `/AGENTS.md` at root
+     - Create/update `/frontend/AGENTS.md` if applicable
+     - Create/update `/backend/AGENTS.md` if applicable
+
    - Keep frontend and backend files nearly identical in structure
 
 2. **Content Priorities**:
@@ -470,7 +492,7 @@ If unable to detect certain information:
 - [ ] No contradictions between files
 - [ ] Examples relevant to actual project
 - [ ] Documentation is actionable and clear
-- [ ] AGENTS.md updated at all levels
+- [ ] Agent instructions files (CLAUDE.md for Claude Code, AGENTS.md for other agents) updated at all levels
 
 ### Phase 2: Environment Setup (MANDATORY!)
 - [ ] SETUP.md has been read completely
@@ -624,7 +646,7 @@ When populating skill templates:
 
 ### Installing Custom Skills
 
-After creating custom skills, document in AGENTS.md:
+After creating custom skills, document in your agent instructions file (CLAUDE.md for Claude Code, AGENTS.md for other agents):
 
 ```markdown
 ## Custom Development Skills
@@ -634,6 +656,9 @@ This project includes custom skills for common workflows:
 ### Installation
 
 ```bash
+
+# Claude Code
+# Custom skills already documented in CLAUDE.md
 
 # Cursor
 # Custom rules already in .cursor/rules/
@@ -667,7 +692,7 @@ This project includes custom skills for common workflows:
 7. **ExecPlans**: Keep references to specs/PLANS.md for complex feature development
 8. **Code Style**: Derive conventions from existing code, don't impose new ones
 9. **Testing**: Document actual test infrastructure, not ideal practices
-10. **Update AGENTS.md**: Always update AGENTS.md simultaneously to keep them in sync
+10. **Update Agent Instructions**: Always update your agent instructions files (CLAUDE.md for Claude Code, AGENTS.md for other agents) simultaneously to keep them in sync
 11. **Verify Everything**: Use the verification steps in SETUP.md to confirm successful installation
 12. **Handle Errors Properly**: If Phase 2 fails, stop and troubleshoot before declaring completion
 
