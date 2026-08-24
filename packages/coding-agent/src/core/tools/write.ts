@@ -15,12 +15,14 @@ import { getLanguageFromPath, highlightCode } from "../../modes/interactive/them
 import { experimentalToolSamplingProperty } from "../experimental.ts";
 import type { ExtensionContext, ToolDefinition, ToolRenderResultOptions } from "../extensions/types.ts";
 import { type ConflictBlock, getRegisteredConflictBlocks, parseConflictBlocks } from "./conflict-registry.ts";
-import type { MutationRequesterResolver } from "./file-mutation-coordinator.ts";
+import { assertPriorSessionObservation, type MutationRequesterResolver } from "./file-mutation-coordinator.ts";
 import { withFileMutationQueue } from "./file-mutation-queue.ts";
 import {
 	createHashlineSnapshotStore,
 	formatHashlineContent,
 	type HashlineSnapshotStore,
+	hashlineStoreKey,
+	normalizeHashlineContent,
 	recordHashlineSnapshot,
 	stripKnownHashlineCopiedContent,
 	stripKnownHashlineCopiedContentWithMeta,
@@ -320,6 +322,7 @@ export function createWriteToolDefinition(
 ): ToolDefinition<typeof writeSchema, WriteToolDetails | undefined> {
 	const ops = options?.operations ?? defaultWriteOperations;
 	const hashlineStore = options?.hashlineStore ?? createHashlineSnapshotStore();
+	const resolveMutationRequester = options?.resolveMutationRequester;
 	return {
 		name: "write",
 		label: "write",
@@ -330,7 +333,7 @@ export function createWriteToolDefinition(
 		...experimentalToolSamplingProperty(),
 		parameters: writeSchema,
 		async execute(
-			_toolCallId,
+			toolCallId,
 			{ path, content }: { path: string; content: string },
 			signal?: AbortSignal,
 			_onUpdate?,
@@ -420,7 +423,7 @@ export function createWriteToolDefinition(
 				const sourcePath = path.startsWith("local://") ? resolveInternalSelector(path, executionCwd) : undefined;
 				if (sourcePath)
 					return createWriteToolDefinition(executionCwd, options).execute(
-						_toolCallId,
+						toolCallId,
 						{ path: sourcePath, content },
 						signal,
 						_onUpdate,
@@ -440,7 +443,7 @@ export function createWriteToolDefinition(
 			}
 			const absolutePath = resolveToCwd(path, executionCwd);
 			const dir = dirname(absolutePath);
-			return withFileMutationQueue(absolutePath, async () => {
+			return withFileMutationQueue(absolutePath, async (canonicalKey) => {
 				// Do not reject from an abort event listener here: that would release the
 				// mutation queue while an in-flight filesystem operation may still finish.
 				// Checking signal.aborted after each await observes the same aborts while
@@ -457,6 +460,29 @@ export function createWriteToolDefinition(
 				const existing = await fsReadFile(absolutePath, "utf8").catch(() => undefined);
 				if (existing !== undefined && hasGeneratedMarker(existing))
 					throw new Error(`Refusing to overwrite generated file: ${path}`);
+				if (existing !== undefined) {
+					// `write` replaces a whole file rather than anchoring to a section, so nothing
+					// in the call itself says what is being replaced. Having recorded that exact
+					// content is the only evidence this session ever saw it, and the store answers
+					// for this session alone, which is what makes another agent's file land here as
+					// a conflict instead of silently losing.
+					//
+					// The read above is reused deliberately: it already happened under the queue,
+					// so re-reading would only widen the window it closes.
+					const requester = resolveMutationRequester?.(toolCallId);
+					assertPriorSessionObservation({
+						// Registration resolved this already, so the guard names the target without
+						// paying for a second `realpath` while holding the lock.
+						canonicalKey,
+						storeKey: hashlineStoreKey(absolutePath),
+						path,
+						store: hashlineStore.snapshots,
+						// Normalized because that is the form `record` stored. Comparing raw bytes
+						// would reject every CRLF file the session had read perfectly well.
+						live: normalizeHashlineContent(existing),
+						...(requester ? { requester } : {}),
+					});
+				}
 				const stripped = stripKnownHashlineCopiedContentWithMeta(
 					content,
 					absolutePath,
@@ -467,6 +493,12 @@ export function createWriteToolDefinition(
 				const writeContent = stripped.content;
 				await ops.writeFile(absolutePath, writeContent);
 				invalidateNativeSearchCache(absolutePath);
+				// Recorded as soon as the bytes land, ahead of the abort check below, because an
+				// abort cancels reporting the result rather than undoing the write. Left until
+				// after it, a cancelled-but-written file would come back as someone else's work on
+				// the next overwrite. The hashline engine already records inside `commit` for the
+				// same reason.
+				const header = hashlineHeaderForWrite(absolutePath, executionCwd, writeContent, hashlineStore);
 				let madeExecutable = false;
 				if (writeContent.startsWith("#!")) {
 					const mode = await fsStat(absolutePath)
@@ -479,7 +511,6 @@ export function createWriteToolDefinition(
 				}
 				throwIfAborted();
 
-				const header = hashlineHeaderForWrite(absolutePath, executionCwd, writeContent, hashlineStore);
 				return {
 					content: [
 						{

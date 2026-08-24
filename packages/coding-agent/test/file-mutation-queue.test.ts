@@ -168,6 +168,9 @@ describe("built-in edit and write tools", () => {
 			},
 		});
 		const writeTool = createWriteTool(dir, {
+			// One store per session, shared with the edit tool above, which is what lets `write`
+			// see the snapshot that edit just recorded and overwrite it.
+			hashlineStore: store,
 			operations: {
 				mkdir: async () => {},
 				writeFile: async (path, content) => {
@@ -257,6 +260,9 @@ describe("built-in edit and write tools", () => {
 			},
 		});
 		const writeTool = createWriteTool(dir, {
+			// Shared with the edit tool, so the aborted edit's post-commit snapshot is what this
+			// write is overwriting. The abort cancelled the result, not the bytes.
+			hashlineStore: store,
 			operations: {
 				mkdir: async () => {},
 				writeFile: async (path, content) => {

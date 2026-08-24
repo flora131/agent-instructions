@@ -6,7 +6,7 @@ import { computeFileHash, type SnapshotStore } from "./hashline-engine/index.ts"
  * It lives in the message text, not only on the class, because nothing typed survives the
  * trip from a tool to a workflow: a subagent result reports `cause`/`error` as strings, a
  * workflow task result has no error field at all, and the Goal runner reduces a failure to
- * `err.message`. Matching this token is how Goal recognises a conflict it should count
+ * `err.message`. Matching this token is how Goal recognizes a conflict it should count
  * against its budget rather than treat as an ordinary tool error.
  *
  * It is placed at the start of the message so it survives truncation of the tail as the
@@ -320,7 +320,7 @@ export class FileMutationConflict extends Error {
 
 	constructor(details: FileMutationConflictDetails) {
 		super(FileMutationConflict.formatMessage(details));
-		// Subclassing Error does not set this, and consumers match on it.
+		// Sub-classing Error does not set this, and consumers match on it.
 		this.name = "FileMutationConflict";
 		this.reason = details.reason;
 		this.path = details.path;
@@ -382,7 +382,7 @@ export function filesystemErrorCode(error: unknown): string | undefined {
  * closes a time-of-check window, it does not prove the session read the file.
  *
  * Full text rather than tags: a hashline tag is 16 bits and the engine documents that it can
- * collide, so it is a label for the model to recognise, never proof of identity.
+ * collide, so it is a label for the model to recognize, never proof of identity.
  */
 export function assertLiveMatchesPrepared(args: {
 	readonly canonicalKey: string;

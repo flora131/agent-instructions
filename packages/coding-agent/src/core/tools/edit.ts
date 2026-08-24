@@ -477,9 +477,13 @@ function createEditCwdScope(cwd: string, ops: EditOperations, hashlineStore: Has
 					{ cause: error },
 				);
 			}
-			throwIfAborted(applySignal);
 			invalidateNativeSearchCache(result.canonicalPath);
+			// Recorded before the abort check, not after. `commit` has already written, and since
+			// the patcher was made non-minting this call is the only writer of provenance, so
+			// aborting first would leave the session's own bytes on disk with nothing recorded
+			// for them. The next overwrite would then read as another agent's file.
 			const snapshot = recordHashlineSnapshot(result.canonicalPath, cwd, result.after, hashlineStore);
+			throwIfAborted(applySignal);
 			const diffResult = generateDiffString(result.before, result.after);
 			combinedDiff += `${combinedDiff ? "\n" : ""}${diffResult.diff}`;
 			combinedPatch += `${combinedPatch ? "\n" : ""}${generateUnifiedPatch(result.path, result.before, result.after)}`;
