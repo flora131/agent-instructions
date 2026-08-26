@@ -29,6 +29,8 @@ At 80 columns and wider, each `BACKGROUND` card keeps the full run identity and 
 
 The panel's stage progress includes recursively nested child workflows and updates as new stages appear. The numerator counts completed, failed, and skipped stages; the denominator counts all currently materialized stages, not future work. Expanded children replace their workflow boundary rather than counting both, and durable tool nodes are not stages. A failed, skipped, missing, or invalid child expansion keeps its boundary summary. `single`/`chain` follows this same stage count.
 
+A waiting card with exactly one displayable pending HIL request in its visible run tree adds one quoted, cell-bounded question row and an action row with the exact `/workflow connect <full-run-id>` command. The command targets the visible top-level run even when the concrete prompt belongs to a nested child, and the full UUID wraps rather than being ellipsized. `F2 answer` appears only when F2 currently targets that visible run. Interactive users answer in the connected workflow; the programmatic path remains `workflow answer` with exact run, stage, and prompt identity. Promptless waits, multi-question requests, and multiple pending occurrences keep the ordinary status-only card. The affordance repaints in place when the prompt resolves or is cancelled, stays outside the transcript and parent-model context, and does not change notification defaults or existing user-only answer notices. Below 80 columns, prompt text and actions remain omitted.
+
 For chat surfaces such as workflow status, run detail, dispatch confirmation, and the run picker, a full id wraps onto continuation rows when the card is narrower than the id. Pending-stage targets in run detail use the same rule: the exact address wraps instead of being ellipsized, and narrow status cards wrap the canonical stage ID or drop its display-name decoration rather than rendering a partial ID. The renderer keeps the card border closed at its minimum layout width, while terminals below that floor — including sub-30-column terminals — can hard-clip the box. An awaiting-input attribution banner is titled `AWAITING INPUT` and contains the same two identity rows — `？` plus the full run id, then the workflow name and optional metadata — while the existing prompt question and options remain below it in the normal prompt UI.
 
 The `/workflow connect` run picker shows five runs at a time; use the arrow keys or mouse wheel to scroll through additional retained runs.
@@ -41,6 +43,11 @@ The rendered card shape at the 80-column breakpoint is:
 │                                                                              │
 │   ●  d4e5f6a1-77b2-4c31-9e0a-2f1c8b4d6e5f                                    │
 │     build-check · chain · 0/2 · 12m                                          │
+│                                                                              │
+│   ？  8f3a1c20-5b64-4d8e-a791-2c3f0e6b9d44                                    │
+│     review-and-merge · single · 0/1 · 12m                                    │
+│     "Approve the generated migration before deployment?"                      │
+│     ❯ F2 answer · /workflow connect 8f3a1c20-5b64-4d8e-a791-2c3f0e6b9d44      │
 ```
 
 Below the breakpoint the same run set is represented by the collapsed count line, for example ` ▾  4 background · 2 ● · 1 quit`; a tool-only run adds its live count, for example ` ▾  1 background · 1 ● · 1 tool`.
