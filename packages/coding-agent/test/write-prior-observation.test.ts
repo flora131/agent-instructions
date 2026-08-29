@@ -180,6 +180,7 @@ describe("write requires this session to have observed what it overwrites", () =
 			hashlineStore,
 			operations: {
 				mkdir: async () => {},
+				readFile: async (path) => readFile(path, "utf-8").catch(() => undefined),
 				writeFile: async (path, content) => {
 					await writeFile(path, content, "utf-8");
 					// The abort arrives after the write has committed to disk but before the tool
@@ -198,5 +199,109 @@ describe("write requires this session to have observed what it overwrites", () =
 		const retry = createWriteTool(dir, { hashlineStore });
 		await retry.execute("write-2", { path: "aborted.txt", content: "retried\n" });
 		expect(await readFile(file, "utf-8")).toBe("retried\n");
+	});
+});
+
+describe("write creating a file claims the path exclusively", () => {
+	it("reports target_exists when something takes the path between the check and the write", async () => {
+		const dir = await createTempDir();
+		const file = join(dir, "raced.txt");
+
+		// The window is between `write` observing an absent path and its own write landing.
+		// Real concurrency cannot be made to hit it reliably, so the operations seam pins the
+		// interleaving: this stands in for another process creating the file in that gap.
+		const write = createWriteTool(dir, {
+			hashlineStore: createHashlineSnapshotStore(),
+			operations: {
+				mkdir: async () => {},
+				readFile: async (path) => readFile(path, "utf-8").catch(() => undefined),
+				writeFile: async (path, content, options) => {
+					if (options?.exclusive) await writeFile(path, "SOMEONE-ELSE\n", "utf-8");
+					await writeFile(path, content, { encoding: "utf-8", ...(options?.exclusive ? { flag: "wx" } : {}) });
+				},
+			},
+		});
+
+		const conflict = conflictFrom(
+			await rejection(write.execute("write-1", { path: "raced.txt", content: "mine\n" })),
+		);
+		expect(conflict.reason).toBe("target_exists");
+		// The loser is told what is there now rather than being sent to re-read blind.
+		expect(conflict.liveState?.lines).toBe(1);
+		// The write that got there first survives.
+		expect(await readFile(file, "utf-8")).toBe("SOMEONE-ELSE\n");
+	});
+
+	it("asks for exclusive create only when the path was absent", async () => {
+		const dir = await createTempDir();
+		const seen: Array<boolean | undefined> = [];
+		const hashlineStore = createHashlineSnapshotStore();
+		const write = createWriteTool(dir, {
+			hashlineStore,
+			operations: {
+				mkdir: async () => {},
+				readFile: async (path) => readFile(path, "utf-8").catch(() => undefined),
+				writeFile: async (path, content, options) => {
+					seen.push(options?.exclusive);
+					await writeFile(path, content, "utf-8");
+				},
+			},
+		});
+
+		await write.execute("write-1", { path: "twice.txt", content: "first\n" });
+		await write.execute("write-2", { path: "twice.txt", content: "second\n" });
+
+		// Create claims the path; the overwrite must not, or it would fail against its own file.
+		expect(seen).toEqual([true, undefined]);
+	});
+});
+
+describe("write reads the filesystem its writes land on", () => {
+	it("reports target_unreadable rather than treating an occupied path as free", async () => {
+		const dir = await createTempDir();
+		const write = createWriteTool(dir, {
+			hashlineStore: createHashlineSnapshotStore(),
+			operations: {
+				mkdir: async () => {},
+				readFile: async () => {
+					const error: NodeJS.ErrnoException = new Error("EISDIR: illegal operation on a directory");
+					error.code = "EISDIR";
+					throw error;
+				},
+				writeFile: async () => {
+					throw new Error("must not write to a path it could not read");
+				},
+			},
+		});
+
+		const conflict = conflictFrom(await rejection(write.execute("write-1", { path: "blocked", content: "mine\n" })));
+		expect(conflict.reason).toBe("target_unreadable");
+		expect(conflict.message).toContain("EISDIR");
+		// Nothing about the target is knowable once the read fails, so nothing is claimed.
+		expect(conflict.liveState).toBeUndefined();
+	});
+
+	it("consults the operations read rather than local disk", async () => {
+		const dir = await createTempDir();
+		const file = join(dir, "remote.txt");
+		// Local disk holds content the session never observed. A guard reading local disk would
+		// reject; one reading through `operations` sees a free path and creates.
+		await writeFile(file, "LOCAL-DECOY\n", "utf-8");
+
+		let wrote: string | undefined;
+		const write = createWriteTool(dir, {
+			hashlineStore: createHashlineSnapshotStore(),
+			operations: {
+				mkdir: async () => {},
+				readFile: async () => undefined,
+				writeFile: async (_path, content) => {
+					wrote = content;
+				},
+			},
+		});
+
+		await write.execute("write-1", { path: "remote.txt", content: "mine\n" });
+		expect(wrote).toBe("mine\n");
+		expect(await readFile(file, "utf-8")).toBe("LOCAL-DECOY\n");
 	});
 });

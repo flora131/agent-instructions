@@ -11,6 +11,15 @@ function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * The read half of `WriteOperations` for tests whose writes land on the real filesystem. These
+ * suites override `writeFile` to control interleaving, not to relocate the files, so the read
+ * has to see the same disk.
+ */
+async function readIfPresent(path: string): Promise<string | undefined> {
+	return readFile(path, "utf8").catch(() => undefined);
+}
+
 function createDeferred(): { promise: Promise<void>; resolve: () => void } {
 	let resolve!: () => void;
 	const promise = new Promise<void>((promiseResolve) => {
@@ -173,6 +182,7 @@ describe("built-in edit and write tools", () => {
 			hashlineStore: store,
 			operations: {
 				mkdir: async () => {},
+				readFile: readIfPresent,
 				writeFile: async (path, content) => {
 					await delay(10);
 					await writeFile(path, content, "utf8");
@@ -199,6 +209,7 @@ describe("built-in edit and write tools", () => {
 		const writeTool = createWriteTool(dir, {
 			operations: {
 				mkdir: async () => {},
+				readFile: readIfPresent,
 				writeFile: async (path, content) => {
 					if (content === "first\n") {
 						firstWriteStarted.resolve();
@@ -265,6 +276,7 @@ describe("built-in edit and write tools", () => {
 			hashlineStore: store,
 			operations: {
 				mkdir: async () => {},
+				readFile: readIfPresent,
 				writeFile: async (path, content) => {
 					if (content === "second\n") {
 						expect(firstWriteSettled).toBe(true);
