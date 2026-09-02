@@ -296,6 +296,11 @@ describe("installStoreWidget", () => {
 		assert.match(waiting, /"Approve the deployment\?"/);
 		assert.match(waiting, /❯ F2 answer · \/workflow connect r1/);
 
+		assert.equal(storeInstance.resolveStagePendingPrompt("wrong-run", "s1", "prompt-1", true), false);
+		assert.equal(storeInstance.resolveStagePendingPrompt("r1", "wrong-stage", "prompt-1", true), false);
+		assert.equal(storeInstance.resolveStagePendingPrompt("r1", "s1", "stale-prompt", true), false);
+		assert.match(component.render(120).join("\n"), /"Approve the deployment\?"/);
+
 		const requestsBeforeResolution = renderRequests.count;
 		assert.equal(storeInstance.resolveStagePendingPrompt("r1", "s1", "prompt-1", true), true);
 		await Promise.resolve();

@@ -723,7 +723,7 @@ The concise model-facing status listing enumerates pending stages with their dis
 
 ### F2 keyboard shortcut
 
-Press **F2** while a workflow is running to open the DAG overlay for the active run. In the wide `BACKGROUND` panel, a run tree with exactly one displayable HIL prompt shows the bounded question and exact `/workflow connect <full-run-id>` action (plus `F2 answer` only when F2 targets that run), while preserving any pending-stage or live-tool metadata that fits the row budget. Interactive users answer through F2 or the connected workflow; agents use `workflow answer` with the full run ID and exact stage/prompt identity. Promptless, multi-question, or ambiguous trees retain the status-only card, and the affordance clears in place when the exact prompt resolves.
+Press **F2** while a workflow is running to open the DAG overlay for the active run. In the wide `BACKGROUND` panel, a run tree with exactly one displayable HIL prompt shows the bounded, terminal-control-stripped question and exact `/workflow connect <full-run-id>` action (plus `F2 answer` only when F2 targets that run), while preserving any pending-stage or live-tool metadata that fits the row budget. Interactive users answer through F2 or the connected workflow; agents use `workflow answer` with the full run ID and exact stage/prompt identity. Promptless, multi-question, or ambiguous trees retain the status-only card, and the affordance clears in place when the exact prompt resolves.
 
 ### Execution model
 

@@ -1162,6 +1162,40 @@ describe("renderWidgetLines — awaiting-input affordances", () => {
 		assert.ok(!collapsed.join("\n").includes("/workflow connect"));
 	});
 
+	test("keeps waiting rows width-safe with exact pending targets and live-tool metadata", () => {
+		const runId = "339e05a4-2289-408e-9076-d1a348f582ae";
+		const waiting = awaitingRun(runId, "release", "Approve the release?");
+		waiting.stages.push(makeStage("r", "r", "pending", { pendingStageDeliveryAvailable: true }));
+		const run: RunSnapshot = {
+			...waiting,
+			toolNodes: [
+				{
+					kind: "tool",
+					id: "tool:verify",
+					name: "verify",
+					argsHash: "verify-hash",
+					ordinal: 0,
+					parentIds: [],
+					status: "running",
+					attachable: false,
+				},
+			],
+		};
+
+		const narrow = buildThemedWidgetLines(makeSnap([run]), undefined, 80, run.startedAt + 5_000).map(stripAnsi);
+		for (const line of narrow) assert.equal(visibleWidth(line), 80);
+		const narrowText = narrow.join("\n");
+		assert.match(narrowText, /verify · running/u);
+		assert.match(narrowText, new RegExp(`/workflow connect ${runId}`));
+		assert.doesNotMatch(narrowText, /\/workflow connect [^\n│]*…/u);
+
+		const roomy = buildThemedWidgetLines(makeSnap([run]), undefined, 120, run.startedAt + 5_000).map(stripAnsi);
+		for (const line of roomy) assert.equal(visibleWidth(line), 120);
+		const exactPendingTarget = `${runId}:r`;
+		assert.match(roomy.join("\n"), new RegExp(exactPendingTarget));
+		assert.doesNotMatch(roomy.join("\n"), new RegExp(`${runId}:…`));
+	});
+
 	test("falls back to the ordinary status row for ambiguous prompts", () => {
 		const run = makeRun("ambiguous-card", "ambiguous", "running", [makeStage("ask", "ask", "awaiting_input")]);
 		run.stages[0]!.inputRequest = {
