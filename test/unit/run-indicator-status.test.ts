@@ -126,6 +126,32 @@ describe("runIndicatorStatus", () => {
 		}
 	});
 
+	test("rejects a stale prompt behind a completed intermediate workflow boundary", () => {
+		const child = childRun("stale-child", "parent", "to-child", "root", [awaitingStage("stale-ask")]);
+		const parent = {
+			...childRun("parent", "root", "to-parent", "root"),
+			stages: [
+				{
+					...workflowBoundary("to-child", child.id),
+					status: "completed" as const,
+					workflowChildRun: undefined,
+					workflowChild: {
+						alias: "child",
+						workflow: child.name,
+						runId: child.id,
+						status: "completed" as const,
+						outputs: {},
+					},
+				},
+			],
+		};
+		const root = makeRun("root", "running", [workflowBoundary("to-parent", parent.id)]);
+		const runs = [root, parent, child];
+
+		assert.deepEqual(visibleRunTreeMembers(root, runs), [root, parent]);
+		assert.equal(runIndicatorStatus(root, runs), "running");
+	});
+
 	test("fails closed without changing public-store duplicate run snapshots", () => {
 		const store = createStore();
 		const root = makeRun("duplicate-root", "running", [workflowBoundary("to-child", "duplicate-child")]);

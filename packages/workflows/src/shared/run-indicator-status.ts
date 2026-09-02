@@ -66,7 +66,10 @@ function runHasPendingInput(run: RunSnapshot): boolean {
 
 /**
  * Apply the indicator-specific liveness rule after canonical ownership has
- * already established a complete, acyclic chain to the visible run.
+ * already established a complete, acyclic chain to the visible run. Every
+ * ownership hop must still cross a running workflow boundary: terminal
+ * boundary state and non-running live-child metadata are authoritative over
+ * a stale child snapshot.
  */
 function hasLiveAncestry(
 	candidate: RunSnapshot,
@@ -74,13 +77,24 @@ function hasLiveAncestry(
 	runsById: ReadonlyMap<string, RunSnapshot>,
 ): boolean {
 	const visited = new Set<string>();
-	let parentRunId = candidate.parentRunId;
-	while (parentRunId !== visibleRun.id) {
-		if (parentRunId === undefined || visited.has(parentRunId)) return false;
-		visited.add(parentRunId);
-		const parent = runsById.get(parentRunId);
-		if (parent === undefined || isTerminalOrBlockedRun(parent)) return false;
-		parentRunId = parent.parentRunId;
+	let current: RunSnapshot | undefined = candidate;
+	while (current.id !== visibleRun.id) {
+		if (visited.has(current.id)) return false;
+		visited.add(current.id);
+		const parentRunId = current.parentRunId;
+		const parentStageId = current.parentStageId;
+		if (parentRunId === undefined || parentStageId === undefined) return false;
+		const parent: RunSnapshot | undefined = runsById.get(parentRunId);
+		const boundary = parent?.stages.find((stage) => stage.id === parentStageId);
+		if (
+			parent === undefined ||
+			isTerminalOrBlockedRun(parent) ||
+			boundary === undefined ||
+			isTerminalStageStatus(boundary.status) ||
+			boundary.status !== "running"
+		)
+			return false;
+		current = parent;
 	}
 	return true;
 }

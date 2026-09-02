@@ -16,6 +16,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "vitest";
 import { statusRuns } from "../../packages/workflows/src/runs/background/status.js";
+import { runIndicatorStatus, visibleRunTreeMembers } from "../../packages/workflows/src/shared/run-indicator-status.js";
 import { createStore } from "../../packages/workflows/src/shared/store.js";
 import type { RunSnapshot, StageSnapshot, StoreSnapshot } from "../../packages/workflows/src/shared/store-types.js";
 import { hexToAnsi } from "../../packages/workflows/src/tui/color-utils.js";
@@ -1191,6 +1192,38 @@ describe("renderWidgetLines — awaiting-input affordances", () => {
 		assert.ok(joined.includes('"Answer in the child workflow?"'));
 		assert.ok(joined.includes(`/workflow connect ${root.id}`));
 		assert.ok(!joined.includes(child.id), "the hidden owner id is not substituted for the visible connect target");
+	});
+
+	test("keeps a stale-running child behind a completed boundary status-only", () => {
+		const root = makeRun("completed-boundary-root", "completed-boundary-root", "running");
+		const child = {
+			...awaitingRun("stale-running-child", "stale-child", "Stale completed child question?"),
+			parentRunId: root.id,
+			parentStageId: "root-to-child",
+			rootRunId: root.id,
+		};
+		root.stages.push(
+			makeStage("root-to-child", "child", "completed", {
+				workflowChild: {
+					alias: "child",
+					workflow: child.name,
+					runId: child.id,
+					status: "completed",
+					outputs: {},
+				},
+			}),
+		);
+		const runs = [root, child];
+
+		assert.deepEqual(visibleRunTreeMembers(root, runs), [root]);
+		assert.equal(runIndicatorStatus(root, runs), "running");
+		assert.equal(pendingInputAffordance(root, runs), undefined);
+		const lines = renderWidgetLines(makeSnap(runs), 120).map(stripAnsi);
+		const joined = lines.join("\n");
+		assert.equal(lines.length, 4);
+		assert.ok(joined.includes(statusIcon("running")));
+		assert.doesNotMatch(joined, /Stale completed child question|F2 answer/);
+		assert.ok(!joined.includes(`/workflow connect ${root.id}`));
 	});
 
 	test("does not render a connect action for a one-sided nested claimant", () => {
