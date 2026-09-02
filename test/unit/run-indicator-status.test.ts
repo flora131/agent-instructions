@@ -3,8 +3,11 @@ import { describe, test } from "vitest";
 import {
 	resolveRunIndicatorStatuses,
 	runIndicatorStatus,
+	visibleRunTreeMembers,
 } from "../../packages/workflows/src/shared/run-indicator-status.js";
+import { createStore } from "../../packages/workflows/src/shared/store.js";
 import type { RunSnapshot, StageSnapshot } from "../../packages/workflows/src/shared/store-types.js";
+import { bunExecutable, spawnSyncCollect } from "../helpers/runtime.js";
 
 function makeRun(id: string, status: RunSnapshot["status"], stages: StageSnapshot[] = []): RunSnapshot {
 	return {
@@ -41,6 +44,23 @@ function workflowBoundary(id: string, childRunId: string): StageSnapshot {
 		parentIds: [],
 		toolEvents: [],
 		workflowChildRun: { alias: childRunId, workflow: childRunId, runId: childRunId },
+	};
+}
+
+const DUPLICATE_CYCLE_PROBE_TIMEOUT_MS = 5_000;
+
+function childRun(
+	id: string,
+	parentRunId: string,
+	parentStageId: string,
+	rootRunId: string,
+	stages: StageSnapshot[] = [],
+): RunSnapshot {
+	return {
+		...makeRun(id, "running", stages),
+		parentRunId,
+		parentStageId,
+		rootRunId,
 	};
 }
 
@@ -104,6 +124,99 @@ describe("runIndicatorStatus", () => {
 
 			assert.equal(runIndicatorStatus(root, [root, parent, child]), "running", status);
 		}
+	});
+
+	test("fails closed without changing public-store duplicate run snapshots", () => {
+		const store = createStore();
+		const root = makeRun("duplicate-root", "running", [workflowBoundary("to-child", "duplicate-child")]);
+		const divergent = {
+			...childRun("duplicate-child", root.id, "missing-boundary", root.id, [awaitingStage("divergent-ask")]),
+			name: "divergent-duplicate",
+		};
+		const canonical = {
+			...childRun("duplicate-child", root.id, "to-child", root.id),
+			name: "canonical-duplicate",
+		};
+
+		store.recordRunStart(root);
+		store.recordRunStart(divergent);
+		store.recordRunStart(canonical);
+		const acceptedRuns = store.runs();
+		assert.deepEqual(
+			acceptedRuns.map((run) => [run.id, run.name]),
+			[
+				[root.id, root.name],
+				[divergent.id, divergent.name],
+				[canonical.id, canonical.name],
+			],
+			"the public store accepts and preserves duplicate ids in insertion order",
+		);
+
+		assert.deepEqual(visibleRunTreeMembers(root, acceptedRuns), [root]);
+		assert.equal(runIndicatorStatus(root, acceptedRuns), "running");
+		assert.deepEqual(
+			store.runs().map((run) => [run.id, run.name]),
+			acceptedRuns.map((run) => [run.id, run.name]),
+			"projection must not normalize, reorder, or mutate the store collection",
+		);
+	});
+
+	test("terminates within a bound for a divergent duplicate whose ancestry cycles", () => {
+		const moduleUrl = new URL("../../packages/workflows/src/shared/run-indicator-status.ts", import.meta.url).href;
+		const probe = `
+			const { visibleRunTreeMembers } = await import(${JSON.stringify(moduleUrl)});
+			const stage = (id, child) => ({
+				id, name: id, status: "running", parentIds: [], toolEvents: [],
+				workflowChildRun: child ? { alias: child, workflow: child, runId: child } : undefined,
+			});
+			const run = (id, stages = []) => ({ id, name: id, inputs: {}, status: "running", stages, startedAt: 1 });
+			const root = run("root", [stage("to-child", "child")]);
+			const divergent = { ...run("child"), parentRunId: "cycle-a", parentStageId: "from-a", rootRunId: "root" };
+			const cycleA = { ...run("cycle-a"), parentRunId: "cycle-b", parentStageId: "from-b", rootRunId: "root" };
+			const cycleB = { ...run("cycle-b"), parentRunId: "cycle-a", parentStageId: "from-a", rootRunId: "root" };
+			const canonical = { ...run("child"), parentRunId: "root", parentStageId: "to-child", rootRunId: "root" };
+			console.log(JSON.stringify(visibleRunTreeMembers(root, [root, divergent, cycleA, cycleB, canonical]).map((item) => item.id)));
+		`;
+
+		const result = spawnSyncCollect([bunExecutable(), "-e", probe], {
+			timeout: DUPLICATE_CYCLE_PROBE_TIMEOUT_MS,
+		});
+		assert.equal(result.exitCode, 0, result.stderr.toString());
+		assert.equal(result.stdout.toString().trim(), '["root"]');
+	});
+
+	test("ignores stale pending-input residue on every terminal stage status", () => {
+		for (const status of ["completed", "failed", "skipped"] as const) {
+			const marker: StageSnapshot = {
+				...awaitingStage(`${status}-marker`),
+				status,
+				awaitingInputSince: 2,
+				pendingPrompt: undefined,
+			};
+			const prompt = { ...awaitingStage(`${status}-prompt`), status };
+			const request = {
+				...awaitingStage(`${status}-request`),
+				status,
+				pendingPrompt: undefined,
+				inputRequest: {
+					id: `${status}-input-request`,
+					kind: "ask_user_question" as const,
+					questions: [{ question: "Stale question", options: [] }],
+					createdAt: 1,
+				},
+			};
+
+			assert.equal(
+				runIndicatorStatus(makeRun(`${status}-residue`, "running", [marker, prompt, request])),
+				"running",
+			);
+		}
+	});
+
+	test("keeps a live prompt awaiting when terminal stage residue is present", () => {
+		const stale = { ...awaitingStage("completed-stale"), status: "completed" as const, awaitingInputSince: 2 };
+		const live = awaitingStage("live");
+		assert.equal(runIndicatorStatus(makeRun("live-with-residue", "running", [stale, live])), "awaiting_input");
 	});
 
 	test("reverts immediately when a prompt is answered or cancelled", () => {

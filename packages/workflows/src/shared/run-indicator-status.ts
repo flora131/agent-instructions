@@ -1,4 +1,5 @@
 import { effectiveRunStatus } from "./returned-run-status.js";
+import { isTerminalStageStatus } from "./store-internal.js";
 import type { RunSnapshot, RunStatus } from "./store-types.js";
 import { reciprocalWorkflowRootRunId } from "./workflow-run-ownership.js";
 
@@ -28,10 +29,9 @@ function isTerminalOrBlockedRun(run: RunSnapshot): boolean {
 export function runIndicatorStatus(run: RunSnapshot, allRuns: readonly RunSnapshot[] = [run]): RunIndicatorStatus {
 	const status = effectiveRunStatus(run);
 	if (isTerminalOrBlockedRun(run)) return status;
-	if (runHasPendingInput(run)) return "awaiting_input";
 
 	for (const candidate of visibleRunTreeMembers(run, allRuns)) {
-		if (candidate.id !== run.id && runHasPendingInput(candidate)) return "awaiting_input";
+		if (runHasPendingInput(candidate)) return "awaiting_input";
 	}
 	return status;
 }
@@ -56,10 +56,11 @@ function runHasPendingInput(run: RunSnapshot): boolean {
 	if (run.pendingPrompt !== undefined) return true;
 	return run.stages.some(
 		(stage) =>
-			stage.status === "awaiting_input" ||
-			stage.awaitingInputSince !== undefined ||
-			stage.pendingPrompt !== undefined ||
-			stage.inputRequest !== undefined,
+			!isTerminalStageStatus(stage.status) &&
+			(stage.status === "awaiting_input" ||
+				stage.awaitingInputSince !== undefined ||
+				stage.pendingPrompt !== undefined ||
+				stage.inputRequest !== undefined),
 	);
 }
 
@@ -72,9 +73,11 @@ function hasLiveAncestry(
 	visibleRun: RunSnapshot,
 	runsById: ReadonlyMap<string, RunSnapshot>,
 ): boolean {
+	const visited = new Set<string>();
 	let parentRunId = candidate.parentRunId;
 	while (parentRunId !== visibleRun.id) {
-		if (parentRunId === undefined) return false;
+		if (parentRunId === undefined || visited.has(parentRunId)) return false;
+		visited.add(parentRunId);
 		const parent = runsById.get(parentRunId);
 		if (parent === undefined || isTerminalOrBlockedRun(parent)) return false;
 		parentRunId = parent.parentRunId;
@@ -95,10 +98,19 @@ export function visibleRunTreeMembers(
 ): RunSnapshot[] {
 	if (isTerminalOrBlockedRun(visibleRun)) return [];
 
-	const runsById = new Map(allRuns.map((candidate) => [candidate.id, candidate]));
+	const runsById = new Map<string, RunSnapshot>();
+	const ambiguousRunIds = new Set<string>();
+	for (const candidate of allRuns) {
+		if (runsById.has(candidate.id)) ambiguousRunIds.add(candidate.id);
+		else runsById.set(candidate.id, candidate);
+	}
+	for (const id of ambiguousRunIds) runsById.delete(id);
+	if (ambiguousRunIds.has(visibleRun.id)) return [];
+
 	const members: RunSnapshot[] = [visibleRun];
 	for (const candidate of allRuns) {
-		if (candidate.id === visibleRun.id || isTerminalOrBlockedRun(candidate)) continue;
+		if (candidate.id === visibleRun.id || ambiguousRunIds.has(candidate.id) || isTerminalOrBlockedRun(candidate))
+			continue;
 		if (reciprocalWorkflowRootRunId(runsById, candidate.id) !== visibleRun.id) continue;
 		if (hasLiveAncestry(candidate, visibleRun, runsById)) members.push(candidate);
 	}

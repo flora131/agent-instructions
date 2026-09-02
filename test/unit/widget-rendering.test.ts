@@ -1082,6 +1082,48 @@ describe("pendingInputAffordance", () => {
 			assert.equal(pendingInputAffordance(run, [run]), undefined, `${status} owner must not surface a prompt`);
 		}
 	});
+
+	test("excludes every terminal stage residue variant and keeps the one live identity", () => {
+		for (const status of ["completed", "failed", "skipped"] as const) {
+			const marker = makeStage(`${status}-marker`, "marker", status, { awaitingInputSince: 1 });
+			const prompt = makeStage(`${status}-prompt`, "prompt", status, {
+				pendingPrompt: {
+					id: `${status}-pending-prompt`,
+					kind: "confirm",
+					message: "Stale terminal prompt",
+					createdAt: 1,
+				},
+			});
+			const request = makeStage(`${status}-request`, "request", status, {
+				inputRequest: {
+					id: `${status}-input-request`,
+					kind: "ask_user_question",
+					questions: [{ question: "Stale terminal question", options: [] }],
+					createdAt: 1,
+				},
+			});
+
+			for (const residue of [marker, prompt, request]) {
+				const staleOnly = makeRun(`${status}-${residue.id}`, "terminal-residue", "running", [residue]);
+				assert.equal(pendingInputAffordance(staleOnly, [staleOnly]), undefined, `${status} ${residue.id}`);
+			}
+
+			const live = makeStage(`${status}-live`, "live", "awaiting_input", {
+				pendingPrompt: {
+					id: `${status}-live-prompt`,
+					kind: "confirm",
+					message: "Answer the live prompt",
+					createdAt: 2,
+				},
+			});
+			const mixed = makeRun(`${status}-mixed`, "mixed", "running", [marker, prompt, request, live]);
+			assert.deepEqual(pendingInputAffordance(mixed, [mixed]), {
+				identity: [mixed.id, live.id, `${status}-live-prompt`],
+				visibleRunId: mixed.id,
+				message: "Answer the live prompt",
+			});
+		}
+	});
 });
 
 describe("renderWidgetLines — awaiting-input affordances", () => {
@@ -1165,6 +1207,75 @@ describe("renderWidgetLines — awaiting-input affordances", () => {
 		assert.equal(lines.length, 4);
 		assert.doesNotMatch(joined, /Answer the unowned prompt|F2 answer/);
 		assert.ok(!joined.includes(`/workflow connect ${root.id}`));
+	});
+
+	test("does not render prompt or connect semantics for divergent public-store duplicates", () => {
+		const store = createStore();
+		const root = makeRun("duplicate-widget-root", "duplicate-root", "running", [
+			makeStage("to-child", "child", "running", {
+				workflowChildRun: { alias: "child", workflow: "child", runId: "duplicate-widget-child" },
+			}),
+		]);
+		const divergent = {
+			...awaitingRun("duplicate-widget-child", "divergent-child", "Wrongly attributed prompt"),
+			parentRunId: root.id,
+			parentStageId: "missing-boundary",
+			rootRunId: root.id,
+		};
+		const canonical = {
+			...makeRun("duplicate-widget-child", "canonical-child", "running"),
+			parentRunId: root.id,
+			parentStageId: "to-child",
+			rootRunId: root.id,
+		};
+		store.recordRunStart(root);
+		store.recordRunStart(divergent);
+		store.recordRunStart(canonical);
+		assert.deepEqual(
+			store.runs().map((run) => run.name),
+			[root.name, divergent.name, canonical.name],
+			"public store preserves both duplicate snapshots and their order",
+		);
+
+		const lines = renderWidgetLines(store.snapshot(), 120).map(stripAnsi);
+		const joined = lines.join("\n");
+		assert.equal(lines.length, 4);
+		assert.doesNotMatch(joined, /Wrongly attributed prompt|F2 answer/);
+		assert.ok(!joined.includes(`/workflow connect ${root.id}`));
+	});
+
+	test("renders terminal stage residue as ordinary status without question or connect semantics", () => {
+		for (const status of ["completed", "failed", "skipped"] as const) {
+			const residues = [
+				makeStage("marker", "marker", status, { awaitingInputSince: 1 }),
+				makeStage("prompt", "prompt", status, {
+					pendingPrompt: {
+						id: `${status}-widget-prompt`,
+						kind: "confirm",
+						message: "Stale terminal prompt",
+						createdAt: 1,
+					},
+				}),
+				makeStage("request", "request", status, {
+					inputRequest: {
+						id: `${status}-widget-request`,
+						kind: "ask_user_question",
+						questions: [{ question: "Stale terminal question", options: [] }],
+						createdAt: 1,
+					},
+				}),
+			];
+
+			for (const residue of residues) {
+				const run = makeRun(`${status}-${residue.id}-card`, `${status}-${residue.id}`, "running", [residue]);
+				const lines = renderWidgetLines(makeSnap([run]), 120).map(stripAnsi);
+				const joined = lines.join("\n");
+				assert.equal(lines.length, 4, `${status} ${residue.id}`);
+				assert.doesNotMatch(joined, /Stale terminal (prompt|question)|F2 answer/);
+				assert.ok(!joined.includes(`/workflow connect ${run.id}`), `${status} ${residue.id}`);
+				assert.ok(!joined.includes(statusIcon("awaiting_input")), `${status} ${residue.id}`);
+			}
+		}
 	});
 
 	test("only the store active run gets the F2 answer hint", () => {

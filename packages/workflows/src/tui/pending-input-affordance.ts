@@ -1,4 +1,5 @@
 import { visibleRunTreeMembers } from "../shared/run-indicator-status.js";
+import { isTerminalStageStatus } from "../shared/store-internal.js";
 import type { PendingPrompt, RunSnapshot } from "../shared/store-types.js";
 
 /**
@@ -139,6 +140,7 @@ function stagePromptOccurrences(run: RunSnapshot): PendingInputOccurrence[] {
 	const occurrences: PendingInputOccurrence[] = [];
 
 	for (const stage of run.stages) {
+		if (isTerminalStageStatus(stage.status)) continue;
 		const prompt = stage.pendingPrompt;
 		if (prompt !== undefined) {
 			const message = normalizePromptMessage(prompt.message);
