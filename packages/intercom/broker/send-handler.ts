@@ -213,9 +213,13 @@ export function handleBrokerSend(
   // supervisor frame or an exact recorded reply may resolve across groups.
 	const liveWorkflowTarget = sessions.has(trimmedTo) ? undefined : resolveLiveWorkflowStage?.(trimmedTo);
 	const exactIdTarget = sessions.get(trimmedTo) ?? liveWorkflowTarget;
-  const reachableAcrossGroups = supervisorSend || Boolean(message.replyTo);
   const visibleCandidates = Array.from(sessions.values(), (session) => session.info).filter(
-	(info) => reachableAcrossGroups || sessionsShareGroup(info, fromSession.info),
+	(info) => sessionsShareGroup(info, fromSession.info) ||
+      (supervisorSend && info.id === fromSession.supervisorId) ||
+      (message.replyTo !== undefined && (
+        pendingQuestions.matchesReply(fromSession.info.id, info.id, message.replyTo) ||
+        isVerticalBypass({ replyTo: message.replyTo, sender: fromSession.info, target: info, supervisorCache })
+      )),
   );
   const candidates = visibleCandidates.filter(isAgentRecipient);
   const resolution = exactIdTarget

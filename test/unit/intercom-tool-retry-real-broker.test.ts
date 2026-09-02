@@ -815,6 +815,8 @@ test("a public reply reaches a retried cross-group ask after the asker reconnect
 	assert.equal(routeValidations, 1, "deduplication must not reroute the accepted question");
 	assert.equal(questions.length, 1, "the recipient sees exactly one question");
 	const imposter = await createClient("workflow-sender");
+	// #2603: only a visible same-name peer can make reply discovery ambiguous.
+	await imposter.joinGroup(stageGroup);
 	const imposterId = imposter.sessionId;
 	assert.ok(imposterId);
 	const ambiguousReply = await recipientTool.execute(
