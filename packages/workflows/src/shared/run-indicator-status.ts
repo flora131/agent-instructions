@@ -1,5 +1,6 @@
 import { effectiveRunStatus } from "./returned-run-status.js";
 import type { RunSnapshot, RunStatus } from "./store-types.js";
+import { reciprocalWorkflowRootRunId } from "./workflow-run-ownership.js";
 
 /** The status represented by a run's primary indicator. */
 export type RunIndicatorStatus = RunStatus | "awaiting_input";
@@ -20,9 +21,9 @@ function isTerminalOrBlockedRun(run: RunSnapshot): boolean {
  *
  * A live run with a pending run/stage prompt is awaiting input. When the
  * caller supplies the complete run collection, pending prompts in hidden
- * nested descendants are attributed to the visible ancestor by following
- * `rootRunId` and `parentRunId`. Effective terminal and blocked statuses are
- * authoritative, even when a stale prompt marker remains in a snapshot.
+ * nested descendants are attributed only through reciprocal workflow
+ * boundaries. Effective terminal and blocked statuses are authoritative,
+ * even when a stale prompt marker remains in a snapshot.
  */
 export function runIndicatorStatus(run: RunSnapshot, allRuns: readonly RunSnapshot[] = [run]): RunIndicatorStatus {
 	const status = effectiveRunStatus(run);
@@ -63,26 +64,22 @@ function runHasPendingInput(run: RunSnapshot): boolean {
 }
 
 /**
- * Check whether a candidate is in an ancestor's explicit or inferred run
- * tree. Parent traversal is cycle-safe because restored snapshots can contain
- * incomplete or malformed ancestry.
+ * Apply the indicator-specific liveness rule after canonical ownership has
+ * already established a complete, acyclic chain to the visible run.
  */
-function runBelongsTo(
+function hasLiveAncestry(
 	candidate: RunSnapshot,
-	ancestor: RunSnapshot,
+	visibleRun: RunSnapshot,
 	runsById: ReadonlyMap<string, RunSnapshot>,
 ): boolean {
-	if (candidate.rootRunId === ancestor.id) return true;
-
-	const visited = new Set<string>();
-	let current: RunSnapshot | undefined = candidate;
-	while (current !== undefined && current.parentRunId !== undefined) {
-		if (current.parentRunId === ancestor.id) return true;
-		if (visited.has(current.id)) return false;
-		visited.add(current.id);
-		current = runsById.get(current.parentRunId);
+	let parentRunId = candidate.parentRunId;
+	while (parentRunId !== visibleRun.id) {
+		if (parentRunId === undefined) return false;
+		const parent = runsById.get(parentRunId);
+		if (parent === undefined || isTerminalOrBlockedRun(parent)) return false;
+		parentRunId = parent.parentRunId;
 	}
-	return false;
+	return true;
 }
 
 /**
@@ -102,7 +99,8 @@ export function visibleRunTreeMembers(
 	const members: RunSnapshot[] = [visibleRun];
 	for (const candidate of allRuns) {
 		if (candidate.id === visibleRun.id || isTerminalOrBlockedRun(candidate)) continue;
-		if (runBelongsTo(candidate, visibleRun, runsById)) members.push(candidate);
+		if (reciprocalWorkflowRootRunId(runsById, candidate.id) !== visibleRun.id) continue;
+		if (hasLiveAncestry(candidate, visibleRun, runsById)) members.push(candidate);
 	}
 	return members;
 }

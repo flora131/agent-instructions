@@ -33,6 +33,17 @@ function awaitingStage(id = "ask"): StageSnapshot {
 	};
 }
 
+function workflowBoundary(id: string, childRunId: string): StageSnapshot {
+	return {
+		id,
+		name: id,
+		status: "running",
+		parentIds: [],
+		toolEvents: [],
+		workflowChildRun: { alias: childRunId, workflow: childRunId, runId: childRunId },
+	};
+}
+
 describe("runIndicatorStatus", () => {
 	test("returns awaiting_input for a live run-level or stage prompt", () => {
 		const runPrompt = makeRun("run-prompt", "running");
@@ -41,25 +52,58 @@ describe("runIndicatorStatus", () => {
 		assert.equal(runIndicatorStatus(makeRun("stage-prompt", "running", [awaitingStage()])), "awaiting_input");
 	});
 
-	test("walks parentRunId ancestry and attributes a hidden descendant to its visible ancestor", () => {
-		const root = makeRun("root", "running");
-		const parent = { ...makeRun("parent", "running"), parentRunId: root.id };
-		const child = { ...makeRun("child", "running", [awaitingStage()]), parentRunId: parent.id };
+	test("attributes a live nested prompt only through reciprocal workflow boundaries", () => {
+		const child = {
+			...makeRun("child", "running", [awaitingStage()]),
+			parentRunId: "parent",
+			parentStageId: "to-child",
+			rootRunId: "root",
+		};
+		const parent = {
+			...makeRun("parent", "running", [workflowBoundary("to-child", child.id)]),
+			parentRunId: "root",
+			parentStageId: "to-parent",
+			rootRunId: "root",
+		};
+		const root = makeRun("root", "running", [workflowBoundary("to-parent", parent.id)]);
 		const unrelated = makeRun("unrelated", "running");
 		const allRuns = [root, parent, child, unrelated];
 
 		assert.equal(runIndicatorStatus(root, allRuns), "awaiting_input");
-		assert.equal(runIndicatorStatus(parent, allRuns), "awaiting_input");
 		assert.equal(runIndicatorStatus(unrelated, allRuns), "running");
 		assert.equal(runIndicatorStatus(makeRun("clean", "running"), allRuns), "running");
 	});
 
-	test("accepts an explicit rootRunId and does not infer unrelated runs", () => {
+	test("rejects a one-sided nested claimant whose parent boundary does not own it", () => {
 		const root = makeRun("root", "running");
-		const child = { ...makeRun("child", "running", [awaitingStage()]), rootRunId: root.id, parentRunId: "missing" };
-		const unrelated = makeRun("unrelated", "running");
-		assert.equal(runIndicatorStatus(root, [root, child, unrelated]), "awaiting_input");
-		assert.equal(runIndicatorStatus(unrelated, [root, child, unrelated]), "running");
+		const claimant = {
+			...makeRun("claimant", "running", [awaitingStage()]),
+			rootRunId: root.id,
+			parentRunId: root.id,
+			parentStageId: "missing-boundary",
+		};
+
+		assert.equal(runIndicatorStatus(root, [root, claimant]), "running");
+	});
+
+	test("rejects an active grandchild prompt behind a terminal or blocked intermediate run", () => {
+		for (const status of ["completed", "blocked"] as const) {
+			const child = {
+				...makeRun(`${status}-child`, "running", [awaitingStage()]),
+				parentRunId: `${status}-parent`,
+				parentStageId: "to-child",
+				rootRunId: `${status}-root`,
+			};
+			const parent = {
+				...makeRun(`${status}-parent`, status, [workflowBoundary("to-child", child.id)]),
+				parentRunId: `${status}-root`,
+				parentStageId: "to-parent",
+				rootRunId: `${status}-root`,
+			};
+			const root = makeRun(`${status}-root`, "running", [workflowBoundary("to-parent", parent.id)]);
+
+			assert.equal(runIndicatorStatus(root, [root, parent, child]), "running", status);
+		}
 	});
 
 	test("reverts immediately when a prompt is answered or cancelled", () => {
@@ -86,9 +130,13 @@ describe("runIndicatorStatus", () => {
 });
 
 describe("resolveRunIndicatorStatuses", () => {
-	test("resolves each listed run against the complete collection into serializable data", () => {
-		const root = makeRun("root", "running");
-		const child = { ...makeRun("child", "running", [awaitingStage()]), parentRunId: root.id };
+	test("resolves each listed run against a reciprocal child boundary into serializable data", () => {
+		const child = {
+			...makeRun("child", "running", [awaitingStage()]),
+			parentRunId: "root",
+			parentStageId: "to-child",
+		};
+		const root = makeRun("root", "running", [workflowBoundary("to-child", child.id)]);
 		const unrelated = makeRun("unrelated", "running");
 		const statuses = resolveRunIndicatorStatuses([root, unrelated], [root, child, unrelated]);
 		assert.deepEqual(statuses, { root: "awaiting_input", unrelated: "running" });

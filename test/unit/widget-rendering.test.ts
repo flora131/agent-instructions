@@ -631,21 +631,31 @@ describe("renderWidgetLines — standard form", () => {
 		assert.equal(lines.filter((line) => line.includes("single")).length, 6);
 	});
 
-	test("hides nested child workflow runs, showing only the top-level run", () => {
+	test("hides reciprocally owned nested child workflow runs, showing only the top-level run", () => {
 		const t = Date.now();
 		const root = makeRun("root1111", "contract-hil-nested-root", "running", [], t - 3000);
 		const parent: RunSnapshot = {
 			...makeRun("parent22", "contract-hil-nested-parent", "running", [], t - 2000),
 			parentRunId: "root1111",
-			parentStageId: "hil-parent:imported-composition",
+			parentStageId: "root-to-parent",
 			rootRunId: "root1111",
 		};
 		const child: RunSnapshot = {
 			...makeRun("child333", "contract-hil-nested-child", "running", [], t - 1000),
 			parentRunId: "parent22",
-			parentStageId: "hil-child:imported",
+			parentStageId: "parent-to-child",
 			rootRunId: "root1111",
 		};
+		root.stages.push(
+			makeStage("root-to-parent", "parent", "running", {
+				workflowChildRun: { alias: "parent", workflow: parent.name, runId: parent.id },
+			}),
+		);
+		parent.stages.push(
+			makeStage("parent-to-child", "child", "running", {
+				workflowChildRun: { alias: "child", workflow: child.name, runId: child.id },
+			}),
+		);
 		const lines = renderWidgetLines(makeSnap([child, parent, root]), 120).map(stripAnsi);
 		const joined = lines.join("\n");
 		// Only the top-level root is listed; the count reflects one run, not three.
@@ -655,7 +665,7 @@ describe("renderWidgetLines — standard form", () => {
 		assert.ok(!joined.includes("contract-hil-nested-child"), "nested child run must be hidden");
 	});
 
-	test("surfaces a hidden nested child's awaiting-input (HiL) state on the top-level run", () => {
+	test("surfaces a reciprocally owned hidden nested child's awaiting-input state on the top-level run", () => {
 		const t = Date.now();
 		// Root is running and blocked on its imported composition; the actual HiL
 		// prompt is awaiting in the nested child run, which the widget hides.
@@ -663,6 +673,7 @@ describe("renderWidgetLines — standard form", () => {
 		const parent: RunSnapshot = {
 			...makeRun("parent22", "contract-hil-nested-parent", "running", [], t - 2000),
 			parentRunId: "root1111",
+			parentStageId: "root-to-parent",
 			rootRunId: "root1111",
 		};
 		const child: RunSnapshot = {
@@ -674,8 +685,19 @@ describe("renderWidgetLines — standard form", () => {
 				t - 1000,
 			),
 			parentRunId: "parent22",
+			parentStageId: "parent-to-child",
 			rootRunId: "root1111",
 		};
+		root.stages.push(
+			makeStage("root-to-parent", "parent", "running", {
+				workflowChildRun: { alias: "parent", workflow: parent.name, runId: parent.id },
+			}),
+		);
+		parent.stages.push(
+			makeStage("parent-to-child", "child", "running", {
+				workflowChildRun: { alias: "child", workflow: child.name, runId: child.id },
+			}),
+		);
 		const lines = renderWidgetLines(makeSnap([child, parent, root]), 120).map(stripAnsi);
 		const header = lines[0]!;
 		// Only the root is listed, but its hidden descendant's awaiting state still
@@ -950,13 +972,19 @@ describe("pendingInputAffordance", () => {
 		});
 	});
 
-	test("retains nested owner identity while targeting the visible root", () => {
+	test("retains a reciprocal nested owner identity while targeting the visible root", () => {
 		const root = makeRun("visible-root", "nested-release", "running");
 		const child = {
 			...makeRun("nested-owner", "hidden-child", "running", [makeStage("child-ask", "ask", "awaiting_input")]),
 			parentRunId: root.id,
+			parentStageId: "root-to-child",
 			rootRunId: root.id,
 		};
+		root.stages.push(
+			makeStage("root-to-child", "child", "running", {
+				workflowChildRun: { alias: "child", workflow: child.name, runId: child.id },
+			}),
+		);
 		child.stages[0]!.pendingPrompt = {
 			id: "nested-prompt",
 			kind: "confirm",
@@ -971,21 +999,24 @@ describe("pendingInputAffordance", () => {
 		});
 	});
 
-	test("does not count promptless markers, but does count descriptor-bearing prompts", () => {
-		const root = makeRun("promptless-root", "promptless-sibling", "running", [
+	test("keeps a descriptor-less wait status-only and counts it against a sibling descriptor", () => {
+		const sole = makeRun("sole-promptless", "promptless", "running", [
+			makeStage("waiting", "waiting", "awaiting_input"),
+		]);
+		assert.equal(pendingInputAffordance(sole, [sole]), undefined);
+
+		const mixed = makeRun("promptless-root", "promptless-sibling", "running", [
 			makeStage("waiting", "waiting", "awaiting_input"),
 			makeStage("ask", "ask", "awaiting_input"),
 		]);
-		root.stages[1]!.pendingPrompt = {
+		mixed.stages[1]!.pendingPrompt = {
 			id: "real-prompt",
 			kind: "confirm",
 			message: "Answer the real prompt",
 			createdAt: 1,
 		};
 
-		const affordance = pendingInputAffordance(root, [root]);
-		assert.equal(affordance?.message, "Answer the real prompt");
-		assert.deepEqual(affordance?.identity, [root.id, "ask", "real-prompt"]);
+		assert.equal(pendingInputAffordance(mixed, [mixed]), undefined);
 	});
 
 	test("falls back for empty, multi-question, or multiple prompt occurrences", () => {
@@ -1099,19 +1130,41 @@ describe("renderWidgetLines — awaiting-input affordances", () => {
 		}
 	});
 
-	test("connect action targets the visible root for nested prompts", () => {
+	test("connect action targets the visible root for reciprocal nested prompts", () => {
 		const root = makeRun("nested-visible-root", "nested-root", "running");
 		const child = {
 			...awaitingRun("nested-hidden-child", "nested-child", "Answer in the child workflow?"),
 			parentRunId: root.id,
+			parentStageId: "root-to-child",
 			rootRunId: root.id,
 		};
+		root.stages.push(
+			makeStage("root-to-child", "child", "running", {
+				workflowChildRun: { alias: "child", workflow: child.name, runId: child.id },
+			}),
+		);
 		const lines = renderWidgetLines(makeSnap([child, root]), 120).map(stripAnsi);
 		const joined = lines.join("\n");
 
 		assert.ok(joined.includes('"Answer in the child workflow?"'));
 		assert.ok(joined.includes(`/workflow connect ${root.id}`));
 		assert.ok(!joined.includes(child.id), "the hidden owner id is not substituted for the visible connect target");
+	});
+
+	test("does not render a connect action for a one-sided nested claimant", () => {
+		const root = makeRun("unowned-visible-root", "visible-root", "running");
+		const claimant = {
+			...awaitingRun("unowned-claimant", "claimant", "Answer the unowned prompt?"),
+			parentRunId: root.id,
+			parentStageId: "missing-boundary",
+			rootRunId: root.id,
+		};
+
+		const lines = renderWidgetLines(makeSnap([claimant, root]), 120).map(stripAnsi);
+		const joined = lines.join("\n");
+		assert.equal(lines.length, 4);
+		assert.doesNotMatch(joined, /Answer the unowned prompt|F2 answer/);
+		assert.ok(!joined.includes(`/workflow connect ${root.id}`));
 	});
 
 	test("only the store active run gets the F2 answer hint", () => {
@@ -1194,6 +1247,30 @@ describe("renderWidgetLines — awaiting-input affordances", () => {
 		const exactPendingTarget = `${runId}:r`;
 		assert.match(roomy.join("\n"), new RegExp(exactPendingTarget));
 		assert.doesNotMatch(roomy.join("\n"), new RegExp(`${runId}:…`));
+	});
+
+	test("stays status-only when a newer custom prompt footprint can win F2 focus", () => {
+		const now = Date.now();
+		const run = awaitingRun("custom-focus-card", "custom-focus", "Answer the primitive prompt?", now - 2_000);
+		run.stages.push(
+			makeStage("custom", "custom", "awaiting_input", {
+				startedAt: now - 1_000,
+				awaitingInputSince: now - 1_000,
+				promptFootprint: {
+					id: "custom-prompt",
+					kind: "custom",
+					message: "Custom deployment picker",
+					createdAt: now - 1_000,
+				},
+			}),
+		);
+
+		const lines = renderWidgetLines(makeSnap([run]), 120).map(stripAnsi);
+		const joined = lines.join("\n");
+		assert.equal(lines.length, 4);
+		assert.ok(joined.includes(statusIcon("awaiting_input")));
+		assert.doesNotMatch(joined, /Answer the primitive prompt|F2 answer/);
+		assert.ok(!joined.includes(`/workflow connect ${run.id}`));
 	});
 
 	test("falls back to the ordinary status row for ambiguous prompts", () => {

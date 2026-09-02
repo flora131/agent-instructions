@@ -16,7 +16,8 @@ export interface PendingInputAffordance {
 }
 
 interface PendingInputOccurrence {
-	readonly identity: readonly [ownerRunId: string, stageId: string | null, promptId: string];
+	/** Absent for descriptor-less markers, which must affect only ambiguity counting. */
+	readonly identity?: readonly [ownerRunId: string, stageId: string | null, promptId: string];
 	readonly message: string;
 	readonly displayable: boolean;
 }
@@ -150,8 +151,12 @@ function stagePromptOccurrences(run: RunSnapshot): PendingInputOccurrence[] {
 		}
 
 		const request = stage.inputRequest;
-		if (request === undefined) continue;
-
+		if (request === undefined) {
+			if (stage.status === "awaiting_input" || stage.awaitingInputSince !== undefined) {
+				occurrences.push({ message: "", displayable: false });
+			}
+			continue;
+		}
 		// A multi-question request is still a pending occurrence, but it is not
 		// safe to choose one question for a one-line affordance. Keeping it in
 		// the count also prevents another prompt from looking unambiguous.
@@ -175,9 +180,9 @@ function pendingInputOccurrences(run: RunSnapshot): PendingInputOccurrence[] {
 /**
  * Derive one safe prompt affordance for a visible run tree.
  *
- * Promptless awaiting markers do not count. Descriptor-bearing prompts do
- * count even when their message is empty or their structured request has
- * multiple questions, which deliberately falls back to the status-only row.
+ * Descriptor-less awaiting markers count as non-displayable occurrences, as
+ * do descriptor-bearing prompts whose text cannot safely fit this affordance.
+ * Either case deliberately falls back to the status-only row when present.
  */
 export function pendingInputAffordance(
 	visibleRun: RunSnapshot,
@@ -189,7 +194,7 @@ export function pendingInputAffordance(
 	if (occurrences.length !== 1) return undefined;
 
 	const [occurrence] = occurrences;
-	if (occurrence === undefined || !occurrence.displayable) return undefined;
+	if (occurrence === undefined || !occurrence.displayable || occurrence.identity === undefined) return undefined;
 
 	return {
 		identity: occurrence.identity,
