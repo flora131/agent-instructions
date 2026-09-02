@@ -5,9 +5,9 @@ import { computeFileHash, type SnapshotStore } from "./hashline-engine/index.ts"
  *
  * It lives in the message text, not only on the class, because nothing typed survives the
  * trip from a tool to a workflow: a subagent result reports `cause`/`error` as strings, a
- * workflow task result has no error field at all, and the Goal runner reduces a failure to
- * `err.message`. Matching this token is how Goal recognizes a conflict it should count
- * against its budget rather than treat as an ordinary tool error.
+ * workflow task result has no error field at all, and a workflow runner reduces a failure to
+ * `err.message`. Matching this token is how a consumer downstream of that flattening tells a
+ * mutation conflict apart from an ordinary tool error.
  *
  * It is placed at the start of the message so it survives truncation of the tail as the
  * message is relayed. Never change it without updating every consumer that matches on it.
@@ -92,8 +92,9 @@ export type MutationRequesterResolver = (toolCallId: string) => MutationRequeste
 /**
  * What actually diverged, so a conflict can be acted on without a second round trip.
  *
- * Flora, 2026-08-19: a conflict that exhausts Goal's budget moves to `needs_human` "with
- * evidence". A reason and a path are not evidence; they say a race happened, not what it did.
+ * A reason and a path are not evidence; they say a race happened, not what it did. Whatever acts
+ * on the rejection, a workflow applying its own control behavior or a human reading the error,
+ * needs the divergence itself before it can decide anything.
  *
  * The span is computed by trimming the common prefix and suffix rather than comparing line by
  * line positionally, so inserting one line at the top reports one changed region and not every
@@ -433,8 +434,8 @@ export function assertPriorSessionObservation(args: {
 	if (args.store.byHashAndText(args.storeKey, computeFileHash(args.live), args.live)) return;
 	// The last version this session recorded is what it believed it was overwriting, so the
 	// divergence from live is the evidence. Without one there is nothing to diff, but the live
-	// state still reports what was about to be clobbered sight unseen, which is the part a
-	// human reviewing a `needs_human` stop actually needs.
+	// state still reports what was about to be clobbered sight unseen, which is the part
+	// whoever reviews the rejection actually needs.
 	const head = args.store.head(args.storeKey);
 	const evidence = head ? computeConflictEvidence(head.text, args.live) : undefined;
 	throw new FileMutationConflict({

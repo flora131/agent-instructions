@@ -624,7 +624,7 @@ describe("hashline file tool parity", () => {
 				{} as ExtensionContext,
 			),
 			// The preflight loop now raises the typed conflict rather than a bare Error, so this
-			// asserts the code Goal matches on. `writes` staying empty is still the real subject:
+			// asserts the code consumers match on. `writes` staying empty is still the real subject:
 			// no section may be written once any section is known stale.
 		).rejects.toThrow(/FILE_MUTATION_CONFLICT:changed_before_write/);
 		expect(writes).toEqual([]);
@@ -1035,7 +1035,7 @@ describe("hashline file tool parity", () => {
 				{} as ExtensionContext,
 			),
 			// A tag minted in another store is the foreign-snapshot case by definition, so the
-			// engine's "not from this session" prose is now the typed conflict Goal can count.
+			// engine's "not from this session" prose is now the typed conflict consumers can match.
 			// The rejection itself, and the file staying untouched, are unchanged.
 		).rejects.toThrow(/FILE_MUTATION_CONFLICT:foreign_snapshot/);
 		expect(await readFile(file, "utf8")).toBe("one\ntwo");

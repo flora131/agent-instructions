@@ -427,8 +427,8 @@ function createEditCwdScope(cwd: string, ops: EditOperations, hashlineStore: Has
 				// `prepare` already read this file, so a read failing now means the target changed
 				// state under the patch: deleted, replaced by a directory, locked, or rewritten as
 				// something this reader cannot parse. Those are all race outcomes rather than tool
-				// errors, and letting them escape as raw filesystem errors put them outside the
-				// budget Goal counts conflicts against.
+				// errors, and letting them escape as raw filesystem errors would hide that from
+				// every consumer that tells conflicts apart from ordinary tool failures.
 				const missing = isMissingTargetError(error);
 				const causeCode = filesystemErrorCode(error);
 				throw new FileMutationConflict({
