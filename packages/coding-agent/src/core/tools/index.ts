@@ -104,6 +104,7 @@ export {
 export {
 	createWriteTool,
 	createWriteToolDefinition,
+	type WriteFileOptions,
 	type WriteOperations,
 	type WriteToolInput,
 	type WriteToolOptions,
