@@ -276,7 +276,9 @@ describe("write reads the filesystem its writes land on", () => {
 
 		const conflict = conflictFrom(await rejection(write.execute("write-1", { path: "blocked", content: "mine\n" })));
 		expect(conflict.reason).toBe("target_unreadable");
-		expect(conflict.message).toContain("EISDIR");
+		// The structured field is the contract a ledger records without re-parsing text. The
+		// message is derived from it, so asserting it here covers both.
+		expect(conflict.causeCode).toBe("EISDIR");
 		// Nothing about the target is knowable once the read fails, so nothing is claimed.
 		expect(conflict.liveState).toBeUndefined();
 	});
