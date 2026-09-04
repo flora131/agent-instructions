@@ -8,7 +8,7 @@ This bundled extension provides a safe, ordinary-conversation workflow for draft
 
 Bug drafts require a title, what happened, and reproduction steps. Enhancement drafts require a title, the requested change, and why it helps. Missing required fields produce a tool error so you can correct the draft; prepared details are returned only for valid drafts.
 
-Posting is handled separately by the approval-gated feedback submission boundary.
+The `feedback_submit_issue` tool posts only the latest reviewed draft after clear approval, re-scrubbing it and preventing duplicate submissions.
 
 ## Privacy scrubbing
 
