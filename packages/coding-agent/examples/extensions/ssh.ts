@@ -71,7 +71,20 @@ function createRemoteWriteOps(remote: string, remoteCwd: string, localCwd: strin
 			// truncating it. That is the remote equivalent of `O_EXCL`, and it is what keeps the
 			// create path from silently taking a file that appeared since the read below.
 			const redirect = options?.exclusive ? `set -C; base64 -d > ${target}` : `base64 -d > ${target}`;
-			await sshExec(remote, `echo ${JSON.stringify(b64)} | { ${redirect}; }`);
+			try {
+				await sshExec(remote, `echo ${JSON.stringify(b64)} | { ${redirect}; }`);
+			} catch (error) {
+				// A remote shell reports noclobber as a bare non-zero exit, carrying no `code` to read.
+				// `write` renders an exclusive-create failure as a `target_exists` conflict only when the
+				// rejection carries `EEXIST`, so the collision has to be named here; otherwise this backend
+				// alone surfaces an opaque SSH error where every other one reports a typed conflict.
+				if (!options?.exclusive) throw error;
+				// Re-probe rather than assume the failure was a collision. A permission error, a full disk,
+				// or a dropped connection fail the same write, and each of those stays itself.
+				const probe = await sshExec(remote, `test -e ${target} && echo yes || echo no`).catch(() => undefined);
+				if (probe?.toString().trim() !== "yes") throw error;
+				throw Object.assign(new Error(`EEXIST: file already exists, open '${toRemote(p)}'`), { code: "EEXIST" });
+			}
 		},
 		mkdir: (dir) => sshExec(remote, `mkdir -p ${JSON.stringify(toRemote(dir))}`).then(() => {}),
 		// Reads the same filesystem the write lands on, which is the point: checking the local
