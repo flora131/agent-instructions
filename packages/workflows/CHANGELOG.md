@@ -67,6 +67,7 @@ Cumulative release of the `0.9.18-alpha.3` through `0.9.18-alpha.7` prereleases.
 
 - Pending-stage Intercom settlement now skips unrelated runs with no messages to settle. Genuine sweep failures produce one display-only warning per distinct message in interactive sessions instead of repeated console stack traces; headless sessions retain console diagnostics, and pending messages remain available for recovery.
 - Paused stage skill submissions retain Enter versus Ctrl+F delivery intent. Custom stage hosts without admission-aware user-message delivery now report invocation as unavailable rather than using an unguarded fallback.
+- Skill autocomplete reuses the attached stage session without writing durable checkpoints per keystroke. Concurrent lazy discovery requests share one attachment.
 
 ### Changed
 
