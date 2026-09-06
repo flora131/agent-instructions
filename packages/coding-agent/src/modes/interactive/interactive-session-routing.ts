@@ -1,4 +1,4 @@
-import { withHostProjectTrustPrompt } from "../interactive-engine/extension-ui-bridge.js";
+import { withHostProjectTrustPrompt } from "../interactive-engine/extension-ui-bridge.ts";
 import { mountIdleStatus } from "./components/idle-status.ts";
 import { InteractiveModeBase } from "./interactive-mode-base.ts";
 import {

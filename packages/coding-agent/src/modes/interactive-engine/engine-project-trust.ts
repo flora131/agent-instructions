@@ -1,5 +1,5 @@
-import type { ExtensionRunner } from "../../core/extensions/runner.js";
-import { parseInteractiveEngineCommand } from "./protocol.js";
+import type { ExtensionRunner } from "../../core/extensions/runner.ts";
+import { parseInteractiveEngineCommand } from "./protocol.ts";
 
 /** Child-side lifecycle tracking for trust dialogs owned by the terminal host. */
 export class EngineProjectTrustService {
