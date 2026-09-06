@@ -904,12 +904,13 @@ export class StageSessionController {
 		sdkOptions: PromptOptions | undefined,
 	): Promise<{ readonly terminalScanStartIndex: number }> {
 		let retryAttempt = 0;
-		this.artifactCapture.beginAttempt(activeSession);
 		let nextText = text;
 		let retryAdmittedPrompt = false;
 		let retainedPrompt: StageSessionRuntime["messages"][number] | undefined;
 		let terminalScanStartIndex: number | undefined;
 		while (true) {
+			// Same-model retries must not accept answers from an earlier failed iteration.
+			this.artifactCapture.beginAttempt(activeSession);
 			const messagesBeforeAttempt = [...activeSession.messages];
 			try {
 				if (retryAdmittedPrompt) {
@@ -971,6 +972,7 @@ export class StageSessionController {
 				// admitted prompt to stay; the re-prompt path re-sends it.
 				const willContinue = continuationSession !== undefined && admittedMessages;
 				if (retryableFailure && willRetry) {
+					this.artifactCapture.settleAttempt(false);
 					retainedPrompt =
 						this.restoreSessionMessages(activeSession, messagesBeforeAttempt, nextText, willContinue) ??
 						retainedPrompt;

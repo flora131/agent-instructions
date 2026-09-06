@@ -205,3 +205,87 @@ test("a fallback artifact excludes failed candidate answers and restored history
 		if (transcriptPath) removePathSync(transcriptPath, { force: true });
 	}
 });
+
+// PR #2894, discussion_r3945237065: a same-model retry must not publish failed answers.
+test.each([
+	{ emitsEvents: false, continuation: false },
+	{ emitsEvents: true, continuation: false },
+	{ emitsEvents: false, continuation: true },
+	{ emitsEvents: true, continuation: true },
+])(
+	"same-model artifact retries isolate failed answers ($emitsEvents events, $continuation continuation)",
+	async ({ emitsEvents, continuation }) => {
+		const harness = await createHarness();
+		const output = join(harness.tempDir, "retry.md");
+		const report = "Previously accepted report";
+		const answer = "Successful retry answer";
+		const supplement = "Successful retry supplement";
+		const usage = { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, cost: 0 };
+		const messages: StageSessionRuntime["messages"] = [];
+		let promptCalls = 0;
+		let retryCalls = 0;
+		let created = 0;
+		const mock = makeMockSession({
+			messages,
+			async prompt() {
+				promptCalls += 1;
+				const appendAnswer = (text: string) => {
+					const message = assistantMessageWithUsage(text, usage);
+					messages.push(message);
+					if (emitsEvents) mock.emit({ type: "message_end", message });
+				};
+				if (continuation && promptCalls === 1) {
+					appendAnswer(report);
+					return;
+				}
+				retryCalls += 1;
+				if (retryCalls <= 2) {
+					appendAnswer(`Incorrect answer from failed retry ${retryCalls}`);
+					throw new Error("503 service unavailable");
+				}
+				appendAnswer(answer);
+				appendAnswer(supplement);
+			},
+		});
+		const context = createStageContext({
+			stageId: "report",
+			stageName: "report",
+			runId: `retry-${harness.session.sessionId}`,
+			stageOptions: { model: "anthropic/primary" },
+			adapters: {
+				agentSession: {
+					async create() {
+						created += 1;
+						return {
+							session: mock.session,
+							settingsManager: {
+								getRetrySettings: () => ({ enabled: true, maxRetries: 2, baseDelayMs: 0 }),
+							},
+						};
+					},
+				},
+			},
+		});
+		let transcriptPath: string | undefined;
+		try {
+			const receipt = await context.prompt("Report", { output, outputMode: "file-only" });
+			transcriptPath = receipt.match(/^Transcript saved to: (.+) \([^\n]+\)\./m)?.[1];
+			if (continuation) {
+				assert.equal(await readText(output), report);
+				await context.__continuePrompt("Clarify the report");
+			}
+			assert.equal(created, 1);
+			assert.equal(retryCalls, 3);
+			const expected = continuation
+				? `${report}\n\n## Supplement 1\n\n${answer}\n\n## Supplement 2\n\n${supplement}`
+				: `${answer}\n\n## Supplement 1\n\n${supplement}`;
+			assert.equal(await readText(output), expected);
+			await context.__closeGeneration();
+			assert.equal(await readText(output), expected);
+		} finally {
+			await context.__dispose();
+			harness.cleanup();
+			if (transcriptPath) removePathSync(transcriptPath, { force: true });
+		}
+	},
+);
