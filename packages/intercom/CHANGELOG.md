@@ -4,6 +4,10 @@ All notable changes to the `pi-intercom` extension will be documented in this fi
 
 ## [Unreleased]
 
+### Fixed
+
+- Excluded internal workflow route-owner/control connections from discovery, presence, and group counts. Broker recipient checks reject ordinary messages to non-agents and known workflow tool paths while preserving tool-busy agents and pending/live routing.
+
 ## [0.9.18] - 2026-09-05
 
 Cumulative release of the `0.9.18-alpha.3` through `0.9.18-alpha.7` prereleases. Per-change details remain in the unchanged prerelease sections below.

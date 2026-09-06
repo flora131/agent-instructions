@@ -41,6 +41,76 @@ function message(id: string, text = "hello"): Message {
 	return { id, timestamp: 1, content: { text } };
 }
 
+test("non-agent recipients cannot create deliveries, pending questions or future queues through any send route", () => {
+	const senderSocket = {} as net.Socket;
+	const controlSocket = {} as net.Socket;
+	const sender = session("sender", "sender", senderSocket);
+	const control = session("control-id", "Control", controlSocket);
+	control.info = { ...control.info, recipientPurpose: "control" };
+	sender.supervisorId = control.info.id;
+	const sessions = new Map([
+		[sender.info.id, sender],
+		[control.info.id, control],
+	]);
+	const canonical = "workflow:11111111-1111-4111-8111-111111111111/control";
+	const cache = new DeliveredMessageCache();
+	const pending = new PendingQuestionIndex();
+	const writes: Array<{ socket: net.Socket; message: BrokerMessage }> = [];
+	let queued = 0;
+	for (const type of ["send", "supervisor_send"]) {
+		for (const to of [control.info.id, "CONTROL", canonical]) {
+			for (const expectsReply of [false, true]) {
+				const id = `${type}-${to}-${expectsReply}`;
+				const outgoing = { ...message(id), expectsReply };
+				handleBrokerSend(
+					senderSocket,
+					{ type, to, message: outgoing },
+					sender.info.id,
+					sessions,
+					cache,
+					(socket, message) => {
+						writes.push({ socket, message });
+						return true;
+					},
+					new SupervisorChannelCache(),
+					pending,
+					() => {
+						queued++;
+						return true;
+					},
+					(target) => (target === canonical ? control : undefined),
+				);
+				assert.equal(cache.lookup(id, buildMessageSendSignature(to, outgoing, sender.info.id)), "miss");
+				assert.equal(writes.at(-1)?.message.type, "delivery_failed");
+			}
+		}
+	}
+	assert.equal(
+		writes.some((entry) => entry.socket === controlSocket),
+		false,
+	);
+	assert.deepEqual(pending.takeForTarget(control.info.id), []);
+	assert.equal(queued, 0);
+
+	// A hidden control's display name must not make a real same-name agent ambiguous.
+	const agent = session("agent-id", "Control", {} as net.Socket);
+	agent.info.status = "tool:workflow";
+	sessions.set(agent.info.id, agent);
+	handleBrokerSend(
+		senderSocket,
+		{ type: "send", to: "control", message: message("real-agent") },
+		sender.info.id,
+		sessions,
+		cache,
+		(socket, message) => {
+			writes.push({ socket, message });
+			return true;
+		},
+	);
+	assert.equal(writes.at(-1)?.message.type, "delivered");
+	assert.equal(writes.at(-2)?.socket, agent.socket);
+});
+
 test("broker wire send dedupes a reconnect and rejects target, payload, or distinct-sender conflicts", () => {
 	const senderOne = {} as net.Socket;
 	const reconnectedSender = {} as net.Socket;

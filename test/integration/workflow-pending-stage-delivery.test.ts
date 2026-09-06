@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { AgentSession, CreateAgentSessionOptions } from "@bastani/atomic";
 import { Type } from "typebox";
-import { afterAll, beforeAll, test } from "vitest";
+import { afterAll, beforeAll, test, vi } from "vitest";
 import type { WorkflowStageAdmissionBoundary } from "../../packages/coding-agent/src/core/workflow-stage-admission.ts";
 import type { BrokerMessage } from "../../packages/intercom/types.js";
 import type { StageSessionRuntime } from "../../packages/workflows/src/runs/foreground/stage-runner.js";
@@ -112,7 +112,7 @@ interface CapturedTool {
 	execute?: (
 		toolCallId: string,
 		params: { action: string; group?: string; message?: string; to?: string },
-		signal: undefined,
+		signal: AbortSignal | undefined,
 		onUpdate: undefined,
 		ctx: TestContext,
 	) => Promise<ToolResult>;
@@ -251,6 +251,7 @@ function extensionFixture(
 		injectedMessages,
 		injectedOptions,
 		tools,
+		fire,
 		waitForInjectedCount(count: number): Promise<void> {
 			if (injectedMessages.length >= count) return Promise.resolve();
 			return new Promise((resolveWaiter) => injectedWaiters.push({ count, resolve: resolveWaiter }));
@@ -309,10 +310,11 @@ async function waitForBroker(child: ChildProcess): Promise<void> {
 async function executeIntercom(
 	fixture: ReturnType<typeof extensionFixture>,
 	params: { action: string; group?: string; message?: string; to?: string },
+	signal?: AbortSignal,
 ): Promise<ToolResult> {
 	const execute = fixture.tools.get("intercom")?.execute;
 	assert.ok(execute);
-	return execute("test-call", params, undefined, undefined, fixture.context);
+	return execute("test-call", params, signal, undefined, fixture.context);
 }
 
 function waitForStoreState(activeStore: ReturnType<typeof createStore>, predicate: () => boolean): Promise<void> {
@@ -508,6 +510,638 @@ afterAll(async () => {
 	if (previousLegacyAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
 	else process.env.PI_CODING_AGENT_DIR = previousLegacyAgentDir;
 	rmSync(agentDir, { recursive: true, force: true });
+});
+
+test("the real two-session route owner is hidden and rejects ordinary messages while its agent stays reachable", async () => {
+	const runId = "88888888-1111-4111-8111-111111111111";
+	const group = `workflow:${runId}`;
+	const store = createStore();
+	const backend = new InMemoryDurableBackend();
+	setDurableBackend(backend);
+	const owner = extensionFixture("recipient-owner", "recipient-owner", undefined, "default");
+	const sender = extensionFixture("recipient-sender", "recipient-sender", undefined, group);
+	const raw = new RawBrokerClient();
+	rawClients.add(raw);
+	const registrations: Array<{ id: string; name?: string; status?: string }> = [];
+	// Observe real production registrations without replacing the broker transport.
+	const connect = IntercomClient.prototype.connect;
+	const observer = vi.spyOn(IntercomClient.prototype, "connect").mockImplementation(async function (
+		this: InstanceType<typeof IntercomClient>,
+		...args
+	) {
+		await connect.apply(this, args);
+		registrations.push({ id: this.sessionId!, name: args[0].name, status: args[0].status });
+	});
+	intercom(owner.pi as never);
+	intercom(sender.pi as never);
+	let disposeBridge = (): void => {};
+	try {
+		await owner.start();
+		await executeIntercom(owner, { action: "status" });
+		await owner.fire("agent_start", {});
+		// The dedicated route connection copies its owner's lifecycle status.
+		await owner.fire("tool_execution_start", { type: "tool_execution_start", toolName: "workflow" });
+		store.recordRunStart({
+			id: runId,
+			name: "recipient-flow",
+			inputs: {},
+			status: "running",
+			startedAt: 1,
+			stages: [
+				{
+					id: "reviewer-id",
+					name: "reviewer",
+					status: "pending",
+					parentIds: [],
+					toolEvents: [],
+					pendingStageDeliveryAvailable: true,
+				},
+			],
+		});
+		backend.registerWorkflow({
+			workflowId: runId,
+			name: "recipient-flow",
+			inputs: {},
+			status: "running",
+			createdAt: 1,
+		});
+		disposeBridge = registerPendingStageIntercomBridge(owner.pi as never, store);
+		await owner.waitForEventCompletion("atomic:workflow-pending-stage-route");
+		await sender.start();
+		await raw.register("recipient-observer", group);
+		const route = registrations.find((entry) => entry.name === undefined);
+		assert.ok(route, "actual ensurePendingStageRouteClient created a dedicated unnamed connection");
+		assert.equal(route.status, "tool:workflow");
+		raw.send({ type: "list", requestId: "recipient-directory" });
+		const directory = await raw.next("sessions");
+		const outcomes: string[] = [];
+		for (const expectsReply of [false, true]) {
+			const id = `recipient-control-${expectsReply}`;
+			raw.send({
+				type: "send",
+				to: route.id,
+				message: { id, timestamp: 1, expectsReply, content: { text: "do not deliver" } },
+			});
+			outcomes.push((await raw.nextDeliveryAcknowledgment(id)).type);
+		}
+		assert.deepEqual(
+			{ visible: directory.sessions.some((session) => session.id === route.id), outcomes },
+			{ visible: false, outcomes: ["delivery_failed", "delivery_failed"] },
+			"internal route owner must be hidden and refuse both send and ask",
+		);
+		assert.deepEqual(store.runs()[0]?.pendingStageMessages ?? [], []);
+		// More refusals than the default ask capacity prove these leave no lasting waiter.
+		for (let index = 0; index < 8; index++) {
+			const refused = await executeIntercom(
+				sender,
+				{ action: "ask", to: route.id, message: "not an agent" },
+				AbortSignal.timeout(BROKER_FRAME_TIMEOUT_MS),
+			);
+			assert.equal(refused.isError, true);
+			assert.match(refused.content[0]!.text, /Session not found|non-agent/);
+		}
+		await executeIntercom(sender, { action: "join", group: "default" });
+		const listed = await executeIntercom(sender, { action: "list" });
+		assert.match(listed.content[0]!.text, /recipient-owner/);
+		assert.match(listed.content[0]!.text, /tool:workflow/);
+		const sent = await executeIntercom(sender, { action: "send", to: "recipient-owner", message: "  live agent\n" });
+		assert.equal(sent.details.delivered, true);
+		await owner.waitForInjectedCount(1);
+		const ask = executeIntercom(
+			sender,
+			{ action: "ask", to: "recipient-owner", message: "live question" },
+			AbortSignal.timeout(BROKER_FRAME_TIMEOUT_MS),
+		);
+		await owner.waitForInjectedCount(2);
+		assert.equal((await executeIntercom(owner, { action: "reply", message: "live answer" })).details.delivered, true);
+		assert.match((await ask).content[0]!.text, /live answer/);
+		const queued = await executeIntercom(sender, {
+			action: "send",
+			to: `workflow:${runId}/reviewer`,
+			message: "pending route still works",
+		});
+		assert.equal(queued.details.queued, true);
+	} finally {
+		disposeBridge();
+		observer.mockRestore();
+		await sender.shutdown();
+		await owner.shutdown();
+		await raw.close();
+		setDurableBackend(undefined);
+	}
+});
+
+test("control purpose survives presence and membership changes without discovery events or counts", async () => {
+	const group = "recipient-purpose-group";
+	const observer = new RawBrokerClient();
+	const control = new RawBrokerClient();
+	rawClients.add(observer);
+	rawClients.add(control);
+	try {
+		await observer.register("purpose-observer", group);
+		control.send({
+			type: "register",
+			session: {
+				recipientPurpose: "control",
+				name: "control-name",
+				group,
+				cwd: repoRoot,
+				model: "test",
+				pid: 1,
+				startedAt: 1,
+				lastActivity: 1,
+			},
+		});
+		const controlId = (await control.next("registered")).sessionId;
+		control.send({
+			type: "presence",
+			recipientPurpose: "agent",
+			name: "renamed-control",
+			status: "idle",
+			requestId: "control-presence",
+		});
+		await control.next("presence_ack");
+		control.send({ type: "join_group", group: "control-only", requestId: "control-join" });
+		await control.next("membership_ack");
+		observer.send({ type: "list_groups", requestId: "purpose-groups" });
+		const groups = await observer.next("groups");
+		assert.deepEqual(
+			groups.groups.filter((entry) => entry.group === group || entry.group === "control-only"),
+			[{ group, sessionCount: 1, member: true }],
+		);
+		for (const to of [controlId, "RENAMED-CONTROL"]) {
+			for (const expectsReply of [false, true]) {
+				const id = `control-${to}-${expectsReply}`;
+				observer.send({
+					type: "send",
+					to,
+					message: { id, timestamp: 1, expectsReply, content: { text: "no delivery" } },
+				});
+				assert.equal((await observer.nextDeliveryAcknowledgment(id)).type, "delivery_failed");
+			}
+		}
+		control.send({ type: "list", requestId: "control-barrier" });
+		await control.next("sessions");
+		assert.equal(
+			control.received.some((frame) => frame.type === "message"),
+			false,
+		);
+		await control.close();
+		observer.send({ type: "list", requestId: "observer-barrier" });
+		await observer.next("sessions");
+		assert.deepEqual(
+			observer.received.filter((frame) =>
+				frame.type === "session_joined" || frame.type === "presence_update"
+					? frame.session.id === controlId
+					: frame.type === "session_left"
+						? frame.sessionId === controlId
+						: frame.type === "peer_disconnected",
+			),
+			[],
+		);
+	} finally {
+		await control.close();
+		await observer.close();
+	}
+});
+
+test("control connections cannot acquire live workflow recipient aliases", async () => {
+	const runId = "88888888-2222-4222-8222-222222222222";
+	const group = `workflow:${runId}`;
+	const control = new IntercomClient();
+	control.on("error", () => {});
+	try {
+		await control.connect({
+			recipientPurpose: "control",
+			group,
+			cwd: repoRoot,
+			model: "test",
+			pid: 1,
+			startedAt: 1,
+			lastActivity: 1,
+		});
+		control.registerPendingStageRoute(runId, group, "control-alias-capability");
+		await control.listDirectory();
+		await assert.rejects(
+			control.registerLiveWorkflowStageRoute(runId, ["tool-id", "tool-name"], "control-alias-capability"),
+			/Client disconnected/,
+		);
+	} finally {
+		await control.disconnect();
+	}
+});
+
+test("a legacy route-ineligible roster row does not prevent a genuine agent from becoming live", async () => {
+	// R2: routeEligible controls pending discovery, not the recipient's identity.
+	const runId = "88888888-5555-4555-8555-555555555555";
+	const group = `workflow:${runId}`;
+	const owner = new IntercomClient();
+	const agent = new IntercomClient();
+	const nonAgentRoute = new IntercomClient();
+	const registration = { group, cwd: repoRoot, model: "test", pid: 1, startedAt: 1, lastActivity: 1 };
+	const received: string[] = [];
+	agent.on("message", (_from, message) => received.push(message.content.text));
+	owner.on("pending_stage_message", (request) => {
+		owner.respondPendingStageMessage(request.requestId, { outcome: "forward", target: request.target });
+	});
+	try {
+		await owner.connect({ ...registration, name: "legacy-roster-owner" });
+		await agent.connect({
+			...registration,
+			name: "legacy-roster-agent",
+			recipientPurpose: "agent",
+			status: "tool:workflow",
+		});
+		owner.registerPendingStageRoute(runId, group, "legacy-roster-capability", [
+			{
+				stageId: "stage-id",
+				stageName: "stage-name",
+				target: `${group}/stage-id`,
+				lifecycle: "pending",
+				routeEligible: false,
+				group,
+			},
+			{
+				stageId: "tool-id",
+				stageName: "tool-name",
+				target: `${group}/tool-id`,
+				lifecycle: "pending",
+				routeEligible: true,
+				recipientPurpose: "control",
+				group,
+			},
+		]);
+		assert.deepEqual((await owner.listDirectory()).workflowStages, []);
+		await agent.registerLiveWorkflowStageRoute(runId, ["stage-id", "stage-name"], "legacy-roster-capability");
+		for (const key of ["stage-id", "stage-name"]) {
+			const sent = await owner.send(`${group}/${key}`, { text: key });
+			assert.equal(sent.delivered, true, sent.reason);
+		}
+		await agent.listDirectory();
+		assert.deepEqual(received, ["stage-id", "stage-name"]);
+		assert.equal(
+			(await owner.listSessions()).some((row) => row.id === agent.sessionId),
+			true,
+		);
+		await nonAgentRoute.connect({ ...registration, name: "not-a-tool-agent", recipientPurpose: "agent" });
+		await assert.rejects(
+			nonAgentRoute.registerLiveWorkflowStageRoute(runId, ["tool-id"], "legacy-roster-capability"),
+			/Client disconnected/,
+		);
+	} finally {
+		await nonAgentRoute.disconnect();
+		await agent.disconnect();
+		await owner.disconnect();
+	}
+});
+
+test("nested known tools are broker-refused through every supported boundary and run-id spelling", async () => {
+	// R1: negative recipients must use the same path grammar as genuine stages.
+	const rootId = "77777777-1111-4111-8111-111111111111";
+	const childId = "77777777-2222-4222-8222-222222222222";
+	const grandId = "77777777-3333-4333-8333-333333333333";
+	const group = `workflow:${rootId}`;
+	const store = createStore();
+	const backend = new InMemoryDurableBackend();
+	setDurableBackend(backend);
+	const owner = extensionFixture("nested-purpose-owner", "nested-purpose-owner", undefined, "default");
+	const sender = new RawBrokerClient();
+	rawClients.add(sender);
+	intercom(owner.pi as never);
+	let disposeBridge = (): void => {};
+	let pendingProtocolRequests = 0;
+	const prefixes = [
+		"outer/inner",
+		"boundary-one/inner",
+		"outer/boundary-two",
+		"boundary-one/boundary-two",
+		`${childId}/inner`,
+		`outer/${grandId}`,
+		`${childId}/${grandId}`,
+		grandId,
+		`${rootId}/boundary-one/${grandId}`,
+		`${grandId}/${rootId}/outer/inner`,
+	];
+	const toolTargets = prefixes.flatMap((prefix) =>
+		["tool:prepare", "prepare"].map((key) => `${group}/${prefix}/${key}`),
+	);
+	try {
+		await owner.start();
+		await executeIntercom(owner, { action: "status" });
+		const routeCompletions: Promise<void>[] = [];
+		owner.pi.events.on("atomic:workflow-pending-stage-route", (payload) => {
+			const completion = (payload as { completion?: Promise<void> }).completion;
+			assert.ok(completion, "real Intercom wrapper must own route registration");
+			routeCompletions.push(completion);
+		});
+		owner.pi.events.on("atomic:workflow-pending-stage-message", () => {
+			pendingProtocolRequests++;
+		});
+		const boundary = (id: string, name: string, runId: string) => ({
+			id,
+			name,
+			status: "running" as const,
+			parentIds: [],
+			toolEvents: [],
+			replayKey: id,
+			workflowChildRun: { runId, alias: name, workflow: name },
+		});
+		store.recordRunStart({
+			id: rootId,
+			name: "root",
+			inputs: {},
+			status: "running",
+			startedAt: 1,
+			stages: [boundary("boundary-one", "outer", childId)],
+			possibleStages: [
+				...toolTargets.map((target) => target.slice(group.length + 1)),
+				"future-agent",
+				"outer/*",
+				"**",
+			],
+		});
+		store.recordRunStart({
+			id: childId,
+			name: "child",
+			inputs: {},
+			status: "running",
+			startedAt: 1,
+			parentRunId: rootId,
+			parentStageId: "boundary-one",
+			rootRunId: rootId,
+			stages: [boundary("boundary-two", "inner", grandId)],
+		});
+		store.recordRunStart({
+			id: grandId,
+			name: "grand",
+			inputs: {},
+			status: "running",
+			startedAt: 1,
+			parentRunId: childId,
+			parentStageId: "boundary-two",
+			rootRunId: rootId,
+			stages: [
+				{
+					id: "agent-id",
+					name: "reviewer",
+					status: "pending",
+					parentIds: [],
+					toolEvents: [],
+					pendingStageDeliveryAvailable: true,
+				},
+			],
+			toolNodes: [
+				{
+					kind: "tool",
+					id: "tool:prepare",
+					name: "prepare",
+					argsHash: "hash",
+					ordinal: 0,
+					parentIds: [],
+					status: "running",
+					attachable: false,
+				},
+			],
+		});
+		backend.registerWorkflow({ workflowId: rootId, name: "root", inputs: {}, status: "running", createdAt: 1 });
+		disposeBridge = registerPendingStageIntercomBridge(owner.pi as never, store);
+		await Promise.all(routeCompletions);
+		await sender.register("nested-purpose-sender", group);
+		for (const to of toolTargets) {
+			for (const expectsReply of [false, true]) {
+				const id = `nested-tool-${to}-${expectsReply}`;
+				sender.send({
+					type: "send",
+					to,
+					message: { id, timestamp: 1, expectsReply, content: { text: "not a future agent" } },
+				});
+				assert.equal((await sender.nextDeliveryAcknowledgment(id)).type, "delivery_failed", to);
+				assert.equal(pendingProtocolRequests, 0, `broker must refuse before owner dispatch: ${to}`);
+			}
+		}
+		assert.deepEqual(
+			store.runs().flatMap((run) => run.pendingStageMessages ?? []),
+			[],
+		);
+		sender.send({ type: "list", requestId: "nested-tool-directory" });
+		const directory = await sender.next("sessions");
+		// Exercise the owner fallback too, independently of the broker's early refusal.
+		for (const to of toolTargets) {
+			const payload: {
+				handled: boolean;
+				from: { id: string; group: string };
+				runId: string;
+				target: string;
+				message: { id: string; timestamp: number; content: { text: string } };
+				completion?: Promise<{ outcome: string }>;
+			} = {
+				handled: false,
+				from: { id: "bridge-probe", group },
+				runId: rootId,
+				target: to,
+				message: { id: `fallback-${to}`, timestamp: 1, content: { text: "no tool fallback" } },
+			};
+			owner.pi.events.emit("atomic:workflow-pending-stage-message", payload);
+			assert.equal(payload.handled, true);
+			assert.equal((await payload.completion)?.outcome, "refused", to);
+		}
+		assert.deepEqual(
+			store.runs().flatMap((run) => run.pendingStageMessages ?? []),
+			[],
+		);
+		assert.equal(
+			directory.workflowStages?.some((row) => row.stageId === "tool:prepare"),
+			false,
+		);
+		assert.deepEqual(
+			directory.workflowFutureStages?.filter((row) => toolTargets.includes(row.target)),
+			[],
+		);
+		for (const prefix of prefixes) {
+			const id = `nested-agent-${prefix}`;
+			sender.send({
+				type: "send",
+				to: `${group}/${prefix}/reviewer`,
+				message: { id, timestamp: 1, content: { text: "genuine pending agent" } },
+			});
+			assert.equal((await sender.nextDeliveryAcknowledgment(id)).type, "queued", prefix);
+			const entry = store
+				.runs()
+				.find((run) => run.id === grandId)
+				?.pendingStageMessages?.find((message) => message.message.id === id);
+			assert.equal(
+				entry?.stageKey,
+				"agent-id",
+				"accepted aliases must still resolve to the actual agent, not speculative futures",
+			);
+		}
+		for (const suffix of ["future-agent", "outer/*", "**"]) {
+			const id = `nested-future-${suffix}`;
+			sender.send({
+				type: "send",
+				to: `${group}/${suffix}`,
+				message: { id, timestamp: 1, content: { text: "future agents only" } },
+			});
+			assert.equal((await sender.nextDeliveryAcknowledgment(id)).type, "queued");
+		}
+	} finally {
+		disposeBridge();
+		await owner.shutdown();
+		await sender.close();
+		setDurableBackend(undefined);
+	}
+});
+
+test("supervisor capabilities and notification reconnect aliases cannot bypass control recipient policy", async () => {
+	const runId = "88888888-4444-4444-8444-444444444444";
+	const group = `workflow:${runId}`;
+	const owner = new IntercomClient();
+	const control = new IntercomClient("control-return-address");
+	const sender = new IntercomClient();
+	const received: string[] = [];
+	control.on("message", () => received.push("message"));
+	control.on("pending_stage_notification", () => received.push("notification"));
+	const registration = { group, cwd: repoRoot, model: "test", pid: 1, startedAt: 1, lastActivity: 1 };
+	try {
+		await owner.connect({ ...registration, name: "notification-owner", recipientPurpose: "control" });
+		await control.connect(
+			{ ...registration, name: "notification-control", recipientPurpose: "control" },
+			undefined,
+			"control-owner-token",
+		);
+		const authorization = await control.authorizeSupervisorChild("authorized-agent");
+		await sender.connect(
+			{ ...registration, group: "other-group", name: "authorized-agent", recipientPurpose: "agent" },
+			authorization,
+		);
+		for (const expectsReply of [false, true]) {
+			const result = await sender.sendToSupervisor(control.sessionId!, { text: "cannot bypass", expectsReply });
+			assert.equal(result.delivered, false);
+			assert.match(result.reason!, /non-agent/);
+		}
+		owner.registerPendingStageRoute(runId, group, "notification-capability");
+		await owner.listDirectory();
+		for (const [to, name, returnAddress] of [
+			[control.sessionId!, undefined, undefined],
+			["departed-id", "notification-control", undefined],
+			["departed-id", undefined, "control-return-address"],
+		]) {
+			const result = await owner.sendPendingStageNotification(
+				runId,
+				"notification-capability",
+				to!,
+				name,
+				{ text: "no notification to controls" },
+				returnAddress,
+			);
+			assert.equal(result.delivered, false);
+		}
+		await control.listDirectory();
+		assert.deepEqual(received, []);
+	} finally {
+		await sender.disconnect();
+		await control.disconnect();
+		await owner.disconnect();
+	}
+});
+
+test("materialized ctx.tool IDs and names never become speculative future-agent queues", async () => {
+	const runId = "88888888-3333-4333-8333-333333333333";
+	const group = `workflow:${runId}`;
+	const store = createStore();
+	const backend = new InMemoryDurableBackend();
+	setDurableBackend(backend);
+	const owner = extensionFixture("tool-node-owner", "tool-node-owner", undefined, "default");
+	const sender = new RawBrokerClient();
+	rawClients.add(sender);
+	intercom(owner.pi as never);
+	let disposeBridge = (): void => {};
+	let pendingProtocolRequests = 0;
+	owner.pi.events.on("atomic:workflow-pending-stage-message", () => {
+		pendingProtocolRequests++;
+	});
+	try {
+		await owner.start();
+		store.recordRunStart({
+			id: runId,
+			name: "tool-node-flow",
+			inputs: {},
+			status: "running",
+			startedAt: 1,
+			possibleStages: ["prepare", "reviewer-*"],
+			stages: [],
+			toolNodes: [
+				{
+					kind: "tool",
+					id: "tool:prepare",
+					name: "prepare",
+					argsHash: "hash",
+					ordinal: 0,
+					parentIds: [],
+					status: "running",
+					attachable: false,
+				},
+			],
+		});
+		backend.registerWorkflow({
+			workflowId: runId,
+			name: "tool-node-flow",
+			inputs: {},
+			status: "running",
+			createdAt: 1,
+		});
+		disposeBridge = registerPendingStageIntercomBridge(owner.pi as never, store);
+		await owner.waitForEventCompletion("atomic:workflow-pending-stage-route");
+		await sender.register("tool-node-sender", group);
+		for (const stageKey of ["tool:prepare", "prepare"]) {
+			for (const expectsReply of [false, true]) {
+				const id = `tool-node-${stageKey}-${expectsReply}`;
+				sender.send({
+					type: "send",
+					to: `workflow:${runId}/${stageKey}`,
+					message: { id, timestamp: 1, expectsReply, content: { text: "must not queue for a tool" } },
+				});
+				assert.equal((await sender.nextDeliveryAcknowledgment(id)).type, "delivery_failed");
+			}
+		}
+		assert.deepEqual(store.runs()[0]?.pendingStageMessages ?? [], []);
+		assert.equal(
+			pendingProtocolRequests,
+			0,
+			"broker must reject known tool targets before invoking the durable route owner",
+		);
+		sender.send({ type: "list", requestId: "tool-node-directory" });
+		const directory = await sender.next("sessions");
+		assert.deepEqual(directory.workflowStages, []);
+		assert.equal(
+			directory.workflowFutureStages?.some((entry) => entry.target.endsWith("/prepare")),
+			false,
+		);
+		sender.send({
+			type: "send",
+			to: `workflow:${runId}/future-agent`,
+			message: { id: "tool-node-future", timestamp: 1, content: { text: "future agents still queue" } },
+		});
+		assert.equal((await sender.nextDeliveryAcknowledgment("tool-node-future")).type, "queued");
+		for (const pattern of ["*", "**"]) {
+			const id = `tool-node-pattern-${pattern}`;
+			sender.send({
+				type: "send",
+				to: `workflow:${runId}/${pattern}`,
+				message: { id, timestamp: 1, content: { text: "future agents only" } },
+			});
+			assert.equal((await sender.nextDeliveryAcknowledgment(id)).type, "queued");
+			assert.deepEqual(
+				store.runs()[0]?.pendingStageMessages?.find((entry) => entry.message.id === id)?.deliveries ?? [],
+				[],
+			);
+		}
+	} finally {
+		disposeBridge();
+		await owner.shutdown();
+		await sender.close();
+		setDurableBackend(undefined);
+	}
 });
 
 test("the production owner route preserves pending delivery through tool restrictions", async () => {

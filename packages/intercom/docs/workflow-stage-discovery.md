@@ -6,6 +6,8 @@ Join a workflow invocation group (`workflow:<rootRunId>`) and call `intercom({ a
 - **RUNNING** materialized stages connected to Intercom; the same canonical target delivers immediately.
 - **Possible future stages** from the scan persisted when the run launched. Literal names, glob patterns, and nested child paths each show their exact canonical target and current queued/sticky count.
 
+Only agent sessions and agent-stage targets are recipients. Internal route-owner/control connections and `ctx.tool` nodes stay out of discovery and session counts. The broker refuses ordinary sends and asks to their known IDs, names, or exact tool paths before delivery or future-stage queueing. Agents busy in tools, including `tool:workflow`, remain visible and reachable; patterns and broadcasts still reach current and future agent stages.
+
 Each path segment may be a stage name, a materialized run id, or a glob. `*` matches one segment and may be embedded, as in `reviewer-*`; `**` matches any depth. `workflow:<rootRunId>/**` is the run-wide broadcast: it reaches every live stage through ordinary Intercom now and remains sticky for every future stage, including descendants, until the root terminates. A narrower name or pattern send likewise delivers to every future matching stage.
 
 The persisted possible-stage set is advisory. A syntactically valid path outside it is queued speculatively and acknowledged with `notInKnownSet: true`. If the entry never matches before the run terminates, acknowledgment-requesting senders receive the correlated undeliverable notification; a sticky entry delivered at least once is not reported undeliverable.

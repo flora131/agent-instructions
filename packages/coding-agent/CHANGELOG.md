@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Intercom now hides internal workflow routing/control connections and refuses messages to non-agent recipients, including known workflow tool paths, without hiding agents busy in tools or disrupting pending/live stage delivery.
+
 ## [0.9.19-alpha.1] - 2026-09-06
 
 ### Fixed

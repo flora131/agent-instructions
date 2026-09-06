@@ -14,6 +14,7 @@ import { SupervisorChannelCache } from "./supervisor-channel.js";
 import { isVerticalBypass, sameGroup } from "./group-isolation.js";
 import { sessionGroups, sessionsShareGroup } from "./group-membership.js";
 import { PendingQuestionIndex } from "./pending-question-index.js";
+import { isAgentRecipient, NON_AGENT_RECIPIENT_REFUSAL } from "../recipient-purpose.js";
 
 export interface BrokerConnectedSession {
   socket: net.Socket;
@@ -111,6 +112,7 @@ export function handleBrokerSend(
 	canControlLiveWorkflowStage?: LiveWorkflowStageController,
 	resolveLegacyWorkflowStageTarget?: LegacyWorkflowStageTargetResolver,
 	writeConfirmed?: ConfirmedMessageWriter,
+	isNonAgentWorkflowTarget?: (target: string) => boolean,
 ): void {
   const message = clientMessage.message;
   const messageId = wireMessageId(message);
@@ -175,6 +177,10 @@ export function handleBrokerSend(
     return;
   }
 	const workflowTarget = parseWorkflowStageTarget(trimmedTo);
+	if (isNonAgentWorkflowTarget?.(trimmedTo)) {
+		write(socket, { type: "delivery_failed", messageId: message.id, attemptId, reason: NON_AGENT_RECIPIENT_REFUSAL });
+		return;
+	}
 	// Slice 3 (D3): asks to pattern/future stage targets stay refused; `send` is queued
 	// sticky by the workflow host, so the refusal must happen before any live delivery.
 	if (workflowTarget !== undefined && workflowTarget.kind !== "path" && message.expectsReply === true) {
@@ -206,11 +212,10 @@ export function handleBrokerSend(
 	const liveWorkflowTarget = sessions.has(trimmedTo) ? undefined : resolveLiveWorkflowStage?.(trimmedTo);
 	const exactIdTarget = sessions.get(trimmedTo) ?? liveWorkflowTarget;
   const reachableAcrossGroups = supervisorSend || Boolean(message.replyTo);
-  const candidates = reachableAcrossGroups
-    ? Array.from(sessions.values(), (session) => session.info)
-    : Array.from(sessions.values(), (session) => session.info).filter(
-        (info) => sessionsShareGroup(info, fromSession.info),
-      );
+  const visibleCandidates = Array.from(sessions.values(), (session) => session.info).filter(
+	(info) => reachableAcrossGroups || sessionsShareGroup(info, fromSession.info),
+  );
+  const candidates = visibleCandidates.filter(isAgentRecipient);
   const resolution = exactIdTarget
     ? ({ kind: "resolved", session: exactIdTarget.info } as const)
     : resolveSessionTarget(candidates, trimmedTo);
@@ -226,6 +231,10 @@ export function handleBrokerSend(
       });
       return;
     }
+	if (!isAgentRecipient(target.info)) {
+		write(socket, { type: "delivery_failed", messageId: message.id, attemptId, reason: NON_AGENT_RECIPIENT_REFUSAL });
+		return;
+	}
     if (target.info.id === fromSession.info.id) {
       write(socket, { type: "delivery_failed", messageId: message.id, attemptId, reason: "Cannot message the current session" });
       return;
@@ -467,6 +476,10 @@ export function handleBrokerSend(
     finishDelivery();
     return;
   }
+	if (visibleCandidates.some((info) => !isAgentRecipient(info) && info.name?.toLowerCase() === trimmedTo.toLowerCase())) {
+		write(socket, { type: "delivery_failed", messageId: message.id, attemptId, reason: NON_AGENT_RECIPIENT_REFUSAL });
+		return;
+	}
 	if (
 		resolution.kind === "not_found" &&
 		!supervisorSend &&
