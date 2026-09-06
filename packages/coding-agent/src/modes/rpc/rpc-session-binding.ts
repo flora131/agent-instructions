@@ -62,7 +62,7 @@ export class RpcSessionBinding {
 		this.inputForm = inputForm;
 		this.reloadCoordinator = reloadCoordinator;
 		this.session = runtimeHost.session;
-		this.runtimeHost.setProjectTrustContextFactory((cwd) => this.createProjectTrustContext(cwd));
+		this.runtimeHost.setProjectTrustContextFactory?.((cwd) => this.createProjectTrustContext(cwd));
 	}
 
 	private createProjectTrustContext(cwd: string): ProjectTrustContext {
@@ -185,7 +185,7 @@ export class RpcSessionBinding {
 	async loadDeferredResources(): Promise<void> {
 		const session = this.session;
 		try {
-			if (!(await this.runtimeHost.completeStartup())) {
+			if (!(await this.runtimeHost.completeStartup?.())) {
 				await session.reload({ reason: "startup", failOnExtensionErrors: true });
 			}
 		} catch (error) {

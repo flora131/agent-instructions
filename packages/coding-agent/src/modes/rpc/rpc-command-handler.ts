@@ -160,7 +160,7 @@ export function createRpcCommandHandler({
 					messageCount: session.messages.length,
 					pendingMessageCount: session.pendingMessageCount,
 					queuedMessagesPaused: session.queuedMessagesPaused,
-					projectTrusted: session.settingsManager.isProjectTrusted(),
+					projectTrusted: session.settingsManager.isProjectTrusted?.() === true,
 					resourceOverlaps: extensionResult.overlaps ?? [],
 					resourceExtensions: extensionResult.extensions.map((extension) => ({
 						path: extension.path,
