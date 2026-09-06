@@ -795,6 +795,608 @@ test("a legacy route-ineligible roster row does not prevent a genuine agent from
 	}
 });
 
+test("ctx.ui run prompts and synthetic prompt stages are hidden and broker-refused across nested and retained states", async () => {
+	const rootId = "65555555-1111-4111-8111-111111111111";
+	const childId = "65555555-2222-4222-8222-222222222222";
+	const group = `workflow:${rootId}`;
+	const store = createStore();
+	const backend = new InMemoryDurableBackend();
+	setDurableBackend(backend);
+	const owner = extensionFixture("prompt-owner", "prompt-owner", undefined, "default");
+	const sender = extensionFixture("prompt-sender", "prompt-sender", undefined, group);
+	const raw = new RawBrokerClient();
+	rawClients.add(raw);
+	intercom(owner.pi as never);
+	intercom(sender.pi as never);
+	let disposeBridge = (): void => {};
+	let ownerCalls = 0;
+	const footprint = { id: "hil-stage-input", kind: "input" as const, message: "Value?", createdAt: 1 };
+	// Executor prompt nodes retain the prompt replay identity even after persistence
+	// drops transient prompt UI fields. Real stage prompts can also have footprints.
+	const promptStage = {
+		id: "synthetic-input-id",
+		name: "input",
+		replayKey: "prompt:input:descriptor:callsite",
+		status: "running" as const,
+		parentIds: [],
+		toolEvents: [],
+		promptFootprint: footprint,
+		attachable: true,
+	};
+	const customStage = {
+		...promptStage,
+		id: "synthetic-custom-id",
+		name: "custom",
+		replayKey: "prompt:custom:descriptor:callsite",
+		promptFootprint: { ...footprint, id: "hil-custom", kind: "custom" as const },
+	};
+	const restoredStage = {
+		id: "restored-prompt-id",
+		name: "editor",
+		replayKey: "prompt:editor:descriptor:callsite",
+		status: "completed" as const,
+		parentIds: [],
+		toolEvents: [],
+		replayed: true,
+	};
+	const agentStage = {
+		id: "real-agent-id",
+		name: "review Ω",
+		replayKey: "stage:review",
+		status: "running" as const,
+		parentIds: [],
+		toolEvents: [],
+		pendingStageDeliveryAvailable: true,
+	};
+	const prefixes = ["outer", "boundary-id", childId, `${rootId}/outer`, `${childId}/${rootId}/boundary-id`];
+	const stageKeys = [
+		promptStage.id,
+		promptStage.name,
+		footprint.id,
+		customStage.id,
+		customStage.name,
+		"hil-custom",
+		restoredStage.id,
+		restoredStage.name,
+	];
+	const nestedTargets = prefixes.flatMap((prefix) => stageKeys.map((key) => `${group}/${prefix}/${key}`));
+	try {
+		await owner.start();
+		await executeIntercom(owner, { action: "status" });
+		const completions: Promise<void>[] = [];
+		owner.pi.events.on("atomic:workflow-pending-stage-route", (payload) => {
+			const completion = (payload as { completion?: Promise<void> }).completion;
+			assert.ok(completion, "production extension must own registration");
+			completions.push(completion);
+		});
+		owner.pi.events.on("atomic:workflow-pending-stage-message", () => {
+			ownerCalls++;
+		});
+		store.recordRunStart({
+			id: rootId,
+			name: "prompt-root",
+			inputs: {},
+			status: "running",
+			startedAt: 1,
+			stages: [
+				{
+					id: "boundary-id",
+					name: "outer",
+					replayKey: "boundary-id",
+					status: "running",
+					parentIds: [],
+					toolEvents: [],
+					workflowChildRun: { runId: childId, alias: "outer", workflow: "child" },
+				},
+			],
+			possibleStages: [
+				...nestedTargets.map((target) => target.slice(group.length + 1)),
+				"confirm",
+				"future-agent",
+				"outer/*",
+				"**",
+			],
+		});
+		store.recordRunStart({
+			id: childId,
+			name: "prompt-child",
+			rootRunId: rootId,
+			parentRunId: rootId,
+			parentStageId: "boundary-id",
+			inputs: {},
+			status: "running",
+			startedAt: 1,
+			stages: [promptStage, customStage, restoredStage, agentStage],
+		});
+		backend.registerWorkflow({
+			workflowId: rootId,
+			name: "prompt-root",
+			inputs: {},
+			status: "running",
+			createdAt: 1,
+		});
+		const { buildBackgroundUIAdapter } = await import(
+			"../../packages/workflows/src/extension/background-ui-adapter.js"
+		);
+		const answer = buildBackgroundUIAdapter(store, rootId).confirm("Proceed?");
+		const runPrompt = store.runs().find((run) => run.id === rootId)?.pendingPrompt;
+		assert.ok(runPrompt);
+		assert.equal(store.recordStagePendingPrompt(childId, promptStage.id, footprint), true);
+		assert.equal(store.recordStageAwaitingInput(childId, customStage.id, true), true);
+		assert.equal(
+			store.recordStagePendingPrompt(childId, agentStage.id, { ...footprint, id: "real-agent-question" }),
+			true,
+		);
+		disposeBridge = registerPendingStageIntercomBridge(owner.pi as never, store);
+		await Promise.all(completions);
+		await sender.start();
+		await raw.register("prompt-observer", group);
+		const runTargets = [`${group}/${runPrompt.id}`, `${group}/${runPrompt.kind}`];
+		const allTargets = [...runTargets, ...nestedTargets];
+		for (const phase of ["awaiting_input", "completed"]) {
+			if (phase === "completed") {
+				assert.equal(store.resolveStagePendingPrompt(childId, promptStage.id, footprint.id, "answer"), true);
+				store.recordStageEnd(childId, { ...promptStage, status: "completed", endedAt: 2 });
+				store.recordStageEnd(childId, { ...customStage, status: "completed", endedAt: 2 });
+				await Promise.all(completions);
+			}
+			for (const to of allTargets) {
+				for (const expectsReply of [false, true]) {
+					const id = `${phase}-${to}-${expectsReply}`;
+					raw.send({
+						type: "send",
+						to,
+						message: { id, timestamp: 0, expectsReply, content: { text: "  do not queue\n" } },
+					});
+					const ack = await raw.nextDeliveryAcknowledgment(id);
+					assert.equal(ack.type, "delivery_failed", `${phase}: ${to}`);
+					if (ack.type === "delivery_failed") assert.match(ack.reason, /non-agent/);
+					assert.equal(ownerCalls, 0, `no owner dispatch: ${to}`);
+				}
+			}
+			raw.send({ type: "list", requestId: `prompt-directory-${phase}` });
+			const directory = await raw.next("sessions");
+			assert.deepEqual(
+				directory.workflowFutureStages?.filter((row) => allTargets.includes(row.target)),
+				[],
+			);
+			assert.equal(
+				directory.workflowStages?.some((row) => stageKeys.includes(row.stageId)),
+				false,
+			);
+			assert.equal(
+				directory.workflowStages?.some((row) => row.stageId === agentStage.id),
+				true,
+			);
+			assert.deepEqual(
+				store.runs().flatMap((run) => run.pendingStageMessages ?? []),
+				[],
+			);
+		}
+		// More than the default waiter capacity: none can survive these refusals.
+		for (let index = 0; index < 8; index++) {
+			const refused = await executeIntercom(
+				sender,
+				{ action: "ask", to: allTargets[index], message: "no model here" },
+				AbortSignal.timeout(BROKER_FRAME_TIMEOUT_MS),
+			);
+			assert.equal(refused.isError, true);
+			assert.match(refused.content[0]!.text, /non-agent|Session not found/);
+		}
+		assert.equal(ownerCalls, 0);
+		// The owner fallback must agree, including retained prompt IDs and aliases.
+		for (const target of allTargets) {
+			const event: {
+				handled: boolean;
+				from: { id: string; group: string };
+				runId: string;
+				target: string;
+				message: { id: string; timestamp: number; content: { text: string } };
+				completion?: Promise<{ outcome: string }>;
+			} = {
+				handled: false,
+				from: { id: "prompt-fallback", group },
+				runId: rootId,
+				target,
+				message: { id: `fallback-${target}`, timestamp: 0, content: { text: "no fallback" } },
+			};
+			owner.pi.events.emit("atomic:workflow-pending-stage-message", event);
+			assert.equal(event.handled, true);
+			assert.equal((await event.completion)?.outcome, "refused", target);
+		}
+		assert.deepEqual(
+			store.runs().flatMap((run) => run.pendingStageMessages ?? []),
+			[],
+		);
+		// Complete the genuine agent's human-input wait; its footprint remains,
+		// but it still owns the same pending delivery capability and stage identity.
+		assert.equal(store.resolveStagePendingPrompt(childId, agentStage.id, "real-agent-question", "continue"), true);
+		await Promise.all(completions);
+		for (const prefix of prefixes) {
+			const queued = await executeIntercom(sender, {
+				action: "send",
+				to: `${group}/${prefix}/${agentStage.name}`,
+				message: "  agent only\n",
+			});
+			assert.equal(queued.details.queued, true, queued.content[0]?.text);
+		}
+		const agentEntries = store.runs().find((run) => run.id === childId)?.pendingStageMessages;
+		assert.equal(agentEntries?.length, prefixes.length);
+		assert.equal(
+			agentEntries?.every(
+				(entry) => entry.stageKey === agentStage.id && entry.message.content.text === "  agent only\n",
+			),
+			true,
+		);
+		for (const key of ["future-agent", "outer/*", "**"]) {
+			assert.equal(
+				(await executeIntercom(sender, { action: "send", to: `${group}/${key}`, message: "future agent" })).details
+					.queued,
+				true,
+			);
+		}
+		assert.equal(store.resolvePendingPrompt(rootId, runPrompt.id, true), true);
+		assert.equal(await answer, true);
+		await Promise.all(completions);
+		assert.equal(store.runs().find((run) => run.id === rootId)?.pendingPrompt, undefined);
+		// A real model session can be awaiting input even with no model display text.
+		owner.context.model.id = "";
+		await executeIntercom(sender, { action: "join", group: "default" });
+		const ask = executeIntercom(
+			sender,
+			{ action: "ask", to: "prompt-owner", message: "real agent?" },
+			AbortSignal.timeout(BROKER_FRAME_TIMEOUT_MS),
+		);
+		await owner.waitForInjectedCount(1);
+		assert.equal((await executeIntercom(owner, { action: "reply", message: "real answer" })).details.delivered, true);
+		assert.equal((await ask).isError, false);
+	} finally {
+		disposeBridge();
+		await sender.shutdown();
+		await owner.shutdown();
+		await raw.close();
+		setDurableBackend(undefined);
+	}
+});
+
+test("live agent aliases survive same-name tools when pending capability disappears or the agent completes", async () => {
+	const runId = "66666666-1111-4111-8111-111111111111";
+	const group = `workflow:${runId}`;
+	const store = createStore();
+	const backend = new InMemoryDurableBackend();
+	setDurableBackend(backend);
+	const owner = extensionFixture("alias-transition-owner", "alias-transition-owner", undefined, group);
+	const sender = extensionFixture("alias-transition-sender", "alias-transition-sender", undefined, group);
+	const agent = new IntercomClient();
+	const asker = new RawBrokerClient();
+	rawClients.add(asker);
+	const received: string[] = [];
+	agent.on("message", (from, message) => {
+		received.push(message.content.text);
+		if (message.expectsReply) void agent.send(from.id, { text: "still an agent", replyTo: message.id });
+	});
+	intercom(owner.pi as never);
+	intercom(sender.pi as never);
+	let disposeBridge = (): void => {};
+	const snapshot = (pendingStageDeliveryAvailable: boolean) => ({
+		id: runId,
+		name: "alias-transitions",
+		inputs: {},
+		status: "running" as const,
+		startedAt: 1,
+		stages: [
+			{
+				id: "agent-id",
+				name: "same",
+				status: "running" as const,
+				sessionId: "sdk-agent",
+				parentIds: [],
+				toolEvents: [],
+				pendingStageDeliveryAvailable,
+			},
+		],
+		toolNodes: [
+			{
+				kind: "tool" as const,
+				id: "tool:same",
+				name: "same",
+				argsHash: "hash",
+				ordinal: 0,
+				parentIds: [],
+				status: "running" as const,
+				attachable: false as const,
+			},
+		],
+	});
+	try {
+		await owner.start();
+		await executeIntercom(owner, { action: "status" });
+		const completions: Promise<void>[] = [];
+		owner.pi.events.on("atomic:workflow-pending-stage-route", (payload) => {
+			const completion = (payload as { completion?: Promise<void> }).completion;
+			assert.ok(completion);
+			completions.push(completion);
+		});
+		store.recordRunStart(snapshot(true));
+		backend.registerWorkflow({
+			workflowId: runId,
+			name: "alias-transitions",
+			inputs: {},
+			status: "running",
+			createdAt: 1,
+		});
+		disposeBridge = registerPendingStageIntercomBridge(owner.pi as never, store);
+		await Promise.all(completions);
+		await sender.start();
+		await asker.register("alias-transition-asker", group);
+		await agent.connect({
+			name: "real-awaiting-agent",
+			group,
+			cwd: repoRoot,
+			model: "",
+			pid: 1,
+			startedAt: 0,
+			lastActivity: 0,
+			status: "awaiting_input",
+			recipientPurpose: "agent",
+		});
+		const { workflowPendingStageRouteCapability } = await import(
+			"../../packages/workflows/src/shared/pending-stage-route-capability.js"
+		);
+		await agent.registerLiveWorkflowStageRoute(
+			runId,
+			["agent-id", "same"],
+			workflowPendingStageRouteCapability(store, runId),
+		);
+		for (const phase of ["running", "no-pending-capability", "completed"]) {
+			if (phase === "no-pending-capability") store.recordRunStart(snapshot(false));
+			if (phase === "completed")
+				store.recordStageEnd(runId, { ...snapshot(true).stages[0]!, status: "completed", endedAt: 2 });
+			await Promise.all(completions);
+			for (const key of ["agent-id", "same"]) {
+				const sent = await executeIntercom(sender, {
+					action: "send",
+					to: `${group}/${key}`,
+					message: ` ${phase}\n`,
+				});
+				assert.equal(sent.details.delivered, true, `${phase}/${key}: ${sent.content[0]?.text}`);
+				const questionId = `${phase}-${key}`;
+				asker.send({
+					type: "send",
+					to: `${group}/${key}`,
+					message: {
+						id: questionId,
+						timestamp: 0,
+						expectsReply: true,
+						content: { text: "answer?" },
+					},
+				});
+				assert.equal((await asker.nextDeliveryAcknowledgment(questionId)).type, "delivered", `${phase}/${key}`);
+				const reply = await asker.next("message", (frame) => frame.message.replyTo === questionId);
+				assert.equal(reply.from.id, agent.sessionId);
+				assert.equal(reply.message.content.text, "still an agent");
+			}
+			const refused = await executeIntercom(sender, {
+				action: "send",
+				to: `${group}/tool:same`,
+				message: "not the tool",
+			});
+			assert.equal(refused.isError, true);
+		}
+		await agent.listDirectory();
+		assert.equal(received.length, 12);
+		assert.deepEqual(store.runs()[0]?.pendingStageMessages ?? [], []);
+	} finally {
+		disposeBridge();
+		await agent.disconnect();
+		await asker.close();
+		await sender.shutdown();
+		await owner.shutdown();
+		setDurableBackend(undefined);
+	}
+});
+
+test.each([
+	["tool", "completed"],
+	["tool", "no-cap"],
+	["prompt", "completed"],
+	["prompt", "no-cap"],
+] as const)(
+	"a genuine agent reconnects beside a same-name %s after %s, including owner/broker replay",
+	async (kind, transition) => {
+		const runId = "66666666-2222-4222-8222-222222222222";
+		const group = `workflow:${runId}`;
+		const store = createStore();
+		const backend = new InMemoryDurableBackend();
+		setDurableBackend(backend);
+		const fixtures: ReturnType<typeof extensionFixture>[] = [];
+		const makeOwner = () => {
+			const owner = extensionFixture("reactivation-owner", "reactivation-owner", undefined, "default");
+			fixtures.push(owner);
+			intercom(owner.pi as never);
+			return owner;
+		};
+		const makeAgent = () => {
+			const pending = createWorkflowPendingStageDelivery(store, runId, "agent-id", "input");
+			const agent = extensionFixture("reactivation-agent", "reactivation-agent", pending, group, {
+				intercomGroup: group,
+				kind: "workflow-stage",
+				workflowRunId: runId,
+				workflowStageId: "agent-id",
+				workflowStageName: "input",
+				pendingStageDelivery: pending,
+			});
+			fixtures.push(agent);
+			intercom(agent.pi as never);
+			return agent;
+		};
+		const snapshot = (changed: boolean) => ({
+			id: runId,
+			name: "reactivation",
+			inputs: {},
+			status: "running" as const,
+			startedAt: 1,
+			stages: [
+				{
+					id: "agent-id",
+					name: "input",
+					replayKey: "stage:input",
+					status: changed && transition === "completed" ? ("completed" as const) : ("running" as const),
+					sessionId: "sdk-agent",
+					parentIds: [],
+					toolEvents: [],
+					pendingStageDeliveryAvailable: !(changed && transition === "no-cap"),
+				},
+				{
+					id: "shared-group-agent",
+					name: "model-less",
+					status: "running" as const,
+					intercomGroup: "default",
+					pendingStageDeliveryAvailable: false,
+					parentIds: [],
+					toolEvents: [],
+				},
+				...(kind === "prompt"
+					? ["input", "model-less"].map((name) => ({
+							id: `prompt-${name}`,
+							name,
+							replayKey: `prompt:${name}:descriptor:callsite`,
+							status: "completed" as const,
+							parentIds: [],
+							toolEvents: [],
+						}))
+					: []),
+			],
+			...(kind === "tool"
+				? {
+						toolNodes: ["input", "model-less"].map((name) => ({
+							kind: "tool" as const,
+							id: `tool-${name}`,
+							name,
+							argsHash: "hash",
+							ordinal: 0,
+							parentIds: [],
+							status: "completed" as const,
+							attachable: false as const,
+						})),
+					}
+				: {}),
+		});
+		let owner = makeOwner();
+		let observer = new IntercomClient();
+		let asker = new RawBrokerClient();
+		rawClients.add(asker);
+		let disposeBridge = (): void => {};
+		let negativeOwnerCalls = 0;
+		const startOwner = async () => {
+			await owner.start();
+			assert.equal((await executeIntercom(owner, { action: "status" })).isError, false);
+			owner.pi.events.on("atomic:workflow-pending-stage-message", (payload) => {
+				const target = (payload as { target?: string }).target;
+				if (target?.includes(`${kind}-`) || target?.endsWith("/model-less")) negativeOwnerCalls++;
+			});
+			disposeBridge = registerPendingStageIntercomBridge(owner.pi as never, store);
+			await owner.waitForEventCompletion("atomic:workflow-pending-stage-route");
+			await observer.connect({
+				name: "reactivation-observer",
+				group,
+				cwd: repoRoot,
+				model: "",
+				pid: 1,
+				startedAt: 0,
+				lastActivity: 0,
+			});
+			await asker.register("reactivation-asker", group);
+		};
+		const assertEndpoints = async (agent: ReturnType<typeof makeAgent>, phase: string) => {
+			const directory = await observer.listDirectory();
+			assert.ok(directory.sessions.some((session) => session.name === "reactivation-agent"));
+			assert.deepEqual(
+				directory.workflowStages,
+				[],
+				"identity-only agents and model-less nodes stay out of the roster",
+			);
+			for (const key of [`${kind}-input`, `${kind}-model-less`, "model-less"]) {
+				for (const expectsReply of [false, true]) {
+					const result = await observer.send(`${group}/${key}`, { text: "not an agent", expectsReply });
+					assert.equal(result.delivered, false, `${phase}/${key}`);
+					assert.match(result.reason ?? "", /non-agent/);
+				}
+			}
+			assert.equal(negativeOwnerCalls, 0);
+			for (const key of ["agent-id", "input"]) {
+				let count = agent.injectedMessages.length;
+				assert.equal((await observer.send(`${group}/${key}`, { text: ` ${phase}/${key}\n` })).delivered, true);
+				await agent.waitForInjectedCount(++count);
+				const id = `${kind}-${transition}-${phase}-${key}`;
+				asker.send({
+					type: "send",
+					to: `${group}/${key}`,
+					message: { id, timestamp: 0, expectsReply: true, content: { text: "reply?" } },
+				});
+				assert.equal((await asker.nextDeliveryAcknowledgment(id)).type, "delivered");
+				await agent.waitForInjectedCount(++count);
+				assert.equal(
+					(await executeIntercom(agent, { action: "reply", message: "still a genuine agent" })).details.delivered,
+					true,
+				);
+				const reply = await asker.next("message", (frame) => frame.message.replyTo === id);
+				assert.equal(reply.from.name, "reactivation-agent");
+			}
+			assert.deepEqual(store.runs()[0]?.pendingStageMessages ?? [], []);
+		};
+		try {
+			store.recordRunStart(snapshot(false));
+			backend.registerWorkflow({
+				workflowId: runId,
+				name: "reactivation",
+				inputs: {},
+				status: "running",
+				createdAt: 1,
+			});
+			await startOwner();
+			const first = makeAgent();
+			await first.start();
+			assert.equal((await observer.send(`${group}/input`, { text: "before transition" })).delivered, true);
+			await first.waitForInjectedCount(1);
+			if (transition === "completed")
+				store.recordStageEnd(runId, { ...snapshot(true).stages[0]!, status: "completed", endedAt: 2 });
+			else store.recordRunStart(snapshot(true));
+			await owner.waitForEventCompletion("atomic:workflow-pending-stage-route");
+			await assertEndpoints(first, "still-connected");
+			await first.shutdown();
+			await observer.listDirectory();
+			const second = makeAgent();
+			await second.start();
+			assert.equal((await executeIntercom(second, { action: "status" })).isError, false);
+			await assertEndpoints(second, "reconnected");
+			// Fresh owner and broker must rebuild identity from the retained store, not stale aliases.
+			await second.shutdown();
+			disposeBridge();
+			await owner.shutdown();
+			await observer.disconnect();
+			await asker.close();
+			await stopBroker();
+			await startBroker();
+			owner = makeOwner();
+			observer = new IntercomClient();
+			asker = new RawBrokerClient();
+			rawClients.add(asker);
+			await startOwner();
+			const replayed = makeAgent();
+			await replayed.start();
+			await assertEndpoints(replayed, "replayed");
+		} finally {
+			disposeBridge();
+			for (const fixture of fixtures.toReversed()) await fixture.shutdown();
+			await observer.disconnect();
+			await asker.close();
+			setDurableBackend(undefined);
+			if (broker === undefined) await startBroker();
+		}
+	},
+);
+
 test("nested known tools are broker-refused through every supported boundary and run-id spelling", async () => {
 	// R1: negative recipients must use the same path grammar as genuine stages.
 	const rootId = "77777777-1111-4111-8111-111111111111";

@@ -55,7 +55,7 @@ A session becomes intercom-connected when all of these are true:
 - the model or user has invoked an Intercom tool, `/intercom`, or the `ALT+M` overlay in that session
 - the local broker is running or can be auto-started
 
-The session list, ALT+M picker, and group counts include connected agent sessions only. Internal workflow routing/control connections and `ctx.tool` nodes are hidden and cannot receive ordinary messages, even by a known ID or through a supervisor route. An agent executing a tool, including `tool:workflow`, remains visible and messageable.
+The session list, ALT+M picker, and group counts include connected agent sessions only. Internal workflow routing/control connections, model-less `ctx.ui` prompts, and `ctx.tool` nodes are hidden and cannot receive ordinary messages, even by a known ID or through a supervisor route. This includes run-level prompts and retained completed synthetic prompt stages. An agent executing a tool, including `tool:workflow`, or awaiting human input remains visible and messageable.
 
 If a session is unnamed, intercom exposes a runtime-only fallback alias like `subagent-chat-1a2b3c4d-1111-4222-8333-123456789abc` so other sessions can still target it. That alias is not persisted as the session title, so resume pickers can keep showing the transcript snippet instead of a generic `session-...` name.
 
@@ -473,7 +473,7 @@ A workflow stage warming up before its heavy module exists is the one case the r
 
 Messages use length-prefixed JSON over a local socket/pipe transport (4-byte length + JSON payload) to handle fragmentation properly. The protocol includes request correlation for session listing, explicit delivery failures, and validation for malformed or out-of-order messages.
 
-Host registrations may declare the immutable `recipientPurpose` as `"agent"` or `"control"`; omission retains legacy agent behavior. Dedicated pending-stage route clients register as controls. Presence, name, status, and membership updates cannot change that purpose. The broker keeps control connections for route ownership while excluding them from recipient discovery and ordinary delivery. Known workflow tool paths are rejected before speculative future-stage queueing; wildcard queues remain available for future agents.
+Host registrations may declare the immutable `recipientPurpose` as `"agent"` or `"control"`; omission retains legacy agent behavior. Dedicated pending-stage route clients register as controls. Presence, name, status, and membership updates cannot change that purpose. The broker keeps control connections for route ownership while excluding them from recipient discovery and ordinary delivery. Known `ctx.ui` prompt and `ctx.tool` paths are rejected before speculative future-stage queueing; wildcard queues remain available for future agents.
 
 Workflow roster announcements keep node `recipientPurpose` separate from `routeEligible`: a hidden pending row does not make a genuine live agent ineligible. Internal run-parent metadata carries the uniquely resolved boundary names and IDs, so nested tool paths are refused by the broker before invoking their route owner. Materialized run-ID segments retain their existing precedence and may occur at any depth.
 

@@ -1,6 +1,6 @@
 import { getDurableBackend } from "../durable/factory.js";
 import { durableBackendForRun, durableRootRunIdForRun } from "../durable/run-owner-backend.js";
-import { workflowInvocationIntercomGroup } from "../shared/intercom-group.js";
+import { workflowInvocationIntercomGroup, workflowInvocationOwnsGroup } from "../shared/intercom-group.js";
 import { workflowPendingStageRouteCapability } from "../shared/pending-stage-route-capability.js";
 import {
 	stageMatchesPathPattern,
@@ -15,6 +15,7 @@ import type {
 	PendingStageQueueResult,
 	PendingStageSender,
 	PendingStickyStageMessageInput,
+	StageSnapshot,
 } from "../shared/store-types.js";
 import {
 	matchStagePathSegments,
@@ -129,13 +130,11 @@ export function registerPendingStageIntercomBridge(pi: WorkflowEventSurface, act
 					...run.stages
 						.filter(
 							(stage) =>
-								stage.pendingStageDeliveryAvailable === true &&
-								stage.nodeKind !== "tool" &&
-								(stage.status === "pending" ||
-									stage.status === "running" ||
-									stage.status === "awaiting_input" ||
-									stage.status === "paused" ||
-									stage.status === "blocked"),
+								!isNonAgentStage(stage) &&
+								workflowInvocationOwnsGroup(
+									workflowInvocationIntercomGroup(rootRunId),
+									stage.intercomGroup ?? workflowInvocationIntercomGroup(rootRunId),
+								),
 						)
 						.map((stage) => ({
 							stageId: stage.id,
@@ -143,12 +142,18 @@ export function registerPendingStageIntercomBridge(pi: WorkflowEventSurface, act
 							target: stageRouteTarget(runs, rootRunId, run.id, stage.id),
 							lifecycle:
 								stage.sessionId === undefined && stage.sessionFile === undefined ? "pending" : "running",
-							routeEligible: true,
+							// Keep agent identity for alias reactivation even after discovery eligibility ends.
+							routeEligible:
+								stage.pendingStageDeliveryAvailable === true &&
+								(stage.status === "pending" ||
+									stage.status === "running" ||
+									stage.status === "awaiting_input" ||
+									stage.status === "paused" ||
+									stage.status === "blocked"),
 							group: stage.intercomGroup ?? workflowInvocationIntercomGroup(rootRunId),
 						})),
-					// Publish negative recipient knowledge too: a known ctx.tool target must
-					// not fall through to the broker's speculative future-agent route.
-					...(run.toolNodes ?? []).map((node) => ({
+					// Known ctx.ui/ctx.tool identities must not become speculative agents.
+					...nonAgentNodes(run).map((node) => ({
 						stageId: node.id,
 						stageName: node.name,
 						target: stageRouteTarget(runs, rootRunId, run.id, node.id),
@@ -178,11 +183,11 @@ export function registerPendingStageIntercomBridge(pi: WorkflowEventSurface, act
 		const runs = activeStore.runs();
 		const parsedTarget = parseWorkflowStageTarget(payload.target);
 		if (parsedTarget === undefined) return;
-		if (parsedTarget.kind === "path" && isMaterializedToolTarget(runs, parsedTarget)) {
+		if (parsedTarget.kind === "path" && isMaterializedNonAgentTarget(runs, parsedTarget)) {
 			payload.handled = true;
 			payload.completion = Promise.resolve({
 				outcome: "refused",
-				reason: "Target is a non-agent workflow tool and cannot receive Intercom messages",
+				reason: "Target is a non-agent workflow node and cannot receive Intercom messages",
 			});
 			return;
 		}
@@ -386,13 +391,30 @@ function isPendingStageMessageEvent(value: unknown): value is PendingStageMessag
 	);
 }
 
-function isMaterializedToolTarget(runs: ReturnType<Store["runs"]>, target: WorkflowStageTarget): boolean {
-	// Prefer real stages when a tool and an agent share a display name.
+function isNonAgentStage(stage: StageSnapshot): boolean {
+	// The executor gives synthetic ctx.ui nodes a persisted prompt replay identity.
+	// pendingPrompt/footprints alone also occur on genuine model stages.
+	return stage.nodeKind === "tool" || stage.replayKey?.startsWith("prompt:") === true;
+}
+
+function nonAgentNodes(run: ReturnType<Store["runs"]>[number]): { readonly id: string; readonly name: string }[] {
+	return [
+		...(run.toolNodes ?? []),
+		...run.stages.filter(isNonAgentStage).flatMap((stage) => {
+			const prompt = stage.pendingPrompt ?? stage.promptFootprint;
+			return [stage, ...(prompt === undefined ? [] : [{ id: prompt.id, name: prompt.kind }])];
+		}),
+		...(run.pendingPrompt === undefined ? [] : [{ id: run.pendingPrompt.id, name: run.pendingPrompt.kind }]),
+	];
+}
+
+function isMaterializedNonAgentTarget(runs: ReturnType<Store["runs"]>, target: WorkflowStageTarget): boolean {
+	// Prefer real stages when a non-agent node and an agent share a display name.
 	if (resolveMaterializedStage(runs, formatWorkflowStageTarget(target.rootRunId, ...target.segments)) !== undefined)
 		return false;
 	const run = resolveMaterializedRun(runs, target);
 	const stageKey = target.segments.at(-1);
-	return run?.toolNodes?.some((node) => node.id === stageKey || node.name === stageKey) === true;
+	return run !== undefined && nonAgentNodes(run).some((node) => node.id === stageKey || node.name === stageKey);
 }
 
 function resolveChildRun(
@@ -451,7 +473,9 @@ function resolveMaterializedStage(
 	if (run === undefined) return undefined;
 	const stageKey = parsed.segments.at(-1)!;
 	const stagesById = run.stages.filter((stage) => stage.id === stageKey);
-	const stages = stagesById.length > 0 ? stagesById : run.stages.filter((stage) => stage.name === stageKey);
+	const stages = (stagesById.length > 0 ? stagesById : run.stages.filter((stage) => stage.name === stageKey)).filter(
+		(stage) => !isNonAgentStage(stage),
+	);
 	return stages.length === 1 ? { run, stage: stages[0]! } : undefined;
 }
 

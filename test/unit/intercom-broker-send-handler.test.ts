@@ -111,6 +111,36 @@ test("non-agent recipients cannot create deliveries, pending questions or future
 	assert.equal(writes.at(-2)?.socket, agent.socket);
 });
 
+test("hidden controls preserve duplicate-agent ambiguity and its exact disambiguation guidance", () => {
+	for (const name of ["CONTROL", ""]) {
+		const sender = session("sender", "sender", {} as net.Socket);
+		const agents = [session("first", name, {} as net.Socket), session("second", name, {} as net.Socket)];
+		const control = session("control", name.toLowerCase(), {} as net.Socket);
+		control.info = { ...control.info, recipientPurpose: "control" };
+		const sessions = new Map([sender, ...agents, control].map((peer) => [peer.info.id, peer]));
+		const writes: BrokerMessage[] = [];
+		handleBrokerSend(
+			sender.socket,
+			{ type: "send", to: name, message: message(`ambiguous-${name}`) },
+			sender.info.id,
+			sessions,
+			new DeliveredMessageCache(),
+			(_socket, frame) => {
+				writes.push(frame);
+				return true;
+			},
+		);
+		assert.deepEqual(writes, [
+			{
+				type: "delivery_failed",
+				messageId: `ambiguous-${name}`,
+				attemptId: undefined,
+				reason: `Multiple sessions named "${name}" are connected. Use the session ID instead.`,
+			},
+		]);
+	}
+});
+
 test("broker wire send dedupes a reconnect and rejects target, payload, or distinct-sender conflicts", () => {
 	const senderOne = {} as net.Socket;
 	const reconnectedSender = {} as net.Socket;

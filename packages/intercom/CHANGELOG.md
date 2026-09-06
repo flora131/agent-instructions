@@ -6,7 +6,7 @@ All notable changes to the `pi-intercom` extension will be documented in this fi
 
 ### Fixed
 
-- Excluded internal workflow route-owner/control connections from discovery, presence, and group counts. Broker recipient checks reject ordinary messages to non-agents and known workflow tool paths while preserving tool-busy agents and pending/live routing.
+- Excluded internal workflow route-owner/control connections, model-less `ctx.ui` prompts, and `ctx.tool` nodes from recipient discovery. Broker checks refuse known non-agent targets before delivery or queueing, including retained completed prompts. Genuine agents busy in tools or awaiting human input remain eligible, and connected aliases survive pending-capability changes and completion without same-name controls changing agent ambiguity diagnostics.
 
 ## [0.9.18] - 2026-09-05
 

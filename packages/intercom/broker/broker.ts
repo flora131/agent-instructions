@@ -384,6 +384,9 @@ class IntercomBroker {
 	private isNonAgentWorkflowTarget = (target: string): boolean => {
 		const parsed = parseWorkflowStageTarget(target);
 		if (parsed?.kind !== "path") return false;
+		// A connected agent's registered alias outlives its pending roster row.
+		// A same-name control announcement must not revoke that live identity.
+		if (this.resolveLiveWorkflowStage(target) !== undefined) return false;
 		const rosters = [...this.workflowRosters].filter(([, roster]) => roster.group === `workflow:${parsed.rootRunId}`);
 		let runId: string | undefined = parsed.rootRunId;
 		for (const segment of parsed.segments.slice(0, -1)) {
