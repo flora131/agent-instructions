@@ -69,6 +69,7 @@ Cumulative release of the `0.9.18-alpha.1` through `0.9.18-alpha.7` prereleases.
 ### Added
 
 - Fullscreen mouse-wheel scrolling moves five times as far while Alt is held, through the Pi TUI 0.85.1 update ([upstream #9166](https://github.com/earendil-works/pi/pull/9166)).
+- Editable workflow stage chats now discover source-qualified skills from their own session catalog and expand `/skill:` submissions once through stage admission, preserving Enter/Ctrl+F delivery and literal human-input answers. Skill diagnostics remain in the stage chat; blocked, archived, and replayed stages stay read-only.
 
 ### Changed
 
