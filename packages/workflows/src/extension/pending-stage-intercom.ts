@@ -409,12 +409,14 @@ function nonAgentNodes(run: ReturnType<Store["runs"]>[number]): { readonly id: s
 }
 
 function isMaterializedNonAgentTarget(runs: ReturnType<Store["runs"]>, target: WorkflowStageTarget): boolean {
-	// Prefer real stages when a non-agent node and an agent share a display name.
-	if (resolveMaterializedStage(runs, formatWorkflowStageTarget(target.rootRunId, ...target.segments)) !== undefined)
-		return false;
 	const run = resolveMaterializedRun(runs, target);
+	if (run === undefined) return false;
 	const stageKey = target.segments.at(-1);
-	return run !== undefined && nonAgentNodes(run).some((node) => node.id === stageKey || node.name === stageKey);
+	const byId = run.stages.filter((stage) => stage.id === stageKey);
+	const matches = byId.length > 0 ? byId : run.stages.filter((stage) => stage.name === stageKey);
+	// Multiple genuine matches are ambiguous, not evidence of a non-agent target.
+	if (matches.some((stage) => !isNonAgentStage(stage))) return false;
+	return nonAgentNodes(run).some((node) => node.id === stageKey || node.name === stageKey);
 }
 
 function resolveChildRun(

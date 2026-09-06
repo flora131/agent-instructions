@@ -4,7 +4,7 @@ import "./bounded-stderr-install.js";
 import net from "net";
 import { chmodSync, writeFileSync, unlinkSync, mkdirSync, readFileSync } from "fs";
 import { randomUUID } from "crypto";
-import { createMessageReader } from "./framing.js";
+import { createMessageReader, type JsonWireValue } from "./framing.js";
 import { writeMessageIfOpen, writeMessageWithOutcome } from "./socket-writes.js";
 import {
 	getBrokerDeliveredMessagesPath,
@@ -138,7 +138,10 @@ function isSessionRegistration(value: unknown): value is Omit<SessionInfo, "id">
     return false;
   }
 
-
+  if (session.recipientPurpose !== undefined &&
+    session.recipientPurpose !== "agent" && session.recipientPurpose !== "control") {
+    return false;
+  }
   if (session.groups !== undefined &&
     (!Array.isArray(session.groups) || !session.groups.every((group) => typeof group === "string"))) {
     return false;
@@ -158,11 +161,14 @@ function invocationOwnsGroup(invocationGroup: string, candidateGroup: string): b
 	return candidate === owner || candidate.startsWith(`${owner}/`);
 }
 
-function isWorkflowRunParentAnnouncement(value: unknown): value is WorkflowRunParentAnnouncement {
-	if (typeof value !== "object" || value === null) return false;
-	const parent = value as WorkflowRunParentAnnouncement;
-	return typeof parent.runId === "string" && Array.isArray(parent.stageKeys) &&
-		parent.stageKeys.every((key) => typeof key === "string");
+function readWorkflowRunParentAnnouncement(value: JsonWireValue | undefined): WorkflowRunParentAnnouncement | undefined {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+	if (
+		typeof value.runId !== "string" ||
+		!Array.isArray(value.stageKeys) ||
+		!value.stageKeys.every((key) => typeof key === "string")
+	) return undefined;
+	return { runId: value.runId, stageKeys: value.stageKeys };
 }
 
 function isWorkflowStageRosterAnnouncements(
@@ -193,6 +199,9 @@ function isWorkflowStageRosterAnnouncements(
 					parsed.segments.slice(0, -1).includes(runId)) &&
 				(announcement.lifecycle === "pending" || announcement.lifecycle === "running") &&
 				typeof announcement.routeEligible === "boolean" &&
+				(announcement.recipientPurpose === undefined ||
+					announcement.recipientPurpose === "agent" ||
+					announcement.recipientPurpose === "control") &&
 				typeof announcement.group === "string"
 			);
 		})
@@ -1209,15 +1218,15 @@ class IntercomBroker {
 
   private handleMessage(
     socket: net.Socket,
-    msg: unknown,
+    msg: JsonWireValue,
     currentId: string | null,
     setId: (id: string | null) => void,
   ): void {
-    if (typeof msg !== "object" || msg === null || !("type" in msg) || typeof msg.type !== "string") {
+    if (typeof msg !== "object" || msg === null || Array.isArray(msg) || typeof msg.type !== "string") {
       throw new Error("Invalid client message");
     }
 
-    const clientMessage = msg as { type: string } & Record<string, unknown>;
+    const clientMessage = msg;
 
     if (currentId === null && clientMessage.type !== "register") {
       throw new Error(`Received ${clientMessage.type} before register`);
@@ -1424,8 +1433,8 @@ class IntercomBroker {
             : this.workflowRosters.get(clientMessage.runId)?.possibleStages;
 		// Optional path metadata is advisory for old hosts; omission retains a
 		// previously announced edge during two-session route replay.
-		const parent = isWorkflowRunParentAnnouncement(clientMessage.parent)
-			? clientMessage.parent : this.workflowRosters.get(clientMessage.runId)?.parent;
+		const parent = readWorkflowRunParentAnnouncement(clientMessage.parent)
+			?? this.workflowRosters.get(clientMessage.runId)?.parent;
         if (activeExisting !== undefined && activeExisting.sessionId !== currentId) {
           // A stage replays the process-shared owner announcement before registering its live aliases.
           // It may publish the materialized roster, but the original workflow owner must continue to

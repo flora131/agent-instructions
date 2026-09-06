@@ -1059,6 +1059,345 @@ test("ctx.ui run prompts and synthetic prompt stages are hidden and broker-refus
 	}
 });
 
+// PR #2895 / Greptile 3945411533: TypeScript unions do not validate raw/version-skewed clients.
+test.each(["agnt", "", null, 7, true, [], {}].map((recipientPurpose) => ({ recipientPurpose })))(
+	"rejects invalid registration recipientPurpose $recipientPurpose on the wire",
+	async ({ recipientPurpose }) => {
+		const raw = new RawBrokerClient();
+		rawClients.add(raw);
+		try {
+			const registered = raw.next("registered").then(
+				() => true,
+				(error: Error) => {
+					if (!raw.socket.destroyed) throw error;
+					return false;
+				},
+			);
+			raw.send({
+				type: "register",
+				session: {
+					name: "bad-purpose",
+					group: GROUP,
+					cwd: repoRoot,
+					model: "test",
+					pid: 1,
+					startedAt: 0,
+					lastActivity: 0,
+					recipientPurpose,
+				},
+			});
+			assert.equal(await registered, false, "malformed purpose must not be silently admitted as a control");
+			assert.equal(raw.socket.destroyed, true);
+		} finally {
+			await raw.close();
+		}
+	},
+);
+
+test.each(["agnt", "", null, 7, true, [], {}].map((recipientPurpose) => ({ recipientPurpose })))(
+	"rejects invalid roster recipientPurpose $recipientPurpose on the wire",
+	async ({ recipientPurpose }) => {
+		// PR #2895 / Greptile 3945411533: reject the entire malformed roster before installing it.
+		const raw = new RawBrokerClient();
+		rawClients.add(raw);
+		try {
+			await raw.register("bad-roster-owner", GROUP);
+			raw.send({
+				type: "register_pending_stage_route",
+				runId: RUN_ID,
+				group: GROUP,
+				capability: "purpose-capability",
+				stages: [
+					{
+						stageId: "bad-purpose",
+						stageName: "bad-purpose",
+						target: `${GROUP}/bad-purpose`,
+						group: GROUP,
+						lifecycle: "pending",
+						routeEligible: true,
+						recipientPurpose,
+					},
+				],
+			});
+			raw.send({ type: "list", requestId: "roster-fence" });
+			const result = await Promise.race([raw.next("registration_failed"), raw.next("sessions")]);
+			assert.equal(result.type, "registration_failed", "malformed purpose must not be accepted by a roster fence");
+			if (result.type === "registration_failed") assert.equal(result.reason, "Invalid workflow-stage roster");
+		} finally {
+			await raw.close();
+		}
+	},
+);
+
+test.each([undefined, "agent", "control"] as const)(
+	"accepts recipientPurpose %s and preserves legacy wire behavior",
+	async (recipientPurpose) => {
+		// PR #2895 / Greptile 3945411533: omission is an agent, and purpose is immutable after registration.
+		const raw = new RawBrokerClient();
+		rawClients.add(raw);
+		const observer = new IntercomClient();
+		try {
+			raw.send({
+				type: "register",
+				session: {
+					name: "purpose-peer",
+					group: GROUP,
+					cwd: repoRoot,
+					model: "test",
+					pid: 1,
+					startedAt: 0,
+					lastActivity: 0,
+					...(recipientPurpose === undefined ? {} : { recipientPurpose }),
+				},
+			});
+			const { sessionId } = await raw.next("registered");
+			await observer.connect({
+				name: "purpose-observer",
+				group: GROUP,
+				cwd: repoRoot,
+				model: "test",
+				pid: 1,
+				startedAt: 0,
+				lastActivity: 0,
+			});
+			raw.send({ type: "presence", recipientPurpose: recipientPurpose === "control" ? "agent" : "control" });
+			raw.send({
+				type: "register_pending_stage_route",
+				runId: RUN_ID,
+				group: GROUP,
+				capability: "valid-purpose-capability",
+				stages: [
+					{
+						stageId: "purpose-stage",
+						stageName: "purpose-stage",
+						target: `${GROUP}/purpose-stage`,
+						group: GROUP,
+						lifecycle: "pending",
+						routeEligible: true,
+						...(recipientPurpose === undefined ? {} : { recipientPurpose }),
+					},
+				],
+			});
+			raw.send({ type: "list", requestId: "valid-purpose-fence" });
+			const directory = await raw.next("sessions", (frame) => frame.requestId === "valid-purpose-fence");
+			const isAgent = recipientPurpose !== "control";
+			assert.equal(
+				directory.sessions.some((session) => session.id === sessionId),
+				isAgent,
+			);
+			assert.equal(
+				directory.workflowStages?.some((stage) => stage.stageId === "purpose-stage"),
+				isAgent,
+			);
+			for (const expectsReply of [false, true]) {
+				const sent = await observer.send(sessionId, { text: "purpose check", expectsReply });
+				assert.equal(sent.delivered, isAgent);
+				if (isAgent) {
+					const received = await raw.next("message");
+					assert.equal(received.message.expectsReply, expectsReply);
+				} else assert.match(sent.reason ?? "", /non-agent/);
+			}
+		} finally {
+			await raw.close();
+			await observer.disconnect();
+		}
+	},
+);
+
+test("parent wire metadata validates every field and retains the last valid edge on omission or malformed replay", async () => {
+	// PR #2895 / Greptile 3945411537: a concrete wire type must not admit malformed parent metadata.
+	const childId = "66666666-4444-4444-8444-444444444444";
+	const owner = new RawBrokerClient();
+	const sender = new RawBrokerClient();
+	rawClients.add(owner);
+	rawClients.add(sender);
+	try {
+		await owner.register("parent-wire-owner", GROUP);
+		await sender.register("parent-wire-sender", GROUP);
+		owner.send({
+			type: "register_pending_stage_route",
+			runId: RUN_ID,
+			group: GROUP,
+			capability: "parent-wire-capability",
+			stages: [],
+		});
+		const announce = async (parent: object | string | number | boolean | null | undefined) => {
+			owner.send({
+				type: "register_pending_stage_route",
+				runId: childId,
+				group: GROUP,
+				capability: "child-wire-capability",
+				stages: [
+					{
+						stageId: "tool-node",
+						stageName: "tool-node",
+						target: `${GROUP}/${childId}/tool-node`,
+						group: GROUP,
+						lifecycle: "pending",
+						routeEligible: false,
+						recipientPurpose: "control",
+					},
+				],
+				...(parent === undefined ? {} : { parent }),
+			});
+			owner.send({ type: "list", requestId: "parent-fence" });
+			await owner.next("sessions", (frame) => frame.requestId === "parent-fence");
+		};
+		let sequence = 0;
+		const check = async (boundary: string, knownNonAgent: boolean) => {
+			const id = `parent-wire-${++sequence}`;
+			sender.send({
+				type: "send",
+				to: `${GROUP}/${boundary}/tool-node`,
+				message: { id, timestamp: 0, content: { text: "check edge" } },
+			});
+			if (!knownNonAgent) {
+				const pending = await owner.next("pending_stage_message", (frame) => frame.message.id === id);
+				owner.send({
+					type: "pending_stage_message_result",
+					requestId: pending.requestId,
+					outcome: "refused",
+					reason: "unresolved parent edge",
+				});
+			}
+			const response = await sender.nextDeliveryAcknowledgment(id);
+			assert.equal(response.type, "delivery_failed");
+			if (response.type === "delivery_failed")
+				assert.match(response.reason, knownNonAgent ? /non-agent/ : /unresolved parent edge/);
+		};
+		await announce({ runId: RUN_ID, stageKeys: ["boundary", "boundary-id"] });
+		await check("boundary-id", true);
+		for (const malformed of [
+			undefined,
+			null,
+			"bad",
+			7,
+			true,
+			[],
+			{},
+			{ runId: 7, stageKeys: ["poison"] },
+			{ runId: RUN_ID, stageKeys: "poison" },
+			{ runId: RUN_ID, stageKeys: ["poison", 7] },
+			{ runId: RUN_ID },
+			{ stageKeys: ["poison"] },
+		]) {
+			await announce(malformed);
+			await check("boundary", true);
+			await check("poison", false);
+		}
+	} finally {
+		await sender.close();
+		await owner.close();
+	}
+});
+
+// PR #2895 / Greptile 3945411528: a name collision is not evidence that every match is a nonagent.
+test.each(["tool", "prompt"] as const)(
+	"duplicate agents retain their routing policy beside a same-name %s",
+	async (kind) => {
+		const runId = "66666666-3333-4333-8333-333333333333";
+		const group = `workflow:${runId}`;
+		const store = createStore();
+		const backend = new InMemoryDurableBackend();
+		setDurableBackend(backend);
+		const owner = extensionFixture("ambiguity-owner", "ambiguity-owner", undefined, "default");
+		const sender = extensionFixture("ambiguity-sender", "ambiguity-sender", undefined, group);
+		const agents = [new IntercomClient(), new IntercomClient()];
+		intercom(owner.pi as never);
+		intercom(sender.pi as never);
+		const stages = ["agent-one", "agent-two"].map((id) => ({
+			id,
+			name: "shared",
+			status: "running" as const,
+			sessionId: `sdk-${id}`,
+			parentIds: [],
+			toolEvents: [],
+			pendingStageDeliveryAvailable: true,
+		}));
+		store.recordRunStart({
+			id: runId,
+			name: "ambiguity",
+			inputs: {},
+			status: "running",
+			startedAt: 1,
+			stages: [
+				...stages,
+				...(kind === "prompt"
+					? [
+							{
+								id: "prompt-shared",
+								name: "shared",
+								replayKey: "prompt:shared:callsite",
+								status: "completed" as const,
+								parentIds: [],
+								toolEvents: [],
+							},
+						]
+					: []),
+			],
+			...(kind === "tool"
+				? {
+						toolNodes: [
+							{
+								kind: "tool" as const,
+								id: "tool-shared",
+								name: "shared",
+								argsHash: "hash",
+								ordinal: 0,
+								parentIds: [],
+								status: "completed" as const,
+								attachable: false as const,
+							},
+						],
+					}
+				: {}),
+		});
+		backend.registerWorkflow({ workflowId: runId, name: "ambiguity", inputs: {}, status: "running", createdAt: 1 });
+		let dispose = (): void => {};
+		try {
+			await owner.start();
+			await sender.start();
+			dispose = registerPendingStageIntercomBridge(owner.pi as never, store);
+			await owner.waitForEventCompletion("atomic:workflow-pending-stage-route");
+			const messages: string[] = [];
+			for (const [index, agent] of agents.entries()) {
+				const stage = stages[index]!;
+				agent.on("message", (_from, message) => messages.push(message.content.text));
+				await agent.connect({
+					name: stage.id,
+					group,
+					cwd: repoRoot,
+					model: "test",
+					pid: 1,
+					startedAt: 0,
+					lastActivity: 0,
+				});
+				await agent.registerLiveWorkflowStageRoute(
+					runId,
+					[stage.id],
+					createWorkflowPendingStageDelivery(store, runId, stage.id, stage.name).routeCapability,
+				);
+			}
+			const ask = await executeIntercom(sender, { action: "ask", to: `${group}/shared`, message: "which agent?" });
+			assert.equal(ask.isError, true);
+			assert.match(ask.content[0]!.text, /ambiguous.*multiple live workflow stages/);
+			assert.deepEqual(store.runs()[0]?.pendingStageMessages ?? [], []);
+			// Ordinary name sends retain the existing sticky fan-out policy; asks must not guess.
+			const sent = await executeIntercom(sender, { action: "send", to: `${group}/shared`, message: "both agents" });
+			assert.equal(sent.isError, false, sent.content[0]?.text);
+			assert.equal(sent.details.queued, true);
+			for (const agent of agents) await agent.listDirectory();
+			assert.deepEqual(messages, ["both agents", "both agents"]);
+		} finally {
+			dispose();
+			for (const agent of agents) await agent.disconnect();
+			await sender.shutdown();
+			await owner.shutdown();
+			setDurableBackend(undefined);
+		}
+	},
+);
+
 test("live agent aliases survive same-name tools when pending capability disappears or the agent completes", async () => {
 	const runId = "66666666-1111-4111-8111-111111111111";
 	const group = `workflow:${runId}`;
@@ -1149,7 +1488,12 @@ test("live agent aliases survive same-name tools when pending capability disappe
 			workflowPendingStageRouteCapability(store, runId),
 		);
 		for (const phase of ["running", "no-pending-capability", "completed"]) {
-			if (phase === "no-pending-capability") store.recordRunStart(snapshot(false));
+			if (phase === "no-pending-capability") {
+				// PR #2895: replace the fixture snapshot; recordRunStart is append-only.
+				store.clear();
+				store.recordRunStart(snapshot(false));
+			}
+			assert.equal(store.runs().length, 1);
 			if (phase === "completed")
 				store.recordStageEnd(runId, { ...snapshot(true).stages[0]!, status: "completed", endedAt: 2 });
 			await Promise.all(completions);
@@ -1287,6 +1631,30 @@ test.each([
 		let asker = new RawBrokerClient();
 		rawClients.add(asker);
 		let disposeBridge = (): void => {};
+		// PR #2895: force the Windows ordering where another socket's list overtakes
+		// a one-way roster update. Only a request on the route socket is a wire fence.
+		const pendingWrites = new Map<InstanceType<typeof IntercomClient>, Array<() => void>>();
+		const registerRoute = IntercomClient.prototype.registerPendingStageRoute;
+		const listDirectory = IntercomClient.prototype.listDirectory;
+		let holdRouteUpdates = false;
+		const routeSpy = vi.spyOn(IntercomClient.prototype, "registerPendingStageRoute").mockImplementation(function (
+			this: InstanceType<typeof IntercomClient>,
+			...args
+		) {
+			if (!holdRouteUpdates || args[0] !== runId) return registerRoute.apply(this, args);
+			const writes = pendingWrites.get(this) ?? [];
+			writes.push(() => registerRoute.apply(this, args));
+			pendingWrites.set(this, writes);
+		});
+		const listSpy = vi.spyOn(IntercomClient.prototype, "listDirectory").mockImplementation(function (
+			this: InstanceType<typeof IntercomClient>,
+			...args
+		) {
+			const writes = pendingWrites.get(this) ?? [];
+			pendingWrites.delete(this);
+			for (const write of writes) write();
+			return listDirectory.apply(this, args);
+		});
 		let negativeOwnerCalls = 0;
 		const startOwner = async () => {
 			await owner.start();
@@ -1359,9 +1727,15 @@ test.each([
 			await first.start();
 			assert.equal((await observer.send(`${group}/input`, { text: "before transition" })).delivered, true);
 			await first.waitForInjectedCount(1);
+			holdRouteUpdates = true;
 			if (transition === "completed")
 				store.recordStageEnd(runId, { ...snapshot(true).stages[0]!, status: "completed", endedAt: 2 });
-			else store.recordRunStart(snapshot(true));
+			else {
+				// recordRunStart appends, it does not replace a retained run snapshot.
+				store.clear();
+				store.recordRunStart(snapshot(true));
+			}
+			assert.equal(store.runs().length, 1, "one authoritative snapshot must survive owner/broker replay");
 			await owner.waitForEventCompletion("atomic:workflow-pending-stage-route");
 			await assertEndpoints(first, "still-connected");
 			await first.shutdown();
@@ -1388,6 +1762,9 @@ test.each([
 			await assertEndpoints(replayed, "replayed");
 		} finally {
 			disposeBridge();
+			routeSpy.mockRestore();
+			listSpy.mockRestore();
+			pendingWrites.clear();
 			for (const fixture of fixtures.toReversed()) await fixture.shutdown();
 			await observer.disconnect();
 			await asker.close();

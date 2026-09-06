@@ -729,6 +729,9 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
 			route.possibleStages,
 			route.parent,
 		);
+		// Route completion must observe broker processing, not merely enqueue a write.
+		// A list on another session's socket can overtake this roster update.
+		await state.client.listSessions();
 		return;
 	}
 	if (state.promise) {
@@ -808,6 +811,7 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
         route.possibleStages,
         route.parent,
       );
+      await activeClient.listSessions();
       return;
     }
     await ensurePendingStageRouteClient(runId, { ...route, group: routeGroup });

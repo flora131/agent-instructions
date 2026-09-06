@@ -1,5 +1,8 @@
 import type { Socket } from "net";
 
+/** JSON values at the framing boundary, before protocol-specific validation. */
+export type JsonWireValue = string | number | boolean | null | JsonWireValue[] | { [key: string]: JsonWireValue };
+
 /**
  * Write a length-prefixed message to a socket.
  * Format: 4-byte big-endian length + JSON payload
@@ -20,7 +23,7 @@ export function writeMessage(socket: Socket, msg: unknown, callback?: (error?: E
  * Protocol or handler errors are reported to onError so the caller can close the socket.
  */
 export function createMessageReader(
-  onMessage: (msg: unknown) => void,
+  onMessage: (msg: JsonWireValue) => void,
   onError: (error: Error) => void,
 ) {
   let buffer = Buffer.alloc(0);
@@ -38,7 +41,7 @@ export function createMessageReader(
       const payload = buffer.subarray(4, 4 + length);
       buffer = buffer.subarray(4 + length);
 
-      let msg: unknown;
+      let msg: JsonWireValue;
       try {
         msg = JSON.parse(payload.toString("utf-8"));
       } catch (error) {

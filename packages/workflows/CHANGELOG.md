@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- Same-name prompt/tool nodes no longer cause valid duplicate agent matches to be refused as non-agents. Live `ask` retains ambiguity diagnostics and name-based `send` retains sticky agent delivery ([#2895](https://github.com/bastani-inc/atomic/pull/2895)).
+
 ## [0.9.19-alpha.1] - 2026-09-06
 
 ### Fixed
