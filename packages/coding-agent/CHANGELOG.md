@@ -74,7 +74,7 @@ Cumulative release of the `0.9.18-alpha.1` through `0.9.18-alpha.7` prereleases.
 ### Changed
 
 - Updated Pi runtime dependencies to 0.85.1, preserving Atomic's CLI startup, published client API, and footer watcher behavior.
-- `/tasks` in an attached stage chat is now a local inspection command, never a model message. Hosts without a task inspector report that it is unavailable.
+- `/tasks` in an attached stage chat is now a local inspection command, never a model message, including while an Escape interruption settles. Hosts without a task inspector report that it is unavailable.
 
 ## [0.9.18-alpha.6] - 2026-09-04
 
