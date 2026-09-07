@@ -483,3 +483,49 @@ test("workflow activity suspends a retained prompt across pause and sibling comp
 	assert.equal(store.resolveStagePendingPrompt("root", "agent", prompt.id, true), true);
 	assertActivity(executing);
 });
+
+// #2891: removing root history does not release its descendants' runtime stop ownership.
+test("workflow activity preserves stop draining after the root snapshot is removed", () => {
+	for (const kind of ["stage", "tool"] as const) {
+		const store = createStore();
+		const rootRunId = "11111111-1111-4111-8111-111111111111";
+		const childRunId = "22222222-2222-4222-8222-222222222222";
+		const nodeId = " raw:node ";
+		store.recordRunStart(run({ id: rootRunId }));
+		store.recordRunStart(
+			run({
+				id: childRunId,
+				parentRunId: rootRunId,
+				rootRunId,
+				...(kind === "stage" ? { stages: [stage(nodeId)] } : { toolNodes: [tool(nodeId)] }),
+			}),
+		);
+		const executingIds = new Set([workflowActivityNodeKey(childRunId, nodeId)]);
+		const stoppingRunIds = new Set([rootRunId]);
+		const owned = ownership({
+			[kind === "stage" ? "executingStageIds" : "executingToolNodeIds"]: executingIds,
+			stoppingRunIds,
+		});
+		const assertActivity = (expected: Partial<WorkflowRootActivity>) => {
+			const snapshot = store.graphSnapshot();
+			const before = structuredClone({ snapshot, ownership: owned });
+			assert.deepEqual(projectWorkflowActivity({ snapshot, ownership: owned }), [
+				activity({ rootRunId, ...expected }),
+			]);
+			assert.deepEqual({ snapshot, ownership: owned }, before);
+			assert.deepEqual(store.graphSnapshot(), before.snapshot);
+		};
+		assertActivity({ ...executing, reason: "stopping" });
+		const childBeforeRemoval = structuredClone(store.graphSnapshot().runs[1]);
+		assert.equal(store.removeRun(rootRunId), true);
+		assert.deepEqual(store.graphSnapshot().runs, [childBeforeRemoval]);
+		assertActivity({ ...executing, reason: "stopping" });
+		stoppingRunIds.clear();
+		assertActivity(executing);
+		stoppingRunIds.add(rootRunId);
+		assertActivity({ ...executing, reason: "stopping" });
+		executingIds.clear();
+		assertActivity({});
+		assert.deepEqual(store.graphSnapshot().runs, [childBeforeRemoval]);
+	}
+});

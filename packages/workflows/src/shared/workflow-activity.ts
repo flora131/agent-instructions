@@ -66,7 +66,7 @@ function projectRoot(
 	let retrying = false;
 	let runnable = false;
 	let paused = false;
-	const stopping = runs.some((run) => ownership.stoppingRunIds.has(run.id));
+	const stopping = ownership.stoppingRunIds.has(rootRunId) || runs.some((run) => ownership.stoppingRunIds.has(run.id));
 	for (const run of runs) {
 		const runStopping =
 			ownership.stoppingRunIds.has(rootRunId) || isStoppingRun(run, runById, ownership.stoppingRunIds);
