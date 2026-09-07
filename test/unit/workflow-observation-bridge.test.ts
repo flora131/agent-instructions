@@ -418,3 +418,28 @@ test("aborted HIL publishes a cancelled prompt lifecycle", async () => {
 	unsubscribe();
 	observation.dispose();
 });
+
+// #2912: an already-aborted caller still has an observable accepted kill request.
+test("pre-aborted caller publishes exactly one kill after run registration", async () => {
+	const store = createStore();
+	const hub = new WorkflowActivityHub();
+	const actions: string[] = [];
+	hub.bindDispatcher(async (event) => {
+		if (event.type === "workflow_lifecycle" && event.target.kind === "run" && event.target.action)
+			actions.push(event.target.action);
+	});
+	const observation = createWorkflowObservation(store, hub.registerWorkflowActivityPublisher(), "owner");
+	const controller = new AbortController();
+	controller.abort();
+	try {
+		await run(
+			workflow({ name: "pre-aborted", description: "", inputs: {}, outputs: {}, run: async () => ({}) }),
+			{},
+			{ store, durableBackend: new InMemoryDurableBackend(), signal: controller.signal },
+		);
+		await new Promise<void>((resolve) => setImmediate(resolve));
+		assert.deepEqual(actions, ["kill"]);
+	} finally {
+		observation.dispose();
+	}
+});

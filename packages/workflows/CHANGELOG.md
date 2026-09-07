@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Preserve an ordinary stage's complete output artifact when a follow-up clarification arrives before completion. Completed answers from the same prompt generation remain ordered supplements, including executor continuations and close-time delivery, without copying earlier history or tool progress. Accepted answers survive context compaction and model fallback during a continuation; failed attempts cannot discard an earlier successful report. Tree navigation cannot import historical answers, and generation close stops capture of later retained-session chat. Completed artifact receipts stay stable under repeated finalization; structured output keeps its existing capture contract.
 - Discard provisional artifact answers from each failed same-model retry, preserving earlier accepted reports and only publishing the successful retry's answers.
 - Prevent workflow activity from briefly reporting idle between settled nodes and live author continuation. Historical, paused, blocked, and stopping runs do not gain continuation ownership ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).
+- Preserved workflow lifecycle `kill` events for already-aborted caller signals and report task-result checkpoint interrupts as `interrupt`, without changing their graceful paused outcome ([#2912](https://github.com/bastani-inc/atomic/pull/2912)).
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

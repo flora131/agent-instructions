@@ -95,16 +95,24 @@ type QuitAllRunResult =
  * control actions sees one quit rather than a pause followed by a quit — and
  * still sees nothing at all when a quit never publishes.
  */
-export async function quitRun(
+export function quitRun(runId: string, opts?: Parameters<typeof quitRunWithAction>[1]): Promise<QuitRunResult> {
+	return quitRunWithAction(runId, opts, "quit");
+}
+
+/** Preserve the requested control action when interrupt uses graceful suspension. */
+export async function quitRunWithAction(
 	runId: string,
-	opts?: {
-		store?: Store;
-		stageControlRegistry?: StageControlRegistry;
-		toolControlRegistry?: ToolControlRegistry;
-		jobs?: JobTracker;
-		/** Who requested this quit. Omitted for internal callers. */
-		actor?: WorkflowActor;
-	},
+	opts:
+		| {
+				store?: Store;
+				stageControlRegistry?: StageControlRegistry;
+				toolControlRegistry?: ToolControlRegistry;
+				jobs?: JobTracker;
+				/** Who requested this quit. Omitted for internal callers. */
+				actor?: WorkflowActor;
+		  }
+		| undefined,
+	action: "quit" | "interrupt",
 ): Promise<QuitRunResult> {
 	const activeStore = opts?.store ?? defaultStore;
 	const registry = opts?.stageControlRegistry ?? defaultStageControlRegistry;
@@ -113,7 +121,7 @@ export async function quitRun(
 	const run = activeStore.runs().find((candidate) => candidate.id === runId);
 	if (!run) return { ok: false, runId, reason: "not_found" };
 	if (run.endedAt !== undefined) return { ok: false, runId, reason: "already_ended" };
-	workflowObservationRuntime(activeStore).control(runId, "quit", opts?.actor);
+	workflowObservationRuntime(activeStore).control(runId, action, opts?.actor);
 	const aggregateRootRunId = aggregateWorkflowRootRunId(activeStore, runId);
 	if (aggregateRootRunId !== runId) {
 		const hasTaskTail = expandedControlRunIds(activeStore, runId).some((controlRunId) =>
@@ -121,7 +129,7 @@ export async function quitRun(
 				.active(controlRunId)
 				.some((handle) => handle.nodeId.startsWith(TASK_RESULT_CHECKPOINT_CONTROL_PREFIX)),
 		);
-		if (hasTaskTail) return await quitRun(aggregateRootRunId, opts);
+		if (hasTaskTail) return await quitRunWithAction(aggregateRootRunId, opts, action);
 	}
 	const graph = expandWorkflowGraph(readGraphStoreSnapshot(activeStore), runId);
 	const handles = controllableHandles(activeStore, registry, runId);

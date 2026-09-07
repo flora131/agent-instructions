@@ -760,10 +760,10 @@ export async function run<TInputs extends WorkflowInputValues, TRunInputs extend
 	});
 	terminalEvents.register();
 	try {
-		if (callerSignal?.aborted) onCallerAbort();
-		else callerSignal?.addEventListener("abort", onCallerAbort, { once: true });
 		workflowObservationRuntime(activeStore).startRun(runId);
 		activeStore.recordRunStart(runSnapshot);
+		if (callerSignal?.aborted) onCallerAbort();
+		else callerSignal?.addEventListener("abort", onCallerAbort, { once: true });
 		if (ownsCancellationRegistration) opts.cancellation?.register(runId, ownController);
 		opts.onRunStart?.(runSnapshot);
 		if (opts.persistence) {
