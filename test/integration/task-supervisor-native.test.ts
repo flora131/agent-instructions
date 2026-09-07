@@ -794,3 +794,12 @@ test("Node and Bun preserve UTF-16 code units across S1 records and replay", () 
 		);
 	}
 });
+
+// RFC #2884: authorized replay retention is bounded independently for each task.
+test("Node and Bun evict report identities while retaining terminal receipts", () => {
+	for (const runtime of [process.execPath, bunExecutable()]) {
+		const result = spawnSyncCollect([runtime, "test/fixtures/task-s1-retention.mjs"]);
+		assert.equal(result.exitCode, 0, `${runtime}\n${result.stdout}\n${result.stderr}`);
+		assert.match(result.stdout.toString(), /RETENTION VERIFIED 256 duplicates 256 conflicts/);
+	}
+});

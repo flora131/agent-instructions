@@ -592,3 +592,77 @@ fn exact_metric_report_replay_and_snapshots() {
 		}
 	}
 }
+
+// RFC #2884, authorized retention amendment: only the latest 256 accepted activity IDs replay.
+#[test]
+fn report_identity_window_evicts_in_actor_order_without_retaining_payloads() {
+	let (a, _, o, t, r) = setup();
+	let other = a.start(&o, intent(), "other".into()).unwrap();
+	let other_runner = a.claim(&other).unwrap();
+	let report = |index: usize| ActivityReport {
+		report_id: index.to_string().into(),
+		change: ActivityChange::Action { tool: "raw".into(), text: index.to_string().into() },
+	};
+	let first = a.activity(&r, report(0)).unwrap();
+	for index in 1..256 {
+		a.activity(&r, report(index)).unwrap();
+	}
+	let cursor = a.snapshot(&o).unwrap().cursor;
+	for index in 0..256 {
+		assert_eq!(a.activity(&r, report(index)).unwrap().disposition, "duplicate");
+		let conflict = ActivityReport {
+			change: ActivityChange::Output { offset: "".into(), bytes_base64: "".into() },
+			..report(index)
+		};
+		assert_eq!(a.activity(&r, conflict).unwrap_err().code, "ReportConflict");
+	}
+	assert_eq!(a.snapshot(&o).unwrap().cursor, cursor);
+	assert_eq!(a.activity(&other_runner, report(0)).unwrap().disposition, "accepted");
+	a.activity(&r, report(256)).unwrap();
+	let replay = a.activity(&r, report(0)).unwrap();
+	assert_eq!(replay.disposition, "accepted");
+	assert_ne!(replay.cursor, first.cursor);
+	assert_eq!(a.snapshot(&o).unwrap().tasks[0].current_action.as_ref().unwrap().text, "0".into());
+	assert_eq!(a.activity(&r, report(1)).unwrap().disposition, "accepted");
+	assert_eq!(a.activity(&other_runner, report(0)).unwrap().disposition, "duplicate");
+	assert_eq!(a.start(&o, intent(), "op".into()).unwrap().cap, t.cap);
+	let terminal = a.outcome(&r, outcome("terminal")).unwrap();
+	for index in 1..600 {
+		a.activity(&other_runner, report(index)).unwrap();
+	}
+	assert_eq!(a.outcome(&r, outcome("terminal")).unwrap(), terminal);
+	assert_eq!(a.outcome(&r, outcome("late")).unwrap_err().code, "ReportConflict");
+	assert_eq!(a.activity(&r, report(2)).unwrap_err().code, "TaskTerminal");
+	let state = a.state.lock().unwrap();
+	assert!(state.owners[0].tasks.iter().all(|task| task.activities.len() <= 256));
+	assert!(state.journal_bytes <= 64 * 1024);
+	drop(state);
+	a.begin_close(&o).unwrap();
+	assert_eq!(a.activity(&other_runner, report(0)).unwrap_err().code, "OwnerClosing");
+	assert_eq!(a.activity(&other_runner, report(599)).unwrap().disposition, "duplicate");
+	a.acknowledge_cleanup(&r, Cleanup::Reaped {}).unwrap();
+	a.acknowledge_cleanup(&other_runner, Cleanup::Reaped {}).unwrap();
+	assert!(a.close_receipt(&o).unwrap().is_some());
+	assert_eq!(a.outcome(&r, outcome("terminal")).unwrap(), terminal);
+}
+
+// RFC #2884: journal eviction must release full report payloads, not merely their events.
+#[test]
+fn report_identity_storage_does_not_keep_activity_payloads() {
+	let (a, _, _, _, r) = setup();
+	let payload = "unique-retention-payload".repeat(4096);
+	a.activity(
+		&r,
+		ActivityReport {
+			report_id: "payload".into(),
+			change: ActivityChange::Output {
+				offset: "0".into(),
+				bytes_base64: payload.clone().into(),
+			},
+		},
+	)
+	.unwrap();
+	let state = a.state.lock().unwrap();
+	assert!(!format!("{:?}", state.owners[0].tasks[0].activities).contains(&payload));
+	assert!(state.journal.is_empty());
+}

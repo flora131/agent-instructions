@@ -115,6 +115,11 @@ export type TaskRecord = {
 	metrics?: { elapsedMs?: number; toolCount?: number; tokenCount?: number };
 	output: OutputRef;
 };
+/**
+ * The latest 256 accepted activity IDs per task retain SHA-256 payload hashes and receipts.
+ * Identical replay is duplicate; changed payload conflicts, without events or retention refresh.
+ * Evicted IDs are fresh reports, subject to existing terminal/owner guards, not task revival.
+ */
 export type ActivityReport = {
 	reportId: string;
 	change:
@@ -124,6 +129,7 @@ export type ActivityReport = {
 		| { kind: "attention-set"; attention: Exclude<Attention, { kind: "none" }> }
 		| { kind: "attention-clear"; requestId: string };
 };
+/** Terminal reports and their receipts never expire while the task record exists. */
 export type OutcomeReport = { reportId: string; result: TaskResult };
 export type TaskEvent =
 	| { kind: "task-admitted"; task: TaskRecord }

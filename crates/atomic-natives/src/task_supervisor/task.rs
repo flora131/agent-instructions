@@ -174,7 +174,7 @@ pub enum Cleanup {
 	Failed { resources: Vec<ResourceFailure> },
 }
 #[napi(object)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PromptRoute {
 	#[napi(ts_type = "string")]
 	pub session_id: JsString,
@@ -184,7 +184,7 @@ pub struct PromptRoute {
 	pub stage_attempt_id: Option<JsString>,
 }
 #[napi(discriminant = "kind", discriminant_case = "kebab-case")]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Attention {
 	None {},
 	InputNeeded {
@@ -359,7 +359,7 @@ pub(super) struct Task {
 	pub intent: AgentIntent,
 	pub record: TaskRecord,
 	pub claimed: bool,
-	pub activities: BTreeMap<JsString, (ActivityReport, ReportReceipt)>,
+	pub activities: VecDeque<([u8; 32], ReportReceipt)>,
 	pub terminal: Option<(OutcomeReport, SettlementReceipt)>,
 	pub cancel_cause: Option<CancelCause>,
 	// Rejected late outcomes supply output evidence, never terminal authority.
@@ -452,7 +452,7 @@ impl Actor {
 			intent,
 			record: record.clone(),
 			claimed: false,
-			activities: BTreeMap::new(),
+			activities: VecDeque::new(),
 			terminal: None,
 			cancel_cause: None,
 			cancellation_output: None,
@@ -489,8 +489,11 @@ impl Actor {
 		let mut s = self.state.lock().unwrap();
 		let (oi, ti) = s.runner(self.id, &runner.cap)?;
 		let t = &s.owners[oi].tasks[ti];
-		if let Some((old, receipt)) = t.activities.get(&report.report_id) {
-			return if old == &report {
+		let digest = activity_hash(&report);
+		if let Some((old, receipt)) =
+			t.activities.iter().find(|(_, receipt)| receipt.report_id == report.report_id)
+		{
+			return if old == &digest {
 				Ok(ReportReceipt { disposition: "duplicate".into(), ..receipt.clone() })
 			} else {
 				Err(fail("ReportConflict"))
@@ -546,7 +549,11 @@ impl Actor {
 			cursor,
 			disposition: "accepted".into(),
 		};
-		s.owners[oi].tasks[ti].activities.insert(report.report_id.clone(), (report, receipt.clone()));
+		let activities = &mut s.owners[oi].tasks[ti].activities;
+		if activities.len() == TASK_REPORT_IDENTITY_WINDOW {
+			activities.pop_front();
+		}
+		activities.push_back((digest, receipt.clone()));
 		Ok(receipt)
 	}
 	pub(super) fn outcome(
@@ -560,7 +567,7 @@ impl Actor {
 		if let Some((old, receipt)) = &t.terminal {
 			return if old == &report { Ok(receipt.clone()) } else { Err(fail("ReportConflict")) };
 		}
-		if t.activities.contains_key(&report.report_id) {
+		if t.activities.iter().any(|(_, receipt)| receipt.report_id == report.report_id) {
 			return Err(fail("ReportConflict"));
 		}
 		if matches!(t.record.execution, Execution::Settled { .. }) {

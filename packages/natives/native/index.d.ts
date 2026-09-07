@@ -88,6 +88,12 @@ disposeTaskWait(wait: WaitLease): {ok:true,value:undefined}|{ok:false,error:Task
 cancelTask(task: TaskLease, cause: CancelCause): {ok:true,value:CancelReceipt}|{ok:false,error:TaskFailure}
 /** Seals synchronously, then awaits independent runner cleanup acknowledgements. */
 closeTaskOwner(owner: OwnerLease, cause: OwnerCloseCause): Promise<{ok:true,value:OwnerCloseReceipt}|{ok:false,error:TaskFailure}>
+/**
+ * Retains the latest 256 accepted activity IDs with SHA-256 hashes and receipts per task.
+ * Identical replay is duplicate; conflicts emit no events and neither refreshes retention.
+ * Evicted IDs are fresh reports subject to terminal/owner guards. Terminal receipts never expire
+ * while the task record exists; this is not a total task-history byte cap or persistence layer.
+ */
 reportTaskActivity(runner: RunnerLease, report: ActivityReport): {ok:true,value:ReportReceipt}|{ok:false,error:TaskFailure}
 reportTaskOutcome(runner: RunnerLease, report: OutcomeReport): {ok:true,value:SettlementReceipt}|{ok:false,error:TaskFailure}
 /** Private trusted-runner support, not a model/facade domain door. Outcome is not cleanup. */

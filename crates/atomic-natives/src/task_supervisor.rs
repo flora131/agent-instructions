@@ -16,6 +16,7 @@ use std::{
 };
 mod events;
 mod owner;
+mod report_identity;
 mod strings;
 mod task;
 #[cfg(test)]
@@ -23,6 +24,7 @@ mod tests;
 mod waits;
 pub use events::*;
 pub use owner::*;
+use report_identity::{TASK_REPORT_IDENTITY_WINDOW, activity_hash};
 use strings::JsString;
 pub use task::*;
 pub use waits::*;
@@ -363,6 +365,10 @@ impl NapiTaskSupervisor {
 			Ok(DoorValue(result))
 		})
 	}
+	/// Retains the latest 256 accepted activity IDs with SHA-256 hashes and receipts per task.
+	/// Identical replay is duplicate; conflicts emit no events and neither refreshes retention.
+	/// Evicted IDs are fresh reports subject to terminal/owner guards. Terminal receipts never expire
+	/// while the task record exists; this is not a total task-history byte cap or persistence layer.
 	#[napi(ts_return_type = "{ok:true,value:ReportReceipt}|{ok:false,error:TaskFailure}")]
 	pub fn report_task_activity(
 		&self,

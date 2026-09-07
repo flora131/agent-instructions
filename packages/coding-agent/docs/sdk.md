@@ -91,8 +91,16 @@ revoked proxies) use `Unprintable JavaScript rejection`. Diagnostic conversion c
 interrupt event delivery or rearming the fallback poll. Native callbacks are wake hints;
 journal drains and reset snapshots are authoritative. Each live subscription has one
 fallback poll, stopped on disposal or observed closure.
-The native byte journal and facade delivery backlog are bounded; total task and exact
-report-replay history are not. This remains an unresolved S1 storage-contract limit.
+The native byte journal and facade delivery backlog are bounded. Each task separately
+retains its most recent 256 accepted activity report IDs, SHA-256 payload hashes and
+receipts (`TASK_REPORT_IDENTITY_WINDOW`). Within that window, identical payloads return
+`duplicate` with the original cursor; conflicting payloads return `ReportConflict`.
+Neither check emits events or refreshes retention order. An evicted ID is fresh: while
+the task is live it is `accepted`, applies its activity again and gets a new cursor;
+existing terminal and owner-close guards still apply. Terminal outcome reports and
+their recorded receipts are retained separately for the task record's lifetime and
+never evicted by activity churn. This bounds identity entry count, not caller ID length,
+task count, terminal payloads or total task-history memory. S1 adds no persistence layer.
 
 Caller-provided strings retain their exact JavaScript UTF-16 code units, including
 isolated surrogates, valid pairs and embedded NUL, across scopes, intent, operation/report
@@ -103,9 +111,10 @@ otherwise the first nonblank task line is copied without rewriting its code unit
 falling back to the agent name. Absent optional fields, empty strings, known zero metrics
 and ordered duplicate data remain distinct. The optional `elapsedMs`, `toolCount` and `tokenCount` metrics and
 completed/failed `exitCode` preserve JavaScript numbers without narrowing or normalization,
-including fractional and extreme values. Exact report replay distinguishes omission,
-zero and negative zero; repeated NaN and infinite values acknowledge once. Changed
-numeric payloads return `ReportConflict` without earning another event. `OutputRef` is
+including fractional and extreme values. Within the retained activity window (and for
+terminal reports throughout the task record's lifetime), exact replay distinguishes
+omission, zero and negative zero; repeated NaN and infinite values acknowledge once.
+Changed numeric payloads return `ReportConflict` without earning another event. `OutputRef` is
 metadata, not proof of retained bytes: output
 storage, `readTaskOutput`, command input, persistence, completion delivery and
 real agent/Intercom integration belong to later slices. The credential-free
