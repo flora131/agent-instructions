@@ -118,6 +118,7 @@ export function createLocalBashOperations(options?: {
 						taskOwner: options?.taskOwner,
 					});
 				} catch (error) {
+					if (options?.taskOwner) throw error;
 					const message = String(error instanceof Error ? error.message : error);
 					if (!message.includes("Native PTY") && !message.includes("PtySession")) throw error;
 				}

@@ -293,7 +293,7 @@ impl NapiTaskSupervisor {
 		&self,
 		env: &'env Env,
 		input: &StdinLease,
-		operation: String,
+		#[napi(ts_arg_type = "string")] operation: JsString,
 		data: InputData,
 	) -> napi::Result<PromiseRaw<'env, DoorValue<InputReceipt>>> {
 		let check = self.check(env, "TaskTerminal");

@@ -109,3 +109,86 @@ test.runIf(process.platform !== "win32")(
 		}
 	},
 );
+
+// RFC #2884: a naturally exited shell does not release its descendant resource.
+test.runIf(process.platform !== "win32")("shell-first exit still confirms the grandchild stopped", async () => {
+	const directory = await mkdtemp(join(tmpdir(), "task-shell-first-"));
+	const identitiesPath = join(directory, "identities.json");
+	const { supervisor, owner } = setup();
+	try {
+		const task = value(
+			await supervisor.startCommandTask(
+				owner,
+				{
+					kind: "command",
+					command: `exec ${JSON.stringify(process.execPath)} ${JSON.stringify(resolve("test/fixtures/task-process-tree.mjs"))} ${JSON.stringify(identitiesPath)} --shell-first`,
+					terminal: { kind: "pipe" },
+				},
+				"shell-first" as OperationId,
+			),
+		);
+		await until(() => fileExists(identitiesPath));
+		const identities = await readJson<{ parent: { pid: number }; grandchild: { pid: number } }>(identitiesPath);
+		const result = value(await supervisor.waitForTask(task, 5000));
+		assert.equal(result.kind, "settled");
+		assert.equal(value(await supervisor.closeTaskOwner(owner, "session-close")).tasks[0].cleanup.kind, "reaped");
+		assert.equal(alive(identities.parent.pid), false);
+		assert.equal(alive(identities.grandchild.pid), false);
+	} finally {
+		await supervisor.closeTaskOwner(owner, "session-close");
+		await rm(directory, { recursive: true, force: true });
+	}
+});
+
+test.runIf(process.platform !== "win32")(
+	"command completion/output/cancellation races keep one terminal decision and replay",
+	async () => {
+		const { supervisor, owner } = setup();
+		try {
+			for (let index = 0; index < 4; index++) {
+				const intent = {
+					kind: "command" as const,
+					command: "printf ' raw output '; exit 0",
+					terminal: { kind: "pipe" as const },
+					description: "",
+				};
+				const operation = `race-${index}` as OperationId;
+				const task = value(await supervisor.startCommandTask(owner, intent, operation));
+				assert.equal(value(await supervisor.startCommandTask(owner, intent, operation)), task);
+				const read = supervisor.readTaskOutput(task, { start: "0000", maximumBytes: 0 });
+				const cancel = await supervisor.cancelTask(task, "user");
+				assert.ok(cancel.ok);
+				const terminal = value(await supervisor.waitForTask(task, 5000));
+				assert.equal(terminal.kind, "settled");
+				if (terminal.kind === "settled")
+					assert.ok(
+						terminal.result.kind === "completed" ||
+							(terminal.result.kind === "cancelled" && terminal.result.cause === "user"),
+					);
+				assert.deepEqual(value(await read).chunks, []);
+				assert.equal(value(await read).requested.start, "0000");
+				const receipt = value(await supervisor.cancelTask(task, "execution-timeout"));
+				assert.deepEqual(value(await supervisor.cancelTask(task, "output-limit")), receipt);
+				const conflicting = await supervisor.startCommandTask(
+					owner,
+					{ ...intent, command: `${intent.command} ` },
+					operation,
+				);
+				assert.equal(!conflicting.ok && conflicting.error.code, "OperationConflict");
+			}
+			const completed = value(
+				await supervisor.startCommandTask(
+					owner,
+					{ kind: "command", command: "exit 0", terminal: { kind: "pipe" } },
+					"zero-exit" as OperationId,
+				),
+			);
+			const terminal = value(await supervisor.waitForTask(completed, 5000));
+			assert.ok(terminal.kind === "settled" && terminal.result.kind === "completed");
+			assert.equal(terminal.result.exitCode, 0);
+			assert.ok(Object.hasOwn(terminal.result, "exitCode"));
+		} finally {
+			value(await supervisor.closeTaskOwner(owner, "session-close"));
+		}
+	},
+);

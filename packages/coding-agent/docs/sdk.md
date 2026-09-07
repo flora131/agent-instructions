@@ -73,10 +73,10 @@ This slice exercises fake runners, not force-stop or real-process cleanup guaran
 
 ### Supervised command SDK
 
-`startCommandTask(owner, intent, operation)` starts an owned Unix pipe or PTY command.
+`startCommandTask(owner, intent, operation)` starts an owned Unix pipe/PTY or Windows pipe command.
 The command intent keeps execution timeout separate from observation: `waitForTask`
 defaults to 10000 ms for commands, and expiry returns a yielded observation without
-terminating the process. Owner closure sends TERM, allows 250 ms grace, then KILL,
+terminating the process. On Unix, owner closure sends TERM, allows 250 ms grace, then KILL,
 reaps the leader and confirms process-group exit and reader drain. A cleanup failure
 retains diagnostics instead of claiming a closed owner. This is normal owner/host
 shutdown cleanup, not a guarantee for forced host death or a blocked JavaScript loop.
@@ -94,10 +94,15 @@ spill threshold and 5 GiB disk cap. Retained output is not conversation history.
 Background file-spool commands are checked every five seconds after foreground
 collection yields. Exceeding the cap kills the group and settles `OutputLimitExceeded`.
 Drained pipe/PTY output instead keeps running with bounded retained bytes and omissions.
-PTY resize uses the retained portable-pty master. Windows supervised launch remains pending.
+PTY resize uses the retained portable-pty master. Windows pipe commands use a
+suspended `cmd.exe` launch assigned to a kill-on-close Job Object before resume.
+Failed assignment terminates and waits for the suspended process; unconfirmed
+cleanup retains a failed resource rather than reporting it reaped. Windows PTY
+and owner-aware Windows bash transport are not implemented and refuse with
+`ContainmentUnavailable` before launch. Legacy unowned execution is unchanged.
 
 Bash tools and `createLocalBashOperations` accept a trusted `taskOwner` binding.
-With that binding they obtain pipe/PTY processes through supervised admission,
+On Unix, that binding obtains pipe/PTY processes through supervised admission,
 preserving configured shell arguments, cwd, environment and existing authorization.
 The foreground collection returns a yielded task observation after 10000 ms;
 the process stays owned and its retained output remains readable. Without that

@@ -16,7 +16,8 @@ pub enum InputData {
 #[napi(object)]
 #[derive(Clone)]
 pub struct InputReceipt {
-	pub operation_id: String,
+	#[napi(ts_type = "string")]
+	pub operation_id: JsString,
 	pub accepted_bytes: u32,
 	pub kind: String,
 }
@@ -34,13 +35,13 @@ struct InputOperation {
 }
 #[derive(Default)]
 pub(super) struct InputQueue {
-	operations: BTreeMap<String, InputOperation>,
-	pending: VecDeque<String>,
+	operations: BTreeMap<JsString, InputOperation>,
+	pending: VecDeque<JsString>,
 	credits: usize,
 	closed: bool,
 }
 impl InputQueue {
-	fn admit(&mut self, operation: &str, data: InputData) -> Door<()> {
+	fn admit(&mut self, operation: &JsString, data: InputData) -> Door<()> {
 		let (bytes, eof) = match data {
 			InputData::Bytes { bytes } => (bytes.to_vec(), false),
 			InputData::Eof {} => (vec![], true),
@@ -61,8 +62,8 @@ impl InputQueue {
 		self.credits += bytes.len();
 		self
 			.operations
-			.insert(operation.into(), InputOperation { hash, bytes, offset: 0, eof, result: None });
-		self.pending.push_back(operation.into());
+			.insert(operation.clone(), InputOperation { hash, bytes, offset: 0, eof, result: None });
+		self.pending.push_back(operation.clone());
 		if eof {
 			self.closed = true;
 		}
@@ -110,7 +111,8 @@ impl InputQueue {
 		};
 		if let Some(mut result) = result {
 			if let Err(error) = &mut result {
-				error.message = format!("operationId={id}; acceptedBytes={}", op.offset);
+				error.message =
+					format!("operationId={}; acceptedBytes={}", id.process_text(), op.offset);
 			}
 			self.credits -= op.bytes.len();
 			op.bytes.clear();
@@ -124,7 +126,7 @@ impl InputQueue {
 			let op = self.operations.get_mut(&id).unwrap();
 			op.result = Some(Err(TaskFailure {
 				code: "InputDeliveryUnknown".into(),
-				message: format!("operationId={id}; acceptedBytes={}", op.offset),
+				message: format!("operationId={}; acceptedBytes={}", id.process_text(), op.offset),
 			}));
 			op.bytes.clear();
 		}
@@ -166,7 +168,7 @@ impl Actor {
 	pub(in crate::task_supervisor) fn input(
 		&self,
 		input: &StdinLease,
-		operation: String,
+		operation: JsString,
 		data: InputData,
 	) -> Door<InputReceipt> {
 		let command = self.command_resource(&TaskLease { cap: input.cap.clone() })?;
@@ -195,7 +197,9 @@ impl Actor {
 		if resource.file_spool() {
 			store.refresh_spool();
 		}
-		Ok(store.page(start, range.maximum_bytes.into()))
+		let mut page = store.page(start, range.maximum_bytes.into());
+		page.requested.start = range.start;
+		Ok(page)
 	}
 }
 
@@ -223,14 +227,20 @@ mod tests {
 	fn partial_delivery_keeps_unknown_receipt_and_never_resends() {
 		let mut queue = InputQueue::default();
 		let data = || InputData::Bytes { bytes: b"hello".to_vec().into() };
-		queue.admit("operation", data()).unwrap();
+		queue.admit(&"operation".into(), data()).unwrap();
 		let mut writer = Some(PartialWriter { writes: 0 });
 		queue.drain(&mut writer);
 		queue.drain(&mut writer);
-		let error = queue.operations["operation"].result.as_ref().unwrap().as_ref().err().unwrap();
+		let error = queue.operations[&JsString::from("operation")]
+			.result
+			.as_ref()
+			.unwrap()
+			.as_ref()
+			.err()
+			.unwrap();
 		assert_eq!(error.code, "InputDeliveryUnknown");
 		assert_eq!(error.message, "operationId=operation; acceptedBytes=2");
-		queue.admit("operation", data()).unwrap();
+		queue.admit(&"operation".into(), data()).unwrap();
 		queue.drain(&mut writer);
 		assert_eq!(writer.unwrap().writes, 2);
 		assert_eq!(queue.credits, 0);
@@ -238,12 +248,14 @@ mod tests {
 	#[test]
 	fn byte_credits_refuse_before_queue_admission() {
 		let mut queue = InputQueue::default();
-		queue.admit("full", InputData::Bytes { bytes: vec![0; INPUT_BYTE_CREDITS].into() }).unwrap();
+		queue
+			.admit(&"full".into(), InputData::Bytes { bytes: vec![0; INPUT_BYTE_CREDITS].into() })
+			.unwrap();
 		assert_eq!(
-			queue.admit("extra", InputData::Bytes { bytes: vec![1].into() }).unwrap_err().code,
+			queue.admit(&"extra".into(), InputData::Bytes { bytes: vec![1].into() }).unwrap_err().code,
 			"InputBackpressure"
 		);
-		assert!(!queue.operations.contains_key("extra"));
+		assert!(!queue.operations.contains_key(&JsString::from("extra")));
 		queue.close();
 		assert_eq!(queue.credits, 0);
 	}

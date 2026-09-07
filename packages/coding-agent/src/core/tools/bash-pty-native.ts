@@ -86,6 +86,8 @@ export async function executeSupervisedCommand(
 	pty: boolean,
 ): Promise<SupervisedCommandResult> {
 	if (options.signal?.aborted) throw new Error("aborted");
+	if (process.platform === "win32")
+		throw new Error("ContainmentUnavailable: Windows supervised bash transport is not implemented");
 	const context = options.taskOwner;
 	if (!context) throw new Error("Supervised command requires its task owner");
 	const shell = getShellConfig(options.shellPath);

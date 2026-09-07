@@ -47,6 +47,13 @@ test.runIf(process.platform !== "win32")(
 			assert.ok(input.ok);
 			const empty = await supervisor.writeTaskInput(input.value, "empty", { kind: "bytes", bytes: Buffer.alloc(0) });
 			assert.deepEqual(empty, { ok: true, value: { operationId: "empty", acceptedBytes: 0, kind: "bytes" } });
+			for (const operationId of ["", "\ud800", "\ud801"]) {
+				const receipt = await supervisor.writeTaskInput(input.value, operationId, {
+					kind: "bytes",
+					bytes: Buffer.alloc(0),
+				});
+				assert.deepEqual(receipt, { ok: true, value: { operationId, acceptedBytes: 0, kind: "bytes" } });
+			}
 			const data = { kind: "bytes" as const, bytes: Buffer.from(" raw\u0000é\n") };
 			const first = await supervisor.writeTaskInput(input.value, "bytes", data);
 			assert.deepEqual(await supervisor.writeTaskInput(input.value, "bytes", data), first);

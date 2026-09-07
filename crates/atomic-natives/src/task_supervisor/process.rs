@@ -13,6 +13,8 @@ use std::{
 mod input;
 pub use input::*;
 mod resource;
+#[cfg(windows)]
+mod windows;
 #[cfg(unix)]
 use resource::ProcessResource;
 type ProcessReader = Box<dyn Read + Send>;
@@ -330,7 +332,11 @@ impl Actor {
 		command.setup_result(Err(TaskFailure { code: "SpawnFailed".into(), message }));
 		command.finished.store(true, Ordering::Release);
 	}
-	#[cfg(not(unix))]
+	#[cfg(windows)]
+	fn run_command(&self, runner: &RunnerLease, command: &Arc<CommandTask>) {
+		self.run_command_windows(runner, command);
+	}
+	#[cfg(not(any(unix, windows)))]
 	fn run_command(&self, runner: &RunnerLease, command: &CommandTask) {
 		let _ = self.runner_outcome(
 			runner,
@@ -651,7 +657,11 @@ static FAILED_PROCESSES: Mutex<Vec<FailedProcess>> = Mutex::new(Vec::new());
 pub(super) fn poll_failed_processes() {
 	FAILED_PROCESSES.lock().unwrap().retain_mut(|resource| !resource.reaped());
 }
-#[cfg(not(unix))]
+#[cfg(windows)]
+pub(super) fn poll_failed_processes() {
+	windows::poll_failed_windows();
+}
+#[cfg(not(any(unix, windows)))]
 pub(super) fn poll_failed_processes() {}
 #[cfg(unix)]
 impl Drop for CommandTask {
@@ -682,7 +692,6 @@ fn make_nonblocking(fd: &impl std::os::fd::AsRawFd) -> io::Result<()> {
 	}
 	Ok(())
 }
-#[cfg(unix)]
 fn drain_pipe(reader: &mut impl Read, command: &CommandTask, eof: &mut bool) -> io::Result<()> {
 	if *eof {
 		return Ok(());
@@ -695,6 +704,7 @@ fn drain_pipe(reader: &mut impl Read, command: &CommandTask, eof: &mut bool) -> 
 				break;
 			},
 			Ok(count) => command.output.lock().unwrap().append(&buffer[..count]),
+			#[cfg(unix)]
 			Err(error)
 				if error.raw_os_error() == Some(libc::EIO)
 					&& matches!(command.intent.terminal, CommandTerminal::Pty { .. }) =>
