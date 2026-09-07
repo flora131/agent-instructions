@@ -153,6 +153,7 @@ struct Actor {
 	id: u64,
 	state: Mutex<State>,
 	changed: napi::tokio::sync::Notify,
+	subscription_tasks: Mutex<Vec<napi::tokio::task::JoinHandle<()>>>,
 }
 impl Actor {
 	fn new() -> Arc<Self> {
@@ -161,6 +162,7 @@ impl Actor {
 			id: NEXT.fetch_add(1, Ordering::Relaxed),
 			state: Mutex::new(State::default()),
 			changed: napi::tokio::sync::Notify::new(),
+			subscription_tasks: Mutex::new(Vec::new()),
 		})
 	}
 }
@@ -451,7 +453,7 @@ impl NapiTaskSupervisor {
 fn spawn_subscription(actor: &Arc<Actor>, lease: SubscriptionLease, callback: EventCallback) {
 	let weak = Arc::downgrade(actor);
 	let pending = Arc::new(AtomicBool::new(false));
-	napi::bindgen_prelude::spawn(async move {
+	let task = napi::bindgen_prelude::spawn(async move {
 		loop {
 			napi::tokio::time::sleep(Duration::from_millis(10)).await;
 			let Some(actor) = weak.upgrade() else {
@@ -505,6 +507,10 @@ fn spawn_subscription(actor: &Arc<Actor>, lease: SubscriptionLease, callback: Ev
 			}
 		}
 	});
+	let mut tasks = actor.subscription_tasks.lock().unwrap();
+	// Finished tasks have already dropped their TSFN; do not retain historical watches.
+	tasks.retain(|task| !task.is_finished());
+	tasks.push(task);
 }
 
 // Return whether the bounded wake loop may continue; JS is never invoked under the actor lock.

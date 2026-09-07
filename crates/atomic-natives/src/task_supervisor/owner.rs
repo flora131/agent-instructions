@@ -123,6 +123,21 @@ impl Actor {
 		}
 		drop(s);
 		self.changed.notify_waiters();
+		// A detached wake may still own (or be dropping) its TSFN even after its
+		// subscription was removed. Node finalizes those handles after cleanup hooks;
+		// fence every wake here before its mutex can be destroyed by the JS thread.
+		let tasks = std::mem::take(&mut *self.subscription_tasks.lock().unwrap());
+		for task in &tasks {
+			task.abort();
+		}
+		if !tasks.is_empty() {
+			// Never join under the actor lock: an in-flight wake may still need it.
+			napi::bindgen_prelude::block_on(async move {
+				for task in tasks {
+					let _ = task.await;
+				}
+			});
+		}
 	}
 }
 impl State {

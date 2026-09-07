@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { Worker } from "node:worker_threads";
@@ -12,6 +13,7 @@ import {
 	TaskSupervisor,
 } from "../../packages/coding-agent/src/core/tasks/supervisor.js";
 import { bunExecutable, sleep, spawnSyncCollect } from "../helpers/runtime.js";
+import { TEST_TIMEOUT_MS } from "../helpers/test-timeout.js";
 
 function value<T, E>(result: C.Result<T, E>): T {
 	assert.equal(result.ok, true, result.ok ? undefined : JSON.stringify(result.error));
@@ -825,5 +827,36 @@ test("Node and Bun accept NaN wait budgets without native panics and retain obse
 		assert.equal(result.exitCode, 0, `${runtime}\n${result.stdout}\n${result.stderr}`);
 		assert.doesNotMatch(result.stderr.toString(), /panicked at|unhandled.*rejection/i, result.stderr.toString());
 		assert.match(result.stdout.toString(), /NAN BUDGET LIFECYCLE VERIFIED 2 native doors 6 facade configurations/);
+	}
+});
+
+// RFC #2884: cleanup must finish native callback destruction before the environment disappears.
+test("Node and Bun exit cleanly with disposed and live native subscription wakes", async () => {
+	for (const runtime of [process.execPath, bunExecutable()]) {
+		await Promise.all(
+			Array.from({ length: 20 }, async (_, index) => {
+				const child = spawn(runtime, ["test/fixtures/task-s1-shutdown.mjs", String(index % 15)], {
+					stdio: ["ignore", "pipe", "pipe"],
+					timeout: TEST_TIMEOUT_MS,
+				});
+				let stdout = "";
+				let stderr = "";
+				child.stdout.on("data", (chunk) => {
+					stdout += chunk;
+				});
+				child.stderr.on("data", (chunk) => {
+					stderr += chunk;
+				});
+				const [code, signal] = await new Promise<[number | null, NodeJS.Signals | null]>((resolve, reject) => {
+					child.once("error", reject);
+					child.once("close", (code, signal) => resolve([code, signal]));
+				});
+				const diagnostic = `${runtime} case ${index}: signal=${signal}\n${stdout}\n${stderr}`;
+				assert.equal(code, 0, diagnostic);
+				assert.equal(signal, null, diagnostic);
+				assert.equal(stderr, "", diagnostic);
+				assert.match(stdout, /SUBSCRIPTION SHUTDOWN READY/);
+			}),
+		);
 	}
 });
