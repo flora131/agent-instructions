@@ -15,6 +15,49 @@ use napi::{
 use napi_derive::napi;
 use portable_pty::{Child, CommandBuilder, PtySize, native_pty_system};
 
+/// Portable Unix PTY retained by the task supervisor, never by the legacy session registry.
+#[cfg(unix)]
+pub(crate) struct SupervisedPty {
+	pub child: Box<dyn Child + Send + Sync>,
+	pub master: Box<dyn portable_pty::MasterPty + Send>,
+}
+
+#[cfg(unix)]
+type SupervisedPtyParts = (SupervisedPty, Box<dyn Read + Send>, Box<dyn Write + Send>);
+#[cfg(unix)]
+pub(crate) fn supervised_pty(
+	intent: &crate::task_supervisor::CommandIntent,
+	columns: u16,
+	rows: u16,
+) -> std::io::Result<SupervisedPtyParts> {
+	let pair = native_pty_system()
+		.openpty(PtySize { rows, cols: columns, pixel_width: 0, pixel_height: 0 })
+		.map_err(std::io::Error::other)?;
+	let reader = pair.master.try_clone_reader().map_err(std::io::Error::other)?;
+	let writer = pair.master.take_writer().map_err(std::io::Error::other)?;
+	let fd =
+		pair.master.as_raw_fd().ok_or_else(|| std::io::Error::other("PTY descriptor unavailable"))?;
+	let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+	if flags < 0 || unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) } < 0 {
+		return Err(std::io::Error::last_os_error());
+	}
+	let mut command = CommandBuilder::new("/bin/sh");
+	command.arg("-c");
+	command.arg(intent.command.process_text());
+	if let Some(cwd) = &intent.cwd {
+		command.cwd(cwd.process_text());
+	}
+	if let Some(env) = &intent.env {
+		for (key, value) in env {
+			command.env(key, value.process_text());
+		}
+	}
+	// portable-pty establishes a session/process group before exec on Unix.
+	let child = pair.slave.spawn_command(command).map_err(std::io::Error::other)?;
+	drop(pair.slave);
+	Ok((SupervisedPty { child, master: pair.master }, reader, writer))
+}
+
 #[napi(object)]
 pub struct PtyStartOptions<'env> {
 	pub command: String,

@@ -84,6 +84,9 @@ impl Actor {
 				},
 			);
 			if designation.is_some() {
+				if let Some(command) = &s.owners[oi].tasks[ti].command {
+					command.background.store(false, Ordering::Release);
+				}
 				let observation = HostObservation::Foreground { wait_id: lease.id() };
 				s.owners[oi].tasks[ti].record.observation = observation.clone();
 				s.emit(
@@ -114,6 +117,11 @@ impl Actor {
 			TaskEvent::WaitYielded { reference: reference.clone(), wait_id: wait.id(), reason },
 		);
 		s.release_designation(oi, ti, &wait.id(), reason.text());
+		if !matches!(s.owners[oi].tasks[ti].record.observation, HostObservation::Foreground { .. })
+			&& let Some(command) = &s.owners[oi].tasks[ti].command
+		{
+			command.background.store(true, Ordering::Release);
+		}
 		drop(record);
 		drop(s);
 		self.changed.notify_waiters();

@@ -19,6 +19,10 @@ impl From<String> for JsString {
 	}
 }
 impl JsString {
+	/// OS execution converts only at the process boundary; replay keeps original code units.
+	pub(crate) fn process_text(&self) -> String {
+		String::from_utf16_lossy(&self.0)
+	}
 	pub(super) fn is_empty(&self) -> bool {
 		self.0.is_empty()
 	}

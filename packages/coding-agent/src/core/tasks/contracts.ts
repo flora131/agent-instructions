@@ -33,6 +33,25 @@ export type CancelError = Failure<"UnknownTask" | "CleanupFailed">;
 export type CloseError = Failure<"CleanupFailed" | "EnvironmentClosing">;
 export type WatchError = Failure<"OwnerClosed" | "StaleGeneration" | "EnvironmentClosing">;
 export type ReportError = Failure<"StaleAttempt" | "OwnerClosing" | "TaskTerminal" | "ReportConflict">;
+export type InputData = { kind: "bytes"; bytes: Uint8Array } | { kind: "eof" };
+export type InputReceipt = { operationId: OperationId; acceptedBytes: number; kind: "bytes" | "eof" };
+export type InputError = Failure<
+	| "TaskTerminal"
+	| "StdinClosed"
+	| "InputBackpressure"
+	| "OperationConflict"
+	| "InputDeliveryUnknown"
+	| "UnknownTask"
+	| "OutputUnavailable"
+>;
+export type OutputError = Failure<"UnknownTask" | "OutputUnavailable">;
+export type OutputRange = { start: string; maximumBytes: number };
+export type OutputPage = {
+	requested: { start: string; end: string };
+	chunks: Array<{ offsets: { start: string; end: string }; bytes: Uint8Array }>;
+	omittedRanges: Array<{ start: string; end: string }>;
+	nextOffset?: string;
+};
 export type OwnerScope =
 	| { kind: "session"; sessionId: string }
 	| { kind: "workflow-stage"; sessionId: string; runId: string; stageId: string; stageAttemptId: string };

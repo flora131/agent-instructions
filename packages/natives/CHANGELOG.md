@@ -5,6 +5,8 @@
 ### Added
 
 - Added an environment-local `TaskSupervisor` actor with owner-sealed admission, stable task/attempt identities, replay-safe reports, observation waits, cancellation and independently acknowledged cleanup. Generated bindings expose atomic snapshot subscriptions with a byte-bounded event journal; total task/report history and output storage are not bounded by this journal ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Added supervised Unix pipe/PTY commands with process-group cleanup, observation-independent execution deadlines, replay-safe byte-credit stdin, resize and retained output paging. Drained output stays live beyond its cap; background file-spool overflow settles `OutputLimitExceeded` ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Added Windows pipe task containment with suspended launch, explicit inherited handles and kill-on-close Job Objects. Assignment failure refuses execution and confirms suspended-process cleanup; failed cleanup retains diagnostic resources. Supervised Windows PTY remains unavailable ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 
 ### Changed
 
@@ -12,6 +14,7 @@
 
 ### Fixed
 
+- Enforced the task file cap through shared supervised pipe draining on Unix and Windows, preventing stdout/stderr and descendant writes from bypassing the budget. Output page requests are clamped to 1 MiB before allocation ([#2905](https://github.com/bastani-inc/atomic/pull/2905)).
 - Preserved numeric task wait budgets above the u32 range and fractional milliseconds; timer scheduling no longer wraps `4294967296` ms into an immediate yield ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Preserved completed/failed task exit-code numbers without i32 narrowing, including unsigned statuses, fractional values and negative zero; exact terminal replay no longer collapses distinct numeric inputs ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Preserved exact activity metric replay for `elapsedMs`, `toolCount` and `tokenCount`: identical NaN reports acknowledge once, while changed signed zero or omitted/present fields conflict without normalizing values ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).

@@ -6,6 +6,7 @@
 
 - Editable workflow stage chats now discover source-qualified skills from their own session catalog and expand `/skill:` submissions once through stage admission, preserving Enter/Ctrl+F delivery and literal human-input answers. Skill diagnostics remain in the stage chat; blocked, archived, and replayed stages stay read-only.
 - Added the SDK-only owner-bound task foundation: opaque host/task/wait capabilities, one execution per admitted attempt, observation-only yields, independent cleanup acknowledgement, and snapshot-reconciled subscriptions. Existing CLI, workflow and subagent runners are unchanged; output storage and real-runner integration remain later work ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Added trusted command start/input/output doors and an owner-aware bash/PTY execution seam. Commands remain alive after the 10000 ms foreground observation budget and are reaped with their owner; stdin distinguishes empty bytes from EOF and refuses backpressure before admission ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added `reason: "project_trust"` to `UIPromptStartEvent` and `UIPromptEndEvent` for the built-in `/trust` selector in both interactive modes, so status integrations can observe the wait. Isolated mode retains paired notifications until the current engine binds, keeping separate completed dialogs distinct without delaying the trust decision. ([#2873](https://github.com/bastani-inc/atomic/issues/2873))
 
 ### Changed
@@ -14,6 +15,7 @@
 
 ### Fixed
 
+- Honored owner command wait budgets and `until-settled` in supervised bash/PTY execution, disclosed retained output gaps, and bounded output pages to 1 MiB. Supervised file-spool writes now share a hard disk cap rather than overshooting between polls ([#2905](https://github.com/bastani-inc/atomic/pull/2905)).
 - Stopped task subscription event delivery when a reconciliation callback disposes observation, including events retained by the active drain ([#2902](https://github.com/bastani-inc/atomic/pull/2902)).
 - Failed `/tasks` inspection now displays a diagnostic and preserves the input for retry instead of leaving an unhandled editor submission rejection.
 - Workflow skill autocomplete no longer reattaches and checkpoints the stage for every completion request. Concurrent lazy discovery requests share one attachment.

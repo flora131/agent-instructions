@@ -16,6 +16,7 @@ use std::{
 };
 mod events;
 mod owner;
+mod process;
 mod report_identity;
 mod strings;
 mod task;
@@ -24,6 +25,10 @@ mod tests;
 mod waits;
 pub use events::*;
 pub use owner::*;
+pub use process::{
+	CommandIntent, CommandOutputSink, CommandResourceOptions, CommandTaskKind, CommandTerminal,
+	InputData, InputReceipt, OutputPage, OutputRange, StdinLease,
+};
 use report_identity::{TASK_REPORT_IDENTITY_WINDOW, activity_hash};
 use strings::JsString;
 pub use task::*;
@@ -235,6 +240,92 @@ impl NapiTaskSupervisor {
 		DoorValue(
 			self.check(&env, "OwnerClosing").and_then(|()| self.actor.start(owner, intent, operation)),
 		)
+	}
+	/// Admits one owned command; waiting for this setup never imposes an execution deadline.
+	#[napi(ts_return_type = "Promise<{ok:true,value:TaskLease}|{ok:false,error:TaskFailure}>")]
+	pub fn start_command_task<'env>(
+		&self,
+		env: &'env Env,
+		owner: &OwnerLease,
+		intent: CommandIntent,
+		#[napi(ts_arg_type = "string")] operation: JsString,
+		options: Option<CommandResourceOptions>,
+	) -> napi::Result<PromiseRaw<'env, DoorValue<TaskLease>>> {
+		let check = self.check(env, "OwnerClosing");
+		let actor = self.actor.clone();
+		let owner = owner.clone();
+		env.spawn_future(async move {
+			let result = napi::tokio::task::spawn_blocking(move || {
+				check.and_then(|()| {
+					actor.start_command_configured(
+						&owner,
+						intent,
+						operation,
+						options.unwrap_or_default(),
+					)
+				})
+			})
+			.await
+			.map_err(|error| napi::Error::from_reason(error.to_string()))?;
+			Ok(DoorValue(result))
+		})
+	}
+	#[napi(ts_return_type = "{ok:true,value:undefined}|{ok:false,error:TaskFailure}")]
+	pub fn resize_task_terminal(
+		&self,
+		env: Env,
+		task: &TaskLease,
+		columns: u16,
+		rows: u16,
+	) -> DoorValue<()> {
+		DoorValue(
+			self
+				.check(&env, "UnknownTask")
+				.and_then(|()| self.actor.resize_command(task, columns, rows)),
+		)
+	}
+	#[napi(ts_return_type = "{ok:true,value:StdinLease}|{ok:false,error:TaskFailure}")]
+	pub fn task_stdin(&self, env: Env, task: &TaskLease) -> DoorValue<StdinLease> {
+		DoorValue(self.check(&env, "UnknownTask").and_then(|()| self.actor.stdin_lease(task)))
+	}
+	#[napi(ts_return_type = "Promise<{ok:true,value:InputReceipt}|{ok:false,error:TaskFailure}>")]
+	pub fn write_task_input<'env>(
+		&self,
+		env: &'env Env,
+		input: &StdinLease,
+		#[napi(ts_arg_type = "string")] operation: JsString,
+		data: InputData,
+	) -> napi::Result<PromiseRaw<'env, DoorValue<InputReceipt>>> {
+		let check = self.check(env, "TaskTerminal");
+		let actor = self.actor.clone();
+		let input = input.clone();
+		env.spawn_future(async move {
+			let result = napi::tokio::task::spawn_blocking(move || {
+				check.and_then(|()| actor.input(&input, operation, data))
+			})
+			.await
+			.map_err(|error| napi::Error::from_reason(error.to_string()))?;
+			Ok(DoorValue(result))
+		})
+	}
+	#[napi(ts_return_type = "Promise<{ok:true,value:OutputPage}|{ok:false,error:TaskFailure}>")]
+	pub fn read_task_output<'env>(
+		&self,
+		env: &'env Env,
+		task: &TaskLease,
+		range: OutputRange,
+	) -> napi::Result<PromiseRaw<'env, DoorValue<OutputPage>>> {
+		let check = self.check(env, "UnknownTask");
+		let actor = self.actor.clone();
+		let task = task.clone();
+		env.spawn_future(async move {
+			let result = napi::tokio::task::spawn_blocking(move || {
+				check.and_then(|()| actor.output_page(&task, range))
+			})
+			.await
+			.map_err(|error| napi::Error::from_reason(error.to_string()))?;
+			Ok(DoorValue(result))
+		})
 	}
 	/// Claim once after host dispatch setup; operation replay never grants a second runner.
 	#[napi(ts_return_type = "{ok:true,value:RunnerLease}|{ok:false,error:TaskFailure}")]
