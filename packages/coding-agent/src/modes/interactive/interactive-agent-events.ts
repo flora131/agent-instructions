@@ -66,7 +66,6 @@ InteractiveModeBase.prototype.handleEvent = async function (
 	if (!this.isInitialized) {
 		await this.init();
 	}
-	refreshInteractiveTasks(this);
 
 	this.footer.invalidate();
 
