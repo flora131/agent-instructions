@@ -343,11 +343,14 @@ The manifest key is the configured Atomic app name (`atomic` here, from the runn
 
 ### Lifecycle Overview
 
+Interactive trust-gated startup first emits `session_start` and `resources_discover` for the permitted trust-safe extensions, then resolves `project_trust`. After authorization, newly loaded extensions receive `session_start`; resource discovery runs again against the completed set. Existing reporters keep their session and do not receive a second `session_start`. Noninteractive startup resolves trust before the ordinary session lifecycle.
+
 ```
 Atomic starts
   │
+  ├─► session_start / resources_discover (trust-safe interactive bootstrap, when needed)
   ├─► project_trust (user/global and CLI extensions only, before project resources load)
-  ├─► session_start { reason: "startup" }
+  ├─► session_start { reason: "startup" } (extensions not already started)
   └─► resources_discover { reason: "startup" }
       │
       ▼
@@ -641,14 +644,24 @@ pi.on("agent_settled", async (_event, ctx) => {
 
 #### ui_prompt_start / ui_prompt_end
 
-These notification-only events wrap blocking user-facing extension prompts opened through `ctx.ui.select()`, `ctx.ui.confirm()`, `ctx.ui.input()`, `ctx.ui.editor()`, and `ctx.ui.custom()`. Each event has `reason: "ui_prompt"`, the prompt `kind`, and the prompt `title` when that method accepts one. Host and status integrations can use the pair to report that Atomic is waiting for the user instead of still working.
+These notification-only events wrap blocking user-facing prompts. Each event has `reason: "ui_prompt" | "project_trust"`, the prompt `kind`, and the prompt `title` when available. Host and status integrations can use the pair to distinguish waiting for the user from active work.
 
-Atomic coalesces nested or overlapping prompts into one outer span. The end event keeps the outer prompt's kind and title and fires after every prompt in that span settles, including rejected promises and synchronous failures. Rebinding the host UI context closes an active span before a prompt from the new context can begin.
+- `ui_prompt`: extension prompts opened through `ctx.ui.select()`, `ctx.ui.confirm()`, `ctx.ui.input()`, `ctx.ui.editor()`, and `ctx.ui.custom()`.
+- `project_trust`: interactive startup and resume trust dialogs (including trust-hook `select`, `confirm`, and `input` dialogs and borrowed extension-source authorization), plus the built-in `/trust` selector. In isolated interactive mode, the engine owns startup/resume decisions and uses the host UI; host-owned `/trust` notifications are forwarded to the engine. If the current engine has not bound yet, the transport retains the start and end in order until it binds, even if the selector closes first. Separate completed dialogs retain separate lifecycle pairs when delivered together. This does not delay the trust decision; retiring that engine discards its pending notifications.
 
-Handlers run best-effort from the microtask queue. Atomic does not await them before opening or closing the prompt, so a slow handler cannot delay the UI.
+Startup first loads only permitted user/global, builtin, and explicitly authorized CLI extensions, and binds them to a real session before asking for trust. Existing handlers receive the live `ExtensionContext` while the dialog is waiting: `ctx.cwd`, `ctx.sessionManager`, and other session APIs are available. Approval completes resources in that same session without rerunning safe extension factories or their `session_start` handlers. Newly authorized project extensions receive `session_start` only after loading; they do not receive historical prompt events. Untrusted project and borrowed project-local code is never loaded just to observe a prompt. Silent saved/default/CLI policy decisions and noninteractive startup emit no artificial waits.
+
+Interactive resume trust dialogs use the outgoing session's live extension context. Destination validation and `session_before_switch` cancellation precede trust preparation; failed preparation leaves that session active. Project resources load only when the prepared replacement continues after shutdown. Attaching subscribers does not replay earlier notifications.
+
+Atomic coalesces nested or overlapping prompts, including mixed reasons, into one shared outer span. The end event retains the original outer prompt's reason, kind, and title and fires after every prompt in the span settles, including rejected promises and synchronous failures. Cancelling or disposing the `/trust` selector ends its wait. Rebinding the host UI context closes an active span before a prompt from the new context can begin. Notifications are not replayed to a replacement engine if the engine exits while a host selector is open.
+
+At session replacement, Atomic waits up to 1,000 ms for a snapshot of pending prompt notification deliveries before shutdown. Prompt display and answers never await observers, and start and end dispatch independently. If an observer hangs, Atomic warns and continues replacement; its context is not guaranteed to remain valid after that finite boundary.
+
+Handlers run best-effort from the microtask queue. Atomic does not await them before opening or closing the prompt, so notifications do not block the UI.
 
 ```typescript
 pi.on("ui_prompt_start", (event) => {
+  // event.reason - "ui_prompt" | "project_trust"
   // event.kind - "select" | "confirm" | "input" | "editor" | "custom"
   // event.title - prompt title when available
 });
