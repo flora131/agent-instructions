@@ -14,7 +14,7 @@ type ToolResult = {
 type Tool = {
 	description: string;
 	promptSnippet?: string;
-	parameters: { properties?: { to?: { description?: string }; retryToken?: { description?: string } } };
+	parameters: { properties?: { to?: { description?: string } } };
 	execute(
 		id: string,
 		params: { action?: string; group?: string },
@@ -151,9 +151,11 @@ test("heavy tool guidance teaches exact known workflow-stage targets without rep
 	assert.ok(guidance.includes("`workflow:<rootRunId>/**`"));
 	assert.match(guidance, /notInKnownSet/);
 	assert.match(guidance, /live session/i);
-	assert.match(guidance, /returned `retryToken`.*three claimed attempts/u);
-	assert.match(tool.promptSnippet ?? "", /returned retryToken/);
-	assert.match(tool.parameters.properties?.retryToken?.description ?? "", /omit it for every fresh operation/);
+	assert.match(guidance, /retries recoverable disconnects internally up to three times/);
+	assert.match(tool.promptSnippet ?? "", /retry reconnects internally/);
+	assert.match(tool.promptSnippet ?? "", /do not automatically repeat an unknown delivery outcome/);
+	assert.doesNotMatch(`${guidance}\n${tool.promptSnippet ?? ""}`, /retryToken/);
+	assert.doesNotMatch(JSON.stringify(tool.parameters), /retryToken/);
 });
 
 test("join is additive and leave without a group returns home", async () => {

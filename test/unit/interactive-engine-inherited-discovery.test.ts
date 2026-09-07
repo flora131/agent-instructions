@@ -61,6 +61,7 @@ async function removeTempDirectory(path: string): Promise<void> {
 interface HarnessReport {
 	type?: string;
 	editorText?: string;
+	inputHandlerReady?: boolean;
 	prefix?: string;
 	enginePid?: number;
 	items?: Array<{ value?: string; label?: string }> | null;
@@ -251,8 +252,12 @@ serialTest(
 		try {
 			await driver.waitFor((report) => report.type === "terminal_ready", INHERITED_REPORT_TIMEOUT_MS);
 			assert.ok((await waitForCommand(driver)).has("legacy-compatible"));
+			// Discovery can finish before cooked-startup recovery, which can replay
+			// a slash-prefixed draft as submitted input before we send Enter.
+			await driver.waitFor((report) => report.type === "heartbeat" && report.inputHandlerReady === true);
 			driver.send({ type: "input", data: "/legacy-compatible" });
 			await driver.waitFor((report) => report.type === "heartbeat" && report.editorText === "/legacy-compatible");
+			assert.equal(existsSync(logFile), false, "the draft must not execute before Enter");
 			driver.send({ type: "input", data: "\r" });
 			const deadline = performance.now() + INHERITED_REPORT_TIMEOUT_MS;
 			let commandLog = "";
