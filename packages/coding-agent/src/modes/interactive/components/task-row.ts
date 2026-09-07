@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { type Component, truncateToWidth } from "@earendil-works/pi-tui";
 import type { TaskRecord } from "../../../core/tasks/contracts.js";
 import type { TaskActivity } from "../../../core/tasks/owner-store.js";
-import { theme } from "../theme/theme.js";
-import { keyHintIfBound as keyHint } from "./keybinding-hints.js";
+import { theme } from "../theme/theme.ts";
+import { keyHintIfBound as keyHint } from "./keybinding-hints.ts";
 
 /** Control removal and truncation apply only to terminal display, never task identity. */
 export function taskDisplayText(text: string): string {

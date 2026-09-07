@@ -1,6 +1,6 @@
 import { type Component, truncateToWidth } from "@earendil-works/pi-tui";
 import type { TaskRecord } from "../../../core/tasks/contracts.js";
-import { theme } from "../theme/theme.js";
+import { theme } from "../theme/theme.ts";
 import { TaskRow, taskLabel, taskTitle } from "./task-row.js";
 
 /** Complete projection; viewport owners, not this list, decide how much to mount. */
