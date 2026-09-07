@@ -59,9 +59,10 @@ test.sequential(
 			runtimeExecutable: bunExecutable(),
 			provider: "isolation-fixture",
 			model: "blocking-model",
-			env: { ATOMIC_BLOCKING_TOOL_PID_FILE: pidFile },
+			env: { ATOMIC_CODING_AGENT_DIR: join(tempDir, "agent"), ATOMIC_BLOCKING_TOOL_PID_FILE: pidFile },
 			args: [
 				"--no-session",
+				"--approve", // Explicit consent for the controlled blocking-tool extension.
 				"--no-extensions",
 				"--extension",
 				join(moduleDir(import.meta.url), "fixtures", "blocking-tool-extension.ts"),
