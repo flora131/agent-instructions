@@ -128,7 +128,16 @@ describe("logout credential invalidation (#1919)", () => {
 				ANTHROPIC_API_KEY: "",
 				ANTHROPIC_OAUTH_TOKEN: "",
 			},
-			args: ["--no-session", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes", "--offline"],
+			// Credential tests do not need project-local resources or an interactive trust prompt.
+			args: [
+				"--no-approve",
+				"--no-session",
+				"--no-extensions",
+				"--no-skills",
+				"--no-prompt-templates",
+				"--no-themes",
+				"--offline",
+			],
 			interactiveEngine: { onDiagnostic: () => {} },
 		});
 
@@ -181,6 +190,7 @@ describe("logout credential invalidation (#1919)", () => {
 				env: { ATOMIC_CODING_AGENT_DIR: directory, COPILOT_GITHUB_TOKEN: "" },
 				args: [
 					"--no-session",
+					"--no-approve",
 					"--no-extensions",
 					"--no-skills",
 					"--no-prompt-templates",
@@ -237,7 +247,15 @@ describe("logout credential invalidation (#1919)", () => {
 			cwd: join(moduleDir(import.meta.url), "../.."),
 			runtimeExecutable: bunExecutable(),
 			env: { ATOMIC_CODING_AGENT_DIR: directory, ANTHROPIC_API_KEY: "environment-key", ANTHROPIC_OAUTH_TOKEN: "" },
-			args: ["--no-session", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes", "--offline"],
+			args: [
+				"--no-approve",
+				"--no-session",
+				"--no-extensions",
+				"--no-skills",
+				"--no-prompt-templates",
+				"--no-themes",
+				"--offline",
+			],
 			interactiveEngine: { onDiagnostic: () => {} },
 		});
 
