@@ -727,6 +727,15 @@ export class TaskSupervisor {
 		);
 		return registered.ok ? this.observeTaskWait(registered.value) : registered;
 	}
+	/** Resolve only a task admitted under this live owner; IDs alone confer no authority. */
+	lookupTask(owner: OwnerLease, taskId: C.TaskId): C.Result<TaskLease, C.WaitError> {
+		const state = this.#owner(owner);
+		const found = mapped(this.#native.lookupTask(state.native, taskId), () => state.tasks.get(taskId), waitErrors);
+		if (!found.ok) return found;
+		if (!found.value) return { ok: false, error: { code: "UnknownTask", message: "No agent runner bound to task" } };
+		return { ok: true, value: found.value };
+	}
+
 	async waitForTaskId(
 		owner: OwnerLease,
 		taskId: C.TaskId,

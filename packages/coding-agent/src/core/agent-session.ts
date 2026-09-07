@@ -213,6 +213,13 @@ class AgentSessionBase {
 		this._workflowStageAdmission =
 			stageContext?.messageAdmission?.boundary ??
 			(stageContext ? WorkflowStageAdmissionBoundary.restore(this.sessionManager.getBranch()) : undefined);
+		if (stageContext) {
+			this._workflowStageAdmission?.bindTaskIdentity(
+				this.sessionManager.getSessionId(),
+				stageContext.workflowRunId,
+				stageContext.workflowStageId,
+			);
+		}
 		if (this._workflowStageAdmission && stageContext && stageContext.messageAdmission === undefined) {
 			(
 				stageContext as {

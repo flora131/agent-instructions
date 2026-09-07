@@ -1,4 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { randomUUID } from "node:crypto";
+import { AgentTaskHost, type AgentTaskHostBinding } from "./tasks/agent-adapter.js";
+import type { OwnerScope } from "./tasks/contracts.js";
 
 export type WorkflowStageAdmissionDecision = "admitted" | "late" | "duplicate";
 
@@ -27,6 +30,23 @@ export class WorkflowStageAdmissionBoundary {
 	private closePromise: Promise<void> | undefined;
 	private readonly closeController = new AbortController();
 	private readonly ownedSubagentRunIds = new Set<string>();
+	private readonly stageAttemptId = randomUUID();
+	private taskScope: Extract<OwnerScope, { kind: "workflow-stage" }> | undefined;
+	private taskHost: AgentTaskHost | undefined;
+	private taskClose: ReturnType<AgentTaskHost["close"]> | undefined;
+
+	/** Called by the actual stage session; replacement sessions retain the original identity. */
+	bindTaskIdentity(sessionId: string, runId: string, stageId: string): void {
+		this.taskScope ??= { kind: "workflow-stage", sessionId, runId, stageId, stageAttemptId: this.stageAttemptId };
+	}
+
+	/** Trusted companion integration only; the existing launch guard remains mandatory. */
+	bindAgentTaskHost(binding: Omit<AgentTaskHostBinding, "scope">): AgentTaskHost {
+		if (!this.open) throw new Error("Workflow stage generation is closed");
+		if (!this.taskScope) throw new Error("Workflow stage task identity is not bound");
+		this.taskHost ??= new AgentTaskHost({ ...binding, scope: this.taskScope });
+		return this.taskHost;
+	}
 
 	/** Aborts synchronously when close begins so stage-owned work can terminate before late delivery. */
 	get closeSignal(): AbortSignal {
@@ -120,6 +140,7 @@ export class WorkflowStageAdmissionBoundary {
 
 	seal(): void {
 		this.open = false;
+		this.taskClose ??= this.taskHost?.close("stage-close");
 	}
 
 	close(): Promise<void> {
@@ -132,6 +153,8 @@ export class WorkflowStageAdmissionBoundary {
 	private async finishClose(): Promise<void> {
 		await Promise.allSettled([...this.pending]);
 		await this.drainAdmittedWork();
+		const closed = await this.taskClose;
+		if (closed && !closed.ok) throw new Error(`${closed.error.code}: ${closed.error.message}`);
 	}
 
 	private invoke(callback: () => void | Promise<void>): Promise<void> {
