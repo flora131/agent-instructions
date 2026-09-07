@@ -297,6 +297,34 @@ test("metrics and attention retain absent, empty, zero and report identity", asy
 	}
 });
 
+// PR #2902: callback disposal must stop publication from the active native drain.
+test("disposal during reconciliation ends pending and new subscription reads", async () => {
+	const h = harness();
+	try {
+		value(await h.supervisor.startAgentTask(h.owner, intent, operation()));
+		const watch = value(h.supervisor.watchOwnerTasks(h.owner));
+		const pending = watch.events[Symbol.asyncIterator]().next();
+		let reconciled = false;
+		watch.onReconcile = () => {
+			reconciled = true;
+			watch.dispose();
+		};
+		value(
+			h.contexts[0].reportActivity({
+				reportId: "dispose",
+				change: { kind: "action", tool: "read", text: "latest" },
+			}),
+		);
+		watch.drain();
+		assert.equal(reconciled, true);
+		assert.equal(watch.snapshot.tasks[0].currentAction?.text, "latest");
+		assert.deepEqual(await pending, { done: true, value: undefined });
+		assert.deepEqual(await watch.events[Symbol.asyncIterator]().next(), { done: true, value: undefined });
+	} finally {
+		value(await h.supervisor.closeTaskOwner(h.owner, "session-close"));
+	}
+});
+
 // RFC #2884: the final oversized event may leave no authentic native wake at all.
 test("bounded fallback poll reconciles evicted final activity in its captured async context", async () => {
 	const h = harness();

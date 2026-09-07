@@ -88,7 +88,6 @@ pub struct CommandResourceOptions {
 	pub foreground_spill_bytes: Option<u32>,
 	pub background: Option<bool>,
 }
-const FILE_SPOOL_POLL: Duration = Duration::from_secs(5);
 
 pub(super) struct CommandTask {
 	intent: CommandIntent,
@@ -137,6 +136,14 @@ impl CommandTask {
 			return Ok(());
 		}
 		let error = io::Error::last_os_error();
+		// Darwin reports EPERM when a group contains only an unreaped zombie.
+		// Defer that refusal only while we still own the exited leader. Cleanup
+		// must subsequently reap it and independently confirm the group is gone;
+		// this does not treat a signal refusal as evidence of successful cleanup.
+		#[cfg(target_os = "macos")]
+		if error.raw_os_error() == Some(libc::EPERM) && child_exited_without_reaping(pid)? {
+			return Ok(());
+		}
 		if error.raw_os_error() == Some(libc::ESRCH) { Ok(()) } else { Err(error) }
 	}
 	pub(super) fn join_until(&self, deadline: Instant) -> bool {
@@ -376,9 +383,6 @@ impl Actor {
 						if store.unavailable {
 							return Err(io::Error::other("Output spool unavailable"));
 						}
-						spawn
-							.stdout(OpenOptions::new().append(true).open(&store.path)?)
-							.stderr(OpenOptions::new().append(true).open(&store.path)?);
 					}
 					if let Some(cwd) = &command.intent.cwd {
 						spawn.current_dir(cwd.process_text());
@@ -439,7 +443,6 @@ impl Actor {
 		let mut stderr_eof = false;
 		let mut read_failure = setup_failure.clone();
 		let mut cleanup_failure = None;
-		let mut background_since = None;
 		loop {
 			if setup_failure.is_none() {
 				command.input.lock().unwrap().drain(&mut stdin);
@@ -467,28 +470,11 @@ impl Actor {
 			}
 			let background = command.background.load(Ordering::Acquire);
 			if background {
-				if command.file_spool() {
-					let since = background_since.get_or_insert_with(Instant::now);
-					if since.elapsed() >= FILE_SPOOL_POLL {
-						*since = Instant::now();
-						let store = command.output.lock().unwrap();
-						let exceeded = file_spool_exceeded(
-							true,
-							std::fs::metadata(&store.path).map(|meta| meta.len()),
-							store.disk_cap,
-						)
-						.unwrap_or(false);
-						drop(store);
-						if exceeded {
-							let _ = self
-								.cancel(&TaskLease { cap: runner.cap.clone() }, CancelCause::OutputLimit);
-						}
-					}
-				} else {
-					command.output.lock().unwrap().background();
+				command.output.lock().unwrap().background();
+				if command.file_spool() && command.output.lock().unwrap().overflow {
+					let _ =
+						self.cancel(&TaskLease { cap: runner.cap.clone() }, CancelCause::OutputLimit);
 				}
-			} else {
-				background_since = None;
 			}
 			let cancelling = {
 				let state = self.state.lock().unwrap();
@@ -600,10 +586,7 @@ impl Actor {
 			return;
 		}
 		let status = status.expect("group confirmed only after direct child reaped");
-		let mut store = command.output.lock().unwrap();
-		if command.file_spool() {
-			store.refresh_spool();
-		}
+		let store = command.output.lock().unwrap();
 		let reference = runner.cap.reference();
 		let output = OutputRef {
 			owner_id: reference.owner_id.into(),
@@ -778,19 +761,10 @@ struct OutputStore {
 	spilled: bool,
 	file: Option<File>,
 	disk_len: u64,
+	overflow: bool,
 	unavailable: bool,
 }
 impl OutputStore {
-	fn refresh_spool(&mut self) {
-		match std::fs::metadata(&self.path) {
-			Ok(metadata) => {
-				self.byte_count = metadata.len();
-				self.disk_len = metadata.len();
-			},
-			Err(error) if error.kind() == io::ErrorKind::NotFound => {},
-			Err(_) => self.unavailable = true,
-		}
-	}
 	/// The retained prefix and rolling tail have at most one gap. No disk reads
 	/// or output-sized allocations are needed to describe it at settlement.
 	fn omitted_ranges(&self) -> Vec<OutputOffsets> {
@@ -816,6 +790,7 @@ impl OutputStore {
 			file: None,
 			disk_len: 0,
 			unavailable: false,
+			overflow: false,
 		}
 	}
 	fn append(&mut self, bytes: &[u8]) {
@@ -862,6 +837,7 @@ impl OutputStore {
 		let Some(file) = self.file.as_mut() else {
 			return;
 		};
+		let overflow = bytes.len() as u64 > self.disk_cap - self.disk_len;
 		let count = (self.disk_cap - self.disk_len).min(bytes.len() as u64) as usize;
 		let mut remaining = &bytes[..count];
 		if file.seek(SeekFrom::Start(self.disk_len)).is_err() {
@@ -885,9 +861,11 @@ impl OutputStore {
 				},
 			}
 		}
+		self.overflow |= overflow && !self.unavailable;
 	}
 	/// Snapshot owned segments; gaps are explicit, never concatenated ambiguously.
 	fn page(&mut self, start: u64, maximum: u64) -> OutputPage {
+		let maximum = maximum.min(COMMAND_LIVE_BYTES as u64);
 		let end = start.saturating_add(maximum).min(self.byte_count).max(start);
 		let mut segments: Vec<(u64, Vec<u8>)> = Vec::new();
 		let disk_end = end.min(self.disk_len);
@@ -950,18 +928,6 @@ impl OutputStore {
 			page.omitted_ranges.push(OutputOffsets::new(cursor, end));
 		}
 		page
-	}
-}
-
-/// Policy only. The later process resource must poll and arbitrate terminal causes.
-fn file_spool_exceeded(background: bool, size: io::Result<u64>, cap: u64) -> io::Result<bool> {
-	if !background {
-		return Ok(false);
-	}
-	match size {
-		Ok(size) => Ok(size > cap),
-		Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(false),
-		Err(error) => Err(error),
 	}
 }
 
@@ -1028,6 +994,42 @@ mod tests {
 			parent_task_id: None,
 		}
 	}
+	// #2905: inherited stdout/stderr must not bypass the shared disk budget.
+	#[cfg(unix)]
+	#[test]
+	fn file_spool_caps_concurrent_descendant_writes_before_stop() {
+		let (actor, owner) = command_owner();
+		let task = actor
+			.start_command_configured(
+				&owner,
+				pipe_intent(
+					"(printf abcdefghijklmnop >&2) & printf ABCDEFGHIJKLMNOP; wait; exec sleep 30",
+				),
+				"cap".into(),
+				CommandResourceOptions { disk_cap_bytes: Some(5.0), ..Default::default() },
+			)
+			.unwrap();
+		let command = actor.state.lock().unwrap().owners[0].tasks[0].command.clone().unwrap();
+		let deadline = Instant::now() + PROCESS_SHUTDOWN_GRACE;
+		while command.output.lock().unwrap().byte_count < 32 {
+			assert!(Instant::now() < deadline, "concurrent output barrier");
+			std::thread::sleep(PROCESS_POLL);
+		}
+		let store = command.output.lock().unwrap();
+		assert_eq!(std::fs::metadata(&store.path).unwrap().len(), 5);
+		assert_eq!(store.byte_count, 32);
+		drop(store);
+		let wait = actor.wait(&task, None, false).unwrap();
+		actor.yield_wait(&wait, YieldReason::Elapsed).unwrap();
+		assert!(command.join_until(Instant::now() + PROCESS_SHUTDOWN_GRACE));
+		assert_eq!(std::fs::metadata(&command.output.lock().unwrap().path).unwrap().len(), 5);
+		let receipt = actor.cancel(&task, CancelCause::User).unwrap();
+		assert!(
+			matches!(receipt.execution, Execution::Settled { result: TaskResult::Failed { ref code, .. } } if code == &JsString::from("OutputLimitExceeded"))
+		);
+		assert!(matches!(receipt.cleanup, Cleanup::Reaped {}));
+	}
+
 	// #2884: unsupported terminal modes must never execute as a different backend.
 	#[cfg(not(unix))]
 	#[test]
@@ -1271,6 +1273,23 @@ mod tests {
 		std::fs::remove_file(path).unwrap();
 	}
 	#[test]
+	fn output_pages_clamp_large_requests_to_live_budget() {
+		let path = std::env::temp_dir().join(format!("atomic-page-cap-{}", std::process::id()));
+		let mut store = OutputStore::new(path.clone(), 4, 8, TASK_DISK_BYTES);
+		store.append(&vec![b'x'; COMMAND_LIVE_BYTES + 1]);
+		let page = store.page(0, u32::MAX as u64);
+		assert_eq!(page.requested, OutputOffsets::new(0, COMMAND_LIVE_BYTES as u64));
+		assert_eq!(page.next_offset, Some(COMMAND_LIVE_BYTES.to_string()));
+		assert_eq!(
+			page.chunks.iter().map(|chunk| chunk.bytes.len()).sum::<usize>(),
+			COMMAND_LIVE_BYTES
+		);
+		assert_eq!(store.page(COMMAND_LIVE_BYTES as u64, u64::MAX).chunks[0].bytes.as_ref(), b"x");
+		drop(store);
+		std::fs::remove_file(path).unwrap();
+	}
+
+	#[test]
 	fn foreground_prefix_flushes_once_and_reads_do_not_move_append_offset() {
 		let path =
 			std::env::temp_dir().join(format!("atomic-output-background-{}", std::process::id()));
@@ -1299,6 +1318,7 @@ mod tests {
 		let mut store = OutputStore::new(path, 4, 4, 5);
 		store.append(b"abcdefghij");
 		assert!(store.unavailable);
+		assert!(!store.overflow);
 		assert!(store.foreground.is_empty());
 		store.append(b"kl");
 		let page = store.page(1, 10);
@@ -1340,17 +1360,15 @@ mod tests {
 		assert_eq!(FOREGROUND_SPILL_BYTES, 8_388_608);
 		assert_eq!(TASK_DISK_BYTES, 5_368_709_120);
 		assert_eq!(DETAIL_TAIL_BYTES, 8_192);
-		for size in [TASK_DISK_BYTES - 1, TASK_DISK_BYTES] {
-			assert!(!file_spool_exceeded(true, Ok(size), TASK_DISK_BYTES).unwrap());
-		}
-		assert!(file_spool_exceeded(true, Ok(TASK_DISK_BYTES + 1), TASK_DISK_BYTES).unwrap());
-		assert!(!file_spool_exceeded(false, Ok(u64::MAX), TASK_DISK_BYTES).unwrap());
-		assert!(
-			!file_spool_exceeded(true, Err(io::ErrorKind::NotFound.into()), TASK_DISK_BYTES).unwrap()
-		);
-		assert!(
-			file_spool_exceeded(true, Err(io::ErrorKind::PermissionDenied.into()), TASK_DISK_BYTES)
-				.is_err()
-		);
+		let path = std::env::temp_dir().join(format!("atomic-exact-cap-{}", std::process::id()));
+		let mut store = OutputStore::new(path.clone(), 4, 8, 5);
+		store.append(b"abcde");
+		store.background();
+		assert!(!store.overflow);
+		store.append(b"f");
+		assert!(store.overflow);
+		assert_eq!(std::fs::metadata(&path).unwrap().len(), 5);
+		drop(store);
+		std::fs::remove_file(path).unwrap();
 	}
 }

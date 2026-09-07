@@ -16,6 +16,9 @@
 
 ### Fixed
 
+- Honored owner command wait budgets and `until-settled` in supervised bash/PTY execution, disclosed retained output gaps, and bounded output pages to 1 MiB. Supervised file-spool writes now share a hard disk cap rather than overshooting between polls ([#2905](https://github.com/bastani-inc/atomic/pull/2905)).
+- Stopped task subscription event delivery when a reconciliation callback disposes observation, including events retained by the active drain ([#2902](https://github.com/bastani-inc/atomic/pull/2902)).
+- Failed `/tasks` inspection now displays a diagnostic and preserves the input for retry instead of leaving an unhandled editor submission rejection.
 - Workflow skill autocomplete no longer reattaches and checkpoints the stage for every completion request. Concurrent lazy discovery requests share one attachment.
 - Intercom now hides internal workflow routing/control connections and refuses messages to non-agent recipients, including model-less `ctx.ui` prompts and `ctx.tool` nodes, without hiding agents busy in tools or awaiting human input. Connected agent aliases remain reachable after pending capability changes or stage completion, even with same-name non-agent nodes.
 - Preserved duplicate-agent routing beside same-name prompt/tool nodes, rejected malformed Intercom recipient purposes without breaking older hosts, and synchronized workflow roster-update completion with broker processing ([#2895](https://github.com/bastani-inc/atomic/pull/2895)).

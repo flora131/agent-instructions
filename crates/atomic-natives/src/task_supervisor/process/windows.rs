@@ -151,6 +151,16 @@ impl WindowsProcess {
 	}
 }
 fn spawn(command: &CommandTask, refuse_assignment: bool) -> Result<WindowsLaunch, LaunchFailure> {
+	if command.file_spool() {
+		let mut store = command.output.lock().unwrap();
+		store.background();
+		if store.unavailable {
+			return Err(
+				TaskFailure { code: "SpawnFailed".into(), message: "Output spool unavailable".into() }
+					.into(),
+			);
+		}
+	}
 	let prepare = || -> io::Result<PreparedHandles> {
 		let job = unsafe { CreateJobObjectW(null(), null()) };
 		if job.is_null() {
@@ -171,24 +181,10 @@ fn spawn(command: &CommandTask, refuse_assignment: bool) -> Result<WindowsLaunch
 			return Err(io::Error::last_os_error());
 		}
 		let (stdin_read, stdin_write) = pipe()?;
-		let (stdout, stderr, stdout_read, stderr_read): (File, File, ProcessReader, ProcessReader) =
-			if command.file_spool() {
-				let mut store = command.output.lock().unwrap();
-				store.background();
-				if store.unavailable {
-					return Err(io::Error::other("Output spool unavailable"));
-				}
-				(
-					OpenOptions::new().append(true).open(&store.path)?,
-					OpenOptions::new().append(true).open(&store.path)?,
-					Box::new(io::empty()),
-					Box::new(io::empty()),
-				)
-			} else {
-				let (out_read, out_write) = pipe()?;
-				let (err_read, err_write) = pipe()?;
-				(out_write, err_write, Box::new(PipeReader(out_read)), Box::new(PipeReader(err_read)))
-			};
+		let (out_read, stdout) = pipe()?;
+		let (err_read, stderr) = pipe()?;
+		let stdout_read: ProcessReader = Box::new(PipeReader(out_read));
+		let stderr_read: ProcessReader = Box::new(PipeReader(err_read));
 		Ok((job, stdin_read, stdin_write, stdout, stderr, stdout_read, stderr_read))
 	};
 	let (job, stdin_read, stdin_write, stdout, stderr, stdout_read, stderr_read) = prepare()
@@ -407,7 +403,6 @@ impl Actor {
 		command.setup_result(Ok(()));
 		let started = Instant::now();
 		let mut stopping = None;
-		let mut background_since = None;
 		let mut stdout_eof = false;
 		let mut stderr_eof = false;
 		let mut failure = None;
@@ -421,28 +416,11 @@ impl Actor {
 				}
 			}
 			if command.background.load(Ordering::Acquire) {
-				if command.file_spool() {
-					let since = background_since.get_or_insert_with(Instant::now);
-					if since.elapsed() >= FILE_SPOOL_POLL {
-						*since = Instant::now();
-						let store = command.output.lock().unwrap();
-						let exceeded = file_spool_exceeded(
-							true,
-							std::fs::metadata(&store.path).map(|meta| meta.len()),
-							store.disk_cap,
-						)
-						.unwrap_or(false);
-						drop(store);
-						if exceeded {
-							let _ = self
-								.cancel(&TaskLease { cap: runner.cap.clone() }, CancelCause::OutputLimit);
-						}
-					}
-				} else {
-					command.output.lock().unwrap().background();
+				command.output.lock().unwrap().background();
+				if command.file_spool() && command.output.lock().unwrap().overflow {
+					let _ =
+						self.cancel(&TaskLease { cap: runner.cap.clone() }, CancelCause::OutputLimit);
 				}
-			} else {
-				background_since = None;
 			}
 			if command
 				.intent
@@ -523,10 +501,7 @@ impl Actor {
 			);
 			return;
 		}
-		let mut store = command.output.lock().unwrap();
-		if command.file_spool() {
-			store.refresh_spool();
-		}
+		let store = command.output.lock().unwrap();
 		let reference = runner.cap.reference();
 		let output = OutputRef {
 			owner_id: reference.owner_id.into(),
