@@ -1,12 +1,26 @@
+import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
+// RFC #2884: the generated S1 supervisor and opaque capabilities are shipped exports.
 const EXPECTED_NATIVE_EXPORTS = [
 	"AdmissionRefusalKind",
 	"AgentStatus",
+	"AgentTaskKind",
+	"CancelCause",
 	"FileType",
 	"GrepOutputMode",
+	"HostSession",
 	"NapiSubagentControl",
+	"NapiTaskSupervisor",
+	"OwnerCloseCause",
+	"OwnerLease",
+	"RunnerLease",
+	"SubscriptionLease",
+	"TaskLease",
+	"TaskSupervisor",
+	"WaitLease",
+	"YieldReason",
 	"RetainedPostgres",
 	"PtySession",
 	"SubagentControl",
@@ -32,6 +46,6 @@ try {
 describe("Atomic native binding export contract", () => {
 	it.skipIf(!requireNativeBinding && !binding)("loads the host binding with exactly the supported exports", () => {
 		if (!binding) throw loadError ?? new Error("Native binding is required but unavailable");
-		expect(Object.keys(binding).sort()).toEqual([...EXPECTED_NATIVE_EXPORTS].sort());
+		assert.deepEqual(Object.keys(binding).sort(), [...EXPECTED_NATIVE_EXPORTS].sort());
 	});
 });

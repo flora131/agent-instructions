@@ -5,6 +5,7 @@
 ### Added
 
 - Editable workflow stage chats now discover source-qualified skills from their own session catalog and expand `/skill:` submissions once through stage admission, preserving Enter/Ctrl+F delivery and literal human-input answers. Skill diagnostics remain in the stage chat; blocked, archived, and replayed stages stay read-only.
+- Added the SDK-only owner-bound task foundation: opaque host/task/wait capabilities, one execution per admitted attempt, observation-only yields, independent cleanup acknowledgement, and snapshot-reconciled subscriptions. Existing CLI, workflow and subagent runners are unchanged; output storage and real-runner integration remain later work ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added `reason: "project_trust"` to `UIPromptStartEvent` and `UIPromptEndEvent` for the built-in `/trust` selector in both interactive modes, so status integrations can observe the wait. Isolated mode retains paired notifications until the current engine binds, keeping separate completed dialogs distinct without delaying the trust decision. ([#2873](https://github.com/bastani-inc/atomic/issues/2873))
 
 ### Changed
@@ -13,12 +14,20 @@
 
 ### Fixed
 
+- Stopped task subscription event delivery when a reconciliation callback disposes observation, including events retained by the active drain ([#2902](https://github.com/bastani-inc/atomic/pull/2902)).
 - Failed `/tasks` inspection now displays a diagnostic and preserves the input for retry instead of leaving an unhandled editor submission rejection.
 - Workflow skill autocomplete no longer reattaches and checkpoints the stage for every completion request. Concurrent lazy discovery requests share one attachment.
 - Prepare resume trust before disposing the outgoing session, preserve it on failed preflight, and allow pending prompt observers up to 1,000 ms to settle without delaying dialog display or answers. Isolated resume uses child-local trust UI and forwards missing-directory overrides without serializing callbacks. ([#2873](https://github.com/bastani-inc/atomic/issues/2873))
 - Startup trust waits now reach existing prompt lifecycle handlers with a live session context, including isolated-engine and borrowed-source dialogs. Only trust-safe extensions load before authorization; approval retains their session and factories, starts newly authorized extensions once, and does not replay earlier waits. ([#2873](https://github.com/bastani-inc/atomic/issues/2873))
 - Intercom now hides internal workflow routing/control connections and refuses messages to non-agent recipients, including model-less `ctx.ui` prompts and `ctx.tool` nodes, without hiding agents busy in tools or awaiting human input. Connected agent aliases remain reachable after pending capability changes or stage completion, even with same-name non-agent nodes.
 - Preserved duplicate-agent routing beside same-name prompt/tool nodes, rejected malformed Intercom recipient purposes without breaking older hosts, and synchronized workflow roster-update completion with broker processing ([#2895](https://github.com/bastani-inc/atomic/pull/2895)).
+- Corrected S1 SDK waits, foregrounding and cancellation to return promised Results, restored watch cursors and opaque subscription leases, applied configured agent wait budgets, and fixed cleanup/disposal races including external owner closure of settled tasks ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Preserved S1 cancellation attention consistently with native snapshots, made subscription overflow/reset observable through iterator completion without a required callback, and safely recorded non-Error runner/setup/cleanup rejections without blocking confirmed cleanup ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Contained arbitrary S1 reconciliation callback exceptions, including unprintable values, as safe `subscription.failure` diagnostics without interrupting native wake delivery or fallback polling ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Preserved exact JavaScript strings in S1 snapshots, titles and report replay, including isolated UTF-16 surrogates and embedded NUL, without changing the SDK's ordinary string types ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Bounded S1 activity replay to the latest 256 accepted report identities per task without retaining their full payload history. Identical retained reports remain duplicates, conflicts remain refused, and evicted IDs are fresh reports; terminal receipts never expire while the task record exists ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Prevented accepted S1 activity IDs such as `runner-outcome` from blocking runner settlement, independent cleanup and owner closure. Internal terminal IDs are allocated atomically without reserving caller IDs or changing report conflict/replay and cancellation rules ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Prevented accepted NaN S1 wait budgets, including owner-configured agent budgets, from panicking native scheduling. Observations remain releasable by yield, settlement, disposal and owner closure without changing other budgets or per-call precedence ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

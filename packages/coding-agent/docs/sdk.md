@@ -13,6 +13,134 @@ The SDK provides programmatic access to atomic's agent capabilities. Use it to e
 
 See [examples/sdk/](https://github.com/bastani-inc/atomic/tree/main/packages/coding-agent/examples/sdk) for working examples from minimal to full control.
 
+## Owner-bound task supervisor (S1)
+
+S1 adds an SDK-only task foundation in `src/core/tasks/contracts.ts` and
+`src/core/tasks/supervisor.ts`, backed by the native `TaskSupervisor`. It is an
+internal trusted-host integration surface, not a package-root export or a new CLI
+command. Existing subagent runners, workflow execution, bash/PTY and task UI do
+not use it yet.
+
+A host binds its actual session or workflow-stage scope with `bindHostSession`,
+provides launch authorization and a runner factory, then calls `openTaskOwner`.
+Authorization runs before native admission. `startAgentTask` registers an agent
+task before runner setup and returns its lease without waiting for completion.
+Exact operation replay reuses that task and execution; a fresh operation creates
+a distinct task. Leases are environment-local capabilities, cannot be serialized,
+and cannot be reconstructed from task IDs or historical records.
+
+`initialObservation` applies launch policy: omitted policy yields
+`default-background`, explicit background yields `explicit`, and foreground
+registers a wait with its requested budget. A ready terminal result wins.
+`await waitForTask(task, budgetMs?, designation?)` and
+`await foregroundTask(task, budgetMs?)` return a Result containing a WaitOutcome,
+not a lease. Native registration and the WaitId registry are populated synchronously
+before either door awaits. Host lifecycle actions can use `findWait(waitId)` to
+yield or dispose a registered observation; ordinary callers need no extra observe call.
+SDK waits do not replace the host designation unless given a matching HostSession.
+An elapsed/explicit yield or observer disposal never stops or relaunches execution;
+a later yield of a disposed wait replays its ObserverCancelled Result.
+
+Requested agent waits default to 30000 ms. Supply owner-host settings through
+`bindHostSession({ scope, tasks: { wait: { kind: "automatic", agentBudgetMs: 5000 } },
+authorizeLaunch, createRunner })`; `{ kind: "until-settled" }` disables timed yielding.
+Per-call budgets override settings, including zero for immediate yield. These settings
+apply to explicit foreground-first launch, live foregrounding and task-ID waits,
+never to a default independent launch. Wide numeric budgets are not narrowed to u32.
+Accepted `NaN` budgets (including configured `agentBudgetMs`) do not panic native
+scheduling. The implementation leaves such observations pending until explicit yield,
+settlement, observer disposal or owner closure: the elapsed comparison never reaches
+`NaN`. It uses bounded sleep chunks without rewriting the caller's budget. This is
+scheduling behavior, not a new finite-only input restriction or an RFC-mandated deadline;
+other numeric budgets and per-call precedence are unchanged.
+
+`await cancelTask(task, cause)` returns a Result containing a cancellation receipt
+and preserves the first accepted cause. `closeTaskOwner` seals admission before
+draining and succeeds only after independent cleanup acknowledgement. The trusted
+runner supplies separate result and cleanup promises: confirmed reaping after
+cancellation can close even if no result arrives. Natural cleanup-first delivery
+waits for its outcome before acknowledging reaping. External native owner closure
+also aborts resources attached to already-settled results without rewriting them.
+Failed cleanup remains observable; absent acknowledgement can leave close pending.
+User cancellation retains pending input attention until settlement or owner closure;
+event-reduced and reattached snapshots report the same native facts. Runner result
+rejections become failed `RunnerFailed` results; cleanup rejections become diagnostic
+`CleanupFailed` resources, never successful reaping. Setup throws retain `SpawnFailed`
+and unconfirmed cleanup. Strings and Error messages are preserved verbatim; other JS
+values use safe string conversion, with `Unprintable JavaScript rejection` if conversion
+throws. Cancelled cleanup still does not depend on the result promise settling.
+This slice exercises fake runners, not force-stop or real-process cleanup guarantees.
+
+`watchOwnerTasks(owner, cursor?)` provides an opaque `lease`, snapshot,
+decimal-string cursor and disposable `AsyncIterable<NativeEvent>`. Each iterator
+observes one contiguous delivery epoch. On local backlog overflow or native journal
+reset, the subscription updates its authoritative `snapshot` and `cursor`, discards
+stale queued deltas, and completes the old iterator (`next()` returns `done:true`,
+including an already-pending read). This also works when an oversized final settlement
+leaves no retained event, without later activity or cleanup. No synthetic reset event
+is inserted and the `NativeEvent` and subscription types are unchanged.
+
+After any iterator completion, reconcile `subscription.snapshot` at
+`subscription.cursor`. If the owner is still live and observation is still wanted,
+obtain another iterator from the **same** `subscription.events`; the old iterator stays
+done. Reset does not dispose the subscription or close the owner. Subsequent deltas
+are authentic and ordered; ignore events at or below an already-applied snapshot
+cursor. Explicit `dispose()` (idempotent) or breaking out of a live iterator ends
+observation, not the owner. Owner closure also ends delivery. Track your own disposal
+when deciding whether to resume. New subscriptions are refused once owner closing
+begins; existing subscriptions continue through cleanup/closure.
+Calling `dispose()` from `onReconcile` also stops the active drain from publishing
+its retained events. Pending and newly created iterators finish without those events;
+the reconciled snapshot remains available.
+
+The optional `subscription.onReconcile` callback is a convenience, not required for
+correctness; callback exceptions remain visible as `subscription.failure`. Raw strings
+and Error messages are preserved; unprintable values (including hostile conversion or
+revoked proxies) use `Unprintable JavaScript rejection`. Diagnostic conversion cannot
+interrupt event delivery or rearming the fallback poll. Native callbacks are wake hints;
+journal drains and reset snapshots are authoritative. Each live subscription has one
+fallback poll, stopped on disposal or observed closure.
+The native byte journal and facade delivery backlog are bounded. Each task separately
+retains its most recent 256 accepted activity report IDs, SHA-256 payload hashes and
+receipts (`TASK_REPORT_IDENTITY_WINDOW`). Within that window, identical payloads return
+`duplicate` with the original cursor; conflicting payloads return `ReportConflict`.
+Neither check emits events or refreshes retention order. An evicted ID is fresh: while
+the task is live it is `accepted`, applies its activity again and gets a new cursor;
+existing terminal and owner-close guards still apply. Terminal outcome reports and
+their recorded receipts are retained separately for the task record's lifetime and
+never evicted by activity churn. This bounds identity entry count, not caller ID length,
+task count, terminal payloads or total task-history memory. S1 adds no persistence layer.
+
+Activity IDs have no reserved spellings, including `runner-outcome`, empty strings
+and isolated surrogates. The facade submits its own result through private trusted
+runner support: the actor selects a free terminal identity and accepts the outcome
+under the same lock. With at most 256 retained activity IDs, at most 257 distinct
+candidates suffice; selection emits no events and retains no extra ID history.
+Caller-supplied reports still use the unchanged `reportTaskOutcome` contract:
+same-ID cross-kind reports conflict, and terminal replay retains its original receipt.
+The internal support also reuses an accepted terminal identity, so a different result
+cannot replace it; cancellation-first still rejects late natural outcomes. Normal,
+rejected and setup-failure results all use this path without bypassing cleanup evidence.
+
+Caller-provided strings retain their exact JavaScript UTF-16 code units, including
+isolated surrogates, valid pairs and embedded NUL, across scopes, intent, operation/report
+identity, activity, results and nested output/cleanup metadata. They remain ordinary
+`string` fields, not encoded wrappers. Replacing a surrogate with U+FFFD is a changed
+payload or identity, never an exact replay. Nonempty descriptions supply the title;
+otherwise the first nonblank task line is copied without rewriting its code units,
+falling back to the agent name. Absent optional fields, empty strings, known zero metrics
+and ordered duplicate data remain distinct. The optional `elapsedMs`, `toolCount` and `tokenCount` metrics and
+completed/failed `exitCode` preserve JavaScript numbers without narrowing or normalization,
+including fractional and extreme values. Within the retained activity window (and for
+terminal reports throughout the task record's lifetime), exact replay distinguishes
+omission, zero and negative zero; repeated NaN and infinite values acknowledge once.
+Changed numeric payloads return `ReportConflict` without earning another event. `OutputRef` is
+metadata, not proof of retained bytes: output
+storage, `readTaskOutput`, command input, persistence, completion delivery and
+real agent/Intercom integration belong to later slices. The credential-free
+repository fixture `test/fixtures/task-s1-demo.ts` exercises this real facade and
+native actor with one fake runner.
+
 ## Quick Start
 
 ```typescript
