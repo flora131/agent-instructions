@@ -39,6 +39,7 @@ export function registerExecutionIntercomDetach(
 		if (options.taskExecution) {
 			taskWaitYielded = true;
 			options.taskExecution.yieldTaskWait("intercom-coordination");
+			options.onIntercomDetachCommit?.();
 		} else {
 			options.onIntercomDetachCommit?.();
 			state.detach();
@@ -46,7 +47,13 @@ export function registerExecutionIntercomDetach(
 		options.intercomEvents?.emit?.(INTERCOM_DETACH_RESPONSE_EVENT, { ...event, accepted: true });
 	});
 	const detachSibling = () => {
-		if (!options.taskExecution) state.detach();
+		if (options.taskExecution) {
+			if (state.isUnavailable() || taskWaitYielded) return;
+			taskWaitYielded = true;
+			options.taskExecution.yieldTaskWait("intercom-coordination");
+		} else {
+			state.detach();
+		}
 	};
 	options.intercomDetachSignal?.addEventListener("abort", detachSibling, { once: true });
 	if (options.intercomDetachSignal?.aborted) detachSibling();

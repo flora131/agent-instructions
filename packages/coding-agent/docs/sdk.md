@@ -32,6 +32,13 @@ confirmed cleanup may report `reaped`. Exact operation replay never calls anothe
 Observation returns the exact Result/WaitOutcome DTO, not a new model response shape.
 These APIs are for trusted first-party hosts, never model-supplied ownership or permission.
 
+For already-admitted in-process tasks, the optional `taskExecution` runner hooks
+retain the original execution and cleanup promises. An exact Intercom commit
+yields the registered observation. In an explicit foreground group it also yields
+active sibling observations through the existing group signal, once per child;
+neither path detaches or completes those executions. This opt-in bridge does not
+change the public subagent launch defaults yet.
+
 Each workflow admission boundary allocates one process-private stage attempt identity.
 The actual stage session binds its original session/run/stage identity; fallback session
 replacement keeps that identity and the same lazily bound `bindAgentTaskHost` owner.
