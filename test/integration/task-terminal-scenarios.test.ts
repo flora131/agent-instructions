@@ -5,10 +5,21 @@ import { join } from "node:path";
 import { test } from "vitest";
 import { readText, spawnSyncCollect } from "../helpers/runtime.js";
 
+// The scenario drives a real tmux session. Windows runners have no tmux (the RFC names psmux or
+// native PTY automation as the separate Windows proof), so the platform gate is the presence of the
+// binary itself, checked once, not a soft guard around a failing assertion.
+const TMUX_AVAILABLE = (() => {
+	try {
+		return spawnSyncCollect(["tmux", "-V"]).exitCode === 0;
+	} catch {
+		return false; // spawnSync raises ENOENT when the binary is absent.
+	}
+})();
+
 const REAL_TASK_TERMINAL_SCENARIO_TIMEOUT_MS = 120_000;
 // RFC #2884: actual tmux/native/session scenarios, not static mockup string tests.
 for (const chat of ["main", "workflow"]) {
-	test(
+	test.skipIf(!TMUX_AVAILABLE)(
 		`${chat} terminal retains task identity through yield, settlement and process cleanup`,
 		async () => {
 			const root = await mkdtemp(join(tmpdir(), `atomic-task-${chat}-`));
