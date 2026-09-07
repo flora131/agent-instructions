@@ -155,6 +155,8 @@ export interface AgentSessionMethodSurface extends AgentSessionQueuePauseControl
 	subscribe(listener: AgentSessionEventListener): () => void;
 	_disconnectFromAgent(): void;
 	dispose(): void;
+	getAgentTaskHost(): import("./tasks/agent-adapter.js").AgentTaskHost;
+	closeSessionTasks(): Promise<void>;
 
 	getActiveToolNames(): string[];
 	getAllTools(): ToolInfo[];
@@ -336,6 +338,8 @@ export interface AgentSessionPublicSurface
 	extends Pick<
 		AgentSessionMethodSurface,
 		| "orchestrationContext"
+		| "getAgentTaskHost"
+		| "closeSessionTasks"
 		| "modelRuntime"
 		| "state"
 		| "model"
@@ -511,4 +515,6 @@ export interface AgentSessionInternalSurface extends AgentSessionMethodSurface, 
 	_lastAssistantMessage: AssistantMessage | undefined;
 	_tempStorageLease: import("./tools/session-temp-dir.ts").ProtectedPathLease | undefined;
 	_workflowStageAdmission: import("./workflow-stage-admission.ts").WorkflowStageAdmissionBoundary | undefined;
+	_agentTaskHost: import("./tasks/agent-adapter.js").AgentTaskHost | undefined;
+	_taskCompletionOutbox: import("./tasks/completion.js").TaskCompletionOutbox | undefined;
 }

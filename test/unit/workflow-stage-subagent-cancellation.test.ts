@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { ExtensionContext } from "@bastani/atomic";
 import { afterEach, test } from "vitest";
 import { closeWorkflowStageGeneration } from "../../packages/coding-agent/src/core/agent-session-message-queue.js";
+import type { AgentTaskHost } from "../../packages/coding-agent/src/core/tasks/agent-adapter.js";
 import { WorkflowStageAdmissionBoundary } from "../../packages/coding-agent/src/core/workflow-stage-admission.js";
 import type { AgentConfig } from "../../packages/subagents/src/agents/agent-types.js";
 import { resolveSubagentIntercomTarget } from "../../packages/subagents/src/intercom/intercom-bridge.js";
@@ -286,5 +287,50 @@ test("closing one stage cancels every detached parallel child but leaves another
 		for (const gate of gates) gate.resolve();
 		stageA.unregisterNotify();
 		stageB.unregisterNotify();
+	}
+});
+
+// RFC PR #2884: the public tool returns an observation, not an execution result.
+test("task-bound public single launch yields immediately and owner wait observes the original child", async () => {
+	const root = makeTempDirectory("task-public-");
+	roots.push(root);
+	const boundary = new WorkflowStageAdmissionBoundary();
+	const ctx = stageContext(root, boundary, "task-single");
+	boundary.bindTaskIdentity(ctx.sessionManager.getSessionId(), "workflow-run", "task-single");
+	const host: AgentTaskHost = boundary.bindAgentTaskHost({ authorizeLaunch() {} });
+	ctx.getAgentTaskHost = () => host;
+	const gate = Promise.withResolvers<void>();
+	const h = harness(root, new EventEmitter(), [gate.promise]);
+	try {
+		const response = await h.execute(
+			"public-task",
+			{ agent: "worker", task: " raw task ", progress: false, artifacts: false },
+			new AbortController().signal,
+			undefined,
+			ctx,
+		);
+		const dto = response.details?.taskResponse;
+		assert.equal(dto?.kind, "admitted");
+		assert.ok(dto && dto.kind === "admitted");
+		assert.equal(dto.observation.kind, "yielded");
+		assert.ok(dto.observation.kind === "yielded");
+		assert.equal(dto.observation.reason, "default-background");
+		const pending = await h.execute(
+			"wait-live",
+			{ action: "wait", id: dto.observation.taskId, budgetMs: 0 },
+			new AbortController().signal,
+			undefined,
+			ctx,
+		);
+		assert.match(pending.content[0]?.type === "text" ? pending.content[0].text : "", /elapsed/);
+		gate.resolve();
+		const terminal = await host.waitForTask(dto.observation.taskId);
+		assert.ok(terminal.ok && terminal.value.kind === "settled");
+		assert.equal(terminal.value.result.kind, "completed");
+		assert.equal(h.emittedNotifications.length, 0);
+	} finally {
+		gate.resolve();
+		await boundary.close();
+		h.unregisterNotify();
 	}
 });

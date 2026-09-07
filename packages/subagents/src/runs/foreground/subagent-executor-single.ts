@@ -41,6 +41,7 @@ import {
 	workflowStageAcceptsDetachedNotification,
 } from "./subagent-executor-status.js";
 import type { ExecutionContextData, ForegroundControl, ResolvedExecutorDeps } from "./subagent-executor-types.js";
+import { runAgentTask, taskToolResult } from "./task-execution.js";
 
 function formatFailedSingleRunOutput(result: SingleResult, displayOutput: string): string {
 	const error = result.error || "Failed";
@@ -239,6 +240,22 @@ export async function runSinglePath(
 			currentThinkingLevel: ctx.thinkingLevel,
 			skills: effectiveSkills,
 		};
+		if (ctx.getAgentTaskHost) {
+			return taskToolResult(
+				await runAgentTask({
+					host: ctx.getAgentTaskHost(),
+					cwd: ctx.cwd,
+					agents,
+					agent: params.agent!,
+					task,
+					intentTask: handoffTaskContext,
+					options: runOptions,
+					wait: params.wait,
+					runtime: deps.runtime,
+					onTerminal: () => cleanupTransientProgress(progressDir, artifactConfig.enabled),
+				}),
+			);
+		}
 		r = await deps.runtime.runSync(ctx.cwd, agents, params.agent!, task, runOptions);
 	} catch (error) {
 		cleanupTransientProgress(progressDir, artifactConfig.enabled);

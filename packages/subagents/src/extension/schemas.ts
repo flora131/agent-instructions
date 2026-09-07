@@ -113,6 +113,16 @@ const ControlOverrides = Type.Object({
 
 export const SubagentParams = Type.Object(
 	{
+		wait: Type.Optional(
+			Type.Union([
+				Type.Object({ kind: Type.Literal("background") }, { additionalProperties: false }),
+				Type.Object(
+					{ kind: Type.Literal("foreground"), budgetMs: Type.Optional(Type.Number()) },
+					{ additionalProperties: false },
+				),
+			]),
+		),
+		budgetMs: Type.Optional(Type.Number()),
 		agent: Type.Optional(
 			Type.String({ description: "Agent name (SINGLE mode) or target for management get/update/delete" }),
 		),

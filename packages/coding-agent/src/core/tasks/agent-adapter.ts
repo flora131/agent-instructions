@@ -1,8 +1,10 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type * as C from "./contracts.js";
+import { trackAdmittedAgentTask } from "./execution-scope.js";
 import {
 	type FakeExecution,
 	type FakeRunnerContext,
+	type OwnerLease,
 	type TaskLease,
 	TaskSupervisor,
 	type TrustedTaskHost,
@@ -18,6 +20,10 @@ const runners = new AsyncLocalStorage<AgentTaskRunnerFactory>();
 export class AgentTaskHost {
 	private readonly supervisor = new TaskSupervisor();
 	private readonly owner;
+	/** Internal projection binding; never serialize these native-backed capabilities. */
+	get ownerBinding(): { supervisor: TaskSupervisor; owner: OwnerLease } {
+		return { supervisor: this.supervisor, owner: this.owner };
+	}
 
 	constructor(binding: AgentTaskHostBinding) {
 		const host = this.supervisor.bindHostSession({
@@ -39,6 +45,8 @@ export class AgentTaskHost {
 		runner: AgentTaskRunnerFactory,
 	): Promise<C.Result<{ taskId: C.TaskId; lease: TaskLease }, C.StartFailure>> {
 		const started = await runners.run(runner, () => this.supervisor.startAgentTask(this.owner, intent, operation));
+		if (started.ok)
+			trackAdmittedAgentTask({ host: this, taskId: this.supervisor.taskReference(started.value).taskId });
 		return started.ok
 			? {
 					ok: true as const,

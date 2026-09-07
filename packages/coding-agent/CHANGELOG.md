@@ -8,6 +8,7 @@
 - Added the SDK-only owner-bound task foundation: opaque host/task/wait capabilities, one execution per admitted attempt, observation-only yields, independent cleanup acknowledgement, and snapshot-reconciled subscriptions. Existing CLI, workflow and subagent runners are unchanged; output storage and real-runner integration remain later work ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added trusted command start/input/output doors and an owner-aware bash/PTY execution seam. Commands remain alive after the 10000 ms foreground observation budget and are reaped with their owner; stdin distinguishes empty bytes from EOF and refuses backpressure before admission ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added a narrow trusted-host agent task adapter with per-launch runner factories, owner-scoped observation and cancellation, and workflow generation ownership that survives fallback session replacement. Real subagent producers and completion delivery remain unintegrated ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Added owner-bound agent task hosts to runtime-created session contexts, single-subagent observation waits, and terminal completion intents delivered nonvisually through existing model admission with stable retry identity ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 
 ### Changed
 

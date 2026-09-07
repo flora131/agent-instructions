@@ -49,6 +49,7 @@ export type TrustedTaskHost = {
 	/** The existing host/tool refusal throws here, before native admission. */
 	authorizeCommandLaunch?(intent: C.CommandIntent): void;
 	authorizeLaunch(intent: C.AgentIntent): void;
+	onTaskSettled?(ref: C.NativeTaskRef, receipt: C.SettlementReceipt): void;
 	createRunner(context: FakeRunnerContext, intent: C.AgentIntent): FakeExecution;
 };
 type HostState = { native: native.HostSession; binding: TrustedTaskHost };
@@ -675,7 +676,18 @@ export class TaskSupervisor {
 		const outcome = execution.result
 			.catch((error) => ({ kind: "failed" as const, code: "RunnerFailed", message: rejectionMessage(error) }))
 			.then((result) => {
-				return mapped(this.#native.reportRunnerOutcome(runner.value, result), () => undefined, reportErrors);
+				return mapped(
+					this.#native.reportRunnerOutcome(runner.value, result),
+					(receipt) => {
+						state.host.binding.onTaskSettled?.(taskState.ref, {
+							taskId: receipt.taskId as C.TaskId,
+							cursor: cursor(receipt.cursor),
+							result: taskResult(receipt.result),
+							completionId: receipt.completionId,
+						});
+					},
+					reportErrors,
+				);
 			});
 		const cleanup = execution.cleanup.catch(
 			(error): C.Cleanup => ({

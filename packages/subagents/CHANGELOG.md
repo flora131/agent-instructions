@@ -6,6 +6,10 @@
 
 - Already-admitted in-process task callers now yield each active foreground sibling's observation on an exact Intercom group commit without ending or replacing the original executions ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 
+### Changed
+
+- Session-bound single launches now return task observations immediately by default. Explicit foreground waits and owner-scoped `action:"wait"` observe the same running child; completion uses a nonvisual persisted envelope rather than a second lifecycle notification ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+
 ## [0.9.18] - 2026-09-05
 
 Cumulative release of the `0.9.18-alpha.6` prerelease. Per-change details remain in the unchanged prerelease section below.

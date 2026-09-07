@@ -198,6 +198,7 @@ export function _bindExtensionCore(
 	runner: ExtensionRunner,
 	publication?: ExtensionPublicationGate,
 ): void {
+	runner.bindTaskHost(() => this.getAgentTaskHost());
 	const getCommands = (): SlashCommandInfo[] => {
 		const extensionCommands: SlashCommandInfo[] = runner.getRegisteredCommands().map((command) => ({
 			name: command.invocationName,

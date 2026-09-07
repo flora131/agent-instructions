@@ -35,6 +35,14 @@ Prompt-template delegation comes from the separately installed `pi-prompt-templa
 
 Subagents now run and return their results directly. Atomic does not infer acceptance gates from prompt wording, inject `acceptance-report` instructions into child prompts, parse or strip `acceptance-report` blocks, or reject completed child runs because changed-file, test, or review evidence is missing. Put any evidence or validation requirements directly in the task text you give the parent or child agent.
 
+## Owner-bound task observation
+
+Runtime-created session contexts bind single launches to their actual session or workflow-stage owner. Omitted `wait` returns an admitted observation with reason `default-background`; `wait: {kind: "background"}` uses reason `explicit`. `wait: {kind: "foreground", budgetMs: 30000}` opts into foreground-first observation. The omitted foreground budget is 30000 ms. `subagent({action: "wait", id: taskId, budgetMs: 1000})` observes an existing task in the same owner without restarting it.
+
+An Intercom peer-message yield keeps the original execution alive. Terminal completion is recorded separately and admitted as a `task-completion` custom message with `display:false`. Failed delivery retains the same persisted completion identity for retry. Existing unbound SDK callers and parallel launch handling retain their legacy result fields in this milestone.
+
+Durable `ctx.tool` callbacks wait for tasks admitted inside their callback before checkpointing, even when the launching observation yielded. Session lifetime closure cancels session-owned work; stage generation closure, not pane detach or fallback session replacement, owns stage tasks.
+
 ## Foreground supervisor coordination
 
 When a foreground child calls `contact_supervisor` with `need_decision` or `interview_request`, or uses `intercom.ask` against its resolved launching parent, Atomic claims the request before broker send or reply-waiter admission. The current child ends and the parent `subagent` call returns the original question verbatim, the child agent identity, ordered attachments with duplicates preserved, and a dynamically generated `[TASK_CONTEXT]` handoff.
