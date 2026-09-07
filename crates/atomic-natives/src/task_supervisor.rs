@@ -387,6 +387,21 @@ impl NapiTaskSupervisor {
 	) -> DoorValue<SettlementReceipt> {
 		DoorValue(self.check(&env, "StaleAttempt").and_then(|()| self.actor.outcome(runner, report)))
 	}
+	/// Private trusted-runner support, not a model/facade domain door.
+	/// Allocates an unused terminal report ID atomically within the bounded activity window.
+	/// Caller report IDs are never reserved or rewritten. Replay retains the terminal receipt;
+	/// conflicting results and cancellation still use the report_task_outcome acceptance rules.
+	#[napi(ts_return_type = "{ok:true,value:SettlementReceipt}|{ok:false,error:TaskFailure}")]
+	pub fn report_runner_outcome(
+		&self,
+		env: Env,
+		runner: &RunnerLease,
+		result: TaskResult,
+	) -> DoorValue<SettlementReceipt> {
+		DoorValue(
+			self.check(&env, "StaleAttempt").and_then(|()| self.actor.runner_outcome(runner, result)),
+		)
+	}
 	/// Private trusted-runner support, not a model/facade domain door. Outcome is not cleanup.
 	#[napi(ts_return_type = "{ok:true,value:Cleanup}|{ok:false,error:TaskFailure}")]
 	pub fn acknowledge_task_cleanup(

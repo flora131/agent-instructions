@@ -102,6 +102,17 @@ their recorded receipts are retained separately for the task record's lifetime a
 never evicted by activity churn. This bounds identity entry count, not caller ID length,
 task count, terminal payloads or total task-history memory. S1 adds no persistence layer.
 
+Activity IDs have no reserved spellings, including `runner-outcome`, empty strings
+and isolated surrogates. The facade submits its own result through private trusted
+runner support: the actor selects a free terminal identity and accepts the outcome
+under the same lock. With at most 256 retained activity IDs, at most 257 distinct
+candidates suffice; selection emits no events and retains no extra ID history.
+Caller-supplied reports still use the unchanged `reportTaskOutcome` contract:
+same-ID cross-kind reports conflict, and terminal replay retains its original receipt.
+The internal support also reuses an accepted terminal identity, so a different result
+cannot replace it; cancellation-first still rejects late natural outcomes. Normal,
+rejected and setup-failure results all use this path without bypassing cleanup evidence.
+
 Caller-provided strings retain their exact JavaScript UTF-16 code units, including
 isolated surrogates, valid pairs and embedded NUL, across scopes, intent, operation/report
 identity, activity, results and nested output/cleanup metadata. They remain ordinary

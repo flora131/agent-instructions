@@ -21,6 +21,7 @@
 - Contained arbitrary S1 reconciliation callback exceptions, including unprintable values, as safe `subscription.failure` diagnostics without interrupting native wake delivery or fallback polling ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Preserved exact JavaScript strings in S1 snapshots, titles and report replay, including isolated UTF-16 surrogates and embedded NUL, without changing the SDK's ordinary string types ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Bounded S1 activity replay to the latest 256 accepted report identities per task without retaining their full payload history. Identical retained reports remain duplicates, conflicts remain refused, and evicted IDs are fresh reports; terminal receipts never expire while the task record exists ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Prevented accepted S1 activity IDs such as `runner-outcome` from blocking runner settlement, independent cleanup and owner closure. Internal terminal IDs are allocated atomically without reserving caller IDs or changing report conflict/replay and cancellation rules ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

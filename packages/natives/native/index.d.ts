@@ -96,6 +96,13 @@ closeTaskOwner(owner: OwnerLease, cause: OwnerCloseCause): Promise<{ok:true,valu
  */
 reportTaskActivity(runner: RunnerLease, report: ActivityReport): {ok:true,value:ReportReceipt}|{ok:false,error:TaskFailure}
 reportTaskOutcome(runner: RunnerLease, report: OutcomeReport): {ok:true,value:SettlementReceipt}|{ok:false,error:TaskFailure}
+/**
+ * Private trusted-runner support, not a model/facade domain door.
+ * Allocates an unused terminal report ID atomically within the bounded activity window.
+ * Caller report IDs are never reserved or rewritten. Replay retains the terminal receipt;
+ * conflicting results and cancellation still use the report_task_outcome acceptance rules.
+ */
+reportRunnerOutcome(runner: RunnerLease, result: TaskResult): {ok:true,value:SettlementReceipt}|{ok:false,error:TaskFailure}
 /** Private trusted-runner support, not a model/facade domain door. Outcome is not cleanup. */
 acknowledgeTaskCleanup(runner: RunnerLease, cleanup: Cleanup): {ok:true,value:Cleanup}|{ok:false,error:TaskFailure}
 /**

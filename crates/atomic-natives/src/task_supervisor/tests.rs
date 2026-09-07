@@ -666,3 +666,68 @@ fn report_identity_storage_does_not_keep_activity_payloads() {
 	assert!(!format!("{:?}", state.owners[0].tasks[0].activities).contains(&payload));
 	assert!(state.journal.is_empty());
 }
+
+// RFC #2884: n retained caller IDs cannot block n+1 host terminal candidates.
+#[test]
+fn runner_terminal_identity_collision_and_replay() {
+	for count in [0, 1, TASK_REPORT_IDENTITY_WINDOW] {
+		let (a, _, o, t, r) = setup();
+		let id = |index| {
+			if index == 0 { "runner-outcome".to_owned() } else { format!("runner-outcome-{index}") }
+		};
+		for index in 0..count {
+			a.activity(
+				&r,
+				ActivityReport {
+					report_id: id(index).into(),
+					change: ActivityChange::Action { tool: "".into(), text: " raw ".into() },
+				},
+			)
+			.unwrap();
+			assert_eq!(a.outcome(&r, outcome(&id(index))).unwrap_err().code, "ReportConflict");
+		}
+		let before = a.snapshot(&o).unwrap().cursor.sequence.parse_u64().unwrap();
+		let report = outcome(&id(count));
+		let receipt = a.runner_outcome(&r, report.result.clone()).unwrap();
+		assert_eq!(receipt.cursor.sequence.parse_u64().unwrap() - before, 2);
+		assert_eq!(a.outcome(&r, report.clone()).unwrap(), receipt);
+		assert_eq!(a.runner_outcome(&r, report.result.clone()).unwrap(), receipt);
+		let conflict = TaskResult::Cancelled { cause: CancelCause::User, output: None };
+		assert_eq!(a.runner_outcome(&r, conflict).unwrap_err().code, "ReportConflict");
+		assert_eq!(a.cancel(&t, CancelCause::User).unwrap().decision, "already-settled");
+		a.acknowledge_cleanup(&r, Cleanup::Reaped {}).unwrap();
+		a.begin_close(&o).unwrap();
+		assert!(a.close_receipt(&o).unwrap().is_some());
+		assert_eq!(a.runner_outcome(&r, report.result).unwrap(), receipt);
+	}
+}
+
+// RFC #2884: internal identity selection must not retry past cancellation or stale authority.
+#[test]
+fn runner_terminal_identity_preserves_cancellation_fence() {
+	let (a, _, o, t, r) = setup();
+	a.activity(
+		&r,
+		ActivityReport {
+			report_id: "runner-outcome".into(),
+			change: ActivityChange::Action { tool: "".into(), text: "".into() },
+		},
+	)
+	.unwrap();
+	a.cancel(&t, CancelCause::User).unwrap();
+	let before = a.snapshot(&o).unwrap().cursor;
+	let late = outcome("unused").result;
+	assert_eq!(a.runner_outcome(&r, late.clone()).unwrap_err().code, "ReportConflict");
+	assert_eq!(a.snapshot(&o).unwrap().cursor, before);
+	a.acknowledge_cleanup(&r, Cleanup::Reaped {}).unwrap();
+	assert_eq!(a.runner_outcome(&r, late.clone()).unwrap_err().code, "ReportConflict");
+	assert_eq!(
+		a.snapshot(&o).unwrap().tasks[0].execution,
+		Execution::Settled {
+			result: TaskResult::Cancelled { cause: CancelCause::User, output: None }
+		}
+	);
+	let mut stale = r.clone();
+	stale.cap.attempt += 1;
+	assert_eq!(a.runner_outcome(&stale, late).unwrap_err().code, "StaleAttempt");
+}

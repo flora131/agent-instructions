@@ -594,11 +594,7 @@ export class TaskSupervisor {
 		const outcome = execution.result
 			.catch((error) => ({ kind: "failed" as const, code: "RunnerFailed", message: rejectionMessage(error) }))
 			.then((result) => {
-				return mapped(
-					this.#native.reportTaskOutcome(runner.value, { reportId: "runner-outcome", result }),
-					() => undefined,
-					reportErrors,
-				);
+				return mapped(this.#native.reportRunnerOutcome(runner.value, result), () => undefined, reportErrors);
 			});
 		const cleanup = execution.cleanup.catch(
 			(error): C.Cleanup => ({

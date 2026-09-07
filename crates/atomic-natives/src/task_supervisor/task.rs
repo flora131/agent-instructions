@@ -561,9 +561,43 @@ impl Actor {
 		runner: &RunnerLease,
 		report: OutcomeReport,
 	) -> Door<SettlementReceipt> {
+		self.outcome_with_id(runner, Some(report.report_id), report.result)
+	}
+	pub(super) fn runner_outcome(
+		&self,
+		runner: &RunnerLease,
+		result: TaskResult,
+	) -> Door<SettlementReceipt> {
+		self.outcome_with_id(runner, None, result)
+	}
+	fn outcome_with_id(
+		&self,
+		runner: &RunnerLease,
+		report_id: Option<JsString>,
+		result: TaskResult,
+	) -> Door<SettlementReceipt> {
 		let mut s = self.state.lock().unwrap();
 		let (oi, ti) = s.runner(self.id, &runner.cap)?;
 		let t = &s.owners[oi].tasks[ti];
+		let report_id = report_id.unwrap_or_else(|| {
+			if let Some((old, _)) = &t.terminal {
+				// Reuse the immutable identity: a different result must still conflict.
+				return old.report_id.clone();
+			}
+			// Under this lock, n retained activity IDs cannot occupy n+1 distinct candidates.
+			// Selection emits no facts, reserves no caller IDs and keeps no extra history.
+			(0..=t.activities.len())
+				.map(|index| {
+					JsString::from(if index == 0 {
+						"runner-outcome".to_owned()
+					} else {
+						format!("runner-outcome-{index}")
+					})
+				})
+				.find(|id| t.activities.iter().all(|(_, receipt)| &receipt.report_id != id))
+				.expect("one more candidate than retained activity identities")
+		});
+		let report = OutcomeReport { report_id, result };
 		if let Some((old, receipt)) = &t.terminal {
 			return if old == &report { Ok(receipt.clone()) } else { Err(fail("ReportConflict")) };
 		}

@@ -803,3 +803,17 @@ test("Node and Bun evict report identities while retaining terminal receipts", (
 		assert.match(result.stdout.toString(), /RETENTION VERIFIED 256 duplicates 256 conflicts/);
 	}
 });
+
+// RFC #2884: caller IDs cannot prevent the facade's result or independent reaping.
+test("Node and Bun settle runner outcomes despite deterministic activity ID collisions", () => {
+	for (const runtime of [process.execPath, bunExecutable()]) {
+		const result = spawnSyncCollect([
+			runtime,
+			"--import",
+			"jiti/register",
+			"test/fixtures/task-s1-report-collision.ts",
+		]);
+		assert.equal(result.exitCode, 0, `${runtime}\n${result.stdout}\n${result.stderr}`);
+		assert.match(result.stdout.toString(), /REPORT COLLISIONS SETTLED 256 forced candidates/);
+	}
+});
