@@ -7,6 +7,7 @@ pub mod pty;
 pub mod retained_postgres;
 pub mod subagent_control;
 pub mod task;
+pub mod task_supervisor;
 
 #[macro_export]
 macro_rules! env_uint {

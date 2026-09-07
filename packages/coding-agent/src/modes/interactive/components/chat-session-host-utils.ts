@@ -34,6 +34,8 @@ export function isChatMessageEntry<TExtraEntry extends ChatTranscriptEntryLike>(
 	if (!("role" in entry) || !("kind" in entry)) return false;
 	const candidate = entry as { role?: unknown; kind?: unknown; message?: unknown; text?: unknown };
 	switch (candidate.kind) {
+		case "task":
+			return candidate.role === "tool" && "task" in candidate;
 		case "assistant":
 			return candidate.role === "assistant" && candidate.message !== undefined;
 		case "tool":

@@ -129,6 +129,10 @@ export class ExtensionRunner {
 	private modelRegistry: ModelRegistry;
 	private orchestrationContext: OrchestrationContext | undefined;
 	private subagentPolicy: SubagentChildPolicy | undefined;
+	private taskHostBinding: (() => import("../tasks/agent-adapter.js").AgentTaskHost) | undefined;
+	bindTaskHost(binding: () => import("../tasks/agent-adapter.js").AgentTaskHost): void {
+		this.taskHostBinding = binding;
+	}
 	private errorListeners: Set<ExtensionErrorListener> = new Set();
 	private getModel: () => Model<Api> | undefined = () => undefined;
 	private getScopedModels: () => readonly ScopedModel[] = () => [];
@@ -522,6 +526,7 @@ export class ExtensionRunner {
 		return {
 			assertActive: () => this.assertActive(),
 			observeWorkflowActivity: (observer) => this.runtime.workflowActivityHub.observeWorkflowActivity(observer),
+			...(this.taskHostBinding ? { getAgentTaskHost: this.taskHostBinding } : {}),
 			getUIContext: () => this.uiContext,
 			getMode: () => this.mode,
 			hasUI: () => this.hasUI(),

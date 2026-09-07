@@ -16,7 +16,9 @@
  * cross-ref: test/integration/workflow-stage-steering-queue-cli.test.ts
  */
 
+import { bindOwnerTaskStore } from "@bastani/atomic";
 import { describe, test } from "vitest";
+import { taskFixture, taskValue } from "../helpers/task-projection.js";
 import {
 	type AgentSession,
 	type AgentSessionEvent,
@@ -122,4 +124,35 @@ describe("StageChatView attached mid-stream", () => {
 		assert.equal(partial.content[0]?.text, "split deltas");
 		view.dispose();
 	});
+});
+
+// RFC #2884: disposing a pane removes neither its task nor its terminal fence.
+test("stage task snapshot reattaches beyond launch-tool replay", async () => {
+	const fixture = taskFixture();
+	const session = fakeFooterAgentSession();
+	bindOwnerTaskStore(session, fixture.store);
+	const { handle } = makeHandle(undefined, [], "running", session);
+	let view = mountStageChat(handle);
+	try {
+		await fixture.start("survives pane detach");
+		assert.match(stripAnsi(view.render(80).join("\n")), /survives pane detach/);
+		view.dispose();
+		fixture.store.dispose();
+		taskValue(
+			fixture.runners[0].context.reportActivity({
+				reportId: "detached",
+				change: { kind: "action", tool: "read", text: "updated while detached" },
+			}),
+		);
+		taskValue(fixture.store.connect());
+		view = mountStageChat(handle);
+		assert.match(stripAnsi(view.render(80).join("\n")), /updated while detached/);
+		await fixture.settle();
+		assert.equal((stripAnsi(view.render(80).join("\n")).match(/worker: survives pane detach/g) ?? []).length, 1);
+		assert.match(stripAnsi(view.render(80).join("\n")), /completed/);
+		assert.deepEqual(handle.pendingToolExecutionEvents?.(), []);
+	} finally {
+		view.dispose();
+		await fixture.dispose();
+	}
 });

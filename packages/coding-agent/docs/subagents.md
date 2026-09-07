@@ -9,6 +9,12 @@ Atomic bundles `@bastani/subagents`, an extension for bounded specialist delegat
 
 You do not need to install anything separately when you use `@bastani/atomic`.
 
+## Task inspection
+
+Hosts with an owner task store expose `/tasks` and `/tasks <id>`. Agents and shells stay in admission order, including terminal tasks. Enter opens detail; arrows select an explicit action. Cancel asks for confirmation of the selected task. Terminal tasks retain transcript inspection but omit foreground, cancellation, and stdin actions. Escape returns from detail or stdin before returning to the composer.
+
+Transcript inspection uses retained child-session messages and the normal message renderers, excluding hidden reasoning. Missing capture is reported as `Transcript unavailable`; metrics never substitute for missing messages. In transcript focus, arrows scroll and PageUp requests earlier retained messages when available.
+
 ## Start with natural language
 
 Ask Atomic to coordinate subagents in plain language:
@@ -34,6 +40,14 @@ Supported subagent launches start immediately without opening a preview/editor p
 Prompt-template delegation comes from the separately installed `pi-prompt-template-model` extension, whose `requestDelegatedRun` emits `prompt-template:subagent:request`. If that caller must survive an extension reload, import `registerPromptTemplateBridgeRequestSettlement` from `@bastani/subagents`, register it before the emit, and unregister it from the normal response, cancellation, or abort path. The hook rejects the caller only when the old bridge drops a stale response emit; normal completion still arrives through `prompt-template:subagent:response`. Atomic cannot register this opt-in for an out-of-tree emitter.
 
 Subagents now run and return their results directly. Atomic does not infer acceptance gates from prompt wording, inject `acceptance-report` instructions into child prompts, parse or strip `acceptance-report` blocks, or reject completed child runs because changed-file, test, or review evidence is missing. Put any evidence or validation requirements directly in the task text you give the parent or child agent.
+
+## Owner-bound task observation
+
+Runtime-created session contexts bind single launches to their actual session or workflow-stage owner. Omitted `wait` returns an admitted observation with reason `default-background`; `wait: {kind: "background"}` uses reason `explicit`. `wait: {kind: "foreground", budgetMs: 30000}` opts into foreground-first observation. The omitted foreground budget is 30000 ms. `subagent({action: "wait", id: taskId, budgetMs: 1000})` observes an existing task in the same owner without restarting it.
+
+An Intercom peer-message yield keeps the original execution alive. Terminal completion is recorded separately and admitted as a `task-completion` custom message with `display:false`. Failed delivery retains the same persisted completion identity for retry. Default parallel launches admit all accepted slots and leave work queued under the configured concurrency limit; explicit foreground-first groups retain lazy admission and Intercom skip semantics. Existing unbound SDK callers retain their legacy result fields.
+
+Durable `ctx.tool` callbacks wait for tasks admitted inside their callback before checkpointing, even when the launching observation yielded. Session lifetime closure cancels session-owned work; stage generation closure, not pane detach or fallback session replacement, owns stage tasks.
 
 ## Foreground supervisor coordination
 
@@ -133,6 +147,16 @@ Inside workflow stages, completion delivery observes the stage generation bounda
 Cancellation does not retract an Intercom send already submitted to the broker. That operation keeps its transport receipt or retry identity, while the closed stage suppresses late incoming messages from its own children. A transport acknowledgement does not mean a late finding was shown in the parent chat.
 
 Live progress and completed results show each step's resolved model ID and effective reasoning level, including after a model fallback; parallel steps keep their metadata separate. Fast inference is part of the model ID, so an agent pinned to a fast variant renders it directly — `codebase-analyzer (openai-codex/gpt-5.6-sol-fast · thinking medium)` — with no separate `fast` badge. Select fast inference in an agent definition's `model` and fallback model fields, for example `openai-codex/gpt-5.6-sol-fast:medium`; normal and fast IDs stay distinct fallback candidates and distinct records. See [Providers](/providers#fast-models) for which providers publish fast variants and what each one sends upstream.
+
+## Owner-bound task projection
+
+Host adapters can construct an `OwnerTaskStore` from their existing supervisor and owner lease, check the `store.connect()` result, then call `bindOwnerTaskStore(session, store)` for that exact live session. Binding does not create or connect an owner. The store observes snapshot/cursor reconciliation and notifies already-mounted chats even when the producer binds lazily. Its task rows remain subscribed after launch tools and agent turns end; disposing the view does not cancel the owner. Reattachment uses the same task identities rather than replaying launch tools.
+
+Session replacement clears the previous session's task rows and footer immediately, even when the replacement store binds later. Rebuilding the main transcript remounts tasks from its current store without launching new work. Late updates from the previous store cannot repopulate the replacement chat.
+
+Compact rows show the agent label, description, execution state and available tool-use count. Display-colliding labels get a stable short suffix derived from the task ID. Foreground/background badges describe the designated host observation, not independent SDK waits. Ctrl+O exposes available metadata, bounded retained action/output previews, and clearly labelled missing prompt/response transcripts. Retention is at most 64 reports and 8 KiB of encoded preview records per task; omitted older previews are labelled rather than presented as a complete transcript. The compact footer remains visible while bound background tasks run or need attention, including when launch rows scroll out of view or a stage question occupies the body.
+
+This is a host integration API above the SDK task foundation. Existing subagent and command producers are not automatically migrated by binding a projection. Full task transcript retrieval and `/tasks` navigation are separate integrations; unavailable transcript content is not inferred from activity reports.
 
 ## Orchestrator model and group policy
 

@@ -36,6 +36,7 @@ import {
 	type VerbatimCompactionResult,
 } from "./interactive-mode-deps.ts";
 import type { InteractiveSubmission } from "./interactive-submission.ts";
+import { refreshInteractiveTasks } from "./interactive-task-projection.js";
 
 InteractiveModeBase.prototype.maybeShowAssistantDiagnostics = function (
 	this: InteractiveModeBase,
@@ -505,6 +506,7 @@ InteractiveModeBase.prototype.renderInitialMessages = function (this: Interactiv
 	this.attachStartupNoticesContainer({ resetDetached: true });
 	const entries = buildContextEntries(this.sessionManager.getEntries(), this.sessionManager.getLeafId());
 	this.renderSessionEntries(entries, { updateFooter: true, populateHistory: true });
+	refreshInteractiveTasks(this);
 };
 
 InteractiveModeBase.prototype.getUserInput = async function (

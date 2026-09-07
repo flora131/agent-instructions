@@ -1,4 +1,4 @@
-import type { Theme } from "../modes/interactive/theme/theme.ts";
+import type { Theme } from "../modes/interactive/theme/theme.js";
 import { resolvePath } from "../utils/paths.ts";
 import type { ResourceDiagnostic, ResourceOverlap } from "./diagnostics.ts";
 import { createEventBus, createStagedEventBus, type EventBus } from "./event-bus.ts";

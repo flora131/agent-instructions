@@ -16,7 +16,7 @@ import {
 	parseAutoThemeSetting,
 	type TerminalTheme,
 	theme,
-} from "../theme/theme.ts";
+} from "../theme/theme.js";
 import type { SettingsCallbacks } from "./settings-selector-types.ts";
 
 const SETTINGS_SUBMENU_SELECT_LIST_LAYOUT: SelectListLayoutOptions = {

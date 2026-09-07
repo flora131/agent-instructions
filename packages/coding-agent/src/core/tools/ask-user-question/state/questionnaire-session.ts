@@ -1,5 +1,5 @@
 import { decodeKittyPrintable, getKeybindings, type Input } from "@earendil-works/pi-tui";
-import type { Theme } from "../../../../modes/interactive/theme/theme.ts";
+import type { Theme } from "../../../../modes/interactive/theme/theme.js";
 import type { QuestionData, QuestionnaireResult, QuestionParams } from "../tool/types.ts";
 import type { WrappingSelectItem } from "../view/components/wrapping-select.ts";
 import type { QuestionnairePropsAdapter } from "../view/props-adapter.ts";

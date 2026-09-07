@@ -22,6 +22,7 @@ napi.workspace = true
 napi-derive.workspace = true
 portable-pty.workspace = true
 rayon.workspace = true
+sha2.workspace = true
 smallvec.workspace = true
 tokio.workspace = true
 tree-sitter.workspace = true
@@ -44,6 +45,7 @@ windows-sys = { version = "0.61", features = [
 	"Win32_Security",
 	"Win32_Storage_FileSystem",
 	"Win32_System_IO",
+	"Win32_System_JobObjects",
 	"Win32_System_Pipes",
 	"Win32_System_Threading",
 ] }
