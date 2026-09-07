@@ -66,10 +66,11 @@ function projectRoot(
 	let retrying = false;
 	let runnable = false;
 	let paused = false;
-	const stopping = ownership.stoppingRunIds.has(rootRunId) || runs.some((run) => ownership.stoppingRunIds.has(run.id));
+	let stopping = false;
 	for (const run of runs) {
 		const runStopping =
 			ownership.stoppingRunIds.has(rootRunId) || isStoppingRun(run, runById, ownership.stoppingRunIds);
+		stopping ||= runStopping;
 		activeExecutionCount += (run.toolNodes ?? []).filter((tool) =>
 			ownership.executingToolNodeIds.has(workflowActivityNodeKey(run.id, tool.id)),
 		).length;

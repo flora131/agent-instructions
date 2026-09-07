@@ -529,3 +529,57 @@ test("workflow activity preserves stop draining after the root snapshot is remov
 		assert.deepEqual(store.graphSnapshot().runs, [childBeforeRemoval]);
 	}
 });
+
+// #2891: retained parent identity preserves stop ownership after intermediate history is removed.
+test("workflow activity preserves stop draining after an intermediate ancestor is removed", () => {
+	for (const kind of ["stage", "tool"] as const) {
+		for (const accessor of ["snapshot", "graphSnapshot"] as const) {
+			const store = createStore();
+			const rootRunId = "11111111-1111-4111-8111-111111111111";
+			const middleRunId = "22222222-2222-4222-8222-222222222222";
+			const leafRunId = "33333333-3333-4333-8333-333333333333";
+			const nodeId = " raw:node ";
+			store.recordRunStart(run({ id: rootRunId }));
+			store.recordRunStart(run({ id: middleRunId, parentRunId: rootRunId, rootRunId }));
+			store.recordRunStart(
+				run({
+					id: leafRunId,
+					parentRunId: middleRunId,
+					rootRunId,
+					...(kind === "stage" ? { stages: [stage(nodeId)] } : { toolNodes: [tool(nodeId)] }),
+				}),
+			);
+			const executingIds = new Set([workflowActivityNodeKey(leafRunId, nodeId)]);
+			const stoppingRunIds = new Set([middleRunId]);
+			const owned = ownership({
+				[kind === "stage" ? "executingStageIds" : "executingToolNodeIds"]: executingIds,
+				stoppingRunIds,
+			});
+			const assertActivity = (expected: Partial<WorkflowRootActivity>) => {
+				const snapshot = store[accessor]();
+				const before = structuredClone({ snapshot, ownership: owned });
+				const result = projectWorkflowActivity({ snapshot, ownership: owned });
+				assert.deepEqual(result, [activity({ rootRunId, ...expected })], `${kind}/${accessor}`);
+				assert.deepEqual({ snapshot, ownership: owned }, before);
+				assert.deepEqual(store[accessor](), before.snapshot);
+				return result;
+			};
+			const beforeRemoval = assertActivity({ ...executing, reason: "stopping" });
+			const remainingRuns = structuredClone(store[accessor]().runs.filter((run) => run.id !== middleRunId));
+			const ownershipBeforeRemoval = structuredClone(owned);
+			assert.equal(store.removeRun(middleRunId), true);
+			assert.deepEqual(store[accessor]().runs, remainingRuns);
+			assert.deepEqual(owned, ownershipBeforeRemoval);
+			const afterRemoval = assertActivity({ ...executing, reason: "stopping" });
+			assert.deepEqual(afterRemoval, beforeRemoval);
+			assert.notEqual(afterRemoval[0], beforeRemoval[0]);
+			stoppingRunIds.clear();
+			assertActivity(executing);
+			stoppingRunIds.add(middleRunId);
+			assertActivity({ ...executing, reason: "stopping" });
+			executingIds.clear();
+			assertActivity({});
+			assert.deepEqual(store[accessor]().runs, remainingRuns);
+		}
+	}
+});
