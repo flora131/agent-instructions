@@ -1,4 +1,4 @@
-import type { SessionManager } from "../session-manager.js";
+import type { SessionManager } from "../session-manager.ts";
 import type { OwnerId, Sequence, SettlementReceipt, TaskId, TaskResult } from "./contracts.js";
 
 export const TASK_COMPLETION_MESSAGE_TYPE = "task-completion";

@@ -1,6 +1,6 @@
 import { AsyncResource } from "node:async_hooks";
 import type * as native from "@bastani/atomic-natives";
-import { createModuleRequire } from "../../utils/module-require.js";
+import { createModuleRequire } from "../../utils/module-require.ts";
 import { COMMAND_FOREGROUND_BUDGET_MS } from "./command-output.js";
 import type * as C from "./contracts.js";
 

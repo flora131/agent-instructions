@@ -1,7 +1,7 @@
-import type { AgentSessionInternalSurface as AgentSession } from "./agent-session-methods.js";
+import type { AgentSessionInternalSurface as AgentSession } from "./agent-session-methods.ts";
 import { AgentTaskHost } from "./tasks/agent-adapter.js";
 import { TASK_COMPLETION_MESSAGE_TYPE, TaskCompletionOutbox } from "./tasks/completion.js";
-import { WorkflowStageAdmissionBoundary } from "./workflow-stage-admission.js";
+import { WorkflowStageAdmissionBoundary } from "./workflow-stage-admission.ts";
 
 export function getAgentTaskHost(this: AgentSession): AgentTaskHost {
 	if (this._disposed) throw new Error("Task owner is closed");
@@ -34,7 +34,10 @@ export function getAgentTaskHost(this: AgentSession): AgentTaskHost {
 	const binding = {
 		authorizeLaunch: () => {
 			if (this._disposed || !admission.isOpen()) throw new Error("Task owner is closed");
-			if (this._subagentPolicy) throw new Error("Subagent delegation is not available inside a subagent");
+			// Top-level sessions (main chat, workflow stages) may carry a policy without `depth`;
+			// only an admitted in-process child (depth >= 1) is refused delegation.
+			if ((this._subagentPolicy?.depth ?? 0) >= 1)
+				throw new Error("Subagent delegation is not available inside a subagent");
 		},
 		onTaskSettled: (
 			...[ref, receipt]: Parameters<NonNullable<import("./tasks/supervisor.js").TrustedTaskHost["onTaskSettled"]>>
