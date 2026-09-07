@@ -12,6 +12,14 @@ use std::{
 };
 mod input;
 pub use input::*;
+mod resource;
+#[cfg(unix)]
+use resource::ProcessResource;
+type ProcessReader = Box<dyn Read + Send>;
+type ProcessWriter = Box<dyn Write + Send>;
+#[cfg(unix)]
+type SpawnedProcess =
+	(ProcessResource, Option<ProcessWriter>, ProcessReader, ProcessReader, Option<String>);
 
 #[napi(string_enum = "kebab-case")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -62,10 +70,31 @@ const PROCESS_DRAIN_GRACE: Duration = Duration::from_secs(2);
 const PROCESS_POLL: Duration = Duration::from_millis(5);
 pub(super) const PROCESS_SHUTDOWN_GRACE: Duration = Duration::from_secs(3);
 
+#[napi(string_enum = "kebab-case")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CommandOutputSink {
+	FileSpool,
+	Drained,
+}
+/// Trusted native adapter configuration, never model input or CommandIntent fields.
+#[napi(object)]
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CommandResourceOptions {
+	pub sink: Option<CommandOutputSink>,
+	pub disk_cap_bytes: Option<f64>,
+	pub live_preview_bytes: Option<u32>,
+	pub foreground_spill_bytes: Option<u32>,
+	pub background: Option<bool>,
+}
+const FILE_SPOOL_POLL: Duration = Duration::from_secs(5);
+
 pub(super) struct CommandTask {
 	intent: CommandIntent,
+	options: CommandResourceOptions,
+	pub(super) background: AtomicBool,
 	output: Mutex<OutputStore>,
 	input: Mutex<InputQueue>,
+	resize: Mutex<Option<(u16, u16)>>,
 	setup: Mutex<Option<Door<()>>>,
 	setup_changed: Condvar,
 	worker: Mutex<Option<std::thread::JoinHandle<()>>>,
@@ -78,16 +107,21 @@ pub(super) struct CommandTask {
 	signals: Mutex<Vec<(libc::pid_t, libc::c_int)>>,
 }
 impl CommandTask {
+	fn file_spool(&self) -> bool {
+		matches!(self.intent.terminal, CommandTerminal::Pipe {})
+			&& self.options.sink != Some(CommandOutputSink::Drained)
+	}
 	#[cfg(unix)]
 	fn retain_failed(
 		&self,
 		reference: NativeTaskRef,
-		mut child: std::process::Child,
+		mut child: ProcessResource,
+		readers: (ProcessReader, ProcessReader),
 		message: String,
 	) {
 		// Nonblocking reap only; a live or unqueryable child remains owned.
 		let _ = child.try_wait();
-		*self.retained.lock().unwrap() = Some(FailedProcess { reference, child, message });
+		*self.retained.lock().unwrap() = Some(FailedProcess { reference, child, message, readers });
 	}
 	#[cfg(unix)]
 	fn signal_group(&self, pid: libc::pid_t, signal: libc::c_int) -> io::Result<()> {
@@ -139,6 +173,15 @@ impl Actor {
 		intent: CommandIntent,
 		operation: JsString,
 	) -> Door<TaskLease> {
+		self.start_command_configured(owner, intent, operation, CommandResourceOptions::default())
+	}
+	pub(super) fn start_command_configured(
+		self: &Arc<Self>,
+		owner: &OwnerLease,
+		intent: CommandIntent,
+		operation: JsString,
+		options: CommandResourceOptions,
+	) -> Door<TaskLease> {
 		poll_failed_processes();
 		let mut state = self.state.lock().unwrap();
 		let oi = state.owner(self.id, &owner.cap, "OwnerClosing")?;
@@ -148,7 +191,10 @@ impl Actor {
 		if let Some(task) =
 			state.owners[oi].tasks.iter().find(|task| task.record.launch_operation_id == operation)
 		{
-			let Some(command) = task.command.as_ref().filter(|command| command.intent == intent)
+			let Some(command) = task
+				.command
+				.as_ref()
+				.filter(|command| command.intent == intent && command.options == options)
 			else {
 				return Err(fail("OperationConflict"));
 			};
@@ -158,8 +204,8 @@ impl Actor {
 			command.await_setup()?;
 			return Ok(lease);
 		}
-		// Unix PTY support is a later milestone; Windows PTY is explicitly unsupported.
-		// Never silently substitute a pipe or execute any part of a refused command.
+		// Unsupported platforms refuse before executing any part of the command.
+		#[cfg(not(unix))]
 		if !matches!(intent.terminal, CommandTerminal::Pipe {}) {
 			return Err(fail("ContainmentUnavailable"));
 		}
@@ -182,16 +228,19 @@ impl Actor {
 		};
 		let command = Arc::new(CommandTask {
 			intent: intent.clone(),
+			options: options.clone(),
+			background: AtomicBool::new(options.background.unwrap_or(false)),
 			input: Mutex::new(InputQueue::default()),
+			resize: Mutex::new(None),
 			output: Mutex::new(OutputStore::new(
 				std::env::temp_dir().join(format!(
 					"atomic-command-{}-{}",
 					std::process::id(),
 					reference.task_id
 				)),
-				COMMAND_LIVE_BYTES,
-				FOREGROUND_SPILL_BYTES,
-				TASK_DISK_BYTES,
+				options.live_preview_bytes.map_or(COMMAND_LIVE_BYTES, |value| value as usize),
+				options.foreground_spill_bytes.map_or(FOREGROUND_SPILL_BYTES, |value| value as usize),
+				options.disk_cap_bytes.map_or(TASK_DISK_BYTES, |value| value as u64),
 			)),
 			setup: Mutex::new(None),
 			setup_changed: Condvar::new(),
@@ -299,36 +348,71 @@ impl Actor {
 	fn run_command(&self, runner: &RunnerLease, command: &CommandTask) {
 		use std::os::unix::process::CommandExt;
 		use std::process::{Command, Stdio};
-		let mut spawn = Command::new("/bin/sh");
-		spawn
-			.arg("-c")
-			.arg(command.intent.command.process_text())
-			.process_group(0)
-			.stdin(Stdio::piped())
-			.stdout(Stdio::piped())
-			.stderr(Stdio::piped());
-		if let Some(cwd) = &command.intent.cwd {
-			spawn.current_dir(cwd.process_text());
-		}
-		if let Some(env) = &command.intent.env {
-			spawn.envs(env.iter().map(|(key, value)| (key, value.process_text())));
-		}
-		let mut child = match spawn.spawn() {
-			Ok(child) => child,
+		let spawned = (|| -> io::Result<SpawnedProcess> {
+			match command.intent.terminal {
+				CommandTerminal::Pty { columns, rows } => {
+					let (pty, reader, writer) =
+						crate::pty::supervised_pty(&command.intent, columns, rows)?;
+					Ok((ProcessResource::Pty(pty), Some(writer), reader, Box::new(io::empty()), None))
+				},
+				CommandTerminal::Pipe {} => {
+					let mut spawn = Command::new("/bin/sh");
+					spawn
+						.arg("-c")
+						.arg(command.intent.command.process_text())
+						.process_group(0)
+						.stdin(Stdio::piped())
+						.stdout(Stdio::piped())
+						.stderr(Stdio::piped());
+					if command.file_spool() {
+						let mut store = command.output.lock().unwrap();
+						store.background();
+						if store.unavailable {
+							return Err(io::Error::other("Output spool unavailable"));
+						}
+						spawn
+							.stdout(OpenOptions::new().append(true).open(&store.path)?)
+							.stderr(OpenOptions::new().append(true).open(&store.path)?);
+					}
+					if let Some(cwd) = &command.intent.cwd {
+						spawn.current_dir(cwd.process_text());
+					}
+					if let Some(env) = &command.intent.env {
+						spawn.envs(env.iter().map(|(key, value)| (key, value.process_text())));
+					}
+					let mut child = spawn.spawn()?;
+					let stdin = child.stdin.take().unwrap();
+					let stdout = child.stdout.take();
+					let stderr = child.stderr.take();
+					let error = make_nonblocking(&stdin)
+						.and_then(|()| stdout.as_ref().map_or(Ok(()), make_nonblocking))
+						.and_then(|()| stderr.as_ref().map_or(Ok(()), make_nonblocking))
+						.err()
+						.map(|error| error.to_string());
+					Ok((
+						ProcessResource::Pipe(child),
+						Some(Box::new(stdin)),
+						stdout.map_or_else(
+							|| Box::new(io::empty()) as ProcessReader,
+							|reader| Box::new(reader),
+						),
+						stderr.map_or_else(
+							|| Box::new(io::empty()) as ProcessReader,
+							|reader| Box::new(reader),
+						),
+						error,
+					))
+				},
+			}
+		})();
+		let (mut child, mut stdin, mut stdout, mut stderr, setup_failure) = match spawned {
+			Ok(resource) => resource,
 			Err(error) => {
 				self.command_spawn_failed(runner, command, error.to_string());
 				return;
 			},
 		};
 		let pid = child.id() as libc::pid_t;
-		let mut stdin = child.stdin.take();
-		if let Some(input) = &stdin {
-			let _ = make_nonblocking(input);
-		}
-		let mut stdout = child.stdout.take().unwrap();
-		let mut stderr = child.stderr.take().unwrap();
-		let nonblocking = make_nonblocking(&stdout).and_then(|()| make_nonblocking(&stderr));
-		let setup_failure = nonblocking.err().map(|error| error.to_string());
 		{
 			let mut state = self.state.lock().unwrap();
 			let (oi, ti) = state.runner(self.id, &runner.cap).unwrap();
@@ -349,8 +433,21 @@ impl Actor {
 		let mut stderr_eof = false;
 		let mut read_failure = setup_failure.clone();
 		let mut cleanup_failure = None;
+		let mut background_since = None;
 		loop {
-			command.input.lock().unwrap().drain(&mut stdin);
+			if setup_failure.is_none() {
+				command.input.lock().unwrap().drain(&mut stdin);
+			}
+			if let Some((columns, rows)) = command.resize.lock().unwrap().take()
+				&& let ProcessResource::Pty(pty) = &child
+			{
+				let _ = pty.master.resize(portable_pty::PtySize {
+					rows,
+					cols: columns,
+					pixel_width: 0,
+					pixel_height: 0,
+				});
+			}
 			// A failed O_NONBLOCK setup must never enter a potentially blocking read.
 			if setup_failure.is_none() {
 				for result in [
@@ -361,6 +458,31 @@ impl Actor {
 						read_failure = Some(error.to_string());
 					}
 				}
+			}
+			let background = command.background.load(Ordering::Acquire);
+			if background {
+				if command.file_spool() {
+					let since = background_since.get_or_insert_with(Instant::now);
+					if since.elapsed() >= FILE_SPOOL_POLL {
+						*since = Instant::now();
+						let store = command.output.lock().unwrap();
+						let exceeded = file_spool_exceeded(
+							true,
+							std::fs::metadata(&store.path).map(|meta| meta.len()),
+							store.disk_cap,
+						)
+						.unwrap_or(false);
+						drop(store);
+						if exceeded {
+							let _ = self
+								.cancel(&TaskLease { cap: runner.cap.clone() }, CancelCause::OutputLimit);
+						}
+					}
+				} else {
+					command.output.lock().unwrap().background();
+				}
+			} else {
+				background_since = None;
 			}
 			let cancelling = {
 				let state = self.state.lock().unwrap();
@@ -388,7 +510,16 @@ impl Actor {
 			};
 			if stopping.is_none() && (cancelling || exited || read_failure.is_some()) {
 				let _ = self.acknowledge_cleanup(runner, Cleanup::Draining {});
-				if let Err(error) = command.signal_group(pid, libc::SIGTERM) {
+				let cause = self.state.lock().unwrap().owners[runner.cap.owner].tasks
+					[runner.cap.task.unwrap()]
+				.cancel_cause;
+				let signal = if cause == Some(CancelCause::OutputLimit) {
+					killed = true;
+					libc::SIGKILL
+				} else {
+					libc::SIGTERM
+				};
+				if let Err(error) = command.signal_group(pid, signal) {
 					cleanup_failure = Some(error.to_string());
 				}
 				stopping = Some(Instant::now());
@@ -437,9 +568,7 @@ impl Actor {
 		}
 		command.input.lock().unwrap().close();
 		if let Some(message) = cleanup_failure {
-			child.stdout = Some(stdout);
-			child.stderr = Some(stderr);
-			command.retain_failed(runner.cap.reference(), child, message.clone());
+			command.retain_failed(runner.cap.reference(), child, (stdout, stderr), message.clone());
 			let _ = self.runner_outcome(
 				runner,
 				TaskResult::Failed {
@@ -465,7 +594,10 @@ impl Actor {
 			return;
 		}
 		let status = status.expect("group confirmed only after direct child reaped");
-		let store = command.output.lock().unwrap();
+		let mut store = command.output.lock().unwrap();
+		if command.file_spool() {
+			store.refresh_spool();
+		}
 		let reference = runner.cap.reference();
 		let output = OutputRef {
 			owner_id: reference.owner_id.into(),
@@ -500,7 +632,8 @@ impl Actor {
 #[cfg(unix)]
 struct FailedProcess {
 	reference: NativeTaskRef,
-	child: std::process::Child,
+	child: ProcessResource,
+	readers: (ProcessReader, ProcessReader),
 	message: String,
 }
 #[cfg(unix)]
@@ -562,6 +695,13 @@ fn drain_pipe(reader: &mut impl Read, command: &CommandTask, eof: &mut bool) -> 
 				break;
 			},
 			Ok(count) => command.output.lock().unwrap().append(&buffer[..count]),
+			Err(error)
+				if error.raw_os_error() == Some(libc::EIO)
+					&& matches!(command.intent.terminal, CommandTerminal::Pty { .. }) =>
+			{
+				*eof = true;
+				break;
+			},
 			Err(error) if error.kind() == io::ErrorKind::WouldBlock => break,
 			Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
 			Err(error) => return Err(error),
@@ -631,6 +771,16 @@ struct OutputStore {
 	unavailable: bool,
 }
 impl OutputStore {
+	fn refresh_spool(&mut self) {
+		match std::fs::metadata(&self.path) {
+			Ok(metadata) => {
+				self.byte_count = metadata.len();
+				self.disk_len = metadata.len();
+			},
+			Err(error) if error.kind() == io::ErrorKind::NotFound => {},
+			Err(_) => self.unavailable = true,
+		}
+	}
 	/// The retained prefix and rolling tail have at most one gap. No disk reads
 	/// or output-sized allocations are needed to describe it at settlement.
 	fn omitted_ranges(&self) -> Vec<OutputOffsets> {
@@ -869,6 +1019,7 @@ mod tests {
 		}
 	}
 	// #2884: unsupported terminal modes must never execute as a different backend.
+	#[cfg(not(unix))]
 	#[test]
 	fn unsupported_pty_refuses_before_execution() {
 		let (actor, owner) = command_owner();

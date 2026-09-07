@@ -73,7 +73,7 @@ This slice exercises fake runners, not force-stop or real-process cleanup guaran
 
 ### Supervised command SDK
 
-`startCommandTask(owner, intent, operation)` starts an owned Unix pipe command.
+`startCommandTask(owner, intent, operation)` starts an owned Unix pipe or PTY command.
 The command intent keeps execution timeout separate from observation: `waitForTask`
 defaults to 10000 ms for commands, and expiry returns a yielded observation without
 terminating the process. Owner closure sends TERM, allows 250 ms grace, then KILL,
@@ -91,8 +91,17 @@ returns `InputDeliveryUnknown`, including operation ID and known accepted-byte c
 offsets, requested bounds, omitted ranges and an optional next offset. It does not
 sanitize or normalize bytes. Retention uses a 1 MiB live head/tail, 8 MiB foreground
 spill threshold and 5 GiB disk cap. Retained output is not conversation history.
-The current pipe milestone does not yet connect bash tools or implement supervised
-PTY/Windows launch and the background file-spool watchdog.
+Background file-spool commands are checked every five seconds after foreground
+collection yields. Exceeding the cap kills the group and settles `OutputLimitExceeded`.
+Drained pipe/PTY output instead keeps running with bounded retained bytes and omissions.
+PTY resize uses the retained portable-pty master. Windows supervised launch remains pending.
+
+Bash tools and `createLocalBashOperations` accept a trusted `taskOwner` binding.
+With that binding they obtain pipe/PTY processes through supervised admission,
+preserving configured shell arguments, cwd, environment and existing authorization.
+The foreground collection returns a yielded task observation after 10000 ms;
+the process stays owned and its retained output remains readable. Without that
+binding, existing bash and native PTY execution are unchanged. No UI is added.
 
 `watchOwnerTasks(owner, cursor?)` provides an opaque `lease`, snapshot,
 decimal-string cursor and disposable `AsyncIterable<NativeEvent>`. Each iterator

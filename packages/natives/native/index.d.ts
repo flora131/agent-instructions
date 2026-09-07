@@ -77,7 +77,8 @@ export declare class TaskSupervisor {
 openTaskOwner(host: HostSession, scope: OwnerScope): {ok:true,value:OwnerLease}|{ok:false,error:TaskFailure}
 startAgentTask(owner: OwnerLease, intent: AgentIntent, operation: string): {ok:true,value:TaskLease}|{ok:false,error:TaskFailure}
 /** Admits one owned command; waiting for this setup never imposes an execution deadline. */
-startCommandTask(owner: OwnerLease, intent: CommandIntent, operation: string): Promise<{ok:true,value:TaskLease}|{ok:false,error:TaskFailure}>
+startCommandTask(owner: OwnerLease, intent: CommandIntent, operation: string, options?: CommandResourceOptions | undefined | null): Promise<{ok:true,value:TaskLease}|{ok:false,error:TaskFailure}>
+resizeTaskTerminal(task: TaskLease, columns: number, rows: number): {ok:true,value:undefined}|{ok:false,error:TaskFailure}
 taskStdin(task: TaskLease): {ok:true,value:StdinLease}|{ok:false,error:TaskFailure}
 writeTaskInput(input: StdinLease, operation: string, data: InputData): Promise<{ok:true,value:InputReceipt}|{ok:false,error:TaskFailure}>
 readTaskOutput(task: TaskLease, range: OutputRange): Promise<{ok:true,value:OutputPage}|{ok:false,error:TaskFailure}>
@@ -235,6 +236,18 @@ export interface CommandIntent {
   terminal: CommandTerminal
   executionTimeoutMs?: number
   parentTaskId?: string
+}
+
+export type CommandOutputSink =  'file-spool'|
+'drained';
+
+/** Trusted native adapter configuration, never model input or CommandIntent fields. */
+export interface CommandResourceOptions {
+  sink?: CommandOutputSink
+  diskCapBytes?: number
+  livePreviewBytes?: number
+  foregroundSpillBytes?: number
+  background?: boolean
 }
 
 export type CommandTaskKind =  'command';

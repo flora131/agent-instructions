@@ -1,8 +1,10 @@
+import assert from "node:assert/strict";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { TaskSupervisor } from "../src/core/tasks/supervisor.js";
 import { createBashToolDefinition, createLocalBashOperations } from "../src/core/tools/bash.ts";
 
 function isNativeUnavailable(error: unknown): boolean {
@@ -197,5 +199,62 @@ describe("native bash PTY execution", () => {
 		if (isNativeUnavailable(thrown)) return;
 		expect(thrown).toBeInstanceOf(Error);
 		expect((thrown as Error).message).toContain("timeout:0.05");
+	});
+});
+
+// RFC #2884: owner-aware execution uses native task admission, never the legacy spawn fallback.
+describe.runIf(process.platform !== "win32")("supervised bash command seam", () => {
+	function ownerContext() {
+		const supervisor = new TaskSupervisor();
+		const scope = { kind: "session" as const, sessionId: crypto.randomUUID() };
+		let authorized = 0;
+		const host = supervisor.bindHostSession({
+			scope,
+			authorizeLaunch() {},
+			authorizeCommandLaunch() {
+				authorized++;
+			},
+			createRunner() {
+				throw new Error("not an agent");
+			},
+		});
+		const opened = supervisor.openTaskOwner(host, scope);
+		assert.ok(opened.ok);
+		return { supervisor, owner: opened.value, authorized: () => authorized };
+	}
+	it("preserves configured bash, cwd, environment and PTY terminal behavior", async () => {
+		const context = ownerContext();
+		try {
+			for (const pty of [false, true]) {
+				const chunks: Buffer[] = [];
+				const result = await createLocalBashOperations({ shellPath: "/bin/bash", taskOwner: context }).exec(
+					`arr=(bash); printf '%s:%s:%s' "\${arr[0]}" "$S2_VALUE" "$AI_AGENT"; ${pty ? "test -t 1" : "test ! -t 1"}`,
+					process.cwd(),
+					{ pty, env: { S2_VALUE: "raw value" }, onData: (chunk) => chunks.push(chunk) },
+				);
+				assert.equal(result.exitCode, 0);
+				assert.equal(Buffer.concat(chunks).toString(), "bash:raw value:atomic");
+			}
+			assert.equal(context.authorized(), 2);
+		} finally {
+			assert.ok((await context.supervisor.closeTaskOwner(context.owner, "session-close")).ok);
+		}
+	});
+	it("returns a yielded observation at the collection budget and leaves cleanup with owner", async () => {
+		const context = ownerContext();
+		try {
+			const result = await createLocalBashOperations({ taskOwner: context }).exec(
+				`exec node -e 'setInterval(()=>process.stdout.write("live\\n"),50)'`,
+				process.cwd(),
+				{ onData() {} },
+			);
+			assert.equal(result.exitCode, null);
+			assert.equal(result.observation?.kind, "yielded");
+			const closed = await context.supervisor.closeTaskOwner(context.owner, "session-close");
+			assert.ok(closed.ok);
+			assert.equal(closed.value.tasks[0].cleanup.kind, "reaped");
+		} finally {
+			assert.ok((await context.supervisor.closeTaskOwner(context.owner, "session-close")).ok);
+		}
 	});
 });

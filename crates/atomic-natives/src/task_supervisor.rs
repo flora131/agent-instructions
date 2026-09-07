@@ -26,8 +26,8 @@ mod waits;
 pub use events::*;
 pub use owner::*;
 pub use process::{
-	CommandIntent, CommandTaskKind, CommandTerminal, InputData, InputReceipt, OutputPage,
-	OutputRange, StdinLease,
+	CommandIntent, CommandOutputSink, CommandResourceOptions, CommandTaskKind, CommandTerminal,
+	InputData, InputReceipt, OutputPage, OutputRange, StdinLease,
 };
 use report_identity::{TASK_REPORT_IDENTITY_WINDOW, activity_hash};
 use strings::JsString;
@@ -249,18 +249,40 @@ impl NapiTaskSupervisor {
 		owner: &OwnerLease,
 		intent: CommandIntent,
 		#[napi(ts_arg_type = "string")] operation: JsString,
+		options: Option<CommandResourceOptions>,
 	) -> napi::Result<PromiseRaw<'env, DoorValue<TaskLease>>> {
 		let check = self.check(env, "OwnerClosing");
 		let actor = self.actor.clone();
 		let owner = owner.clone();
 		env.spawn_future(async move {
 			let result = napi::tokio::task::spawn_blocking(move || {
-				check.and_then(|()| actor.start_command(&owner, intent, operation))
+				check.and_then(|()| {
+					actor.start_command_configured(
+						&owner,
+						intent,
+						operation,
+						options.unwrap_or_default(),
+					)
+				})
 			})
 			.await
 			.map_err(|error| napi::Error::from_reason(error.to_string()))?;
 			Ok(DoorValue(result))
 		})
+	}
+	#[napi(ts_return_type = "{ok:true,value:undefined}|{ok:false,error:TaskFailure}")]
+	pub fn resize_task_terminal(
+		&self,
+		env: Env,
+		task: &TaskLease,
+		columns: u16,
+		rows: u16,
+	) -> DoorValue<()> {
+		DoorValue(
+			self
+				.check(&env, "UnknownTask")
+				.and_then(|()| self.actor.resize_command(task, columns, rows)),
+		)
 	}
 	#[napi(ts_return_type = "{ok:true,value:StdinLease}|{ok:false,error:TaskFailure}")]
 	pub fn task_stdin(&self, env: Env, task: &TaskLease) -> DoorValue<StdinLease> {

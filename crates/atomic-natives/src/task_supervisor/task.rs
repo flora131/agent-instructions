@@ -651,7 +651,18 @@ impl Actor {
 			&& let Execution::Cancelling { cause } = t.record.execution
 		{
 			let output = s.owners[oi].tasks[ti].cancellation_output.take();
-			s.settle(oi, ti, TaskResult::Cancelled { cause, output });
+			let result =
+				if cause == CancelCause::OutputLimit && s.owners[oi].tasks[ti].command.is_some() {
+					TaskResult::Failed {
+						code: "OutputLimitExceeded".into(),
+						message: "Background command killed: output file exceeded 5 GiB".into(),
+						output,
+						exit_code: None,
+					}
+				} else {
+					TaskResult::Cancelled { cause, output }
+				};
+			s.settle(oi, ti, result);
 		}
 		s.set_cleanup(oi, ti, cleanup.clone());
 		drop(s);

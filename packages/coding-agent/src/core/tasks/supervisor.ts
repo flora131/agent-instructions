@@ -719,9 +719,7 @@ export class TaskSupervisor {
 		const registered = mapped(
 			this.#native.waitForTask(
 				this.#task(task).native,
-				this.#task(task).kind === "command"
-					? (budgetMs ?? COMMAND_FOREGROUND_BUDGET_MS)
-					: this.#agentBudget(this.#task(task).owner, budgetMs),
+				this.#agentBudget(this.#task(task).owner, budgetMs, this.#task(task).kind === "command"),
 				designation ? this.#host(designation).native : undefined,
 			),
 			(lease) => this.#register(lease),
@@ -736,8 +734,16 @@ export class TaskSupervisor {
 	): Promise<C.Result<C.WaitOutcome, C.WaitError>> {
 		const found = mapped(this.#native.lookupTask(this.#owner(owner).native, taskId), (lease) => lease, waitErrors);
 		if (!found.ok) return found;
+		const known = this.#owner(owner).tasks.get(taskId);
 		const registered = mapped(
-			this.#native.waitForTask(found.value, this.#agentBudget(this.#owner(owner), budgetMs)),
+			this.#native.waitForTask(
+				found.value,
+				this.#agentBudget(
+					this.#owner(owner),
+					budgetMs,
+					known !== undefined && this.#task(known).kind === "command",
+				),
+			),
 			(lease) => this.#register(lease),
 			waitErrors,
 		);
@@ -747,7 +753,11 @@ export class TaskSupervisor {
 		const state = this.#task(task);
 		const errors = ["TaskTerminal", "OwnerClosing", "UnknownTask", "ObserverCancelled"] as const;
 		const registered = mapped(
-			this.#native.foregroundTask(state.native, state.owner.host.native, this.#agentBudget(state.owner, budgetMs)),
+			this.#native.foregroundTask(
+				state.native,
+				state.owner.host.native,
+				this.#agentBudget(state.owner, budgetMs, state.kind === "command"),
+			),
 			(lease) => this.#register(lease),
 			errors,
 		);
@@ -776,10 +786,13 @@ export class TaskSupervisor {
 	}
 	async initialObservation(task: TaskLease, policy?: C.WaitPolicy): Promise<C.Result<C.WaitOutcome, C.WaitError>> {
 		const state = this.#task(task);
+		policy ??= state.kind === "command" ? { kind: "foreground" } : undefined;
 		const registered = mapped(
 			this.#native.waitForTask(
 				state.native,
-				policy?.kind === "foreground" ? this.#agentBudget(state.owner, policy.budgetMs) : undefined,
+				policy?.kind === "foreground"
+					? this.#agentBudget(state.owner, policy.budgetMs, state.kind === "command")
+					: undefined,
 				state.owner.host.native,
 			),
 			(lease) => this.#register(lease),
@@ -850,10 +863,13 @@ export class TaskSupervisor {
 			watchErrors,
 		);
 	}
-	#agentBudget(owner: OwnerState, budgetMs?: number): number | undefined {
+	#agentBudget(owner: OwnerState, budgetMs?: number, command = false): number | undefined {
 		if (budgetMs !== undefined) return budgetMs;
 		const configuration = owner.host.binding.tasks?.wait;
-		return configuration?.kind === "until-settled" ? undefined : (configuration?.agentBudgetMs ?? 30000);
+		if (configuration?.kind === "until-settled") return undefined;
+		return command
+			? (configuration?.commandBudgetMs ?? COMMAND_FOREGROUND_BUDGET_MS)
+			: (configuration?.agentBudgetMs ?? 30000);
 	}
 	#register(lease: native.WaitLease): WaitLease {
 		const wait = new WaitCapability();

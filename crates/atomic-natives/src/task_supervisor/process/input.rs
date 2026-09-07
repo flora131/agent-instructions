@@ -132,6 +132,22 @@ impl InputQueue {
 	}
 }
 impl Actor {
+	pub(in crate::task_supervisor) fn resize_command(
+		&self,
+		task: &TaskLease,
+		columns: u16,
+		rows: u16,
+	) -> Door<()> {
+		let command = self.command_resource(task)?;
+		if command.finished.load(Ordering::Acquire) {
+			return Err(fail("TaskTerminal"));
+		}
+		if !matches!(command.intent.terminal, CommandTerminal::Pty { .. }) {
+			return Err(fail("OutputUnavailable"));
+		}
+		*command.resize.lock().unwrap() = Some((columns, rows));
+		Ok(())
+	}
 	pub(super) fn command_resource(&self, task: &TaskLease) -> Door<Arc<CommandTask>> {
 		let state = self.state.lock().unwrap();
 		let (oi, ti) = state.task(self.id, &task.cap, "UnknownTask")?;
@@ -175,7 +191,11 @@ impl Actor {
 	) -> Door<OutputPage> {
 		let resource = self.command_resource(task)?;
 		let start = range.start.parse::<u64>().map_err(|_| fail("OutputUnavailable"))?;
-		Ok(resource.output.lock().unwrap().page(start, range.maximum_bytes.into()))
+		let mut store = resource.output.lock().unwrap();
+		if resource.file_spool() {
+			store.refresh_spool();
+		}
+		Ok(store.page(start, range.maximum_bytes.into()))
 	}
 }
 

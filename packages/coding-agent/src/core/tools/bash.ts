@@ -26,7 +26,12 @@ import {
 	DEFAULT_BASH_INTERCEPTOR_RULES,
 } from "./bash-interceptor.ts";
 import { stripLeadingCdCommand } from "./bash-leading-cd.ts";
-import { executeNativePty } from "./bash-pty-native.ts";
+import {
+	executeNativePty,
+	executeSupervisedCommand,
+	type SupervisedCommandOwner,
+	type SupervisedCommandResult,
+} from "./bash-pty-native.js";
 import { applyBashSessionEnvironment, snapshotBashSessionEnvironment } from "./bash-session-environment.ts";
 import { OutputAccumulator } from "./output-accumulator.ts";
 import { getTextOutput, invalidArgText, str } from "./render-utils.ts";
@@ -63,6 +68,7 @@ export interface BashToolDetails {
 	truncation?: TruncationResult;
 	fullOutputPath?: string;
 	exitCode?: number | null;
+	observation?: import("../tasks/contracts.js").WaitOutcome;
 	timeoutSeconds?: number;
 	requestedTimeoutSeconds?: number;
 	wallTimeMs?: number;
@@ -92,9 +98,12 @@ export interface BashOperations {
 			env?: NodeJS.ProcessEnv;
 			pty?: boolean;
 		},
-	) => Promise<{ exitCode: number | null }>;
+	) => Promise<SupervisedCommandResult>;
 }
-export function createLocalBashOperations(options?: { shellPath?: string }): BashOperations {
+export function createLocalBashOperations(options?: {
+	shellPath?: string;
+	taskOwner?: SupervisedCommandOwner;
+}): BashOperations {
 	return {
 		exec: async (command, cwd, { onData, signal, timeout, env, pty }) => {
 			if (timeout !== undefined) validateExplicitTimeoutSeconds(timeout);
@@ -106,6 +115,7 @@ export function createLocalBashOperations(options?: { shellPath?: string }): Bas
 						timeout,
 						env,
 						shellPath: options?.shellPath,
+						taskOwner: options?.taskOwner,
 					});
 				} catch (error) {
 					const message = String(error instanceof Error ? error.message : error);
@@ -122,6 +132,13 @@ export function createLocalBashOperations(options?: { shellPath?: string }): Bas
 				throw new Error(`Working directory does not exist: ${cwd}\nCannot execute bash commands.`);
 			}
 			if (signal?.aborted) throw new Error("aborted");
+			if (options?.taskOwner)
+				return executeSupervisedCommand(
+					command,
+					cwd,
+					{ onData, signal, timeout, env, shellPath: options.shellPath, taskOwner: options.taskOwner },
+					false,
+				);
 			const commandFromStdin = shellConfig.commandTransport === "stdin";
 			const child = spawn(shellConfig.shell, commandFromStdin ? shellConfig.args : [...shellConfig.args, command], {
 				cwd,
@@ -192,6 +209,8 @@ export type BashInterceptor = (
 ) => Promise<BashInterceptorResult | undefined> | BashInterceptorResult | undefined;
 export interface BashToolOptions {
 	operations?: BashOperations;
+	/** Trusted host ownership; never supplied by model arguments. */
+	taskOwner?: SupervisedCommandOwner;
 	/** Expose the execution-time Atomic session snapshot and PI compatibility aliases. Default: true. */
 	exposeSessionEnvironment?: boolean;
 	/** Prefix prepended to every shell command before execution. */
@@ -357,7 +376,9 @@ export function createBashToolDefinition(
 	options?: BashToolOptions,
 	presentation: ShellToolPresentation = BASH_SHELL_PRESENTATION,
 ): ToolDefinition<typeof bashSchema, BashToolDetails | undefined, BashRenderState> {
-	const defaultOps = options?.operations ?? createLocalBashOperations({ shellPath: options?.shellPath });
+	const defaultOps =
+		options?.operations ??
+		createLocalBashOperations({ shellPath: options?.shellPath, taskOwner: options?.taskOwner });
 	const commandPrefix = options?.commandPrefix,
 		exposeSessionEnvironment = options?.exposeSessionEnvironment ?? true;
 	const spawnHook = options?.spawnHook;
@@ -544,6 +565,7 @@ export function createBashToolDefinition(
 			const appendStatus = (text: string, status: string) => `${text ? `${text}\n\n` : ""}${status}`;
 			try {
 				let exitCode: number | null;
+				let observation: SupervisedCommandResult["observation"];
 				try {
 					const result = await ops.exec(executionContext.command, executionContext.cwd, {
 						onData: handleData,
@@ -553,6 +575,7 @@ export function createBashToolDefinition(
 						pty: bashCommand.pty,
 					});
 					exitCode = result.exitCode;
+					observation = result.observation;
 				} catch (err) {
 					const snapshot = await finishOutput();
 					const { text } = formatOutput(snapshot, "");
@@ -567,6 +590,16 @@ export function createBashToolDefinition(
 				}
 				const snapshot = await finishOutput();
 				const { text: outputText, details } = formatOutput(snapshot);
+				if (observation?.kind === "yielded")
+					return {
+						content: [
+							{
+								type: "text",
+								text: appendStatus(outputText, `Command is still running (task ${observation.taskId}).`),
+							},
+						],
+						details: { ...withTiming(details), observation },
+					};
 				if (exitCode !== 0 && exitCode !== null) {
 					return {
 						content: [{ type: "text", text: appendStatus(outputText, `Command exited with code ${exitCode}`) }],
