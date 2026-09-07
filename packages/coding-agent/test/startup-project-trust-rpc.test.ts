@@ -3,9 +3,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "vitest";
-import { RpcClient } from "../src/modes/rpc/rpc-client.ts";
-import type { RpcExtensionUIRequest } from "../src/modes/rpc/rpc-types.ts";
-import { bunExecutable, cliPath } from "./cli-test-helpers.ts";
+import { RpcClient } from "../src/modes/rpc/rpc-client.js";
+import type { RpcExtensionUIRequest } from "../src/modes/rpc/rpc-types.js";
+import { bunExecutable, cliPath } from "./cli-test-helpers.js";
 
 // Real CLI startup, extension loading, and RPC input are structural work.
 const REAL_STARTUP_RPC_TIMEOUT_MS = 120_000;

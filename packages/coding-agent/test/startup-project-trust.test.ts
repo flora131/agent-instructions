@@ -3,13 +3,13 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "vitest";
-import { createAgentSessionFromServices, prepareAgentSessionServices } from "../src/core/agent-session-services.ts";
-import { noOpUIContext } from "../src/core/extensions/runner-ui.ts";
-import type { ProjectTrustContext, UIPromptEndEvent, UIPromptStartEvent } from "../src/core/extensions/types.ts";
-import { resolveProjectTrusted } from "../src/core/project-trust.ts";
-import { SessionManager } from "../src/core/session-manager.ts";
-import { SettingsManager } from "../src/core/settings-manager.ts";
-import { ProjectTrustStore } from "../src/core/trust-manager.ts";
+import { createAgentSessionFromServices, prepareAgentSessionServices } from "../src/core/agent-session-services.js";
+import { noOpUIContext } from "../src/core/extensions/runner-ui.js";
+import type { ProjectTrustContext, UIPromptEndEvent, UIPromptStartEvent } from "../src/core/extensions/types.js";
+import { resolveProjectTrusted } from "../src/core/project-trust.js";
+import { SessionManager } from "../src/core/session-manager.js";
+import { SettingsManager } from "../src/core/settings-manager.js";
+import { ProjectTrustStore } from "../src/core/trust-manager.js";
 
 // #2873: ordinary handlers must observe the actual startup wait with a live session.
 for (const decision of ["approve", "deny", "cancel", "error", "override", "no-ui"] as const) {

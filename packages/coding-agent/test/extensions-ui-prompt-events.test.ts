@@ -26,7 +26,7 @@ import {
 } from "../src/modes/interactive-engine/protocol.js";
 import "../src/modes/interactive/interactive-extension-runtime.ts";
 import "../src/modes/interactive/interactive-session-routing.ts";
-import "../src/modes/interactive/interactive-extension-context.ts";
+import "../src/modes/interactive/interactive-extension-context.js";
 import type { TrustSelectorComponent } from "../src/modes/interactive/components/trust-selector.js";
 import { initTheme } from "../src/modes/interactive/theme/theme.js";
 import { attachJsonlLineReader } from "../src/modes/rpc/jsonl.js";
