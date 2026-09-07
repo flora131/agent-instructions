@@ -17,9 +17,43 @@ See [examples/sdk/](https://github.com/bastani-inc/atomic/tree/main/packages/cod
 
 S1 adds an SDK-only task foundation in `src/core/tasks/contracts.ts` and
 `src/core/tasks/supervisor.ts`, backed by the native `TaskSupervisor`. It is an
-internal trusted-host integration surface, not a package-root export or a new CLI
-command. Existing subagent runners, workflow execution, bash/PTY and task UI do
-not use it yet.
+internal trusted-host integration surface, not a new CLI command. The package root
+exports the narrow `AgentTaskHost` adapter and its integration types, not the raw
+supervisor. Runtime-created subagent contexts use it; bash/PTY and task UI integration are separate slices.
+
+`AgentTaskHost` binds an actual trusted scope and mandatory `authorizeLaunch` guard.
+Its `startAgentTask(intent, operation, runnerFactory)` returns a Result containing
+`{taskId, lease}` after setup. Each launch supplies its own factory receiving the
+original `AbortSignal`, reference and `reportActivity` context. Return separate
+`result` and `cleanup` promises; yielding never replaces either promise, and only
+confirmed cleanup may report `reaped`. Exact operation replay never calls another factory.
+`observeAgentLaunch(taskId, policy?)` delegates to S1 initial observation; `waitForTask`,
+`resolveTask`, `cancelTask`, `watchOwnerTasks` and `close` remain owner-scoped S1 doors.
+Observation returns the exact Result/WaitOutcome DTO, not a new model response shape.
+These APIs are for trusted first-party hosts, never model-supplied ownership or permission.
+
+For already-admitted in-process tasks, the optional `taskExecution` runner hooks
+retain the original execution and cleanup promises. An exact Intercom commit
+yields the registered observation. In an explicit foreground group it also yields
+active sibling observations through the existing group signal, once per child;
+neither path detaches or completes those executions. Public launches in actual sessions use this bridge by default.
+
+Each workflow admission boundary allocates one process-private stage attempt identity.
+The actual stage session binds its original session/run/stage identity; fallback session
+replacement keeps that identity and the same lazily bound `bindAgentTaskHost` owner.
+Replacement disposal does not close tasks. Boundary sealing fences task admission and
+starts owner closure; generation close awaits independent cleanup and surfaces failure.
+Fresh boundaries have fresh identities, including restoration; history is not a restart
+capability. Public producers, durable callback joins and nonvisual completion intent/admission use this owner binding.
+
+When a task completion outbox is created from session history, it immediately retries
+unacknowledged terminal completion intents through the current admission boundary.
+It does not wait for another task to settle or recreate execution capabilities.
+Acknowledged intents are not redelivered. Failed admission keeps the original completion
+identity pending for retry; a closed boundary prevents admission.
+Top-level session initialization restores admission keys from persisted custom messages,
+so a crash after delivery is persisted but before its outbox acknowledgement does not
+deliver the same completion again.
 
 A host binds its actual session or workflow-stage scope with `bindHostSession`,
 provides launch authorization and a runner factory, then calls `openTaskOwner`.

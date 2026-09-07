@@ -163,6 +163,8 @@ export type OrchestrationContext = WorkflowStageOrchestrationContext;
 export type ExtensionMode = "tui" | "rpc" | "json" | "print";
 
 export interface ExtensionContext {
+	/** Internal actual-session binding; never populated from model arguments. */
+	getAgentTaskHost?(): import("../tasks/agent-adapter.js").AgentTaskHost;
 	/** Session-scoped orchestration policy for child runtimes such as workflow stages. */
 	readonly orchestrationContext?: OrchestrationContext;
 	/** Typed capability policy for an in-process subagent child, when this session is one. */

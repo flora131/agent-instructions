@@ -15,7 +15,7 @@
  * typescript code and cache the result for DBOS."
  */
 
-import { runCallback } from "@bastani/atomic";
+import { type AdmittedAgentTask, collectAgentTasks, runCallback, type TaskResult } from "@bastani/atomic";
 import { isWorkflowToolAbortError } from "../engine/workflow-tool-abort.js";
 import { sleepOrAbort } from "../runs/shared/retry.js";
 import { flattenTruncatedString } from "../shared/flat-string.js";
@@ -148,6 +148,75 @@ function captureCallbackSource(fn: unknown): string | undefined {
 	} catch {
 		return undefined;
 	}
+}
+
+/** Internal composition: wait expiry never becomes a durable result. */
+async function awaitTerminalTask(task: AdmittedAgentTask): Promise<TaskResult> {
+	for (;;) {
+		const observed = await task.host.waitForTask(task.taskId);
+		if (!observed.ok) throw new Error(`${observed.error.code}: ${observed.error.message}`);
+		if (observed.value.kind === "settled") return observed.value.result;
+	}
+}
+
+function replaceTaskObservations(
+	value: WorkflowSerializableValue,
+	terminal: Map<string, TaskResult>,
+): WorkflowSerializableValue {
+	if (!value || typeof value !== "object") return value;
+	if (Array.isArray(value)) {
+		const next = value.map((item) => replaceTaskObservations(item, terminal));
+		return next.some((item, index) => item !== value[index]) ? next : value;
+	}
+	const object = value as Record<string, WorkflowSerializableValue>;
+	if (object.kind === "yielded" && typeof object.taskId === "string") {
+		const result = terminal.get(object.taskId);
+		if (result) return { kind: "settled", taskId: object.taskId, result };
+	}
+	let changed = false;
+	const next: Record<string, WorkflowSerializableValue> = {};
+	for (const [key, item] of Object.entries(object)) {
+		next[key] = replaceTaskObservations(item, terminal);
+		changed ||= next[key] !== item;
+	}
+	if (
+		changed &&
+		next.details !== object.details &&
+		next.details &&
+		typeof next.details === "object" &&
+		!Array.isArray(next.details) &&
+		Array.isArray(object.content)
+	) {
+		const details = next.details as Record<string, WorkflowSerializableValue>;
+		const original = object.details as Record<string, WorkflowSerializableValue>;
+		if (details.taskResponse !== undefined && details.taskResponse !== original.taskResponse) {
+			const before = JSON.stringify(original.taskResponse);
+			next.content = object.content.map((part: WorkflowSerializableValue) => {
+				if (!part || typeof part !== "object" || Array.isArray(part)) return part;
+				const content = part as Record<string, WorkflowSerializableValue>;
+				return content.type === "text" && content.text === before
+					? { ...content, text: JSON.stringify(details.taskResponse) }
+					: part;
+			});
+		}
+	}
+	return changed ? next : value;
+}
+
+function invokeTaskCallback<T extends WorkflowSerializableValue>(
+	fn: (ctx: WorkflowToolContext) => Promise<T>,
+	signal: AbortSignal,
+): Promise<T> {
+	return collectAgentTasks(
+		signal,
+		() => fn({ signal }),
+		async (value, tasks) => {
+			if (tasks.length === 0) return value;
+			const terminal = new Map<string, TaskResult>();
+			await Promise.all(tasks.map(async (task) => terminal.set(task.taskId, await awaitTerminalTask(task))));
+			return replaceTaskObservations(value, terminal) as T;
+		},
+	);
 }
 
 /**
@@ -394,7 +463,7 @@ async function executeTimedToolAttempt<T extends WorkflowSerializableValue>(
 	const attemptSignal = AbortSignal.any([baseSignal, timeoutController.signal]);
 	return runCallback({ kind: "workflow.ctx_tool", name: toolName, runId }, async () => {
 		const callbackResult: Promise<ToolCallbackAttemptResult<T>> = Promise.resolve()
-			.then(() => fn({ signal: attemptSignal }))
+			.then(() => invokeTaskCallback(fn, attemptSignal))
 			.then(
 				(value) => ({ kind: "value" as const, value }),
 				(error: unknown) => ({ kind: "error" as const, error }),
@@ -466,7 +535,7 @@ async function executeLiveToolInvocation<T extends WorkflowSerializableValue>(
 				const callback =
 					options?.timeoutMs === undefined
 						? runCallback({ kind: "workflow.ctx_tool", name, runId: input.workflowId }, () =>
-								fn({ signal: toolSignal }),
+								invokeTaskCallback(fn, toolSignal),
 							)
 						: executeTimedToolAttempt(name, input.workflowId, fn, toolSignal, options.timeoutMs);
 				return callback.catch((error: unknown) => {

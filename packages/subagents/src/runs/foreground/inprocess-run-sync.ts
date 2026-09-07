@@ -306,9 +306,10 @@ export async function runSingleInProcess(
 		admission.admitted,
 		{ model: resolvedCandidate?.model, modelId: candidate, thinkingLevel: spec.thinkingLevel },
 		{
-			abort: options.signal ?? neverAbort,
+			abort: options.taskExecution?.signal ?? options.signal ?? neverAbort,
 			interrupt: options.interruptSignal ?? neverAbort,
 		},
+		options.taskExecution,
 	);
 	if (options.onUpdate) {
 		const launchModel = running.currentModel ?? candidate;

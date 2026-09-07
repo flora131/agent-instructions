@@ -37,6 +37,8 @@ export type BurstTaskParam = TaskParam & {
 export interface SubagentParamsLike {
 	action?: (typeof SUBAGENT_ACTIONS)[number];
 	id?: string;
+	wait?: import("@bastani/atomic").WaitPolicy;
+	budgetMs?: number;
 	runId?: string;
 	agent?: string;
 	task?: string;

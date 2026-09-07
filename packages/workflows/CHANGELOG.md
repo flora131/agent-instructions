@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Same-name prompt/tool nodes no longer cause valid duplicate agent matches to be refused as non-agents. Live `ask` retains ambiguity diagnostics and name-based `send` retains sticky agent delivery ([#2895](https://github.com/bastani-inc/atomic/pull/2895)).
 - Preserve an ordinary stage's complete output artifact when a follow-up clarification arrives before completion. Completed answers from the same prompt generation remain ordered supplements, including executor continuations and close-time delivery, without copying earlier history or tool progress. Accepted answers survive context compaction and model fallback during a continuation; failed attempts cannot discard an earlier successful report. Tree navigation cannot import historical answers, and generation close stops capture of later retained-session chat. Completed artifact receipts stay stable under repeated finalization; structured output keeps its existing capture contract.
 - Discard provisional artifact answers from each failed same-model retry, preserving earlier accepted reports and only publishing the successful retry's answers.
+- Durable tool callbacks now wait for agent tasks they admit to reach terminal results before checkpointing. Yielded observations are replaced with terminal observations without changing the cancellation-before-persistence or commit-wins fences ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

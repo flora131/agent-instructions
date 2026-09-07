@@ -24,6 +24,7 @@ import {
 	SubagentControl,
 } from "@bastani/atomic-natives";
 import type { Api, Model } from "@bastani/pi-ai/compat";
+import type { Cleanup } from "../../../../coding-agent/src/core/tasks/contracts.js";
 import type { AgentConfig } from "../../agents/agent-types.js";
 import {
 	buildSkillInjection,
@@ -38,6 +39,7 @@ import {
 	type ArtifactPaths,
 	DEFAULT_MAX_OUTPUT,
 	type MaxOutputConfig,
+	type TaskExecutionHooks,
 	truncateOutput,
 } from "../../shared/types.js";
 import {
@@ -79,12 +81,16 @@ export interface TestSessionOptions {
 	readonly sessionThinkingLevel?: string;
 	/** Test-only session events emitted in order after the initial agent_start event. */
 	readonly events?: readonly AgentSessionEvent[];
+	/** Deterministic events before the held prompt gate, for continuity scenarios. */
+	readonly beforeGateEvents?: readonly AgentSessionEvent[];
 	/** Seed an earlier assistant message so abort recovery can find real text. */
 	readonly seededAssistantText?: string;
 	/** After abort, append a thinking-only aborted message with no text. */
 	readonly thinkingOnlyOnAbort?: boolean;
 	/** Emit the fallback event before the prompt gate so abort can preserve live fallback metadata. */
 	readonly fallbackBeforeGate?: boolean;
+	/** Test-only disposal barrier/failure injection. */
+	readonly dispose?: () => void | Promise<void>;
 }
 
 export interface ChildSpec {
@@ -456,6 +462,7 @@ function createTestSession(sessionManager: SessionManager, spec: ChildSpec): Age
 				appendAssistant([{ type: "text", text: lastAssistantText }], "stop");
 			}
 			if (testOptions.fallbackBeforeGate) emitFallback();
+			for (const event of testOptions.beforeGateEvents ?? []) for (const listener of listeners) listener(event);
 			if (testOptions.promptGate) {
 				const gateResult = await Promise.race([
 					testOptions.promptGate.then(() => "released" as const),
@@ -502,7 +509,7 @@ function createTestSession(sessionManager: SessionManager, spec: ChildSpec): Age
 			tokens: zeroTokens,
 			cost: 0,
 		}),
-		dispose: () => {},
+		dispose: testOptions.dispose ?? (() => {}),
 	} as unknown as AgentSession;
 }
 
@@ -797,6 +804,8 @@ export class SubagentControlRuntime {
 		candidate: ModelCandidate,
 		signals: AttemptSignals,
 		onModelChange: ((model: string | undefined, thinking?: string) => void) | undefined,
+		taskHooks?: Pick<TaskExecutionHooks, "reportActivity">,
+		onCleanup?: (cleanup: Promise<Cleanup>) => void,
 	): Promise<AttemptOutcome> {
 		const candidateModelId = modelIdForCandidate(candidate, admitted.policy.model);
 		const configuredThinking = candidate.thinkingLevel ?? admitted.policy.thinkingLevel;
@@ -988,9 +997,16 @@ export class SubagentControlRuntime {
 				progressState.lastActivityAt = now;
 				onProgress({ ...progressState, recentTools: [...progressState.recentTools] });
 			};
+			let activitySequence = 0;
 			unsubscribe = session.subscribe((event) => {
 				writeEvent(admitted.spec.artifactJsonlPath, event);
 				const emission = progressEmissionFor(event.type);
+				if (event.type === "tool_execution_start") {
+					taskHooks?.reportActivity({
+						reportId: `tool-${++activitySequence}`,
+						change: { kind: "action", tool: event.toolName, text: `Running ${event.toolName}` },
+					});
+				}
 				if (event.type === "agent_start") {
 					this.native.publishChildStatus(admitted.identity.path, nativeStatus("running"));
 				} else if (event.type === "tool_execution_start") {
@@ -1137,10 +1153,32 @@ export class SubagentControlRuntime {
 			} catch {
 				// Persistence teardown must not replace the attempt result.
 			}
-			try {
-				session?.dispose();
-			} catch {
-				// Session teardown must not replace the attempt result.
+			if (onCleanup) {
+				onCleanup(
+					(async (): Promise<Cleanup> => {
+						try {
+							await session?.dispose();
+							return { kind: "reaped" };
+						} catch (error) {
+							return {
+								kind: "failed",
+								resources: [
+									{
+										resource: "agent-session",
+										code: "CleanupFailed",
+										message: error instanceof Error ? error.message : String(error),
+									},
+								],
+							};
+						}
+					})(),
+				);
+			} else {
+				try {
+					session?.dispose();
+				} catch {
+					// Session teardown must not replace the attempt result.
+				}
 			}
 			if (this.attemptTokens.get(admitted.identity.path) === token)
 				this.attemptTokens.delete(admitted.identity.path);
@@ -1149,7 +1187,12 @@ export class SubagentControlRuntime {
 		}
 	}
 
-	startAttempt(admitted: AdmittedChild, candidate: ModelCandidate, signals: AttemptSignals): RunningAttempt {
+	startAttempt(
+		admitted: AdmittedChild,
+		candidate: ModelCandidate,
+		signals: AttemptSignals,
+		taskHooks?: TaskExecutionHooks,
+	): RunningAttempt {
 		const initialModel = modelIdForCandidate(candidate, admitted.policy.model);
 		const initialThinking = initialThinkingForAttempt(
 			initialModel,
@@ -1171,10 +1214,22 @@ export class SubagentControlRuntime {
 				envelope: "uninitialized",
 			}),
 		};
-		running.promise = this.runChildAttempt(admitted, candidate, signals, (model, thinking) => {
-			running.currentModel = model;
-			running.currentThinking = thinking;
-		}).then((result) => {
+		let cleanup: Promise<Cleanup> = Promise.resolve({ kind: "reaped" });
+		running.promise = this.runChildAttempt(
+			admitted,
+			candidate,
+			signals,
+			(model, thinking) => {
+				running.currentModel = model;
+				running.currentThinking = thinking;
+			},
+			taskHooks,
+			taskHooks
+				? (result) => {
+						cleanup = result;
+					}
+				: undefined,
+		).then((result) => {
 			running.status = result.status;
 			this.runningAttempts.delete(running.id);
 			return result;
@@ -1182,6 +1237,13 @@ export class SubagentControlRuntime {
 		running.terminate = (cause) => this.terminateRunningAttempt(running, cause);
 		running.promise.catch(() => undefined);
 		this.runningAttempts.set(running.id, running);
+		taskHooks?.onExecution({
+			result: running.promise,
+			cleanup: running.promise.then(
+				() => cleanup,
+				() => cleanup,
+			),
+		});
 		return running;
 	}
 

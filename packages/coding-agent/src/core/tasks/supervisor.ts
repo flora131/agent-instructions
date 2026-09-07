@@ -1,8 +1,10 @@
 import { AsyncResource } from "node:async_hooks";
-import * as native from "@bastani/atomic-natives";
+import type * as native from "@bastani/atomic-natives";
+import { createModuleRequire } from "../../utils/module-require.ts";
 import { COMMAND_FOREGROUND_BUDGET_MS } from "./command-output.js";
 import type * as C from "./contracts.js";
 
+export const DEFAULT_AGENT_WAIT_BUDGET_MS = 30000;
 /** These objects are live authority, not DTOs, restart tokens or model arguments. */
 class Capability {
 	#live = true;
@@ -49,6 +51,7 @@ export type TrustedTaskHost = {
 	/** The existing host/tool refusal throws here, before native admission. */
 	authorizeCommandLaunch?(intent: C.CommandIntent): void;
 	authorizeLaunch(intent: C.AgentIntent): void;
+	onTaskSettled?(ref: C.NativeTaskRef, receipt: C.SettlementReceipt): void;
 	createRunner(context: FakeRunnerContext, intent: C.AgentIntent): FakeExecution;
 };
 type HostState = { native: native.HostSession; binding: TrustedTaskHost };
@@ -500,7 +503,7 @@ export class TaskSubscription {
 }
 
 export class TaskSupervisor {
-	#native = new native.TaskSupervisor();
+	#native = new (createModuleRequire(import.meta.url)("@bastani/atomic-natives") as typeof native).TaskSupervisor();
 	#hosts = environment.hosts;
 	#owners = environment.owners;
 	#tasks = environment.tasks;
@@ -626,6 +629,7 @@ export class TaskSupervisor {
 		owner: OwnerLease,
 		intent: C.AgentIntent,
 		operation: C.OperationId,
+		schedule?: (dispatch: () => Promise<void>) => void,
 	): Promise<C.Result<TaskLease, C.StartFailure>> {
 		const state = this.#owner(owner);
 		state.host.binding.authorizeLaunch(intent);
@@ -640,8 +644,6 @@ export class TaskSupervisor {
 		const id = ref.value.taskId as C.TaskId;
 		const existing = state.tasks.get(id);
 		if (existing) return { ok: true, value: existing };
-		const runner = mapped(this.#native.claimTaskRunner(admitted.value), (lease) => lease, startErrors);
-		if (!runner.ok) return runner;
 		const task = new TaskCapability();
 		Object.freeze(task);
 		const taskState: TaskState = {
@@ -652,59 +654,79 @@ export class TaskSupervisor {
 		};
 		this.#tasks.set(task, taskState);
 		state.tasks.set(id, task);
-		let execution: FakeExecution;
-		try {
-			execution = state.host.binding.createRunner(
-				{
-					ref: reference(taskState.ref),
-					signal: taskState.controller.signal,
-					reportActivity: (report) =>
-						mapped(this.#native.reportTaskActivity(runner.value, report), reportReceipt, reportErrors),
-				},
-				intent,
-			);
-		} catch (error) {
-			const message = rejectionMessage(error);
-			execution = {
-				result: Promise.resolve({ kind: "failed", code: "SpawnFailed", message }),
-				cleanup: Promise.resolve({
+		const dispatch = AsyncResource.bind(async () => {
+			if (taskState.controller.signal.aborted) return;
+			const runner = mapped(this.#native.claimTaskRunner(admitted.value), (lease) => lease, startErrors);
+			if (!runner.ok) throw new Error(`${runner.error.code}: ${runner.error.message}`);
+			let execution: FakeExecution;
+			try {
+				execution = state.host.binding.createRunner(
+					{
+						ref: reference(taskState.ref),
+						signal: taskState.controller.signal,
+						reportActivity: (report) =>
+							mapped(this.#native.reportTaskActivity(runner.value, report), reportReceipt, reportErrors),
+					},
+					intent,
+				);
+			} catch (error) {
+				const message = rejectionMessage(error);
+				execution = {
+					result: Promise.resolve({ kind: "failed", code: "SpawnFailed", message }),
+					cleanup: Promise.resolve({
+						kind: "failed",
+						resources: [{ resource: "fake-runner-setup", code: "CleanupUnconfirmed", message }],
+					}),
+				};
+			}
+			const outcome = execution.result
+				.catch((error) => ({ kind: "failed" as const, code: "RunnerFailed", message: rejectionMessage(error) }))
+				.then((result) => {
+					return mapped(
+						this.#native.reportRunnerOutcome(runner.value, result),
+						(receipt) => {
+							state.host.binding.onTaskSettled?.(taskState.ref, {
+								taskId: receipt.taskId as C.TaskId,
+								cursor: cursor(receipt.cursor),
+								result: taskResult(receipt.result),
+								completionId: receipt.completionId,
+							});
+						},
+						reportErrors,
+					);
+				});
+			const cleanup = execution.cleanup.catch(
+				(error): C.Cleanup => ({
 					kind: "failed",
-					resources: [{ resource: "fake-runner-setup", code: "CleanupUnconfirmed", message }],
+					resources: [{ resource: "fake-runner", code: "CleanupFailed", message: rejectionMessage(error) }],
 				}),
-			};
-		}
-		const outcome = execution.result
-			.catch((error) => ({ kind: "failed" as const, code: "RunnerFailed", message: rejectionMessage(error) }))
-			.then((result) => {
-				return mapped(this.#native.reportRunnerOutcome(runner.value, result), () => undefined, reportErrors);
-			});
-		const cleanup = execution.cleanup.catch(
-			(error): C.Cleanup => ({
-				kind: "failed",
-				resources: [{ resource: "fake-runner", code: "CleanupFailed", message: rejectionMessage(error) }],
-			}),
-		);
-		taskState.execution = cleanup.then(async (evidence) => {
-			// Natural reaping follows its outcome; cancellation needs only confirmed stop.
-			// A result may never arrive after abort, including when cleanup arrived first.
-			const signal = taskState.controller.signal;
-			let stopped!: () => void;
-			const cancelled = new Promise<undefined>((resolve) => {
-				stopped = () => resolve(undefined);
-				if (signal.aborted) stopped();
-				else signal.addEventListener("abort", stopped, { once: true });
-			});
-			const reported = await Promise.race([outcome, cancelled]).finally(() => {
-				signal.removeEventListener("abort", stopped);
-			});
-			const acknowledged = mapped(
-				this.#native.acknowledgeTaskCleanup(runner.value, evidence),
-				(cleanup) => cleanup,
-				reportErrors,
 			);
-			if (reported && !reported.ok && !(signal.aborted && reported.error.code === "ReportConflict")) return reported;
-			return acknowledged;
+			taskState.execution = cleanup.then(async (evidence) => {
+				// Natural reaping follows its outcome; cancellation needs only confirmed stop.
+				// A result may never arrive after abort, including when cleanup arrived first.
+				const signal = taskState.controller.signal;
+				let stopped!: () => void;
+				const cancelled = new Promise<undefined>((resolve) => {
+					stopped = () => resolve(undefined);
+					if (signal.aborted) stopped();
+					else signal.addEventListener("abort", stopped, { once: true });
+				});
+				const reported = await Promise.race([outcome, cancelled]).finally(() => {
+					signal.removeEventListener("abort", stopped);
+				});
+				const acknowledged = mapped(
+					this.#native.acknowledgeTaskCleanup(runner.value, evidence),
+					(cleanup) => cleanup,
+					reportErrors,
+				);
+				if (reported && !reported.ok && !(signal.aborted && reported.error.code === "ReportConflict"))
+					return reported;
+				return acknowledged;
+			});
+			await taskState.execution;
 		});
+		if (schedule) schedule(dispatch);
+		else void dispatch();
 		// Setup is complete. Do not await execution; ready terminal microtasks may win observation.
 		await Promise.resolve();
 		return { ok: true, value: task };
@@ -728,6 +750,15 @@ export class TaskSupervisor {
 		);
 		return registered.ok ? this.observeTaskWait(registered.value) : registered;
 	}
+	/** Resolve only a task admitted under this live owner; IDs alone confer no authority. */
+	lookupTask(owner: OwnerLease, taskId: C.TaskId): C.Result<TaskLease, C.WaitError> {
+		const state = this.#owner(owner);
+		const found = mapped(this.#native.lookupTask(state.native, taskId), () => state.tasks.get(taskId), waitErrors);
+		if (!found.ok) return found;
+		if (!found.value) return { ok: false, error: { code: "UnknownTask", message: "No agent runner bound to task" } };
+		return { ok: true, value: found.value };
+	}
+
 	async waitForTaskId(
 		owner: OwnerLease,
 		taskId: C.TaskId,
@@ -785,7 +816,11 @@ export class TaskSupervisor {
 	disposeTaskWait(wait: WaitLease): C.Result<void, C.WaitError> {
 		return mapped(this.#native.disposeTaskWait(this.#wait(wait).native), () => undefined, waitErrors);
 	}
-	async initialObservation(task: TaskLease, policy?: C.WaitPolicy): Promise<C.Result<C.WaitOutcome, C.WaitError>> {
+	async initialObservation(
+		task: TaskLease,
+		policy?: C.WaitPolicy,
+		onRegistered?: (wait: WaitLease) => void,
+	): Promise<C.Result<C.WaitOutcome, C.WaitError>> {
 		const state = this.#task(task);
 		policy ??= state.kind === "command" ? { kind: "foreground" } : undefined;
 		const registered = mapped(
@@ -800,6 +835,7 @@ export class TaskSupervisor {
 			waitErrors,
 		);
 		if (!registered.ok) return registered;
+		onRegistered?.(registered.value);
 		if (policy?.kind !== "foreground")
 			this.yieldTaskWait(registered.value, policy ? "explicit" : "default-background");
 		return this.observeTaskWait(registered.value);
@@ -870,7 +906,7 @@ export class TaskSupervisor {
 		if (configuration?.kind === "until-settled") return undefined;
 		return command
 			? (configuration?.commandBudgetMs ?? COMMAND_FOREGROUND_BUDGET_MS)
-			: (configuration?.agentBudgetMs ?? 30000);
+			: (configuration?.agentBudgetMs ?? DEFAULT_AGENT_WAIT_BUDGET_MS);
 	}
 	#register(lease: native.WaitLease): WaitLease {
 		const wait = new WaitCapability();
