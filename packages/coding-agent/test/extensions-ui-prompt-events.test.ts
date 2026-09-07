@@ -24,8 +24,8 @@ import {
 	type InteractiveEngineCommand,
 	parseInteractiveEngineCommand,
 } from "../src/modes/interactive-engine/protocol.js";
-import "../src/modes/interactive/interactive-extension-runtime.ts";
-import "../src/modes/interactive/interactive-session-routing.ts";
+import "../src/modes/interactive/interactive-extension-runtime.js";
+import "../src/modes/interactive/interactive-session-routing.js";
 import "../src/modes/interactive/interactive-extension-context.js";
 import type { TrustSelectorComponent } from "../src/modes/interactive/components/trust-selector.js";
 import { initTheme } from "../src/modes/interactive/theme/theme.js";
