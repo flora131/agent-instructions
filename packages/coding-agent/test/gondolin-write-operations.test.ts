@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import {
 	access,
 	lstat,
@@ -23,13 +24,53 @@ import * as atomic from "../src/index.ts";
 
 const guest = { dir: "", race: false, dangling: false };
 
+// The real SDK resolves paths on the host, independently of the example's path import.
+// Project only operation operands back into the fixture's guest namespace, not tool logic.
+function toolPathToGuest(toolPath: string, hostPaths = path): string {
+	assert.ok(hostPaths.isAbsolute(toolPath), `Expected an absolute tool path: ${toolPath}`);
+	const suffix = hostPaths.relative(hostPaths.parse(toolPath).root, toolPath);
+	return path.posix.join("/", ...suffix.split(hostPaths.sep));
+}
+
+function guestOperations<T extends object>(operations: T): T {
+	return Object.fromEntries(
+		Object.entries(operations).map(([name, operation]) => [
+			name,
+			(filePath: string, ...args: unknown[]) => operation(toolPathToGuest(filePath), ...args),
+		]),
+	) as T;
+}
+
+function guestToHost(guestPath: string, hostDir: string, hostPaths = path): string {
+	for (const root of ["/workspace", "/data/workspace", "/native"]) {
+		if (guestPath === root || guestPath.startsWith(`${root}/`)) {
+			const suffix = path.posix.relative(root, guestPath);
+			assert.ok(suffix !== ".." && !suffix.startsWith("../"), `Escaping guest path: ${guestPath}`);
+			return hostPaths.join(hostDir, root === "/native" ? "native" : "", ...suffix.split("/"));
+		}
+	}
+	throw new Error(`Unmapped guest path: ${guestPath}`);
+}
+
+function fixtureShell(): string {
+	if (process.platform !== "win32") return "/bin/sh";
+	// Do not pick up Windows' WSL sh/bash launcher. CI provides Git for Windows.
+	const gitPaths = spawnSync("where.exe", ["git.exe"], { encoding: "utf8" }).stdout?.trim().split(/\r?\n/) ?? [];
+	const candidates = [
+		...gitPaths.filter(Boolean).map((git) => path.resolve(path.dirname(git), "../bin/bash.exe")),
+		...[process.env.ProgramFiles, process.env["ProgramFiles(x86)"]]
+			.filter((root): root is string => Boolean(root))
+			.map((root) => join(root, "Git", "bin", "bash.exe")),
+	];
+	const shell = candidates.find((candidate) => existsSync(candidate));
+	assert.ok(shell, "Gondolin shell fixture requires an installed Git Bash on Windows");
+	return shell;
+}
+
+const shell = fixtureShell();
+
 function gondolinFixture() {
-	const local = (path: string) =>
-		path
-			.replace("/data/workspace", guest.dir)
-			.replace("/workspace", guest.dir)
-			.replace("/native", join(guest.dir, "native"))
-			.replaceAll("\\", "/");
+	const local = (guestPath: string) => guestToHost(guestPath, guest.dir);
 	return {
 		RealFSProvider: class {
 			async open(path: string, flags: string) {
@@ -61,7 +102,12 @@ function gondolinFixture() {
 					writeFile: (path: string, content: string) => writeFile(local(path), content),
 				},
 				exec: async (args: string[], options?: { stdin?: string | Buffer }) => {
-					const result = spawnSync("sh", args.slice(1).map(local), {
+					assert.equal(args[0], "/bin/sh");
+					assert.ok(args[1] === "-c" || args[1] === "-lc");
+					// Keep the options, script, and $0 verbatim; only $1... are guest paths.
+					// Git Bash accepts drive-qualified forward-slash paths, unlike WSL sh.
+					const operands = args.slice(4).map((operand) => local(operand).split(path.sep).join("/"));
+					const result = spawnSync(shell, [...args.slice(1, 4), ...operands], {
 						cwd: guest.dir,
 						input: options?.stdin,
 						encoding: "utf8",
@@ -88,11 +134,21 @@ const compiled = stripTypeScriptTypes(source)
 	.replace(/import \{([\s\S]*?)\} from "@earendil-works\/gondolin";/, "const {$1} = deps.gondolin;")
 	.replace("export default function", "return function");
 const gondolinExtension: (api: ExtensionAPI) => void = new Function("deps", compiled)({
-	path,
+	path: path.posix,
 	gondolin: gondolinFixture(),
-	// The preexisting unused grep factory is absent from the current SDK. Do not
-	// replace read/write/edit or conceal this unrelated example startup defect.
-	atomic: { ...atomic, createGrepTool: () => ({ name: "grep" }) },
+	// The preexisting unused grep factory is absent from the current SDK. Read/write/edit
+	// still run unchanged, including their shared observation store and exclusive creates.
+	atomic: {
+		...atomic,
+		createGrepTool: () => ({ name: "grep" }),
+		createCodingTools: (cwd: string, options: atomic.ToolsOptions) =>
+			atomic.createCodingTools(cwd, {
+				...options,
+				read: { ...options.read, operations: guestOperations(options.read!.operations!) },
+				write: { ...options.write, operations: guestOperations(options.write!.operations!) },
+				edit: { ...options.edit, operations: guestOperations(options.edit!.operations!) },
+			}),
+	},
 });
 
 async function session() {
@@ -112,6 +168,48 @@ async function session() {
 	await start();
 	return { tools, ctx, restart: start };
 }
+
+describe("Gondolin fixture path boundaries", () => {
+	it("maps anchored guest roots to host-native paths under Windows semantics (not Windows execution)", () => {
+		const hostDir = "D:\\temp\\workspace\\fixture space";
+		for (const root of ["/workspace", "/data/workspace", "/native"]) {
+			const destination = root === "/native" ? path.win32.join(hostDir, "native") : hostDir;
+			assert.equal(guestToHost(root, hostDir, path.win32), destination);
+			assert.equal(
+				guestToHost(`${root}/nested/workspace/native/file.txt`, hostDir, path.win32),
+				path.win32.join(destination, "nested/workspace/native/file.txt"),
+			);
+		}
+	});
+
+	it("projects SDK-resolved Windows paths into guest roots before adapter routing (semantics only)", () => {
+		for (const root of ["/workspace", "/data/workspace", "/native"]) {
+			const resolved = path.win32.resolve("C:\\checkout", `${root}/nested/file.txt`);
+			const guestPath = toolPathToGuest(resolved, path.win32);
+			assert.equal(guestPath, `${root}/nested/file.txt`);
+			assert.equal(
+				guestToHost(guestPath, "D:\\temp\\fixture", path.win32),
+				path.win32.join("D:\\temp\\fixture", root === "/native" ? "native" : "", "nested/file.txt"),
+			);
+		}
+	});
+
+	it("rejects lookalike, embedded, drive-prefixed, and escaping guest roots", () => {
+		for (const guestPath of [
+			"/workspace-other/file.txt",
+			"/other/workspace/file.txt",
+			"/C:/workspace/file.txt",
+			"/workspace/../outside.txt",
+		]) {
+			assert.throws(() => guestToHost(guestPath, "/tmp/fixture", path.posix));
+			assert.throws(() => guestToHost(guestPath, "D:\\temp\\fixture", path.win32));
+		}
+		assert.equal(
+			guestToHost("/data/workspace/nested/native/file.txt", "/tmp/workspace/fixture", path.posix),
+			"/tmp/workspace/fixture/nested/native/file.txt",
+		);
+	});
+});
 
 describe("Gondolin write target observations", () => {
 	beforeEach(async () => {
@@ -224,6 +322,24 @@ describe("Gondolin write target observations", () => {
 				.get("write")!
 				.execute("directory", { path: "directory", content: "forbidden" }, undefined, undefined, ctx),
 			(error: Error) => error instanceof FileMutationConflict && error.reason === "target_unreadable",
+		);
+	});
+
+	it("executes shell scripts verbatim and translates only positional path operands", async () => {
+		const vm = await gondolinFixture().VM.create();
+		const result = await vm.exec([
+			"/bin/sh",
+			"-c",
+			'printf "/workspace literal\\n"; printf "%s" "$2" > "$1"',
+			"sh",
+			"/workspace/shell output.txt",
+			"/native",
+		]);
+		assert.equal(result.exitCode, 0, result.stderr);
+		assert.equal(result.stdout, "/workspace literal\n");
+		assert.equal(
+			await readFile(join(guest.dir, "shell output.txt"), "utf8"),
+			join(guest.dir, "native").replaceAll("\\", "/"),
 		);
 	});
 });
