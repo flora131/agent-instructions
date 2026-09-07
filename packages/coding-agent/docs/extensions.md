@@ -29,6 +29,8 @@ Extensions are TypeScript modules that extend Atomic's behavior. They can subscr
 
 See [examples/extensions/](https://github.com/bastani-inc/atomic/tree/main/packages/coding-agent/examples/extensions) for working implementations.
 
+Atomic also ships an environment-gated [Herdr reporter](/herdr). It combines settled agent activity, extension prompt events, and observed workflow roots under one parent pane owner. It defers to loaded community or legacy reporters and can be disabled with `herdr.enabled` in settings.
+
 ## Table of Contents
 
 - [Startup and lazy discovery](#startup-and-lazy-discovery)

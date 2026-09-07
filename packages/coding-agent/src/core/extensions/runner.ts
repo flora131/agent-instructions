@@ -481,6 +481,7 @@ export class ExtensionRunner {
 	private createContextSource(): ExtensionCommandContextSource {
 		return {
 			assertActive: () => this.assertActive(),
+			getExtensionPaths: () => this.getExtensionPaths(),
 			observeWorkflowActivity: (observer) => this.runtime.workflowActivityHub.observeWorkflowActivity(observer),
 			getUIContext: () => this.uiContext,
 			getMode: () => this.mode,

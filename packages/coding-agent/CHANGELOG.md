@@ -5,6 +5,7 @@
 ### Added
 
 - Added host-side workflow activity observation with ordered snapshots, publisher epochs, bounded observer queues and diagnostics, plus workflow_lifecycle, workflow_activity_changed, workflow_stage_completed, and workflow_heartbeat extension hooks typed as `WorkflowLifecycleEvent`, `WorkflowActivityChangedEvent`, `WorkflowStageCompletedEvent`, and `WorkflowHeartbeatEvent`. Initialization-time publications are retained until runner binding. Publisher and observer leases are fenced on reload, including pending hook handlers when an earlier handler is awaiting. Workflow runtime publication is a separate integration ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).
+- Added the built-in Herdr reporter for eligible interactive panes, combining settled agent activity, approval prompts, and observed workflow roots under custom:atomic. Pane ownership and ordered sequences survive in-process reload/replacement; direct CLI delivery is serialized, coalesced, and bounded by a five-second timeout. Supports herdr.enabled opt-out, loaded reporter conflict deferral, and one-time parent session identity reporting. Documents Herdr 0.8.2 identity retention and message-display limitations ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).
 
 ### Fixed
 

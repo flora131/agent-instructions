@@ -26,6 +26,7 @@ import type {
 } from "./types.ts";
 export interface ExtensionContextSource {
 	observeWorkflowActivity: ExtensionContext["observeWorkflowActivity"];
+	getExtensionPaths?(): string[];
 	assertActive(): void;
 	getUIContext(): ExtensionUIContext;
 	getMode(): ExtensionMode;
@@ -112,6 +113,10 @@ export function copyScopedModels(scoped: readonly ScopedModel[]): readonly Scope
  */
 export function createExtensionContext(source: ExtensionContextSource): ExtensionContext {
 	return {
+		getExtensionPaths: () => {
+			source.assertActive();
+			return source.getExtensionPaths?.() ?? [];
+		},
 		get ui() {
 			source.assertActive();
 			return source.getUIContext();
