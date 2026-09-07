@@ -18,6 +18,7 @@
 - Preserved S1 caller strings losslessly across owner scopes, launch/report identity, activity, results and nested output/cleanup metadata; unpaired UTF-16 surrogates no longer become replacement characters or collapse distinct replays ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Bounded S1 activity replay identity to the latest 256 accepted IDs with SHA-256 payload hashes instead of retaining full report history. Evicted IDs are fresh reports subject to lifecycle guards; terminal reports and receipts remain retained for the task record's lifetime ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Allocated trusted S1 runner terminal identities atomically against the bounded activity window, so caller report IDs cannot consume the runner's settlement identity. Caller outcome conflicts, immutable terminal replay and cancellation precedence remain unchanged ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Prevented accepted `NaN` task wait budgets from panicking the native timer. Such waits use bounded sleep chunks until another observation or lifecycle action finishes them; finite budgets and infinities retain their existing behavior ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 
 ## [0.9.16] - 2026-08-29
 

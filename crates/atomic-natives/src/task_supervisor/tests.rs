@@ -513,6 +513,21 @@ fn timer_duration_preserves_default_wide_and_fractional_budgets() {
 	assert_eq!(timer_delay(f64::MAX, Duration::from_secs(86400)), Duration::from_secs(86400));
 }
 
+// RFC #2884: accepted NaN must not unwind scheduling or spin on a zero delay.
+#[test]
+fn timer_duration_handles_nan_without_changing_other_numeric_budgets() {
+	use super::waits::timer_delay;
+	for elapsed in [Duration::ZERO, Duration::from_secs(86400), Duration::MAX] {
+		for budget in [f64::NAN, -f64::NAN, f64::INFINITY, f64::MAX] {
+			assert_eq!(timer_delay(budget, elapsed), Duration::from_secs(86400));
+		}
+		for budget in [f64::NEG_INFINITY, -f64::MAX, -1.0, -0.0, 0.0, f64::from_bits(1)] {
+			assert_eq!(timer_delay(budget, elapsed), Duration::ZERO);
+		}
+	}
+	assert_eq!(timer_delay(0.5, Duration::from_micros(100)), Duration::from_micros(400));
+}
+
 // RFC #2884: every optional metric preserves numeric identity, alone and in combination.
 #[test]
 fn exact_metric_report_replay_and_snapshots() {

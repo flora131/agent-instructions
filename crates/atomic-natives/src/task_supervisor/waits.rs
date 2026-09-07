@@ -3,6 +3,11 @@ use super::*;
 // Scheduling chunks are not a budget cap: retain the original JS number and
 // recompute against monotonic elapsed time, even beyond Instant's date range.
 pub(super) fn timer_delay(budget_ms: f64, elapsed: Duration) -> Duration {
+	// NaN never satisfies the elapsed >= budget comparison. Keep it pending with
+	// the existing bounded sleep chunk, not a panicking conversion or a hot loop.
+	if budget_ms.is_nan() {
+		return Duration::from_secs(86400);
+	}
 	Duration::from_secs_f64(((budget_ms / 1000.0) - elapsed.as_secs_f64()).clamp(0.0, 86400.0))
 }
 

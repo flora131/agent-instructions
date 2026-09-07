@@ -47,6 +47,12 @@ authorizeLaunch, createRunner })`; `{ kind: "until-settled" }` disables timed yi
 Per-call budgets override settings, including zero for immediate yield. These settings
 apply to explicit foreground-first launch, live foregrounding and task-ID waits,
 never to a default independent launch. Wide numeric budgets are not narrowed to u32.
+Accepted `NaN` budgets (including configured `agentBudgetMs`) do not panic native
+scheduling. The implementation leaves such observations pending until explicit yield,
+settlement, observer disposal or owner closure: the elapsed comparison never reaches
+`NaN`. It uses bounded sleep chunks without rewriting the caller's budget. This is
+scheduling behavior, not a new finite-only input restriction or an RFC-mandated deadline;
+other numeric budgets and per-call precedence are unchanged.
 
 `await cancelTask(task, cause)` returns a Result containing a cancellation receipt
 and preserves the first accepted cause. `closeTaskOwner` seals admission before

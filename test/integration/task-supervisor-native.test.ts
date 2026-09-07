@@ -817,3 +817,13 @@ test("Node and Bun settle runner outcomes despite deterministic activity ID coll
 		assert.match(result.stdout.toString(), /REPORT COLLISIONS SETTLED 256 forced candidates/);
 	}
 });
+
+// RFC #2884: Tokio panics do not fail the child process, so stderr is part of the oracle.
+test("Node and Bun accept NaN wait budgets without native panics and retain observation cleanup", () => {
+	for (const runtime of [process.execPath, bunExecutable()]) {
+		const result = spawnSyncCollect([runtime, "--import", "jiti/register", "test/fixtures/task-s1-nan-budget.ts"]);
+		assert.equal(result.exitCode, 0, `${runtime}\n${result.stdout}\n${result.stderr}`);
+		assert.doesNotMatch(result.stderr.toString(), /panicked at|unhandled.*rejection/i, result.stderr.toString());
+		assert.match(result.stdout.toString(), /NAN BUDGET LIFECYCLE VERIFIED 2 native doors 6 facade configurations/);
+	}
+});
