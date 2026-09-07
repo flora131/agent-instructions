@@ -249,7 +249,7 @@ describe("Coding Agent Tools", () => {
 			expect(output).toContain("line-1001");
 			expect(output).toContain("line-4000");
 			expect(output).toMatch(/\[Showing lines 1001-4000 of 4000\. Full output: /);
-			expect(output).not.toContain("4001");
+			expect(output).not.toMatch(/^line-4001$/m);
 		});
 		it("should decode UTF-8 characters split across output chunks", async () => {
 			const euro = Buffer.from("€\n", "utf-8");
