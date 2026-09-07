@@ -248,6 +248,75 @@ test("re-running a quit run id publishes executing rather than stopping", async 
 	}
 });
 
+// #2891: stop ownership belongs to a live executor; requests against a settled or hydrated run own nothing.
+for (const shape of ["repeated quit after drain", "hydrated run without an executor"] as const) {
+	test(`${shape} leaves no stop ownership for a same-id re-execution`, async () => {
+		const store = createStore();
+		const hub = new WorkflowActivityHub();
+		const observation = createWorkflowObservation(store, hub.registerWorkflowActivityPublisher(), "owner");
+		const gates = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
+		const entered = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
+		let attempt = 0;
+		const definition = workflow({
+			name: "rerun-after-rejected-stop",
+			description: "",
+			inputs: {},
+			outputs: {},
+			run: async (ctx) => {
+				const index = attempt++;
+				await ctx.tool("hold", {}, async () => {
+					entered[index]!.resolve();
+					await gates[index]!.promise;
+					return "done";
+				});
+				return {};
+			},
+		});
+		let id: string;
+		try {
+			if (shape === "repeated quit after drain") {
+				const first = run(definition, {}, { store, durableBackend: new InMemoryDurableBackend() });
+				await entered[0]!.promise;
+				id = store.runs()[0]!.id;
+				const quitting = quitRun(id, { store, actor: "user" });
+				gates[0]!.resolve();
+				await quitting;
+				await first;
+				await quitRun(id, { store, actor: "user" });
+			} else {
+				id = "hydrated";
+				attempt = 1;
+				store.recordRunStart({ id, name: "hydrated", inputs: {}, stages: [], status: "running", startedAt: 1 });
+				const quit = await quitRun(id, { store, actor: "user" });
+				assert.equal(quit.ok, false);
+				const interrupt = await interruptRun(id, { store });
+				assert.equal(interrupt.ok, false);
+			}
+			const settled = hub.getSnapshotFrame();
+			assert.ok(settled.availability === "ready");
+			assert.equal(settled.roots[0]?.state, "idle");
+			store.removeRun(id);
+			const second = run(definition, {}, { store, durableBackend: new InMemoryDurableBackend(), runId: id });
+			try {
+				await entered[1]!.promise;
+				const rerun = hub.getSnapshotFrame();
+				assert.ok(rerun.availability === "ready");
+				assert.equal(rerun.roots[0]?.state, "working");
+				assert.equal(rerun.roots[0]?.reason, "executing");
+			} finally {
+				gates[1]!.resolve();
+				await second;
+			}
+			const finished = hub.getSnapshotFrame();
+			assert.ok(finished.availability === "ready");
+			assert.equal(finished.roots[0]?.state, "idle");
+		} finally {
+			for (const gate of gates) gate.resolve();
+			observation.dispose();
+		}
+	});
+}
+
 // #2891: failed workflows remain actionable without notification delivery.
 test("live workflow failure is blocked for manual intervention", async () => {
 	const store = createStore();

@@ -34,6 +34,12 @@ export class WorkflowObservationRuntime {
 		return this.recoveryDepth > 0;
 	}
 
+	/** A run going live owns its execution; any stop left behind by an earlier incarnation is stale. */
+	startRun(runId: string): void {
+		this.liveRunIds.add(runId);
+		this.stoppingRunIds.delete(runId);
+	}
+
 	finishRun(runId: string): void {
 		this.liveRunIds.delete(runId);
 		this.stoppingRunIds.delete(runId);
@@ -97,7 +103,8 @@ export class WorkflowObservationRuntime {
 	): void {
 		const run = this.runs().find((candidate) => candidate.id === runId);
 		if (!run) return;
-		if (action === "quit" || action === "kill" || action === "interrupt") this.stoppingRunIds.add(runId);
+		if ((action === "quit" || action === "kill" || action === "interrupt") && this.liveRunIds.has(runId))
+			this.stoppingRunIds.add(runId);
 		if (action === "resume") this.stoppingRunIds.delete(runId);
 		this.lifecycle({ kind: "run", runId, status: run.status, action }, attribution);
 		this.invalidate();
