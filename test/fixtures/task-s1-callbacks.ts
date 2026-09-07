@@ -61,28 +61,36 @@ for (const path of ["direct", "native-wake", "fallback-timer"] as const) {
 		let inNativeWake = false;
 		const drain = actor.drainOwnerTasks.bind(actor);
 		actor.drainOwnerTasks = (lease) => { drains++; return drain(lease); };
-		let watch: TaskSubscription;
+		let watch!: TaskSubscription;
+		let iterator!: AsyncIterator<C.NativeEvent>;
+		let first!: Promise<IteratorResult<C.NativeEvent>>;
+		const initialize = () => {
+			watch = new TaskSubscription(actor, initial, () => {});
+			watch.onReconcile = () => {
+				callbackCalls++;
+				if (inNativeWake) nativeReconciliations++;
+				throw thrown;
+			};
+			iterator = watch.events[Symbol.asyncIterator]();
+			first = iterator.next();
+		};
 		let seedNative = path === "native-wake";
 		const initial = value(actor.watchOwnerTasks(owner, (hint) => {
 			wakes++;
 			if (path !== "native-wake") return; // Simulates a lost hint, not a lost journal fact.
 			if (seedNative) {
 				seedNative = false;
-				// Guarantee dirty data inside the real native callback even if the poll ran first.
+				// RFC #2884: arm the fallback only after this real native wake has arrived.
+				// Otherwise a faster poll may consume the sole event before native scheduling.
+				initialize();
+				// Keep a second authentic delta queued for the native-path assertion.
 				value(actor.reportTaskActivity(runner, { reportId: "in-wake", change: { kind: "action", tool: "", text: "native" } }));
 			}
 			inNativeWake = true;
 			try { watch.wake(hint); } finally { inNativeWake = false; }
 		}));
-		watch = new TaskSubscription(actor, initial, () => {});
-		watch.onReconcile = () => {
-			callbackCalls++;
-			if (inNativeWake) nativeReconciliations++;
-			throw thrown;
-		};
+		if (path !== "native-wake") initialize();
 		try {
-			let iterator = watch.events[Symbol.asyncIterator]();
-			const first = iterator.next();
 			value(actor.reportTaskActivity(runner, { reportId: "first", change: { kind: "action", tool: "", text: " \r\n " } }));
 			if (path === "direct") assert.doesNotThrow(() => watch.drain());
 			await eventually(() => callbackCalls > 0 && watch.failure !== undefined);
@@ -120,7 +128,7 @@ for (const path of ["direct", "native-wake", "fallback-timer"] as const) {
 			assert.deepEqual(faults, [], "no unhandled exception or rejection");
 			count++;
 		} finally {
-			watch.dispose();
+			watch?.dispose();
 			const stopped = drains;
 			await sleep(60); // Observe more than two existing 25-ms fallback intervals after disposal.
 			assert.equal(drains, stopped, "disposed subscription retains no poll");
