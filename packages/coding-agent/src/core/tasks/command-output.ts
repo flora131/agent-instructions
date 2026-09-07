@@ -6,7 +6,7 @@ export const COMMAND_DETAIL_TAIL_BYTES = 8192;
 /** Observation expiry releases the caller, never the command process. */
 export const COMMAND_FOREGROUND_BUDGET_MS = 10000;
 
-/** File-spool watchdog uses actual file bytes and strict overflow, not a 32-bit cast. */
+/** Compare logical output bytes to the disk budget without a 32-bit cast. */
 export function commandSpoolExceedsCap(fileBytes: bigint, capBytes = BigInt(COMMAND_DISK_OUTPUT_CAP_BYTES)): boolean {
 	return fileBytes > capBytes;
 }
