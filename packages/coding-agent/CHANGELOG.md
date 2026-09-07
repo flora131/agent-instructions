@@ -5,9 +5,12 @@
 ### Added
 
 - Added host-side workflow activity observation with ordered snapshots, publisher epochs, bounded observer queues and diagnostics, plus workflow_lifecycle, workflow_activity_changed, workflow_stage_completed, and workflow_heartbeat extension hooks typed as `WorkflowLifecycleEvent`, `WorkflowActivityChangedEvent`, `WorkflowStageCompletedEvent`, and `WorkflowHeartbeatEvent`. Initialization-time publications are retained until runner binding. Publisher and observer leases are fenced on reload, including pending hook handlers when an earlier handler is awaiting. Workflow runtime publication is a separate integration ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).
+- Added `reason: "project_trust"` to `UIPromptStartEvent` and `UIPromptEndEvent` for the built-in `/trust` selector in both interactive modes, so status integrations can observe the wait. Isolated mode retains paired notifications until the current engine binds, keeping separate completed dialogs distinct without delaying the trust decision. ([#2873](https://github.com/bastani-inc/atomic/issues/2873))
 
 ### Fixed
 
+- Prepare resume trust before disposing the outgoing session, preserve it on failed preflight, and allow pending prompt observers up to 1,000 ms to settle without delaying dialog display or answers. Isolated resume uses child-local trust UI and forwards missing-directory overrides without serializing callbacks. ([#2873](https://github.com/bastani-inc/atomic/issues/2873))
+- Startup trust waits now reach existing prompt lifecycle handlers with a live session context, including isolated-engine and borrowed-source dialogs. Only trust-safe extensions load before authorization; approval retains their session and factories, starts newly authorized extensions once, and does not replay earlier waits. ([#2873](https://github.com/bastani-inc/atomic/issues/2873))
 - Intercom now hides internal workflow routing/control connections and refuses messages to non-agent recipients, including model-less `ctx.ui` prompts and `ctx.tool` nodes, without hiding agents busy in tools or awaiting human input. Connected agent aliases remain reachable after pending capability changes or stage completion, even with same-name non-agent nodes.
 - Preserved duplicate-agent routing beside same-name prompt/tool nodes, rejected malformed Intercom recipient purposes without breaking older hosts, and synchronized workflow roster-update completion with broker processing ([#2895](https://github.com/bastani-inc/atomic/pull/2895)).
 
