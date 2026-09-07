@@ -3,6 +3,8 @@ import { tmpdir } from "node:os";
 import * as path from "node:path";
 import { Container } from "@earendil-works/pi-tui";
 import { beforeAll, describe, expect, test, vi } from "vitest";
+import { createExtensionRuntime } from "../src/core/extensions/loader.js";
+import { ExtensionRunner } from "../src/core/extensions/runner.js";
 import { ProjectTrustStore } from "../src/core/trust-manager.ts";
 import { InteractiveMode } from "../src/modes/interactive/interactive-mode.ts";
 import { initTheme } from "../src/modes/interactive/theme/theme.ts";
@@ -124,6 +126,7 @@ describe("InteractiveMode.handleEvent model changes", () => {
 });
 
 describe("InteractiveMode /trust", () => {
+	// #2873: the host trust selector runs through the active session's prompt lifecycle.
 	test("uses the active runtime agentDir for saved decisions", () => {
 		const root = mkdtempSync(path.join(tmpdir(), "atomic-trust-selector-agent-dir-"));
 		try {
@@ -131,16 +134,23 @@ describe("InteractiveMode /trust", () => {
 			const runtimeAgentDir = path.join(root, "runtime-agent");
 			mkdirSync(cwd, { recursive: true });
 			mkdirSync(runtimeAgentDir, { recursive: true });
+			const extensionRunner = new ExtensionRunner([], createExtensionRuntime(), cwd, {} as never, {} as never);
 			let createdSelector: { handleInput(input: string): void } | undefined;
 			const fakeThis = {
 				sessionManager: { getCwd: () => cwd },
 				settingsManager: { isProjectTrusted: () => false },
-				runtimeHost: { services: { agentDir: runtimeAgentDir } },
+				runtimeHost: { session: { extensionRunner }, services: { agentDir: runtimeAgentDir } },
 				showStatus: vi.fn(),
 				ui: { requestRender: vi.fn() },
 				showSelector: vi.fn(
-					(factory: (done: () => void) => { component: { handleInput(input: string): void } }) => {
-						createdSelector = factory(vi.fn()).component;
+					(
+						factory: (done: () => void) => {
+							component: { handleInput(input: string): void };
+							dispose?: () => void;
+						},
+					) => {
+						const selector = factory(() => selector.dispose?.());
+						createdSelector = selector.component;
 					},
 				),
 			};
