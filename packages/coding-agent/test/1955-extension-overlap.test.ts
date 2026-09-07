@@ -14,6 +14,7 @@ import {
 import { resolveExtensionShortcuts } from "../src/core/extensions/runner-shortcuts.ts";
 import { DefaultResourceLoader } from "../src/core/resource-loader.ts";
 import type { ResourceLoader } from "../src/core/resource-loader-types.ts";
+import { SettingsManager } from "../src/core/settings-manager.ts";
 import { builtInExtensions } from "../src/extensions/index.ts";
 import type { ExtensionActions, ExtensionRuntime, RpcSessionState } from "../src/index.ts";
 
@@ -159,6 +160,27 @@ function createLoader(): DefaultResourceLoader {
 describe("inherited Pi resource overlap compatibility", () => {
 	beforeEach(setupFixture);
 	afterEach(restoreFixture);
+
+	it("keeps inherited collision precedence after an unrelated Atomic settings write (#2299)", async () => {
+		const settingsManager = SettingsManager.create(cwd, getAgentDir());
+		settingsManager.setTheme("dark");
+		await settingsManager.flush();
+
+		expect(JSON.parse(readFileSync(join(getAgentDir(), "settings.json"), "utf8"))).toEqual({ theme: "dark" });
+
+		const loader = createLoader();
+		await loader.reload();
+		const result = loader.getExtensions();
+		expect(result.errors).toEqual([]);
+		expect(
+			collectRegisteredTools(result.extensions).find((tool) => tool.definition.name === "shared-tool")?.definition
+				.description,
+		).toBe("bundled tool");
+		expect(result.extensions.some((extension) => extension.sourceInfo.configurationOrigin === "inherited-pi")).toBe(
+			true,
+		);
+		expect(readFileSync(legacySettingsPath, "utf8")).toBe(legacySettingsBytes);
+	});
 
 	it("keeps bundled exact-name registrations and all unrelated inherited resources without mutating Pi settings", async () => {
 		const loader = createLoader();

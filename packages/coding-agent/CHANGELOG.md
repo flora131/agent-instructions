@@ -38,6 +38,7 @@
 - Prevented accepted S1 activity IDs such as `runner-outcome` from blocking runner settlement, independent cleanup and owner closure. Internal terminal IDs are allocated atomically without reserving caller IDs or changing report conflict/replay and cancellation rules ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Prevented accepted NaN S1 wait budgets, including owner-configured agent budgets, from panicking native scheduling. Observations remain releasable by yield, settlement, disposal and owner closure without changing other budgets or per-call precedence ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Restored task completion outboxes now retry unacknowledged terminal intents on initialization instead of waiting for another task to settle, retaining completion identity and current admission checks ([#2906](https://github.com/bastani-inc/atomic/pull/2906)).
+- Fixed unrelated settings changes copying inherited `.pi` fields into primary `.atomic` settings and changing their resource provenance. Scoped writes preserve newer primary-file edits, explicit Atomic overrides (including empty arrays), and inherited builtin-resource precedence ([#2299](https://github.com/bastani-inc/atomic/issues/2299)).
 
 ## [0.9.19-alpha.1] - 2026-09-06
 
