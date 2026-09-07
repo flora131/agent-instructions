@@ -5,8 +5,8 @@ import type { ToolDefinition, ToolRenderContext } from "../../../core/extensions
 import { createAllToolDefinitions, type ToolName } from "../../../core/tools/index.ts";
 import { getTextOutput as getRenderedTextOutput } from "../../../core/tools/render-utils.ts";
 import { convertToPng } from "../../../utils/image-convert.ts";
-import { theme } from "../theme/theme.ts";
-import { parenthesizedKeyHint } from "./keybinding-hints.ts";
+import { theme } from "../theme/theme.js";
+import { parenthesizedKeyHint } from "./keybinding-hints.js";
 
 /** Extension tools without a renderer show this many output lines before collapsing. */
 const FALLBACK_PREVIEW_LINES = 10;

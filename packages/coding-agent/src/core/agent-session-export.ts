@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { AssistantMessage } from "@bastani/pi-ai/compat";
-import { getThemeByName, theme } from "../modes/interactive/theme/theme.ts";
+import { getThemeByName, theme } from "../modes/interactive/theme/theme.js";
 import { resolvePath } from "../utils/paths.ts";
 import type { AgentSessionInternalSurface as AgentSession } from "./agent-session-methods.ts";
 import type { SessionStats } from "./agent-session-types.ts";

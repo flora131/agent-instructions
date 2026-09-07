@@ -149,7 +149,7 @@ export { ExtensionEditorComponent } from "./components/extension-editor.ts";
 export { ExtensionInputComponent } from "./components/extension-input.ts";
 export { ExtensionSelectorComponent } from "./components/extension-selector.ts";
 export { FooterComponent, UsageMeterComponent } from "./components/footer.ts";
-export { formatKeyText, keyDisplayText, keyHintIfBound, keyText } from "./components/keybinding-hints.ts";
+export { formatKeyText, keyDisplayText, keyHintIfBound, keyText } from "./components/keybinding-hints.js";
 export { LoginDialogComponent } from "./components/login-dialog.ts";
 export { ModelSelectorComponent } from "./components/model-selector.ts";
 export { type AuthSelectorProvider, OAuthSelectorComponent } from "./components/oauth-selector.ts";
@@ -175,6 +175,6 @@ export {
 	stopThemeWatcher,
 	Theme,
 	theme,
-} from "./theme/theme.ts";
+} from "./theme/theme.js";
 export { InteractiveThemeController } from "./theme/theme-controller.ts";
 export { pickWhimsicalWorkingMessage } from "./whimsical-messages.ts";

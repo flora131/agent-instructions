@@ -1,5 +1,5 @@
 import { type Component, Text } from "@earendil-works/pi-tui";
-import { theme } from "../theme/theme.ts";
+import { theme } from "../theme/theme.js";
 import {
 	type AtomicWorkingPalette,
 	AtomicWorkingStatusComponent,

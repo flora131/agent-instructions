@@ -14,9 +14,9 @@ import type { ModelRuntime } from "../../../core/model-runtime.js";
 import type { SettingsManager } from "../../../core/settings-manager.ts";
 import { refreshModelCatalogs } from "../model-catalog-refresh.ts";
 import { getModelSelectorSearchText } from "../model-search.ts";
-import { theme } from "../theme/theme.ts";
+import { theme } from "../theme/theme.js";
 import { DynamicBorder } from "./dynamic-border.ts";
-import { keyHint } from "./keybinding-hints.ts";
+import { keyHint } from "./keybinding-hints.js";
 
 interface ModelItem {
 	provider: string;

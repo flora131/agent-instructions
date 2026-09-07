@@ -12,9 +12,9 @@ import { stripOverlayActiveRowMarker } from "../../core/extensions/ui-types.ts";
 import { isLifecycleTimingEnabled, markLifecycleTiming } from "../../core/lifecycle-timings.ts";
 import { copyToClipboard } from "../../utils/clipboard.ts";
 import { openBrowser } from "../../utils/open-browser.ts";
-import { keyDisplayText } from "./components/keybinding-hints.ts";
+import { keyDisplayText } from "./components/keybinding-hints.js";
 import { TRANSCRIPT_JUMP_TO_END_URL } from "./components/transcript-follow-indicator.ts";
-import { theme } from "./theme/theme.ts";
+import { theme } from "./theme/theme.js";
 
 interface TuiOverlayEntry {
 	component: Component;

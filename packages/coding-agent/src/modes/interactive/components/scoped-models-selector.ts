@@ -11,9 +11,9 @@ import {
 	Text,
 } from "@earendil-works/pi-tui";
 import { getModelSearchText } from "../model-search.ts";
-import { theme } from "../theme/theme.ts";
+import { theme } from "../theme/theme.js";
 import { DynamicBorder } from "./dynamic-border.ts";
-import { keyText } from "./keybinding-hints.ts";
+import { keyText } from "./keybinding-hints.js";
 
 // EnabledIds: null = all enabled (no filter), string[] = explicit ordered list
 type EnabledIds = string[] | null;

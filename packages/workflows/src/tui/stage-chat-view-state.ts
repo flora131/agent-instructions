@@ -144,6 +144,7 @@ function rehydrateCompactionStatusAfterAttach(ctx: StageChatViewContext): void {
 	void handle.ensureAttached().then(
 		() => {
 			if (ctx._unsubscribeHandle === null || liveHandle(ctx) === undefined) return;
+			ctx.chatHost.refreshTaskStore();
 			if (isTerminalStageChatState(currentRun(ctx)?.status) || isTerminalStageChatState(currentStage(ctx)?.status)) {
 				return;
 			}

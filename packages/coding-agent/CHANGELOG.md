@@ -9,6 +9,7 @@
 - Added trusted command start/input/output doors and an owner-aware bash/PTY execution seam. Commands remain alive after the 10000 ms foreground observation budget and are reaped with their owner; stdin distinguishes empty bytes from EOF and refuses backpressure before admission ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added a narrow trusted-host agent task adapter with per-launch runner factories, owner-scoped observation and cancellation, and workflow generation ownership that survives fallback session replacement. Real subagent producers and completion delivery remain unintegrated ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added owner-bound agent task hosts to runtime-created session contexts, single-subagent observation waits, and terminal completion intents delivered nonvisually through existing model admission with stable retry identity ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Added an owner-bound task projection and shared compact task rows for main and attached stage chats, with stable live anchors after tool/turn completion, snapshot reattachment, bounded activity previews and a compact background-task footer. Host adapters opt in by binding their session's task store; producer migration remains separate ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added `reason: "project_trust"` to `UIPromptStartEvent` and `UIPromptEndEvent` for the built-in `/trust` selector in both interactive modes, so status integrations can observe the wait. Isolated mode retains paired notifications until the current engine binds, keeping separate completed dialogs distinct without delaying the trust decision. ([#2873](https://github.com/bastani-inc/atomic/issues/2873))
 
 ### Changed
@@ -17,6 +18,7 @@
 
 ### Fixed
 
+- Remounted active task rows after session transcript replacement and cleared prior-session task rows and footer state before a replacement owner store binds ([#2907](https://github.com/bastani-inc/atomic/pull/2907)).
 - Honored owner command wait budgets and `until-settled` in supervised bash/PTY execution, disclosed retained output gaps, and bounded output pages to 1 MiB. Supervised file-spool writes now share a hard disk cap rather than overshooting between polls ([#2905](https://github.com/bastani-inc/atomic/pull/2905)).
 - Stopped task subscription event delivery when a reconciliation callback disposes observation, including events retained by the active drain ([#2902](https://github.com/bastani-inc/atomic/pull/2902)).
 - Failed `/tasks` inspection now displays a diagnostic and preserves the input for retry instead of leaving an unhandled editor submission rejection.

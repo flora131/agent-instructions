@@ -130,9 +130,10 @@ export class StageChatView implements Component, Focusable {
 		const workingLines = chatChromeHidden ? [] : this.chatHost.renderWorkingStatus(w);
 		const usageLines = chatChromeHidden ? [] : this.chatHost.renderUsage(w);
 		const editorLines = chatChromeHidden ? [] : this.chatHost.renderEditor(w);
-		const footerLines =
-			customUiActive || promptActive
-				? []
+		const footerLines = customUiActive
+			? []
+			: promptActive
+				? this.chatHost.renderTaskFooter(w)
 				: readOnlyArchive
 					? renderReadOnlyArchiveFooter(ctx, w)
 					: renderFooterWithOrchestratorReturnHint(ctx, w, this.chatHost.renderFooter(w));

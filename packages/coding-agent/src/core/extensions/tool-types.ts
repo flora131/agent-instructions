@@ -2,7 +2,7 @@ import type { ConstrainedSamplingConfig } from "@bastani/pi-ai/compat";
 import type { AgentToolResult, AgentToolUpdateCallback, ToolExecutionMode } from "@earendil-works/pi-agent-core";
 import type { Component } from "@earendil-works/pi-tui";
 import type { Static, TSchema } from "typebox";
-import type { Theme } from "../../modes/interactive/theme/theme.ts";
+import type { Theme } from "../../modes/interactive/theme/theme.js";
 import type { SourceInfo } from "../source-info.ts";
 import type { ExtensionContext } from "./context-types.ts";
 

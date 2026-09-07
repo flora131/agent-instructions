@@ -1,7 +1,7 @@
 import type { TUI } from "@earendil-works/pi-tui";
 import type { ExtensionUIContext, HostInputFormRequest } from "../../../core/extensions/ui-types.ts";
 import type { KeybindingsManager } from "../../../core/keybindings.ts";
-import type { Theme } from "../theme/theme.ts";
+import type { Theme } from "../theme/theme.js";
 import { HostInputFormComponent } from "./host-input-form.ts";
 
 export type HostInputFormUi = Pick<ExtensionUIContext, "custom"> &

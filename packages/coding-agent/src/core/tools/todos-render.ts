@@ -1,7 +1,7 @@
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import { Text } from "@earendil-works/pi-tui";
-import { parenthesizedKeyHint } from "../../modes/interactive/components/keybinding-hints.ts";
-import type { Theme } from "../../modes/interactive/theme/theme.ts";
+import { parenthesizedKeyHint } from "../../modes/interactive/components/keybinding-hints.js";
+import type { Theme } from "../../modes/interactive/theme/theme.js";
 import type { ToolRenderResultOptions } from "../extensions/types.ts";
 import {
 	formatTodoId,

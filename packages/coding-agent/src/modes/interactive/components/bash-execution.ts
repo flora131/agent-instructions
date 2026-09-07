@@ -10,9 +10,9 @@ import {
 	truncateTail,
 } from "../../../core/tools/truncate.ts";
 import { stripAnsi } from "../../../utils/ansi.ts";
-import { theme } from "../theme/theme.ts";
+import { theme } from "../theme/theme.js";
 import { DynamicBorder } from "./dynamic-border.ts";
-import { keyText, parenthesizedKeyHint } from "./keybinding-hints.ts";
+import { keyText, parenthesizedKeyHint } from "./keybinding-hints.js";
 import { truncateToVisualLines } from "./visual-truncate.ts";
 
 // Preview line limit when not expanded (matches tool execution behavior)
