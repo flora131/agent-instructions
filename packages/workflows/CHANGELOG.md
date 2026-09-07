@@ -6,10 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-### Added
-
-- Added an internal pure root-activity projection over workflow snapshots and run-qualified runtime execution ownership, not a public workflows SDK export. It folds nested runs into full root replacements, distinguishes independent execution from human waits, and accounts for runnable handoffs, retries, stop draining, pauses, and acknowledged failures without treating historical running stages as execution. Child stops preserve independent handoffs outside their subtree, and paused stages retain the paused activity reason after parallel siblings finish, even with a retained prompt. Descendants retain stop ownership through their recorded ancestry when root or intermediate snapshots are absent. The stopping reason applies only when all remaining execution is draining under a stop, without relabelling independent progress. Extension publication is not wired yet ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).
-
 ### Fixed
 
 - Same-name prompt/tool nodes no longer cause valid duplicate agent matches to be refused as non-agents. Live `ask` retains ambiguity diagnostics and name-based `send` retains sticky agent delivery ([#2895](https://github.com/bastani-inc/atomic/pull/2895)).
