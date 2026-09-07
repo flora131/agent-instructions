@@ -25,6 +25,7 @@ mod tests;
 mod waits;
 pub use events::*;
 pub use owner::*;
+pub use process::{CommandIntent, CommandTaskKind, CommandTerminal};
 use report_identity::{TASK_REPORT_IDENTITY_WINDOW, activity_hash};
 use strings::JsString;
 pub use task::*;
@@ -236,6 +237,27 @@ impl NapiTaskSupervisor {
 		DoorValue(
 			self.check(&env, "OwnerClosing").and_then(|()| self.actor.start(owner, intent, operation)),
 		)
+	}
+	/// Admits one owned command; waiting for this setup never imposes an execution deadline.
+	#[napi(ts_return_type = "Promise<{ok:true,value:TaskLease}|{ok:false,error:TaskFailure}>")]
+	pub fn start_command_task<'env>(
+		&self,
+		env: &'env Env,
+		owner: &OwnerLease,
+		intent: CommandIntent,
+		#[napi(ts_arg_type = "string")] operation: JsString,
+	) -> napi::Result<PromiseRaw<'env, DoorValue<TaskLease>>> {
+		let check = self.check(env, "OwnerClosing");
+		let actor = self.actor.clone();
+		let owner = owner.clone();
+		env.spawn_future(async move {
+			let result = napi::tokio::task::spawn_blocking(move || {
+				check.and_then(|()| actor.start_command(&owner, intent, operation))
+			})
+			.await
+			.map_err(|error| napi::Error::from_reason(error.to_string()))?;
+			Ok(DoorValue(result))
+		})
 	}
 	/// Claim once after host dispatch setup; operation replay never grants a second runner.
 	#[napi(ts_return_type = "{ok:true,value:RunnerLease}|{ok:false,error:TaskFailure}")]

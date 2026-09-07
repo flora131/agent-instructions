@@ -122,6 +122,36 @@ impl Actor {
 			record.lock().unwrap().finish(Err(fail("EnvironmentClosing")));
 		}
 		drop(s);
+		process::poll_failed_processes();
+		// Only native workers can finish without the JS event loop. Never join under
+		// the actor lock or wait for cooperative S1 runners from an environment hook.
+		let commands: Vec<_> = self
+			.state
+			.lock()
+			.unwrap()
+			.owners
+			.iter()
+			.flat_map(|owner| {
+				owner.tasks.iter().filter_map(|task| {
+					task
+						.command
+						.as_ref()
+						.map(|command| (RunnerLease { cap: task.cap.clone() }, command.clone()))
+				})
+			})
+			.collect();
+		let deadline = std::time::Instant::now() + process::PROCESS_SHUTDOWN_GRACE;
+		for (runner, command) in commands {
+			if !command.join_until(deadline) {
+				let resource = ResourceFailure {
+					resource: format!("command-worker:{}", runner.cap.reference().task_id).into(),
+					code: "CleanupFailed".into(),
+					message: "Native cleanup exceeded the shutdown bound; resource retained".into(),
+				};
+				let _ =
+					self.acknowledge_cleanup(&runner, Cleanup::Failed { resources: vec![resource] });
+			}
+		}
 		self.changed.notify_waiters();
 		// A detached wake may still own (or be dropping) its TSFN even after its
 		// subscription was removed. Node finalizes those handles after cleanup hooks;

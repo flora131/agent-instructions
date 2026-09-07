@@ -72,6 +72,8 @@ export declare class TaskSupervisor {
   bindHostSession(scope: OwnerScope): HostSession
 openTaskOwner(host: HostSession, scope: OwnerScope): {ok:true,value:OwnerLease}|{ok:false,error:TaskFailure}
 startAgentTask(owner: OwnerLease, intent: AgentIntent, operation: string): {ok:true,value:TaskLease}|{ok:false,error:TaskFailure}
+/** Admits one owned command; waiting for this setup never imposes an execution deadline. */
+startCommandTask(owner: OwnerLease, intent: CommandIntent, operation: string): Promise<{ok:true,value:TaskLease}|{ok:false,error:TaskFailure}>
 /** Claim once after host dispatch setup; operation replay never grants a second runner. */
 claimTaskRunner(task: TaskLease): {ok:true,value:RunnerLease}|{ok:false,error:TaskFailure}
 taskReference(task: TaskLease): {ok:true,value:NativeTaskRef}|{ok:false,error:TaskFailure}
@@ -216,6 +218,23 @@ export type Cleanup =
   | { kind: 'draining' }
   | { kind: 'reaped' }
   | { kind: 'failed', resources: Array<ResourceFailure> }
+
+export interface CommandIntent {
+  kind: CommandTaskKind
+  command: string
+  description?: string
+  cwd?: string
+  env?: Record<string,string>
+  terminal: CommandTerminal
+  executionTimeoutMs?: number
+  parentTaskId?: string
+}
+
+export type CommandTaskKind =  'command';
+
+export type CommandTerminal =
+  | { kind: 'pipe' }
+  | { kind: 'pty', columns: number, rows: number }
 
 /** A context line (before or after a match). */
 export interface ContextLine {

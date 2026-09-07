@@ -717,6 +717,7 @@ module.exports.AgentStatus = nativeBinding.AgentStatus
 module.exports.AgentTaskKind = nativeBinding.AgentTaskKind
 module.exports.blockRangeAt = nativeBinding.blockRangeAt
 module.exports.CancelCause = nativeBinding.CancelCause
+module.exports.CommandTaskKind = nativeBinding.CommandTaskKind
 module.exports.FileType = nativeBinding.FileType
 module.exports.glob = nativeBinding.glob
 module.exports.grep = nativeBinding.grep

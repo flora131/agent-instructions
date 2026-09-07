@@ -1,12 +1,580 @@
-//! Command output retention (RFC #2884). Process resource wiring follows separately.
-// Local until the next milestone attaches the process resource; no exported API yet.
+//! Owned Unix pipe commands and bounded output retention (RFC #2884).
+// PTY, Windows pipe, and input/output doors follow in later S2 milestones.
 #![allow(dead_code)]
+use super::*;
+use std::sync::Condvar;
+use std::time::Instant;
 use std::{
 	collections::VecDeque,
 	fs::{File, OpenOptions},
 	io::{self, Read, Seek, SeekFrom, Write},
 	path::PathBuf,
 };
+
+#[napi(string_enum = "kebab-case")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CommandTaskKind {
+	Command,
+}
+
+#[napi(discriminant = "kind", discriminant_case = "kebab-case")]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CommandTerminal {
+	Pipe {},
+	Pty { columns: u16, rows: u16 },
+}
+
+#[napi(object)]
+#[derive(Clone, Debug)]
+pub struct CommandIntent {
+	pub kind: CommandTaskKind,
+	#[napi(ts_type = "string")]
+	pub command: JsString,
+	#[napi(ts_type = "string")]
+	pub description: Option<JsString>,
+	#[napi(ts_type = "string")]
+	pub cwd: Option<JsString>,
+	#[napi(ts_type = "Record<string,string>")]
+	pub env: Option<std::collections::HashMap<String, JsString>>,
+	pub terminal: CommandTerminal,
+	pub execution_timeout_ms: Option<f64>,
+	#[napi(ts_type = "string")]
+	pub parent_task_id: Option<JsString>,
+}
+impl PartialEq for CommandIntent {
+	fn eq(&self, other: &Self) -> bool {
+		self.kind == other.kind
+			&& self.command == other.command
+			&& self.description == other.description
+			&& self.cwd == other.cwd
+			&& self.env == other.env
+			&& self.terminal == other.terminal
+			&& self.parent_task_id == other.parent_task_id
+			&& self.execution_timeout_ms.map(f64::to_bits)
+				== other.execution_timeout_ms.map(f64::to_bits)
+	}
+}
+
+const PROCESS_TERM_GRACE: Duration = Duration::from_millis(250);
+const PROCESS_DRAIN_GRACE: Duration = Duration::from_secs(2);
+const PROCESS_POLL: Duration = Duration::from_millis(5);
+pub(super) const PROCESS_SHUTDOWN_GRACE: Duration = Duration::from_secs(3);
+
+pub(super) struct CommandTask {
+	intent: CommandIntent,
+	output: Mutex<OutputStore>,
+	setup: Mutex<Option<Door<()>>>,
+	setup_changed: Condvar,
+	worker: Mutex<Option<std::thread::JoinHandle<()>>>,
+	finished: AtomicBool,
+	#[cfg(unix)]
+	retained: Mutex<Option<FailedProcess>>,
+	#[cfg(all(test, unix))]
+	kill_error: std::sync::atomic::AtomicI32,
+	#[cfg(all(test, unix))]
+	signals: Mutex<Vec<(libc::pid_t, libc::c_int)>>,
+}
+impl CommandTask {
+	#[cfg(unix)]
+	fn retain_failed(
+		&self,
+		reference: NativeTaskRef,
+		mut child: std::process::Child,
+		message: String,
+	) {
+		// Nonblocking reap only; a live or unqueryable child remains owned.
+		let _ = child.try_wait();
+		*self.retained.lock().unwrap() = Some(FailedProcess { reference, child, message });
+	}
+	#[cfg(unix)]
+	fn signal_group(&self, pid: libc::pid_t, signal: libc::c_int) -> io::Result<()> {
+		#[cfg(test)]
+		self.signals.lock().unwrap().push((pid, signal));
+		#[cfg(test)]
+		if signal == libc::SIGKILL && self.kill_error.load(Ordering::Acquire) != 0 {
+			return Err(io::Error::from_raw_os_error(self.kill_error.load(Ordering::Acquire)));
+		}
+		if unsafe { libc::kill(-pid, signal) } == 0 {
+			return Ok(());
+		}
+		let error = io::Error::last_os_error();
+		if error.raw_os_error() == Some(libc::ESRCH) { Ok(()) } else { Err(error) }
+	}
+	pub(super) fn join_until(&self, deadline: Instant) -> bool {
+		loop {
+			let mut worker = self.worker.lock().unwrap();
+			if worker.as_ref().is_some_and(std::thread::JoinHandle::is_finished) {
+				return worker.take().unwrap().join().is_ok();
+			}
+			if worker.is_none() && self.finished.load(Ordering::Acquire) {
+				return true;
+			}
+			drop(worker);
+			if Instant::now() >= deadline {
+				return false;
+			}
+			std::thread::sleep(PROCESS_POLL);
+		}
+	}
+	fn setup_result(&self, result: Door<()>) {
+		*self.setup.lock().unwrap() = Some(result);
+		self.setup_changed.notify_all();
+	}
+	fn await_setup(&self) -> Door<()> {
+		let mut setup = self.setup.lock().unwrap();
+		while setup.is_none() {
+			setup = self.setup_changed.wait(setup).unwrap();
+		}
+		setup.clone().unwrap()
+	}
+}
+
+impl Actor {
+	pub(super) fn start_command(
+		self: &Arc<Self>,
+		owner: &OwnerLease,
+		intent: CommandIntent,
+		operation: JsString,
+	) -> Door<TaskLease> {
+		poll_failed_processes();
+		let mut state = self.state.lock().unwrap();
+		let oi = state.owner(self.id, &owner.cap, "OwnerClosing")?;
+		if state.closing || state.owners[oi].state != "open" {
+			return Err(fail("OwnerClosing"));
+		}
+		if let Some(task) =
+			state.owners[oi].tasks.iter().find(|task| task.record.launch_operation_id == operation)
+		{
+			let Some(command) = task.command.as_ref().filter(|command| command.intent == intent)
+			else {
+				return Err(fail("OperationConflict"));
+			};
+			let command = command.clone();
+			let lease = TaskLease { cap: task.cap.clone() };
+			drop(state);
+			command.await_setup()?;
+			return Ok(lease);
+		}
+		// Unix PTY support is a later milestone; Windows PTY is explicitly unsupported.
+		// Never silently substitute a pipe or execute any part of a refused command.
+		if !matches!(intent.terminal, CommandTerminal::Pipe {}) {
+			return Err(fail("ContainmentUnavailable"));
+		}
+		if let Some(parent) = &intent.parent_task_id
+			&& !state.owners[oi].tasks.iter().any(|task| {
+				parent.equals_str(&task.record.reference.task_id)
+					&& matches!(task.record.execution, Execution::Running {} | Execution::Queued {})
+			}) {
+			return Err(fail("OwnerClosing"));
+		}
+		let ti = state.owners[oi].tasks.len();
+		let cap = Cap { task: Some(ti), attempt: 1, ..owner.cap.clone() };
+		let reference = cap.reference();
+		let output = OutputRef {
+			owner_id: reference.owner_id.clone().into(),
+			task_id: reference.task_id.clone().into(),
+			artifact_id: format!("output-{}", reference.task_id).into(),
+			byte_count: "0".into(),
+			omitted_ranges: vec![],
+		};
+		let command = Arc::new(CommandTask {
+			intent: intent.clone(),
+			output: Mutex::new(OutputStore::new(
+				std::env::temp_dir().join(format!(
+					"atomic-command-{}-{}",
+					std::process::id(),
+					reference.task_id
+				)),
+				COMMAND_LIVE_BYTES,
+				FOREGROUND_SPILL_BYTES,
+				TASK_DISK_BYTES,
+			)),
+			setup: Mutex::new(None),
+			setup_changed: Condvar::new(),
+			worker: Mutex::new(None),
+			finished: AtomicBool::new(false),
+			#[cfg(unix)]
+			retained: Mutex::new(None),
+			#[cfg(all(test, unix))]
+			kill_error: std::sync::atomic::AtomicI32::new(0),
+			#[cfg(all(test, unix))]
+			signals: Mutex::new(Vec::new()),
+		});
+		let record = TaskRecord {
+			reference: reference.clone(),
+			launch_operation_id: operation,
+			parent_task_id: intent.parent_task_id.clone(),
+			launch_group_id: None,
+			launch_ordinal: ti as u32,
+			kind: "command".into(),
+			title: intent
+				.description
+				.as_ref()
+				.filter(|text| !text.is_empty())
+				.cloned()
+				.unwrap_or_else(|| {
+					intent.command.first_nonblank_line().unwrap_or_else(|| intent.command.clone())
+				}),
+			agent_name: None,
+			execution: Execution::Queued {},
+			observation: HostObservation::Background { reason: "not-observed".into() },
+			attention: Attention::None {},
+			cleanup: Cleanup::Active {},
+			current_action: None,
+			metrics: None,
+			output,
+		};
+		state.owners[oi].tasks.push(Task {
+			cap: cap.clone(),
+			// The additive S1 storage slot is unused for commands; command replay compares the exact owned intent above.
+			intent: AgentIntent {
+				kind: AgentTaskKind::Agent,
+				agent: "".into(),
+				task: "".into(),
+				description: None,
+				cwd: None,
+				parent_task_id: None,
+			},
+			record: record.clone(),
+			claimed: true,
+			activities: VecDeque::new(),
+			terminal: None,
+			cancel_cause: None,
+			cancellation_output: None,
+			command: Some(command.clone()),
+		});
+		state.emit(oi, Some(reference.task_id), TaskEvent::TaskAdmitted { task: record });
+		drop(state);
+		let actor = self.clone();
+		let resource = command.clone();
+		let runner = RunnerLease { cap: cap.clone() };
+		let spawn = std::thread::Builder::new().name("task-command".into()).spawn(move || {
+			actor.run_command(&runner, &resource);
+			resource.finished.store(true, Ordering::Release);
+		});
+		match spawn {
+			Ok(worker) => *command.worker.lock().unwrap() = Some(worker),
+			Err(error) => self.command_spawn_failed(
+				&RunnerLease { cap: cap.clone() },
+				&command,
+				error.to_string(),
+			),
+		}
+		command.await_setup()?;
+		Ok(TaskLease { cap })
+	}
+	fn command_spawn_failed(&self, runner: &RunnerLease, command: &CommandTask, message: String) {
+		let _ = self.runner_outcome(
+			runner,
+			TaskResult::Failed {
+				code: "SpawnFailed".into(),
+				message: message.clone().into(),
+				output: None,
+				exit_code: None,
+			},
+		);
+		let _ = self.acknowledge_cleanup(runner, Cleanup::Reaped {});
+		command.setup_result(Err(TaskFailure { code: "SpawnFailed".into(), message }));
+		command.finished.store(true, Ordering::Release);
+	}
+	#[cfg(not(unix))]
+	fn run_command(&self, runner: &RunnerLease, command: &CommandTask) {
+		let _ = self.runner_outcome(
+			runner,
+			TaskResult::Failed {
+				code: "ContainmentUnavailable".into(),
+				message: "Supervised backend unavailable".into(),
+				output: None,
+				exit_code: None,
+			},
+		);
+		let _ = self.acknowledge_cleanup(runner, Cleanup::Reaped {});
+		command.setup_result(Err(fail("ContainmentUnavailable")));
+	}
+	#[cfg(unix)]
+	fn run_command(&self, runner: &RunnerLease, command: &CommandTask) {
+		use std::os::unix::process::CommandExt;
+		use std::process::{Command, Stdio};
+		let mut spawn = Command::new("/bin/sh");
+		spawn
+			.arg("-c")
+			.arg(command.intent.command.process_text())
+			.process_group(0)
+			.stdin(Stdio::piped())
+			.stdout(Stdio::piped())
+			.stderr(Stdio::piped());
+		if let Some(cwd) = &command.intent.cwd {
+			spawn.current_dir(cwd.process_text());
+		}
+		if let Some(env) = &command.intent.env {
+			spawn.envs(env.iter().map(|(key, value)| (key, value.process_text())));
+		}
+		let mut child = match spawn.spawn() {
+			Ok(child) => child,
+			Err(error) => {
+				self.command_spawn_failed(runner, command, error.to_string());
+				return;
+			},
+		};
+		let pid = child.id() as libc::pid_t;
+		let mut stdout = child.stdout.take().unwrap();
+		let mut stderr = child.stderr.take().unwrap();
+		let nonblocking = make_nonblocking(&stdout).and_then(|()| make_nonblocking(&stderr));
+		let setup_failure = nonblocking.err().map(|error| error.to_string());
+		{
+			let mut state = self.state.lock().unwrap();
+			let (oi, ti) = state.runner(self.id, &runner.cap).unwrap();
+			if matches!(state.owners[oi].tasks[ti].record.execution, Execution::Queued {}) {
+				state.owners[oi].tasks[ti].record.execution = Execution::Running {};
+				let reference = runner.cap.reference();
+				state.emit(oi, Some(reference.task_id.clone()), TaskEvent::TaskStarted { reference });
+			}
+		}
+		if setup_failure.is_none() {
+			command.setup_result(Ok(()));
+		}
+		let started = Instant::now();
+		let mut stopping: Option<Instant> = None;
+		let mut killed = false;
+		let mut status = None;
+		let mut stdout_eof = false;
+		let mut stderr_eof = false;
+		let mut read_failure = setup_failure.clone();
+		let mut cleanup_failure = None;
+		loop {
+			// A failed O_NONBLOCK setup must never enter a potentially blocking read.
+			if setup_failure.is_none() {
+				for result in [
+					drain_pipe(&mut stdout, command, &mut stdout_eof),
+					drain_pipe(&mut stderr, command, &mut stderr_eof),
+				] {
+					if let Err(error) = result {
+						read_failure = Some(error.to_string());
+					}
+				}
+			}
+			let cancelling = {
+				let state = self.state.lock().unwrap();
+				state.owners[runner.cap.owner].tasks[runner.cap.task.unwrap()].cancel_cause.is_some()
+			};
+			if stopping.is_none()
+				&& !cancelling
+				&& command
+					.intent
+					.execution_timeout_ms
+					.is_some_and(|budget| started.elapsed().as_secs_f64() * 1000.0 >= budget)
+			{
+				let _ =
+					self.cancel(&TaskLease { cap: runner.cap.clone() }, CancelCause::ExecutionTimeout);
+				continue;
+			}
+			let exited = if status.is_some() { Ok(true) } else { child_exited_without_reaping(pid) };
+			let exited = match exited {
+				Ok(exited) => exited,
+				Err(error) => {
+					// Lost wait authority: do not send any delayed PID/group signal.
+					cleanup_failure = Some(error.to_string());
+					break;
+				},
+			};
+			if stopping.is_none() && (cancelling || exited || read_failure.is_some()) {
+				let _ = self.acknowledge_cleanup(runner, Cleanup::Draining {});
+				if let Err(error) = command.signal_group(pid, libc::SIGTERM) {
+					cleanup_failure = Some(error.to_string());
+				}
+				stopping = Some(Instant::now());
+			}
+			if let Some(stop) = stopping {
+				if !killed && stop.elapsed() >= PROCESS_TERM_GRACE {
+					// The direct child has not been reaped: its PID, and therefore our PGID, cannot be reused.
+					if let Err(error) = command.signal_group(pid, libc::SIGKILL) {
+						cleanup_failure = Some(error.to_string());
+					}
+					killed = true;
+				}
+				if killed {
+					if cleanup_failure.is_some() {
+						break;
+					}
+					// No more signals are permitted after this point. Reap the leader,
+					// then confirm the entire group disappeared, independently of EOF.
+					if status.is_none() {
+						match child.try_wait() {
+							Ok(value) => status = value,
+							Err(error) => {
+								cleanup_failure = Some(error.to_string());
+								break;
+							},
+						}
+					}
+					if status.is_some() {
+						match process_group_gone(pid) {
+							Ok(true) if (stdout_eof && stderr_eof) || setup_failure.is_some() => break,
+							Ok(_) => {},
+							Err(error) => {
+								cleanup_failure = Some(error.to_string());
+								break;
+							},
+						}
+					}
+				}
+				if stop.elapsed() >= PROCESS_TERM_GRACE + PROCESS_DRAIN_GRACE {
+					cleanup_failure =
+						Some("Process-group exit or reader drain was not confirmed".into());
+					break;
+				}
+			}
+			std::thread::sleep(PROCESS_POLL);
+		}
+		if let Some(message) = cleanup_failure {
+			child.stdout = Some(stdout);
+			child.stderr = Some(stderr);
+			command.retain_failed(runner.cap.reference(), child, message.clone());
+			let _ = self.runner_outcome(
+				runner,
+				TaskResult::Failed {
+					code: "CleanupFailed".into(),
+					message: message.clone().into(),
+					output: None,
+					exit_code: None,
+				},
+			);
+			let _ = self.acknowledge_cleanup(
+				runner,
+				Cleanup::Failed {
+					resources: vec![ResourceFailure {
+						resource: format!("process-group:{pid}").into(),
+						code: "CleanupFailed".into(),
+						message: message.clone().into(),
+					}],
+				},
+			);
+			if setup_failure.is_some() {
+				command.setup_result(Err(TaskFailure { code: "CleanupFailed".into(), message }));
+			}
+			return;
+		}
+		let status = status.expect("group confirmed only after direct child reaped");
+		let store = command.output.lock().unwrap();
+		let reference = runner.cap.reference();
+		let output = OutputRef {
+			owner_id: reference.owner_id.into(),
+			task_id: reference.task_id.clone().into(),
+			artifact_id: format!("output-{}", reference.task_id).into(),
+			byte_count: store.byte_count.to_string().into(),
+			omitted_ranges: store
+				.omitted_ranges()
+				.into_iter()
+				.map(|range| OmittedRange { start: range.start.into(), end: range.end.into() })
+				.collect(),
+		};
+		drop(store);
+		let result = if let Some(message) = read_failure {
+			TaskResult::Failed {
+				code: if setup_failure.is_some() { "SpawnFailed" } else { "OutputUnavailable" }.into(),
+				message: message.into(),
+				output: Some(output),
+				exit_code: status.code().map(f64::from),
+			}
+		} else {
+			TaskResult::Completed { output, exit_code: status.code().map(f64::from) }
+		};
+		let _ = self.runner_outcome(runner, result);
+		let _ = self.acknowledge_cleanup(runner, Cleanup::Reaped {});
+		if let Some(message) = setup_failure {
+			command.setup_result(Err(TaskFailure { code: "SpawnFailed".into(), message }));
+		}
+	}
+}
+
+#[cfg(unix)]
+struct FailedProcess {
+	reference: NativeTaskRef,
+	child: std::process::Child,
+	message: String,
+}
+#[cfg(unix)]
+impl FailedProcess {
+	fn reaped(&mut self) -> bool {
+		matches!(self.child.try_wait(), Ok(Some(_)))
+			&& process_group_gone(self.child.id() as libc::pid_t).unwrap_or(false)
+	}
+}
+// A failed resource outlives an environment, without an indefinitely blocked
+// waiter thread. Later native admission/shutdown opportunistically reaps it.
+#[cfg(unix)]
+static FAILED_PROCESSES: Mutex<Vec<FailedProcess>> = Mutex::new(Vec::new());
+#[cfg(unix)]
+pub(super) fn poll_failed_processes() {
+	FAILED_PROCESSES.lock().unwrap().retain_mut(|resource| !resource.reaped());
+}
+#[cfg(not(unix))]
+pub(super) fn poll_failed_processes() {}
+#[cfg(unix)]
+impl Drop for CommandTask {
+	fn drop(&mut self) {
+		if let Some(mut resource) = self.retained.get_mut().unwrap().take()
+			&& !resource.reaped()
+		{
+			FAILED_PROCESSES.lock().unwrap().push(resource);
+		}
+	}
+}
+#[cfg(unix)]
+fn process_group_gone(pid: libc::pid_t) -> io::Result<bool> {
+	// Read-only after reaping: a reused group can at worst delay/fail cleanup;
+	// no cancellation replay ever obtains signal authority over that identity.
+	if unsafe { libc::kill(-pid, 0) } == 0 {
+		return Ok(false);
+	}
+	let error = io::Error::last_os_error();
+	if error.raw_os_error() == Some(libc::ESRCH) { Ok(true) } else { Err(error) }
+}
+#[cfg(unix)]
+fn make_nonblocking(fd: &impl std::os::fd::AsRawFd) -> io::Result<()> {
+	let fd = fd.as_raw_fd();
+	let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+	if flags < 0 || unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) } < 0 {
+		return Err(io::Error::last_os_error());
+	}
+	Ok(())
+}
+#[cfg(unix)]
+fn drain_pipe(reader: &mut impl Read, command: &CommandTask, eof: &mut bool) -> io::Result<()> {
+	if *eof {
+		return Ok(());
+	}
+	let mut buffer = [0; 8192];
+	for _ in 0..8 {
+		match reader.read(&mut buffer) {
+			Ok(0) => {
+				*eof = true;
+				break;
+			},
+			Ok(count) => command.output.lock().unwrap().append(&buffer[..count]),
+			Err(error) if error.kind() == io::ErrorKind::WouldBlock => break,
+			Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+			Err(error) => return Err(error),
+		}
+	}
+	Ok(())
+}
+#[cfg(unix)]
+fn child_exited_without_reaping(pid: libc::pid_t) -> io::Result<bool> {
+	let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
+	let result = unsafe {
+		libc::waitid(
+			libc::P_PID,
+			pid as libc::id_t,
+			&mut info,
+			libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
+		)
+	};
+	if result < 0 {
+		return Err(io::Error::last_os_error());
+	}
+	Ok(unsafe { info.si_pid() } != 0)
+}
 
 const COMMAND_LIVE_BYTES: usize = 1_048_576;
 const FOREGROUND_SPILL_BYTES: usize = 8_388_608;
@@ -53,6 +621,17 @@ struct OutputStore {
 	unavailable: bool,
 }
 impl OutputStore {
+	/// The retained prefix and rolling tail have at most one gap. No disk reads
+	/// or output-sized allocations are needed to describe it at settlement.
+	fn omitted_ranges(&self) -> Vec<OutputOffsets> {
+		let prefix_end = self.disk_len.max(self.head.len() as u64).max(self.foreground.len() as u64);
+		let tail_start = self.byte_count - self.tail.len() as u64;
+		if prefix_end < tail_start {
+			vec![OutputOffsets::new(prefix_end, tail_start)]
+		} else {
+			vec![]
+		}
+	}
 	fn new(path: PathBuf, live_limit: usize, spill_threshold: usize, disk_cap: u64) -> Self {
 		Self {
 			path,
@@ -260,6 +839,240 @@ impl Utf8Carry {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	fn command_owner() -> (Arc<Actor>, OwnerLease) {
+		let actor = Actor::new();
+		let scope = OwnerScope::Session { session_id: "pipe-test".into() };
+		let host = actor.bind(scope.clone());
+		let owner = actor.open(&host, scope).unwrap();
+		(actor, owner)
+	}
+	fn pipe_intent(command: &str) -> CommandIntent {
+		CommandIntent {
+			kind: CommandTaskKind::Command,
+			command: command.into(),
+			description: None,
+			cwd: None,
+			env: None,
+			terminal: CommandTerminal::Pipe {},
+			execution_timeout_ms: None,
+			parent_task_id: None,
+		}
+	}
+	// #2884: unsupported terminal modes must never execute as a different backend.
+	#[test]
+	fn unsupported_pty_refuses_before_execution() {
+		let (actor, owner) = command_owner();
+		let path = std::env::temp_dir().join(format!(
+			"atomic-pty-refusal-{}-{}",
+			std::process::id(),
+			actor.id
+		));
+		let mut intent = pipe_intent(&format!("printf executed > '{}'", path.display()));
+		intent.terminal = CommandTerminal::Pty { columns: 80, rows: 24 };
+		let result = actor.start_command(&owner, intent, "pty".into());
+		actor.shutdown();
+		let executed = path.exists();
+		let _ = std::fs::remove_file(path);
+		assert_eq!(result.err().map(|e| e.code), Some("ContainmentUnavailable".into()));
+		assert!(!executed, "refused PTY executed shell side effects");
+	}
+	#[cfg(unix)]
+	fn wait_for_file(path: &std::path::Path) -> String {
+		let deadline = Instant::now() + Duration::from_secs(5);
+		loop {
+			if let Ok(text) = std::fs::read_to_string(path)
+				&& text.ends_with('\n')
+			{
+				return text;
+			}
+			assert!(Instant::now() < deadline, "fixture did not become ready: {}", path.display());
+			std::thread::sleep(PROCESS_POLL);
+		}
+	}
+	// #2884: normal environment shutdown must finish native cleanup, not just seal admission.
+	#[cfg(unix)]
+	#[test]
+	fn shutdown_waits_for_native_child_cleanup() {
+		let (actor, owner) = command_owner();
+		let path =
+			std::env::temp_dir().join(format!("atomic-shutdown-{}-{}", std::process::id(), actor.id));
+		actor
+			.start_command(
+				&owner,
+				pipe_intent(&format!("echo $$ > '{}'; exec sleep 30", path.display())),
+				"shutdown".into(),
+			)
+			.unwrap();
+		let pid: libc::pid_t = wait_for_file(&path).trim().parse().unwrap();
+		std::fs::remove_file(path).unwrap();
+		actor.shutdown();
+		let still_exists = unsafe { libc::kill(pid, 0) } == 0;
+		assert!(!still_exists, "native child {pid} survived normal shutdown");
+		assert!(matches!(actor.snapshot(&owner).unwrap().tasks[0].cleanup, Cleanup::Reaped {}));
+	}
+	// #2884: EOF and the shell's exit are not proof that a closed-stdio descendant exited.
+	#[cfg(unix)]
+	#[test]
+	fn failed_group_kill_cannot_report_reaped() {
+		let (actor, owner) = command_owner();
+		let path = std::env::temp_dir().join(format!(
+			"atomic-kill-failure-{}-{}",
+			std::process::id(),
+			actor.id
+		));
+		let task = actor.start_command(&owner, pipe_intent(&format!(
+			"/bin/sh -c 'trap \"\" TERM; echo $$ > \"$1\"; exec sleep 30' sh '{}' </dev/null >/dev/null 2>&1 & wait", path.display()
+		)), "kill-failure".into()).unwrap();
+		let pid: libc::pid_t = wait_for_file(&path).trim().parse().unwrap();
+		std::fs::remove_file(path).unwrap();
+		let command = actor.state.lock().unwrap().owners[0].tasks[0].command.clone().unwrap();
+		// Inject the OS refusal, not fake process state or cleanup acknowledgements.
+		command.kill_error.store(libc::EPERM, Ordering::Release);
+		actor.begin_close(&owner).unwrap();
+		assert!(command.join_until(Instant::now() + PROCESS_SHUTDOWN_GRACE));
+		let receipt = actor.close_receipt(&owner);
+		let alive = unsafe { libc::kill(pid, 0) } == 0;
+		unsafe {
+			libc::kill(pid, libc::SIGKILL);
+		}
+		assert!(alive, "fixture must survive the injected failed kill");
+		assert_eq!(receipt.unwrap_err().code, "CleanupFailed");
+		assert_eq!(actor.snapshot(&owner).unwrap().state, "closing");
+		assert_eq!(actor.cancel(&task, CancelCause::User).unwrap_err().code, "CleanupFailed");
+	}
+	// RFC #2884: observation timeout does not terminate the owned process group.
+	#[cfg(unix)]
+	#[test]
+	fn unix_pipe_yields_then_owner_close_reaps() {
+		assert_process_tree_cleanup(false);
+	}
+	// #2884: the shell exiting first cannot release group authority over closed-stdio children.
+	#[cfg(unix)]
+	#[test]
+	fn unix_pipe_shell_exits_before_closed_stdio_descendant() {
+		assert_process_tree_cleanup(true);
+	}
+	#[cfg(unix)]
+	fn assert_process_tree_cleanup(shell_exits_first: bool) {
+		let (actor, owner) = command_owner();
+		let path =
+			std::env::temp_dir().join(format!("atomic-tree-{}-{}", std::process::id(), actor.id));
+		std::fs::create_dir(&path).unwrap();
+		let intent = pipe_intent(&format!(
+			"echo $$ > '{0}/parent'; /bin/sh -c 'trap \"\" TERM; echo $$ > \"$1\"; exec sleep 30' sh '{0}/descendant' </dev/null >/dev/null 2>&1 & while [ ! -f '{0}/exit' ]; do sleep 0.01; done; exit 0",
+			path.display()
+		));
+		let task = actor.start_command(&owner, intent.clone(), "once".into()).unwrap();
+		assert_eq!(actor.start_command(&owner, intent, "once".into()).unwrap().cap, task.cap);
+		let parent: libc::pid_t = wait_for_file(&path.join("parent")).trim().parse().unwrap();
+		let descendant: libc::pid_t = wait_for_file(&path.join("descendant")).trim().parse().unwrap();
+		let wait = actor.wait(&task, None, false).unwrap();
+		actor.yield_wait(&wait, YieldReason::Elapsed).unwrap();
+		assert_eq!(unsafe { libc::kill(parent, 0) }, 0);
+		assert_eq!(unsafe { libc::kill(descendant, 0) }, 0);
+		assert!(matches!(actor.snapshot(&owner).unwrap().tasks[0].execution, Execution::Running {}));
+		let command = actor.state.lock().unwrap().owners[0].tasks[0].command.clone().unwrap();
+		if shell_exits_first {
+			std::fs::write(path.join("exit"), b"exit").unwrap();
+		} else {
+			actor.begin_close(&owner).unwrap();
+		}
+		assert!(command.join_until(Instant::now() + PROCESS_SHUTDOWN_GRACE));
+		let snapshot = actor.snapshot(&owner).unwrap();
+		assert!(matches!(snapshot.tasks[0].cleanup, Cleanup::Reaped {}), "{snapshot:?}");
+		for pid in [parent, descendant] {
+			assert_eq!(unsafe { libc::kill(pid, 0) }, -1, "process {pid} survived successful cleanup");
+			assert_eq!(io::Error::last_os_error().raw_os_error(), Some(libc::ESRCH));
+		}
+		assert_eq!(
+			*command.signals.lock().unwrap(),
+			vec![(parent, libc::SIGTERM), (parent, libc::SIGKILL)]
+		);
+		// After handles are released, replay never issues another signal, regardless of PID reuse.
+		let first = actor.cancel(&task, CancelCause::User).unwrap();
+		assert_eq!(actor.cancel(&task, CancelCause::ExecutionTimeout).unwrap(), first);
+		actor.begin_close(&owner).unwrap();
+		assert!(actor.close_receipt(&owner).unwrap().is_some());
+		actor.shutdown();
+		assert_eq!(command.signals.lock().unwrap().len(), 2);
+		std::fs::remove_dir_all(path).unwrap();
+	}
+	// #2884: failed cleanup retains the live OS child without a blocked worker.
+	#[cfg(unix)]
+	#[test]
+	fn failed_cleanup_retains_live_child_across_environment_drop() {
+		let (actor, owner) = command_owner();
+		let path =
+			std::env::temp_dir().join(format!("atomic-retained-{}-{}", std::process::id(), actor.id));
+		let task = actor
+			.start_command(
+				&owner,
+				pipe_intent(&format!("trap '' TERM; echo $$ > '{}'; exec sleep 30", path.display())),
+				"retained".into(),
+			)
+			.unwrap();
+		let pid: libc::pid_t = wait_for_file(&path).trim().parse().unwrap();
+		std::fs::remove_file(path).unwrap();
+		let command = actor.state.lock().unwrap().owners[0].tasks[0].command.clone().unwrap();
+		command.kill_error.store(libc::EPERM, Ordering::Release);
+		actor.shutdown();
+		let failed =
+			matches!(actor.snapshot(&owner).unwrap().tasks[0].cleanup, Cleanup::Failed { .. });
+		let retained = command.retained.lock().unwrap().as_mut().is_some_and(|resource| {
+			resource.reference == task.cap.reference()
+				&& !resource.message.is_empty()
+				&& matches!(resource.child.try_wait(), Ok(None))
+		});
+		drop(actor);
+		drop(command);
+		let transferred = FAILED_PROCESSES
+			.lock()
+			.unwrap()
+			.iter()
+			.any(|resource| resource.reference == task.cap.reference());
+		unsafe {
+			libc::kill(pid, libc::SIGKILL);
+		}
+		// The fixture must also clean up if resource retention regresses.
+		let deadline = Instant::now() + PROCESS_SHUTDOWN_GRACE;
+		loop {
+			poll_failed_processes();
+			if transferred {
+				if !FAILED_PROCESSES
+					.lock()
+					.unwrap()
+					.iter()
+					.any(|resource| resource.reference == task.cap.reference())
+				{
+					break;
+				}
+			} else if unsafe { libc::waitpid(pid, std::ptr::null_mut(), libc::WNOHANG) } != 0 {
+				break;
+			}
+			assert!(Instant::now() < deadline);
+			std::thread::sleep(PROCESS_POLL);
+		}
+		assert!(failed);
+		assert!(retained, "failed cleanup dropped its live child");
+		assert!(transferred, "environment drop discarded native failure ownership");
+	}
+	// #2884: terminal metadata is retention arithmetic, not a full-output read.
+	#[test]
+	fn terminal_retention_metadata_is_independent_of_output_size() {
+		let path =
+			std::env::temp_dir().join(format!("atomic-output-metadata-{}", std::process::id()));
+		let mut store = OutputStore::new(path.clone(), 4, 6, 5);
+		store.append(b"abcdefghijkl");
+		assert_eq!(store.omitted_ranges(), store.page(0, 12).omitted_ranges);
+		store.byte_count = TASK_DISK_BYTES + 100;
+		store.disk_len = TASK_DISK_BYTES;
+		assert_eq!(
+			store.omitted_ranges(),
+			vec![OutputOffsets::new(TASK_DISK_BYTES, TASK_DISK_BYTES + 98)]
+		);
+		drop(store);
+		std::fs::remove_file(path).unwrap();
+	}
 	#[test]
 	fn capped_prefix_and_rolling_tail_are_owned_pages() {
 		let path = std::env::temp_dir().join(format!("atomic-output-{}", std::process::id()));

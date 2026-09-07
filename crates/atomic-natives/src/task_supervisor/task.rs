@@ -364,6 +364,7 @@ pub(super) struct Task {
 	pub cancel_cause: Option<CancelCause>,
 	// Rejected late outcomes supply output evidence, never terminal authority.
 	pub cancellation_output: Option<OutputRef>,
+	pub command: Option<Arc<process::CommandTask>>,
 }
 impl Task {
 	pub fn receipt(&self) -> CancelReceipt {
@@ -403,6 +404,9 @@ impl Actor {
 		}
 		if let Some(t) = s.owners[oi].tasks.iter().find(|t| t.record.launch_operation_id == operation)
 		{
+			if t.command.is_some() {
+				return Err(fail("OperationConflict"));
+			}
 			return if t.intent == intent {
 				Ok(TaskLease { cap: t.cap.clone() })
 			} else {
@@ -456,6 +460,7 @@ impl Actor {
 			terminal: None,
 			cancel_cause: None,
 			cancellation_output: None,
+			command: None,
 		});
 		s.emit(oi, Some(reference.task_id), TaskEvent::TaskAdmitted { task: record });
 		Ok(TaskLease { cap })
