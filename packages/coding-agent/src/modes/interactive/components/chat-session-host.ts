@@ -2,6 +2,7 @@ import type { Component, Focusable } from "@earendil-works/pi-tui";
 import type { AgentSessionEvent, CompactionReason } from "../../../core/agent-session.ts";
 import { repairOrphanToolResults } from "../../../core/messages.ts";
 import { SessionManager } from "../../../core/session-manager.ts";
+import { getOwnerTaskStore, type OwnerTaskStore } from "../../../core/tasks/owner-store.js";
 import {
 	abortChatSessionBash,
 	abortChatSessionCompaction,
@@ -43,6 +44,7 @@ import type {
 	ChatSessionSubmitMode,
 } from "./chat-session-host-types.ts";
 import type { ChatTranscriptEntryLike } from "./chat-transcript.ts";
+import { renderTaskFooter } from "./task-list.js";
 
 export type {
 	ChatSessionHostBashRequest,
@@ -57,6 +59,8 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	focused = true;
 
 	private readonly state: ChatSessionHostState<TExtraEntry>;
+	private taskStore?: OwnerTaskStore;
+	private unsubscribeTasks?: () => void;
 
 	constructor(opts: ChatSessionHostOpts<TExtraEntry>) {
 		this.state = new ChatSessionHostState(opts, {
@@ -73,6 +77,7 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 		);
 		if (opts.autocompleteProvider) this.state.editor?.setAutocompleteProvider?.(opts.autocompleteProvider);
 		this.syncAnimationTick();
+		this.refreshTaskStore();
 	}
 
 	appendMessages(messages: readonly AgentSnapshotMessage[]): void {
@@ -114,7 +119,23 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 		return this.state.transcript;
 	}
 
+	/** Tasks outlive tools and turns; only host/session binding grants this read projection. */
+	refreshTaskStore(): void {
+		const session = this.state.getAgentSession?.();
+		const store = session ? getOwnerTaskStore(session) : undefined;
+		if (!store || store === this.taskStore) return;
+		this.unsubscribeTasks?.();
+		this.taskStore = store;
+		const update = () => {
+			this.state.liveChat.upsertTasks(store.tasks);
+			this.state.transcriptComponent.invalidate();
+			this.state.requestRender?.();
+		};
+		this.unsubscribeTasks = store.subscribe(update);
+		update();
+	}
 	applyAgentEvent(event: AgentSessionEvent): boolean {
+		this.refreshTaskStore();
 		return applyChatSessionAgentEvent(this.state, event);
 	}
 
@@ -207,7 +228,8 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	}
 
 	renderFooter(width: number): string[] {
-		return renderChatSessionFooter(this.state, width);
+		const footer = renderChatSessionFooter(this.state, width);
+		return footer.length ? footer : renderTaskFooter(this.taskStore?.tasks ?? [], width);
 	}
 
 	handleScrollInput(data: string): boolean {
@@ -321,6 +343,7 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	}
 
 	dispose(): void {
+		this.unsubscribeTasks?.();
 		disposeChatSession(this.state);
 	}
 

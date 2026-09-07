@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Attached stage chats now suggest stage-local `/skill:` commands with source metadata, qualified selectors, and refreshed catalogs after resource reload. Idle, steering, and follow-up submissions reuse session expansion once, retain stage admission and HIL ownership, and show skill diagnostics locally. Explicit editable post-mortem chats can invoke skills without reopening workflow execution.
 - `StageSendUserMessageOptions.expandPromptTemplates` opts native stage-session delivery into existing command and skill/template expansion; ordinary programmatic messages remain literal by default.
+- Attached stage chats render a bound owner task store through the shared chat host, keeping task activity separate from pending launch-tool replay and retaining the compact task footer after the launch row scrolls away. This requires the stage producer to bind its owner store ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 
 ### Changed
 

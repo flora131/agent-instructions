@@ -142,6 +142,14 @@ Cancellation does not retract an Intercom send already submitted to the broker. 
 
 Live progress and completed results show each step's resolved model ID and effective reasoning level, including after a model fallback; parallel steps keep their metadata separate. Fast inference is part of the model ID, so an agent pinned to a fast variant renders it directly — `codebase-analyzer (openai-codex/gpt-5.6-sol-fast · thinking medium)` — with no separate `fast` badge. Select fast inference in an agent definition's `model` and fallback model fields, for example `openai-codex/gpt-5.6-sol-fast:medium`; normal and fast IDs stay distinct fallback candidates and distinct records. See [Providers](/providers#fast-models) for which providers publish fast variants and what each one sends upstream.
 
+## Owner-bound task projection
+
+Host adapters can bind an `OwnerTaskStore` to their live session with `bindOwnerTaskStore(session, store)`. The store observes the SDK task supervisor through snapshot/cursor reconciliation. Its task rows remain subscribed after launch tools and agent turns end; disposing the view does not cancel the task owner. Reattachment uses the same task identities rather than replaying launch tools.
+
+Compact rows show the agent label, description, execution state and available tool-use count. Foreground/background badges describe the designated host observation, not independent SDK waits. Ctrl+O exposes available metadata and clearly labels missing prompt/response transcripts. The compact footer remains visible while bound background tasks run or need attention, even when their launch rows scroll out of view.
+
+This is a host integration API above the SDK task foundation. Existing subagent and command producers are not automatically migrated by binding a projection. Full task transcript retrieval and `/tasks` navigation are separate integrations; unavailable transcript content is not inferred from activity reports.
+
 ## Orchestrator model and group policy
 
 Atomic applies the same delegation policy to any parent chat or workflow stage that orchestrates subagents. A named agent uses the model and fallback sequence declared by its agent definition, so the orchestrator normally omits the subagent tool's explicit `model` argument. An override needs either the user's exact model request or a documented task-specific reason recorded before launch; model diversity alone is not enough.

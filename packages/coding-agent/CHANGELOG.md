@@ -9,6 +9,7 @@
 - Added trusted command start/input/output doors and an owner-aware bash/PTY execution seam. Commands remain alive after the 10000 ms foreground observation budget and are reaped with their owner; stdin distinguishes empty bytes from EOF and refuses backpressure before admission ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added a narrow trusted-host agent task adapter with per-launch runner factories, owner-scoped observation and cancellation, and workflow generation ownership that survives fallback session replacement. Real subagent producers and completion delivery remain unintegrated ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added owner-bound agent task hosts to runtime-created session contexts, single-subagent observation waits, and terminal completion intents delivered nonvisually through existing model admission with stable retry identity ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Added an owner-bound task projection and shared compact task rows for main and attached stage chats, with stable live anchors after tool/turn completion, snapshot reattachment, bounded activity previews and a compact background-task footer. Host adapters opt in by binding their session's task store; producer migration remains separate ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 
 ### Changed
 

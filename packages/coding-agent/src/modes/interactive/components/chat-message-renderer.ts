@@ -10,6 +10,7 @@ import {
 	type CustomMessage,
 	isVerbatimCompactionMessage,
 } from "../../../core/messages.ts";
+import type { TaskRecord } from "../../../core/tasks/contracts.js";
 import {
 	applyAssistantMessageDelta,
 	beginStreamingAssistantMessage,
@@ -23,10 +24,12 @@ import { extractMessageText } from "./chat-session-host-utils.ts";
 import { compactionBoundaryFromMessage } from "./compaction-boundary-message.ts";
 import { CustomMessageComponent } from "./custom-message.ts";
 import { SkillInvocationMessageComponent } from "./skill-invocation-message.ts";
+import { TaskRow } from "./task-row.js";
 import { ToolExecutionComponent } from "./tool-execution.ts";
 import { UserMessageComponent } from "./user-message.ts";
 export type ChatMessageEntry =
 	| { role: "assistant"; kind: "assistant"; message: AssistantMessage }
+	| { role: "tool"; kind: "task"; task: TaskRecord; duplicate: boolean }
 	| {
 			role: "tool";
 			kind: "tool";
@@ -160,6 +163,19 @@ export class LiveChatEntriesController {
 	private declare readonly entries: LiveChatEntry[];
 	constructor(entries: LiveChatEntry[]) {
 		this.entries = entries;
+	}
+	upsertTasks(tasks: readonly TaskRecord[]): void {
+		for (const task of tasks) {
+			const duplicate =
+				tasks.filter((other) => other.agentName === task.agentName && other.title === task.title).length > 1;
+			const entry = this.entries.find(
+				(entry) => "kind" in entry && entry.kind === "task" && entry.task.ref.taskId === task.ref.taskId,
+			);
+			if (entry && "kind" in entry && entry.kind === "task") {
+				entry.task = task;
+				entry.duplicate = duplicate;
+			} else this.entries.push({ role: "tool", kind: "task", task, duplicate });
+		}
 	}
 	appendMessages(messages: readonly AgentMessage[]): void {
 		this.entries.push(...chatEntriesFromAgentMessages(messages));
@@ -416,6 +432,11 @@ export function renderChatMessageEntry(entry: ChatMessageEntry, options: ChatMes
 	const messageEntry = entry as ChatMessageEntry;
 	const markdownTheme = options.markdownTheme ?? getMarkdownTheme();
 	switch (messageEntry.kind) {
+		case "task":
+			return new TaskRow(messageEntry.task, {
+				expanded: options.toolOutputExpanded,
+				duplicate: messageEntry.duplicate,
+			});
 		case "assistant":
 			return new AssistantMessageComponent(
 				messageEntry.message,

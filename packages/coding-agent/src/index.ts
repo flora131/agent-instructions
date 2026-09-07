@@ -2,6 +2,9 @@
 export { AgentTaskHost, type AgentTaskHostBinding, type AgentTaskRunnerFactory } from "./core/tasks/agent-adapter.js";
 export type { AgentIntent, OperationId, TaskId, TaskResult, WaitPolicy } from "./core/tasks/contracts.js";
 export { type AdmittedAgentTask, collectAgentTasks } from "./core/tasks/execution-scope.js";
+export { bindOwnerTaskStore, getOwnerTaskStore, OwnerTaskStore } from "./core/tasks/owner-store.js";
+export { renderTaskFooter, TaskList, taskListSections } from "./modes/interactive/components/task-list.js";
+export { TaskRow } from "./modes/interactive/components/task-row.js";
 // Core session management
 
 export { type Args, parseArgs } from "./cli/args.ts";
