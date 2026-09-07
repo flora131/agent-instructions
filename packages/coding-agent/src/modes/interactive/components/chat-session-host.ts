@@ -97,8 +97,13 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	}
 
 	openTasks(id?: string): boolean {
+		const session = this.state.getAgentSession?.();
+		if (session && !getOwnerTaskStore(session)) session.getAgentTaskHost?.();
 		this.refreshTaskStore();
-		if (!this.taskStore) return false;
+		if (!this.taskStore) {
+			this.showWarning("Launched agents and shells will appear here.");
+			return true;
+		}
 		this.taskInspector?.dispose();
 		this.taskInspector = new TaskInspector(
 			this.taskStore,

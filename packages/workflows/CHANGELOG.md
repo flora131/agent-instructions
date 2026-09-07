@@ -14,7 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- `/tasks` in an attached stage chat is now reserved for local inspection and no longer enters model context, including during interrupt settlement. Hosts without a task inspector report that it is unavailable.
+- `/tasks` in an attached stage chat opens the shared owner-bound inspector without entering model context, including during interrupt settlement. Task focus exits before the ordinary stage Escape action, and mounted human-input prompts retain input priority ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 
 ### Fixed
 

@@ -279,6 +279,7 @@ InteractiveModeBase.prototype.setupEditorSubmitHandler = function (this: Interac
 		try {
 			// Handle commands
 			if (text === "/tasks" || text.startsWith("/tasks ")) {
+				if (!getOwnerTaskStore(this.session)) this.session.getAgentTaskHost();
 				const store = getOwnerTaskStore(this.session);
 				this.editor.setText("");
 				if (!store) {

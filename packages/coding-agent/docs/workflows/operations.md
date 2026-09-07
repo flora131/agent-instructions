@@ -184,7 +184,7 @@ Enter starts an idle turn or steers a streaming turn; Ctrl+F preserves follow-up
 
 Mounted HIL and custom prompts take precedence: a `/skill:` answer is literal prompt input. Blocked stages, read-only archives, and replay do not admit skill messages. Explicit editable [post-mortem chat](#post-mortem-chat-vs-execution-resume) can use its own skills, but cannot revive a workflow node or change the completed DAG. Skill invocation grants no additional delegation or tool authority and does not forward unrelated commands to the parent chat.
 
-`/tasks` is reserved for local task inspection, not a skill or model message. On hosts without the task inspector it reports `Task inspection is unavailable in this host.` and sends nothing to the model.
+`/tasks` opens the owner task list locally, never a skill or model message. Enter inspects the selected task; focused actions offer retained transcript inspection, foreground waiting, confirmed cancellation, and stdin when available. Terminal tasks omit live actions. Escape leaves task or stdin focus before applying the ordinary stage Escape behavior. Mounted human-input prompts retain priority. An empty owner explains that launched agents and shells appear here.
 
 The shared chat host owns this local-command dispatch, including during interrupt settlement. Its host callback is the task-inspector integration point; stage session extension commands named `/tasks` do not override this reserved view action. Skill completion itself reuses the attached session and does not checkpoint it on each keystroke. Tab also completes relative paths rooted at the stage session cwd; `@` file-mention suggestions are not available.
 

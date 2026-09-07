@@ -804,7 +804,7 @@ export class SubagentControlRuntime {
 		candidate: ModelCandidate,
 		signals: AttemptSignals,
 		onModelChange: ((model: string | undefined, thinking?: string) => void) | undefined,
-		taskHooks?: Pick<TaskExecutionHooks, "reportActivity">,
+		taskHooks?: Pick<TaskExecutionHooks, "reportActivity" | "bindTranscript">,
 		onCleanup?: (cleanup: Promise<Cleanup>) => void,
 	): Promise<AttemptOutcome> {
 		const candidateModelId = modelIdForCandidate(candidate, admitted.policy.model);
@@ -905,6 +905,7 @@ export class SubagentControlRuntime {
 						workflow ? { internal: true, workflow } : { internal: true },
 					);
 			activeSessionManager = sessionManager;
+			taskHooks?.bindTranscript?.(sessionManager);
 			if (workflow) sessionManager.markSessionInternal(workflow);
 			let created: { session: AgentSession };
 			if (admitted.spec.testSession) {

@@ -53,6 +53,7 @@ export async function runAgentTask(input: {
 						taskExecution: {
 							signal: context.signal,
 							reportActivity: context.reportActivity,
+							bindTranscript: context.bindTranscript,
 							onExecution: (execution) => {
 								executionBound = true;
 								void execution.cleanup.then(cleaned.resolve, (error) =>
