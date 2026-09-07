@@ -71,6 +71,15 @@ const environment = {
 	ownerIds: new Map<C.OwnerId, OwnerLease>(),
 };
 
+/** Promise rejection reasons and setup throws may be any JavaScript value. */
+function rejectionMessage<T>(reason: T): string {
+	try {
+		const message = reason instanceof Error ? reason.message : reason;
+		return typeof message === "string" ? message : String(message);
+	} catch {
+		return "Unprintable JavaScript rejection";
+	}
+}
 function mapped<T, U, Code extends string>(
 	result: C.Result<T, native.TaskFailure>,
 	convert: (value: T) => U,
@@ -283,6 +292,9 @@ function applyEvent(current: C.OwnerSnapshot, value: C.NativeEvent): C.OwnerSnap
 	const change = value.payload;
 	if (change.kind === "owner-closing") {
 		next.state = "closing";
+		next.tasks = next.tasks.map((task) =>
+			task.execution.kind === "settled" ? task : { ...task, attention: { kind: "none" } },
+		);
 		return next;
 	}
 	if (change.kind === "owner-closed") {
@@ -306,7 +318,6 @@ function applyEvent(current: C.OwnerSnapshot, value: C.NativeEvent): C.OwnerSnap
 			break;
 		case "task-cancelling":
 			task.execution = { kind: "cancelling", cause: change.cause };
-			task.attention = { kind: "none" };
 			break;
 		case "task-settled":
 			task.execution = { kind: "settled", result: change.result };
@@ -358,6 +369,7 @@ export class TaskSubscription {
 	#resource = new AsyncResource("TaskSubscription");
 	#timer?: ReturnType<typeof setTimeout>;
 	#queue: C.NativeEvent[] = [];
+	#epoch = 0;
 	#next?: (value: IteratorResult<C.NativeEvent>) => void;
 	#disposed = false;
 	#snapshot: C.OwnerSnapshot;
@@ -377,21 +389,25 @@ export class TaskSubscription {
 		this.#cursor = cursor(initial.cursor);
 		this.#onDispose = onDispose;
 		this.events = {
-			[Symbol.asyncIterator]: () => ({
-				next: () => {
-					const value = this.#queue.shift();
-					if (value) return Promise.resolve({ done: false, value });
-					if (this.#disposed) return Promise.resolve({ done: true, value: undefined });
-					if (this.#next) return Promise.reject(new Error("Only one pending subscription read is supported"));
-					return new Promise((resolve) => {
-						this.#next = resolve;
-					});
-				},
-				return: async () => {
-					this.dispose();
-					return { done: true, value: undefined };
-				},
-			}),
+			[Symbol.asyncIterator]: () => {
+				const epoch = this.#epoch;
+				return {
+					next: () => {
+						if (epoch !== this.#epoch) return Promise.resolve({ done: true, value: undefined });
+						const value = this.#queue.shift();
+						if (value) return Promise.resolve({ done: false, value });
+						if (this.#disposed) return Promise.resolve({ done: true, value: undefined });
+						if (this.#next) return Promise.reject(new Error("Only one pending subscription read is supported"));
+						return new Promise((resolve) => {
+							this.#next = resolve;
+						});
+					},
+					return: async () => {
+						if (epoch === this.#epoch) this.dispose();
+						return { done: true, value: undefined };
+					},
+				};
+			},
 		};
 		this.#arm();
 	}
@@ -434,7 +450,15 @@ export class TaskSubscription {
 		this.#cursor = cursor(drained.value.cursor);
 		this.#snapshot = { ...this.#snapshot, cursor: this.#cursor };
 		const overflow = this.#queue.length + events.length > MAX_PENDING_EVENTS;
-		if (drained.value.reset || overflow) this.#queue = [];
+		const reset = drained.value.reset || overflow;
+		if (reset) {
+			this.#queue = [];
+			this.#epoch++;
+			// End the old iterator only after publishing the authoritative snapshot/cursor.
+			// A new iterator on the same iterable observes subsequent authentic deltas.
+			this.#next?.({ done: true, value: undefined });
+			this.#next = undefined;
+		}
 		if (drained.value.snapshot || events.length) {
 			try {
 				this.#resource.runInAsyncScope(this.onReconcile, undefined, this.#snapshot);
@@ -442,7 +466,7 @@ export class TaskSubscription {
 				this.#failure = error instanceof Error ? error : new Error(String(error));
 			}
 		}
-		if (!overflow)
+		if (!reset)
 			for (const value of events) {
 				if (this.#next) {
 					const next = this.#next;
@@ -558,7 +582,7 @@ export class TaskSupervisor {
 				intent,
 			);
 		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
+			const message = rejectionMessage(error);
 			execution = {
 				result: Promise.resolve({ kind: "failed", code: "SpawnFailed", message }),
 				cleanup: Promise.resolve({
@@ -568,7 +592,7 @@ export class TaskSupervisor {
 			};
 		}
 		const outcome = execution.result
-			.catch((error: Error) => ({ kind: "failed" as const, code: "RunnerFailed", message: error.message }))
+			.catch((error) => ({ kind: "failed" as const, code: "RunnerFailed", message: rejectionMessage(error) }))
 			.then((result) => {
 				return mapped(
 					this.#native.reportTaskOutcome(runner.value, { reportId: "runner-outcome", result }),
@@ -577,9 +601,9 @@ export class TaskSupervisor {
 				);
 			});
 		const cleanup = execution.cleanup.catch(
-			(error: Error): C.Cleanup => ({
+			(error): C.Cleanup => ({
 				kind: "failed",
-				resources: [{ resource: "fake-runner", code: "CleanupFailed", message: error.message }],
+				resources: [{ resource: "fake-runner", code: "CleanupFailed", message: rejectionMessage(error) }],
 			}),
 		);
 		taskState.execution = cleanup.then(async (evidence) => {
@@ -726,10 +750,11 @@ export class TaskSupervisor {
 		return result;
 	}
 	/**
-	 * The bounded event stream carries only authentic deltas. Reconciliation is delivered
-	 * through onReconcile and snapshot, including overflow with no surviving event. Apply
-	 * the snapshot first and ignore deltas at or below its cursor. Consumer exceptions
-	 * remain visible as subscription.failure; they never disable the fallback poll.
+	 * The bounded stream carries only authentic deltas. Overflow/native reset publishes
+	 * snapshot/cursor then ends the current iterator, even with no surviving delta.
+	 * Reconcile on completion; obtain a new iterator on the same events iterable to
+	 * continue observing. Apply snapshots first and ignore deltas at/below their cursor.
+	 * onReconcile is optional; consumer failures never disable the fallback poll.
 	 */
 	watchOwnerTasks(owner: OwnerLease, from?: C.Cursor): C.Result<TaskSubscription, C.WatchError> {
 		const state = this.#owner(owner);

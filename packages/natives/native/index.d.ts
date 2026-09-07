@@ -721,6 +721,7 @@ export interface TaskRecord {
   output: OutputRef
 }
 
+/** Terminal numeric exit codes retain JavaScript number values without i32 narrowing. */
 export type TaskResult =
   | { kind: 'completed', output: OutputRef, exitCode?: number }
   | { kind: 'failed', code: string, message: string, output?: OutputRef, exitCode?: number }

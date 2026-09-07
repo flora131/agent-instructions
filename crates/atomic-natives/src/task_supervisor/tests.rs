@@ -292,7 +292,7 @@ fn cancellation_rejects_late_success_until_runner_acknowledges_stop() {
 	output.byte_count = "42".into();
 	let late = OutcomeReport {
 		report_id: "late-success".into(),
-		result: TaskResult::Completed { output: output.clone(), exit_code: Some(0) },
+		result: TaskResult::Completed { output: output.clone(), exit_code: Some(0.0) },
 	};
 	let requested = a.cancel(&t, CancelCause::User).unwrap();
 	assert_eq!(requested.cleanup, Cleanup::Draining {});

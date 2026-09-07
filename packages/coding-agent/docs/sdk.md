@@ -56,20 +56,46 @@ cancellation can close even if no result arrives. Natural cleanup-first delivery
 waits for its outcome before acknowledging reaping. External native owner closure
 also aborts resources attached to already-settled results without rewriting them.
 Failed cleanup remains observable; absent acknowledgement can leave close pending.
+User cancellation retains pending input attention until settlement or owner closure;
+event-reduced and reattached snapshots report the same native facts. Runner result
+rejections become failed `RunnerFailed` results; cleanup rejections become diagnostic
+`CleanupFailed` resources, never successful reaping. Setup throws retain `SpawnFailed`
+and unconfirmed cleanup. Strings and Error messages are preserved verbatim; other JS
+values use safe string conversion, with `Unprintable JavaScript rejection` if conversion
+throws. Cancelled cleanup still does not depend on the result promise settling.
 This slice exercises fake runners, not force-stop or real-process cleanup guarantees.
 
 `watchOwnerTasks(owner, cursor?)` provides an opaque `lease`, snapshot,
-decimal-string cursor and disposable async event iterable. Optional reconciliation
-is configured on the returned `subscription.onReconcile`, not in the cursor argument.
-Consumers must reconcile `snapshot`/`onReconcile`, then ignore deltas at or below that cursor:
-the iterable alone cannot recover evicted terminal
-events. Native callbacks are wake hints; journal drain and reset snapshots are
-authoritative. Each live facade subscription has one fallback poll, stopped on
-disposal or observed closure. The native byte journal and facade delivery backlog
-are bounded; total task and exact report-replay history are not.
+decimal-string cursor and disposable `AsyncIterable<NativeEvent>`. Each iterator
+observes one contiguous delivery epoch. On local backlog overflow or native journal
+reset, the subscription updates its authoritative `snapshot` and `cursor`, discards
+stale queued deltas, and completes the old iterator (`next()` returns `done:true`,
+including an already-pending read). This also works when an oversized final settlement
+leaves no retained event, without later activity or cleanup. No synthetic reset event
+is inserted and the `NativeEvent` and subscription types are unchanged.
+
+After any iterator completion, reconcile `subscription.snapshot` at
+`subscription.cursor`. If the owner is still live and observation is still wanted,
+obtain another iterator from the **same** `subscription.events`; the old iterator stays
+done. Reset does not dispose the subscription or close the owner. Subsequent deltas
+are authentic and ordered; ignore events at or below an already-applied snapshot
+cursor. Explicit `dispose()` (idempotent) or breaking out of a live iterator ends
+observation, not the owner. Owner closure also ends delivery. Track your own disposal
+when deciding whether to resume. New subscriptions are refused once owner closing
+begins; existing subscriptions continue through cleanup/closure.
+
+The optional `subscription.onReconcile` callback is a convenience, not required for
+correctness; callback exceptions remain visible as `subscription.failure`. Native
+callbacks are wake hints; journal drains and reset snapshots are authoritative. Each
+live subscription has one fallback poll, stopped on disposal or observed closure.
+The native byte journal and facade delivery backlog are bounded; total task and exact
+report-replay history are not. This remains an unresolved S1 storage-contract limit.
 
 Raw text, absent optional fields, known zero metrics and ordered duplicate data
-remain distinct. `OutputRef` is metadata, not proof of retained bytes: output
+remain distinct. Completed/failed `exitCode` numbers are preserved without signed-32-bit
+narrowing, including fractional values and unsigned platform statuses. Omission, zero
+and negative zero remain distinct for exact replay; repeated NaN and infinite values
+also round-trip. `OutputRef` is metadata, not proof of retained bytes: output
 storage, `readTaskOutput`, command input, persistence, completion delivery and
 real agent/Intercom integration belong to later slices. The credential-free
 repository fixture `test/fixtures/task-s1-demo.ts` exercises this real facade and

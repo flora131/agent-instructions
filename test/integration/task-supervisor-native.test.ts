@@ -713,3 +713,51 @@ test("cleanup received before cancellation can close without a result", async ()
 		await closing;
 	}
 });
+
+// RFC #2884: numeric TaskResult fields are numbers, not signed 32-bit exit statuses.
+test("Node and Bun preserve exact exit codes and reject numerically distinct replays", () => {
+	for (const runtime of [process.execPath, bunExecutable()]) {
+		const result = spawnSyncCollect([runtime, "test/fixtures/task-s1-exit-codes.mjs"]);
+		assert.equal(result.exitCode, 0, `${runtime}\n${result.stdout}\n${result.stderr}`);
+		assert.match(result.stdout.toString(), /EXIT CODES PRESERVED 26/);
+	}
+});
+
+// RFC #2884: reconnecting at the same cursor cannot change attention or cleanup facts.
+test("Node and Bun keep cancellation, settlement and owner-close projections consistent", () => {
+	for (const runtime of [process.execPath, bunExecutable()]) {
+		const result = spawnSyncCollect([
+			runtime,
+			"--import",
+			"jiti/register",
+			"test/fixtures/task-s1-projections.ts",
+			"attention",
+		]);
+		assert.equal(result.exitCode, 0, `${runtime}\n${result.stdout}\n${result.stderr}`);
+		assert.match(result.stdout.toString(), /ATTENTION PROJECTIONS CONSISTENT 3/);
+	}
+});
+
+// RFC #2884: no optional callback or later cleanup may be needed to wake the last observer.
+test("Node and Bun expose bounded overflow and native reset through iterator completion", () => {
+	for (const runtime of [process.execPath, bunExecutable()]) {
+		const result = spawnSyncCollect([
+			runtime,
+			"--import",
+			"jiti/register",
+			"test/fixtures/task-s1-projections.ts",
+			"overflow",
+		]);
+		assert.equal(result.exitCode, 0, `${runtime}\n${result.stdout}\n${result.stderr}`);
+		assert.match(result.stdout.toString(), /ITERATOR RECONCILIATION OBSERVED 3/);
+	}
+});
+
+// RFC #2884: result, cleanup and setup failures preserve arbitrary JS rejection diagnostics.
+test("Node and Bun report JavaScript rejection values without blocking cleanup or leaking rejections", () => {
+	for (const runtime of [process.execPath, bunExecutable()]) {
+		const result = spawnSyncCollect([runtime, "--import", "jiti/register", "test/fixtures/task-s1-rejections.ts"]);
+		assert.equal(result.exitCode, 0, `${runtime}\n${result.stdout}\n${result.stderr}`);
+		assert.match(result.stdout.toString(), /JS REJECTIONS PRESERVED 42 diagnostics and 2 independent cleanup orders/);
+	}
+});

@@ -70,13 +70,48 @@ pub struct OutputRef {
 	pub byte_count: String,
 	pub omitted_ranges: Vec<OmittedRange>,
 }
+/// Terminal numeric exit codes retain JavaScript number values without i32 narrowing.
 #[napi(discriminant = "kind", discriminant_case = "kebab-case")]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub enum TaskResult {
-	Completed { output: OutputRef, exit_code: Option<i32> },
-	Failed { code: String, message: String, output: Option<OutputRef>, exit_code: Option<i32> },
+	Completed { output: OutputRef, exit_code: Option<f64> },
+	Failed { code: String, message: String, output: Option<OutputRef>, exit_code: Option<f64> },
 	Cancelled { cause: CancelCause, output: Option<OutputRef> },
 }
+// Exact replay compares the retained numeric representation: -0 is not 0 and NaN replays.
+impl PartialEq for TaskResult {
+	fn eq(&self, other: &Self) -> bool {
+		match (self, other) {
+			(
+				Self::Completed { output, exit_code },
+				Self::Completed { output: other_output, exit_code: other_exit_code },
+			) => {
+				output == other_output
+					&& exit_code.map(f64::to_bits) == other_exit_code.map(f64::to_bits)
+			},
+			(
+				Self::Failed { code, message, output, exit_code },
+				Self::Failed {
+					code: other_code,
+					message: other_message,
+					output: other_output,
+					exit_code: other_exit_code,
+				},
+			) => {
+				code == other_code
+					&& message == other_message
+					&& output == other_output
+					&& exit_code.map(f64::to_bits) == other_exit_code.map(f64::to_bits)
+			},
+			(
+				Self::Cancelled { cause, output },
+				Self::Cancelled { cause: other_cause, output: other_output },
+			) => cause == other_cause && output == other_output,
+			_ => false,
+		}
+	}
+}
+impl Eq for TaskResult {}
 impl TaskResult {
 	fn output(&self) -> Option<OutputRef> {
 		match self {

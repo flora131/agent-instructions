@@ -1,6 +1,6 @@
 # S1 consolidated review repair (#2884)
 
-Current repair evidence: `/workspace/task-experience-evidence/s1/round1/` and `round1-repair-notes.md`.
+Current repair evidence: `/workspace/task-experience-evidence/s1/round2/`, `round2-repair-notes.md` and `round2-debugger-handoff.md`. Earlier seven repairs remain covered by the unchanged regression suite.
 
 | Root | Status | Defect / correction |
 |---|---|---|
@@ -13,9 +13,23 @@ Current repair evidence: `/workspace/task-experience-evidence/s1/round1/` and `r
 | 7 Disposal replay | Repaired; focused checks pass | Native ObserverCancelled was omitted from yield mapping. Recorded refusal stays Result-shaped. |
 | 8 Retained report history | **Unresolved contract blocker** | Exact arbitrary report replay requires unbounded distinct-history information, outside the bounded journal. No authorized finite lifetime/cap or storage-failure contract exists. |
 
+## Latest full review: 13 entries, five roots
+
+| Root | Status | Proven defect / correction |
+|---|---|---|
+| Numeric exit codes (3 findings) | Repaired; Node/Bun red/green | `Option<i32>` silently narrowed accepted numbers and collapsed conflicting replay. `Option<f64>` plus exact numeric-bit equality retains completed/failed exit codes, omitted/zero/-0 distinctions and NaN replay. 26 numeric round-trips/conflicts per runtime pass. |
+| Cancellation projection (3 findings) | Repaired; Node/Bun red/green | The facade cleared attention on ordinary cancellation while native retained it. Match native authority: cancellation preserves attention; terminal/owner-closing clears it. Same-cursor event/native snapshots agree through settlement, owner-close and preserved cleanup failures. |
+| Sleeping iterator on overflow (3 findings) | Repaired; Node/Bun red/green | Overflow replaced snapshot but left pending next() asleep. Publish snapshot/cursor then end the old iterator epoch, without disposing the subscription; a new iterator on the same iterable continues authentic ordered deltas. Local 100-metric/final-settlement overflow, native reset and oversized final settlement all notify without onReconcile or later cleanup/activity. |
+| JS rejection values (1 finding) | Repaired; Node/Bun red/green | Error-only promise handlers sent missing messages into native conversion and stranded cleanup. Safe diagnostics retain raw strings/Error messages and cannot throw for other JS values. Result/cleanup/setup failures and two permanently-pending cancelled-result cleanup orders pass with no unhandled rejections. Native protocol reporting remains outside the rejection-conversion catch. |
+| Report history (3 findings; original root 8) | **Unresolved contract blocker** | Exact arbitrary indefinite replay still requires unbounded retained information. Delivery queue repair is not a storage-policy resolution. |
+
+Round2 repeatable original reviewer probe: `node /workspace/task-experience-evidence/s1/risk-probe-native-turn2.mjs` accepted 512 distinct 65,536-byte activity reports and increased RSS by 34,865,152 bytes; the oldest report still returned `duplicate` (`round2/history-current.log`). Exact replay semantics remain unchanged. No expiry, new cap/refusal, fingerprint or private persistence policy was added.
+
+Final gate counts, generated binding status, platform limits and local commit/status are recorded in the external handoff; full S1 acceptance remains blocked only by the storage contradiction below.
+
 ## Root 8: precise blocker, not an exemption
 
-`task_supervisor/task.rs` retains full accepted reports and receipts in `activities` and checks duplicates before owner/terminal refusals. A current Node probe accepts 768 unique 64-KiB reports (50,331,648 payload bytes) for one task with an empty drained journal; RSS rises from 56,057,856 to 109,273,088 bytes and replay survives close. Queue bounds do not resolve this defect.
+`task_supervisor/task.rs` retains full accepted reports and receipts in `activities` and checks duplicates before owner/terminal refusals. The previous round's Node probe accepted 768 unique 64-KiB reports (50,331,648 payload bytes) for one task with an empty drained journal; RSS rose from 56,057,856 to 109,273,088 bytes and replay survived close. Queue bounds do not resolve this defect.
 
 With arbitrary report IDs/payloads and indefinite exact replay/conflict detection, distinct histories must stay distinguishable. Any fixed total-state bound admits only finitely many representations, so sufficiently many histories collide. Lossless compression/deduplication cannot bound arbitrary incompressible input; fixed-size fingerprints cannot guarantee exact equality. Closed-owner collection changes observable replay while runner capabilities remain live. A private spool only moves the unbounded state to disk and introduces disk-full/read-error/lifetime obligations not covered by ReportError; silently refusing, dropping, or throwing for these is not an authorized fix.
 
