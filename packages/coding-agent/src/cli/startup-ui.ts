@@ -20,7 +20,7 @@ import {
 	initTheme,
 	setTheme,
 	type TerminalTheme,
-} from "../modes/interactive/theme/theme.ts";
+} from "../modes/interactive/theme/theme.js";
 
 function createStartupTui(settingsManager: SettingsManager): TUI {
 	setCapabilityOverrides(settingsManager.getTerminalCapabilityOverrides());

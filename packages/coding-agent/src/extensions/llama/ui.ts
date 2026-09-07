@@ -13,8 +13,8 @@ import {
 import type { ExtensionCommandContext } from "../../core/extensions/types.ts";
 import type { KeybindingsManager } from "../../core/keybindings.ts";
 import { DynamicBorder } from "../../modes/interactive/components/dynamic-border.ts";
-import { keyHint } from "../../modes/interactive/components/keybinding-hints.ts";
-import type { Theme } from "../../modes/interactive/theme/theme.ts";
+import { keyHint } from "../../modes/interactive/components/keybinding-hints.js";
+import type { Theme } from "../../modes/interactive/theme/theme.js";
 import type { LlamaModelInfo, LlamaProgress } from "./client.js";
 import type { HuggingFaceModel } from "./huggingface.js";
 import { HuggingFaceSearch } from "./huggingface-ui.js";

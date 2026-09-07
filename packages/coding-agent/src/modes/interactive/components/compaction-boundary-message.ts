@@ -5,8 +5,8 @@ import type {
 	VerbatimCompactionStats,
 } from "../../../core/compaction/index.ts";
 import { type CustomMessage, VERBATIM_COMPACTION_PREFIX } from "../../../core/messages.ts";
-import { theme } from "../theme/theme.ts";
-import { parenthesizedKeyHint } from "./keybinding-hints.ts";
+import { theme } from "../theme/theme.js";
+import { parenthesizedKeyHint } from "./keybinding-hints.js";
 
 interface BoundaryView {
 	text: string;

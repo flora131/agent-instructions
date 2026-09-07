@@ -17,7 +17,7 @@ import {
 	beginStreamingAssistantMessage,
 	type StreamingAssistantDelta,
 } from "../streaming-assistant-message.ts";
-import { getMarkdownTheme, theme } from "../theme/theme.ts";
+import { getMarkdownTheme, theme } from "../theme/theme.js";
 import { AssistantMessageComponent } from "./assistant-message.ts";
 import { BashExecutionComponent } from "./bash-execution.ts";
 import { BranchSummaryMessageComponent } from "./branch-summary-message.ts";

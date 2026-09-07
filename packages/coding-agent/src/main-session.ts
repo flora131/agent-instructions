@@ -10,7 +10,7 @@ import { assertValidSessionId, SessionManager } from "./core/session-manager.ts"
 import { workflowSessionMetadataFromEnv } from "./core/session-manager-classification.ts";
 import type { SettingsManager } from "./core/settings-manager.ts";
 import { ExtensionSelectorComponent } from "./modes/interactive/components/extension-selector.ts";
-import { initTheme, stopThemeWatcher } from "./modes/interactive/theme/theme.ts";
+import { initTheme, stopThemeWatcher } from "./modes/interactive/theme/theme.js";
 import { resolvePath } from "./utils/paths.ts";
 
 /** Result from resolving a session argument */

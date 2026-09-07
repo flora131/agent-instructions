@@ -1,5 +1,5 @@
 import { type Component, Container, getKeybindings, Spacer, Text, truncateToWidth } from "@earendil-works/pi-tui";
-import { theme } from "../theme/theme.ts";
+import { theme } from "../theme/theme.js";
 import { DynamicBorder } from "./dynamic-border.ts";
 
 interface UserMessageItem {
