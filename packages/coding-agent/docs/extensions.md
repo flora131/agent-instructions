@@ -1044,7 +1044,7 @@ The projection module's `workflowActivityNodeKey(runId, nodeId)` helper builds `
 
 The projector and its ownership-key helper are internal to the workflows package, not exports of the supported `@bastani/atomic/workflows` SDK. Extension consumers use `ctx.observeWorkflowActivity` rather than importing the projector.
 
-This projector is not yet wired into the workflows extension. It does not publish activity or lifecycle events, change notifications, or enable a Herdr reporter.
+The workflows extension registers a publisher on activation and publishes this activity stream for its owning session: root snapshots and changes, plus `workflow_lifecycle`, `workflow_stage_completed`, and `workflow_heartbeat` hooks (the runtime state table is in [`workflows/operations.md`](workflows/operations.md#workflow-activity-for-extensions)). It does not change chat notifications, and no built-in Herdr reporter is enabled yet.
 
 | Hook | Payload and semantics |
 | --- | --- |

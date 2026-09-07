@@ -36,6 +36,7 @@ export class WorkflowObservationRuntime {
 
 	finishRun(runId: string): void {
 		this.liveRunIds.delete(runId);
+		this.stoppingRunIds.delete(runId);
 		for (const ids of [
 			this.executingStageIds,
 			this.executingToolNodeIds,

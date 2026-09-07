@@ -193,6 +193,61 @@ test("pause is idle and quit remains working until its tool drains", async () =>
 	}
 });
 
+// #2891: stop ownership ends with the run; a re-execution under the same id starts unowned.
+test("re-running a quit run id publishes executing rather than stopping", async () => {
+	const store = createStore();
+	const hub = new WorkflowActivityHub();
+	const observation = createWorkflowObservation(store, hub.registerWorkflowActivityPublisher(), "owner");
+	const gates = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
+	const entered = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
+	let attempt = 0;
+	const definition = workflow({
+		name: "rerun",
+		description: "",
+		inputs: {},
+		outputs: {},
+		run: async (ctx) => {
+			const index = attempt++;
+			await ctx.tool("hold", {}, async () => {
+				entered[index]!.resolve();
+				await gates[index]!.promise;
+				return "done";
+			});
+			return {};
+		},
+	});
+	const first = run(definition, {}, { store, durableBackend: new InMemoryDurableBackend() });
+	await entered[0]!.promise;
+	const id = store.runs()[0]!.id;
+	try {
+		const quitting = quitRun(id, { store, actor: "user" });
+		gates[0]!.resolve();
+		await quitting;
+		await first;
+		const done = hub.getSnapshotFrame();
+		assert.ok(done.availability === "ready");
+		assert.equal(done.roots[0]?.state, "idle");
+		store.removeRun(id);
+		const second = run(definition, {}, { store, durableBackend: new InMemoryDurableBackend(), runId: id });
+		try {
+			await entered[1]!.promise;
+			const rerun = hub.getSnapshotFrame();
+			assert.ok(rerun.availability === "ready");
+			assert.equal(rerun.roots[0]?.state, "working");
+			assert.equal(rerun.roots[0]?.reason, "executing");
+		} finally {
+			gates[1]!.resolve();
+			await second;
+		}
+		const finished = hub.getSnapshotFrame();
+		assert.ok(finished.availability === "ready");
+		assert.equal(finished.roots[0]?.state, "idle");
+	} finally {
+		for (const gate of gates) gate.resolve();
+		observation.dispose();
+	}
+});
+
 // #2891: failed workflows remain actionable without notification delivery.
 test("live workflow failure is blocked for manual intervention", async () => {
 	const store = createStore();
