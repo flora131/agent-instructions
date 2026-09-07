@@ -11,6 +11,7 @@ import {
 	isVerbatimCompactionMessage,
 } from "../../../core/messages.ts";
 import type { TaskRecord } from "../../../core/tasks/contracts.js";
+import type { OwnerTaskStore, TaskActivity } from "../../../core/tasks/owner-store.js";
 import {
 	applyAssistantMessageDelta,
 	beginStreamingAssistantMessage,
@@ -29,7 +30,15 @@ import { ToolExecutionComponent } from "./tool-execution.ts";
 import { UserMessageComponent } from "./user-message.ts";
 export type ChatMessageEntry =
 	| { role: "assistant"; kind: "assistant"; message: AssistantMessage }
-	| { role: "tool"; kind: "task"; task: TaskRecord; duplicate: boolean }
+	| {
+			role: "tool";
+			kind: "task";
+			task: TaskRecord;
+			duplicate: boolean;
+			siblings: readonly TaskRecord[];
+			activity: TaskActivity[];
+			activityOmitted: boolean;
+	  }
 	| {
 			role: "tool";
 			kind: "tool";
@@ -164,8 +173,10 @@ export class LiveChatEntriesController {
 	constructor(entries: LiveChatEntry[]) {
 		this.entries = entries;
 	}
-	upsertTasks(tasks: readonly TaskRecord[]): void {
+	upsertTasks(tasks: readonly TaskRecord[], store?: OwnerTaskStore): void {
 		for (const task of tasks) {
+			const activity = store?.recentActivity(task.ref.taskId) ?? [];
+			const activityOmitted = store?.activityOmitted(task.ref.taskId) ?? false;
 			const duplicate =
 				tasks.filter((other) => other.agentName === task.agentName && other.title === task.title).length > 1;
 			const entry = this.entries.find(
@@ -174,7 +185,19 @@ export class LiveChatEntriesController {
 			if (entry && "kind" in entry && entry.kind === "task") {
 				entry.task = task;
 				entry.duplicate = duplicate;
-			} else this.entries.push({ role: "tool", kind: "task", task, duplicate });
+				entry.siblings = tasks;
+				entry.activity = activity;
+				entry.activityOmitted = activityOmitted;
+			} else
+				this.entries.push({
+					role: "tool",
+					kind: "task",
+					task,
+					duplicate,
+					siblings: tasks,
+					activity,
+					activityOmitted,
+				});
 		}
 	}
 	appendMessages(messages: readonly AgentMessage[]): void {
@@ -436,6 +459,9 @@ export function renderChatMessageEntry(entry: ChatMessageEntry, options: ChatMes
 			return new TaskRow(messageEntry.task, {
 				expanded: options.toolOutputExpanded,
 				duplicate: messageEntry.duplicate,
+				siblings: messageEntry.siblings,
+				activity: messageEntry.activity,
+				activityOmitted: messageEntry.activityOmitted,
 			});
 		case "assistant":
 			return new AssistantMessageComponent(

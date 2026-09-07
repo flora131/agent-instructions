@@ -28,6 +28,7 @@ export class OwnerTaskStore {
 	private records = new Map<TaskId, TaskRecord>();
 	private activity = new Map<TaskId, TaskActivity[]>();
 	private activityCursors = new Map<TaskId, bigint>();
+	private omittedActivity = new Set<TaskId>();
 	readonly anchors = new Map<TaskId, TaskAnchor>();
 	private current?: OwnerSnapshot;
 	private readonly supervisor: TaskSupervisor;
@@ -49,6 +50,9 @@ export class OwnerTaskStore {
 	recentActivity(id: TaskId): TaskActivity[] {
 		return [...(this.activity.get(id) ?? [])];
 	}
+	activityOmitted(id: TaskId): boolean {
+		return this.omittedActivity.has(id);
+	}
 	subscribe(listener: () => void): () => void {
 		this.listeners.add(listener);
 		return () => {
@@ -56,7 +60,7 @@ export class OwnerTaskStore {
 		};
 	}
 	connect(): Result<void, WatchError> {
-		this.subscription?.dispose();
+		this.dispose();
 		const watched = this.supervisor.watchOwnerTasks(this.owner, this.cursor);
 		if (!watched.ok) return watched;
 		const subscription = watched.value;
@@ -118,8 +122,10 @@ export class OwnerTaskStore {
 		this.activityCursors.set(id, sequence);
 		const entries = this.activity.get(id) ?? [];
 		entries.push({ cursor: event.cursor, report: event.payload.activity });
-		while (entries.length > TASK_ACTIVITY_LIMIT || Buffer.byteLength(JSON.stringify(entries)) > TASK_ACTIVITY_BYTES)
+		while (entries.length > TASK_ACTIVITY_LIMIT || Buffer.byteLength(JSON.stringify(entries)) > TASK_ACTIVITY_BYTES) {
 			entries.shift();
+			this.omittedActivity.add(id);
+		}
 		this.activity.set(id, entries);
 		this.notify();
 	}
@@ -130,9 +136,24 @@ export class OwnerTaskStore {
 
 // Host adapters bind their existing session object, never a model-provided owner id.
 const sessionStores = new WeakMap<object, OwnerTaskStore>();
+const bindingListeners = new WeakMap<object, Set<() => void>>();
 export function bindOwnerTaskStore(session: object, store: OwnerTaskStore): void {
 	sessionStores.set(session, store);
+	for (const listener of bindingListeners.get(session) ?? []) listener();
 }
 export function getOwnerTaskStore(session: object): OwnerTaskStore | undefined {
 	return sessionStores.get(session);
+}
+
+/** Observe lazy producer binding without waiting for another tool/session event. */
+export function watchOwnerTaskStoreBinding(session: object, listener: () => void): () => void {
+	let listeners = bindingListeners.get(session);
+	if (!listeners) {
+		listeners = new Set();
+		bindingListeners.set(session, listeners);
+	}
+	listeners.add(listener);
+	return () => {
+		listeners.delete(listener);
+	};
 }

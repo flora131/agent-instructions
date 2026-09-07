@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { setKeybindings, visibleWidth } from "@earendil-works/pi-tui";
 import { test } from "vitest";
 import { KeybindingsManager } from "../../packages/coding-agent/src/core/keybindings.js";
+import type { TaskId } from "../../packages/coding-agent/src/core/tasks/contracts.js";
 import {
 	renderTaskFooter,
 	TaskList,
 	taskListSections,
 } from "../../packages/coding-agent/src/modes/interactive/components/task-list.js";
-import { TaskRow } from "../../packages/coding-agent/src/modes/interactive/components/task-row.js";
+import { TaskRow, taskShortId } from "../../packages/coding-agent/src/modes/interactive/components/task-row.js";
 import { initTheme } from "../../packages/coding-agent/src/modes/interactive/theme/theme.js";
 import { taskFixture } from "../helpers/task-projection.js";
 
@@ -84,6 +85,34 @@ test("groups retain all tasks, one expansion hint and separate inspector type or
 		assert.deepEqual(taskListSections(mixed)[0].tasks, [mixed[0], mixed[2]]);
 		assert.equal(plain(renderTaskFooter(tasks, 80)), "Tasks  6 agents running · /tasks");
 		assert.deepEqual(renderTaskFooter([], 80), []);
+	} finally {
+		await fixture.dispose();
+	}
+});
+
+// RFC #2884: raw and display-colliding descriptions must never identify a task.
+test("short labels distinguish shared ID suffixes and descriptions colliding at narrow width", async () => {
+	const fixture = taskFixture();
+	try {
+		await fixture.start();
+		const base = fixture.store.tasks[0];
+		const tasks = ["first", "second"].map((name) => ({
+			...base,
+			title: `${"same long description ".repeat(8)}${name}`,
+			ref: { ...base.ref, taskId: `${name}-abcdef` as TaskId },
+		}));
+		assert.notEqual(taskShortId(tasks[0]), taskShortId(tasks[1]));
+		const lines = new TaskList(tasks).render(40);
+		assert.ok(lines.every((line) => visibleWidth(line) <= 40));
+		for (const task of tasks) assert.ok(plain(lines).includes(`[${taskShortId(task)}]`));
+		const before = taskShortId(tasks[0]);
+		assert.equal(
+			taskShortId({
+				...tasks[0],
+				execution: { kind: "settled", result: { kind: "completed", output: base.output } },
+			}),
+			before,
+		);
 	} finally {
 		await fixture.dispose();
 	}

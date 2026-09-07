@@ -2,7 +2,7 @@ import type { Component, Focusable } from "@earendil-works/pi-tui";
 import type { AgentSessionEvent, CompactionReason } from "../../../core/agent-session.ts";
 import { repairOrphanToolResults } from "../../../core/messages.ts";
 import { SessionManager } from "../../../core/session-manager.ts";
-import { getOwnerTaskStore, type OwnerTaskStore } from "../../../core/tasks/owner-store.js";
+import { getOwnerTaskStore, type OwnerTaskStore, watchOwnerTaskStoreBinding } from "../../../core/tasks/owner-store.js";
 import {
 	abortChatSessionBash,
 	abortChatSessionCompaction,
@@ -61,6 +61,8 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	private readonly state: ChatSessionHostState<TExtraEntry>;
 	private taskStore?: OwnerTaskStore;
 	private unsubscribeTasks?: () => void;
+	private taskSession?: object;
+	private unsubscribeTaskBinding?: () => void;
 
 	constructor(opts: ChatSessionHostOpts<TExtraEntry>) {
 		this.state = new ChatSessionHostState(opts, {
@@ -122,12 +124,17 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	/** Tasks outlive tools and turns; only host/session binding grants this read projection. */
 	refreshTaskStore(): void {
 		const session = this.state.getAgentSession?.();
+		if (session && session !== this.taskSession) {
+			this.unsubscribeTaskBinding?.();
+			this.taskSession = session;
+			this.unsubscribeTaskBinding = watchOwnerTaskStoreBinding(session, () => this.refreshTaskStore());
+		}
 		const store = session ? getOwnerTaskStore(session) : undefined;
 		if (!store || store === this.taskStore) return;
 		this.unsubscribeTasks?.();
 		this.taskStore = store;
 		const update = () => {
-			this.state.liveChat.upsertTasks(store.tasks);
+			this.state.liveChat.upsertTasks(store.tasks, store);
 			this.state.transcriptComponent.invalidate();
 			this.state.requestRender?.();
 		};
@@ -227,6 +234,9 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 		return renderChatSessionEditor(this.state, width, this.focused);
 	}
 
+	renderTaskFooter(width: number): string[] {
+		return renderTaskFooter(this.taskStore?.tasks ?? [], width);
+	}
 	renderFooter(width: number): string[] {
 		const footer = renderChatSessionFooter(this.state, width);
 		return footer.length ? footer : renderTaskFooter(this.taskStore?.tasks ?? [], width);
@@ -344,6 +354,7 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 
 	dispose(): void {
 		this.unsubscribeTasks?.();
+		this.unsubscribeTaskBinding?.();
 		disposeChatSession(this.state);
 	}
 
