@@ -3,6 +3,7 @@ import { addGroup, normalizeGroups, removeGroup, validateRuntimeGroup } from "..
 import type { BrokerMessage } from "../types.js";
 import { sessionGroups, sessionsShareGroup, setSessionGroups } from "./group-membership.js";
 import type { BrokerConnectedSession } from "./send-handler.js";
+import { isAgentRecipient } from "../recipient-purpose.js";
 
 interface PresenceClientMessage extends Record<string, unknown> {
 	type: string;
@@ -16,6 +17,7 @@ function broadcastMembershipChange(
 	session: BrokerConnectedSession,
 	previous: ReadonlySet<string>,
 ): void {
+	if (!isAgentRecipient(session.info)) return;
 	const previousInfo = { ...session.info, groups: [...previous], group: previous.values().next().value };
 	for (const [id, peer] of sessions) {
 		if (id === session.info.id) continue;

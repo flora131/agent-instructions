@@ -1,6 +1,6 @@
 import { getDurableBackend } from "../durable/factory.js";
 import { durableBackendForRun, durableRootRunIdForRun } from "../durable/run-owner-backend.js";
-import { workflowInvocationIntercomGroup } from "../shared/intercom-group.js";
+import { workflowInvocationIntercomGroup, workflowInvocationOwnsGroup } from "../shared/intercom-group.js";
 import { workflowPendingStageRouteCapability } from "../shared/pending-stage-route-capability.js";
 import {
 	stageMatchesPathPattern,
@@ -15,6 +15,7 @@ import type {
 	PendingStageQueueResult,
 	PendingStageSender,
 	PendingStickyStageMessageInput,
+	StageSnapshot,
 } from "../shared/store-types.js";
 import {
 	matchStagePathSegments,
@@ -109,28 +110,59 @@ export function registerPendingStageIntercomBridge(pi: WorkflowEventSurface, act
 		for (const run of runs) {
 			const rootRunId = durableRootRunIdForRun(runs, run.id);
 			if (rootRunId === undefined) continue;
+			const parentRun = runs.find((candidate) => candidate.id === run.parentRunId);
+			const boundary = parentRun?.stages.find((stage) => stage.id === run.parentStageId);
+			const parent =
+				parentRun === undefined || boundary === undefined
+					? undefined
+					: {
+							runId: parentRun.id,
+							stageKeys: [boundary.id, boundary.name].filter(
+								(key) => resolveChildRun(runs, parentRun, key)?.id === run.id,
+							),
+						};
 			pi.events?.emit?.(PENDING_STAGE_ROUTE_EVENT, {
 				runId: run.id,
 				group: workflowInvocationIntercomGroup(rootRunId),
 				capability: workflowPendingStageRouteCapability(activeStore, run.id),
-				stages: run.stages
-					.filter(
-						(stage) =>
-							stage.pendingStageDeliveryAvailable === true &&
-							(stage.status === "pending" ||
-								stage.status === "running" ||
-								stage.status === "awaiting_input" ||
-								stage.status === "paused" ||
-								stage.status === "blocked"),
-					)
-					.map((stage) => ({
-						stageId: stage.id,
-						stageName: stage.name,
-						target: stageRouteTarget(runs, rootRunId, run.id, stage.id),
-						lifecycle: stage.sessionId === undefined && stage.sessionFile === undefined ? "pending" : "running",
-						routeEligible: true,
-						group: stage.intercomGroup ?? workflowInvocationIntercomGroup(rootRunId),
+				...(parent === undefined ? {} : { parent }),
+				stages: [
+					...run.stages
+						.filter(
+							(stage) =>
+								!isNonAgentStage(stage) &&
+								workflowInvocationOwnsGroup(
+									workflowInvocationIntercomGroup(rootRunId),
+									stage.intercomGroup ?? workflowInvocationIntercomGroup(rootRunId),
+								),
+						)
+						.map((stage) => ({
+							stageId: stage.id,
+							stageName: stage.name,
+							target: stageRouteTarget(runs, rootRunId, run.id, stage.id),
+							lifecycle:
+								stage.sessionId === undefined && stage.sessionFile === undefined ? "pending" : "running",
+							// Keep agent identity for alias reactivation even after discovery eligibility ends.
+							routeEligible:
+								stage.pendingStageDeliveryAvailable === true &&
+								(stage.status === "pending" ||
+									stage.status === "running" ||
+									stage.status === "awaiting_input" ||
+									stage.status === "paused" ||
+									stage.status === "blocked"),
+							group: stage.intercomGroup ?? workflowInvocationIntercomGroup(rootRunId),
+						})),
+					// Known ctx.ui/ctx.tool identities must not become speculative agents.
+					...nonAgentNodes(run).map((node) => ({
+						stageId: node.id,
+						stageName: node.name,
+						target: stageRouteTarget(runs, rootRunId, run.id, node.id),
+						lifecycle: "pending",
+						routeEligible: false,
+						recipientPurpose: "control",
+						group: workflowInvocationIntercomGroup(rootRunId),
 					})),
+				],
 				// D7 (slice 4): only the root run's roster registration carries the invocation's
 				// possible-future rows. Presence replaces, so a terminal root publishes `[]` and
 				// the broker drops the rows.
@@ -151,6 +183,14 @@ export function registerPendingStageIntercomBridge(pi: WorkflowEventSurface, act
 		const runs = activeStore.runs();
 		const parsedTarget = parseWorkflowStageTarget(payload.target);
 		if (parsedTarget === undefined) return;
+		if (parsedTarget.kind === "path" && isMaterializedNonAgentTarget(runs, parsedTarget)) {
+			payload.handled = true;
+			payload.completion = Promise.resolve({
+				outcome: "refused",
+				reason: "Target is a non-agent workflow node and cannot receive Intercom messages",
+			});
+			return;
+		}
 		const destination = resolveMaterializedStage(runs, payload.target);
 		if (destination === undefined) {
 			// Slice 3 (D3/D4): an unresolved target (future stage, glob, or `**`) is accepted
@@ -351,22 +391,57 @@ function isPendingStageMessageEvent(value: unknown): value is PendingStageMessag
 	);
 }
 
-function resolveMaterializedStage(
+function isNonAgentStage(stage: StageSnapshot): boolean {
+	// The executor gives synthetic ctx.ui nodes a persisted prompt replay identity.
+	// pendingPrompt/footprints alone also occur on genuine model stages.
+	return stage.nodeKind === "tool" || stage.replayKey?.startsWith("prompt:") === true;
+}
+
+function nonAgentNodes(run: ReturnType<Store["runs"]>[number]): { readonly id: string; readonly name: string }[] {
+	return [
+		...(run.toolNodes ?? []),
+		...run.stages.filter(isNonAgentStage).flatMap((stage) => {
+			const prompt = stage.pendingPrompt ?? stage.promptFootprint;
+			return [stage, ...(prompt === undefined ? [] : [{ id: prompt.id, name: prompt.kind }])];
+		}),
+		...(run.pendingPrompt === undefined ? [] : [{ id: run.pendingPrompt.id, name: run.pendingPrompt.kind }]),
+	];
+}
+
+function isMaterializedNonAgentTarget(runs: ReturnType<Store["runs"]>, target: WorkflowStageTarget): boolean {
+	const run = resolveMaterializedRun(runs, target);
+	if (run === undefined) return false;
+	const stageKey = target.segments.at(-1);
+	const byId = run.stages.filter((stage) => stage.id === stageKey);
+	const matches = byId.length > 0 ? byId : run.stages.filter((stage) => stage.name === stageKey);
+	// Multiple genuine matches are ambiguous, not evidence of a non-agent target.
+	if (matches.some((stage) => !isNonAgentStage(stage))) return false;
+	return nonAgentNodes(run).some((node) => node.id === stageKey || node.name === stageKey);
+}
+
+function resolveChildRun(
 	runs: ReturnType<Store["runs"]>,
-	target: string,
-):
-	| {
-			readonly run: ReturnType<Store["runs"]>[number];
-			readonly stage: ReturnType<Store["runs"]>[number]["stages"][number];
-	  }
-	| undefined {
-	const parsed = parseWorkflowStageTarget(target);
-	if (parsed === undefined || parsed.kind !== "path") return undefined;
+	parent: ReturnType<Store["runs"]>[number],
+	segment: string,
+): ReturnType<Store["runs"]>[number] | undefined {
+	const boundariesById = parent.stages.filter((stage) => stage.id === segment);
+	const boundaries =
+		boundariesById.length > 0 ? boundariesById : parent.stages.filter((stage) => stage.name === segment);
+	const children = boundaries.flatMap((boundary) =>
+		runs.filter((candidate) => candidate.parentRunId === parent.id && candidate.parentStageId === boundary.id),
+	);
+	return children.length === 1 ? children[0] : undefined;
+}
+
+function resolveMaterializedRun(
+	runs: ReturnType<Store["runs"]>,
+	parsed: WorkflowStageTarget,
+): ReturnType<Store["runs"]>[number] | undefined {
+	if (parsed.kind !== "path") return undefined;
 	const rootRun = runs.find((candidate) => candidate.id === parsed.rootRunId);
 	if (rootRun === undefined) return undefined;
 	let run: ReturnType<Store["runs"]>[number] = rootRun;
 	for (const segment of parsed.segments.slice(0, -1)) {
-		const currentRun = run;
 		// A run-id segment may sit at any depth: the flat advertised form for a depth-2 run is
 		// `workflow:<root>/<grandchildRunId>/<stageId>`, so match on the parsed invocation root
 		// rather than requiring a direct child of the previous hop. Run ids win over boundary
@@ -378,18 +453,31 @@ function resolveMaterializedStage(
 			run = runById[0]!;
 			continue;
 		}
-		const boundariesById = currentRun.stages.filter((stage) => stage.id === segment);
-		const boundaries =
-			boundariesById.length > 0 ? boundariesById : currentRun.stages.filter((stage) => stage.name === segment);
-		const children = boundaries.flatMap((boundary) =>
-			runs.filter((candidate) => candidate.parentRunId === currentRun.id && candidate.parentStageId === boundary.id),
-		);
-		if (children.length !== 1) return undefined;
-		run = children[0]!;
+		const child = resolveChildRun(runs, run, segment);
+		if (child === undefined) return undefined;
+		run = child;
 	}
+	return run;
+}
+
+function resolveMaterializedStage(
+	runs: ReturnType<Store["runs"]>,
+	target: string,
+):
+	| {
+			readonly run: ReturnType<Store["runs"]>[number];
+			readonly stage: ReturnType<Store["runs"]>[number]["stages"][number];
+	  }
+	| undefined {
+	const parsed = parseWorkflowStageTarget(target);
+	if (parsed === undefined) return undefined;
+	const run = resolveMaterializedRun(runs, parsed);
+	if (run === undefined) return undefined;
 	const stageKey = parsed.segments.at(-1)!;
 	const stagesById = run.stages.filter((stage) => stage.id === stageKey);
-	const stages = stagesById.length > 0 ? stagesById : run.stages.filter((stage) => stage.name === stageKey);
+	const stages = (stagesById.length > 0 ? stagesById : run.stages.filter((stage) => stage.name === stageKey)).filter(
+		(stage) => !isNonAgentStage(stage),
+	);
 	return stages.length === 1 ? { run, stage: stages[0]! } : undefined;
 }
 
