@@ -89,6 +89,9 @@ cursor. Explicit `dispose()` (idempotent) or breaking out of a live iterator end
 observation, not the owner. Owner closure also ends delivery. Track your own disposal
 when deciding whether to resume. New subscriptions are refused once owner closing
 begins; existing subscriptions continue through cleanup/closure.
+Calling `dispose()` from `onReconcile` also stops the active drain from publishing
+its retained events. Pending and newly created iterators finish without those events;
+the reconciled snapshot remains available.
 
 The optional `subscription.onReconcile` callback is a convenience, not required for
 correctness; callback exceptions remain visible as `subscription.failure`. Raw strings

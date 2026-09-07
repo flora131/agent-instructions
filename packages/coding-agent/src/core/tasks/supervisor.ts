@@ -466,6 +466,7 @@ export class TaskSubscription {
 				this.#failure = new Error(rejectionMessage(error));
 			}
 		}
+		if (this.#disposed) return;
 		if (!reset)
 			for (const value of events) {
 				if (this.#next) {
