@@ -1,9 +1,10 @@
+import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { SettingsScope, SettingsStorage } from "../src/core/settings-manager.ts";
-import { FileSettingsStorage, SettingsManager } from "../src/core/settings-manager.ts";
+import { afterEach, beforeEach, describe, it } from "vitest";
+import type { SettingsScope, SettingsStorage } from "../src/core/settings-manager.js";
+import { FileSettingsStorage, SettingsManager } from "../src/core/settings-manager.js";
 
 // Regression coverage for #2299: writes must preserve layered field provenance.
 describe("SettingsManager layered settings provenance", () => {
@@ -56,18 +57,18 @@ describe("SettingsManager layered settings provenance", () => {
 		});
 		const manager = createManager();
 
-		expect(manager.getPackages()).toEqual(["npm:legacy-package"]);
-		expect(manager.isFieldInherited("global", "packages")).toBe(true);
+		assert.deepEqual(manager.getPackages(), ["npm:legacy-package"]);
+		assert.equal(manager.isFieldInherited("global", "packages"), true);
 
 		manager.setTheme("dark");
 		await manager.flush();
 
-		expect(readJson(primaryGlobalPath)).toEqual({ theme: "dark" });
-		expect(readFileSync(legacyGlobalPath, "utf8")).toBe(legacyBytes);
+		assert.deepEqual(readJson(primaryGlobalPath), { theme: "dark" });
+		assert.equal(readFileSync(legacyGlobalPath, "utf8"), legacyBytes);
 
 		await manager.reload();
-		expect(manager.getPackages()).toEqual(["npm:legacy-package"]);
-		expect(manager.isFieldInherited("global", "packages")).toBe(true);
+		assert.deepEqual(manager.getPackages(), ["npm:legacy-package"]);
+		assert.equal(manager.isFieldInherited("global", "packages"), true);
 	});
 
 	it("writes only a modified nested field over an empty primary file (#2299)", async () => {
@@ -81,12 +82,13 @@ describe("SettingsManager layered settings provenance", () => {
 		manager.setCompactionEnabled(false);
 		await manager.flush();
 
-		expect(readJson(primaryGlobalPath)).toEqual({ compaction: { enabled: false } });
-		expect(readFileSync(legacyGlobalPath, "utf8")).toBe(legacyBytes);
+		assert.deepEqual(readJson(primaryGlobalPath), { compaction: { enabled: false } });
+		assert.equal(readFileSync(legacyGlobalPath, "utf8"), legacyBytes);
 
 		await manager.reload();
-		expect(manager.getCompactionSettings()).toMatchObject({ enabled: false, reserveTokens: 8192 });
-		expect(manager.isFieldInherited("global", "packages")).toBe(true);
+		assert.equal(manager.getCompactionSettings().enabled, false);
+		assert.equal(manager.getCompactionSettings().reserveTokens, 8192);
+		assert.equal(manager.isFieldInherited("global", "packages"), true);
 	});
 
 	describe.each(["global", "project"] as const)("%s primary overrides", (scope) => {
@@ -104,12 +106,12 @@ describe("SettingsManager layered settings provenance", () => {
 			else manager.setProjectExtensionPaths(["./atomic-extension.ts"]);
 			await manager.flush();
 
-			expect(manager.drainErrors()).toEqual([]);
-			expect(readJson(primaryPath)).toEqual({ packages, extensions: ["./atomic-extension.ts"] });
-			expect(readFileSync(legacyPath, "utf8")).toBe(legacyBytes);
+			assert.deepEqual(manager.drainErrors(), []);
+			assert.deepEqual(readJson(primaryPath), { packages, extensions: ["./atomic-extension.ts"] });
+			assert.equal(readFileSync(legacyPath, "utf8"), legacyBytes);
 			await manager.reload();
-			expect(manager.isFieldInherited(scope, "packages")).toBe(false);
-			expect(scope === "global" ? manager.getPackages() : manager.getProjectSettings().packages).toEqual(packages);
+			assert.equal(manager.isFieldInherited(scope, "packages"), false);
+			assert.deepEqual(scope === "global" ? manager.getPackages() : manager.getProjectSettings().packages, packages);
 		});
 	});
 
@@ -129,12 +131,12 @@ describe("SettingsManager layered settings provenance", () => {
 			manager.setProjectExtensionPaths(["./atomic-extension.ts"]);
 			await manager.flush();
 
-			expect(readJson(primaryProjectPath)).toEqual({ extensions: ["./atomic-extension.ts"] });
-			expect(readFileSync(legacyProjectPath, "utf8")).toBe(legacyBytes);
+			assert.deepEqual(readJson(primaryProjectPath), { extensions: ["./atomic-extension.ts"] });
+			assert.equal(readFileSync(legacyProjectPath, "utf8"), legacyBytes);
 
 			await manager.reload();
-			expect(manager.getProjectSettings().packages).toEqual(["npm:legacy-project-package"]);
-			expect(manager.isFieldInherited("project", "packages")).toBe(true);
+			assert.deepEqual(manager.getProjectSettings().packages, ["npm:legacy-project-package"]);
+			assert.equal(manager.isFieldInherited("project", "packages"), true);
 		},
 	);
 
@@ -152,7 +154,7 @@ describe("SettingsManager layered settings provenance", () => {
 		secondManager.setTheme("light");
 		await Promise.all([firstManager.flush(), secondManager.flush()]);
 
-		expect(readJson(primaryGlobalPath)).toEqual({
+		assert.deepEqual(readJson(primaryGlobalPath), {
 			theme: "light",
 			enabledModels: ["anthropic/claude-sonnet"],
 			defaultThinkingLevel: "high",
@@ -167,14 +169,14 @@ describe("SettingsManager layered settings provenance", () => {
 		manager.setProjectExtensionPaths(["./atomic-extension.ts"]);
 		await manager.flush();
 
-		expect(manager.drainErrors()).toEqual([]);
-		expect(readJson(primaryProjectPath)).toEqual({
+		assert.deepEqual(manager.drainErrors(), []);
+		assert.deepEqual(readJson(primaryProjectPath), {
 			prompts: ["./external-prompt.md"],
 			extensions: ["./atomic-extension.ts"],
 		});
-		expect(readFileSync(legacyProjectPath, "utf8")).toBe(legacyBytes);
+		assert.equal(readFileSync(legacyProjectPath, "utf8"), legacyBytes);
 		await manager.reload();
-		expect(manager.isFieldInherited("project", "packages")).toBe(true);
+		assert.equal(manager.isFieldInherited("project", "packages"), true);
 	});
 
 	it("preserves newer primary nested fields without promoting fallback siblings (#2299)", async () => {
@@ -185,14 +187,13 @@ describe("SettingsManager layered settings provenance", () => {
 		manager.setCompactionEnabled(false);
 		await manager.flush();
 
-		expect(manager.drainErrors()).toEqual([]);
-		expect(readJson(primaryGlobalPath)).toEqual({ compaction: { enabled: false, reserveTokens: 16384 } });
+		assert.deepEqual(manager.drainErrors(), []);
+		assert.deepEqual(readJson(primaryGlobalPath), { compaction: { enabled: false, reserveTokens: 16384 } });
 		await manager.reload();
-		expect(manager.getCompactionSettings()).toMatchObject({
-			enabled: false,
-			reserveTokens: 16384,
-			preserve_recent: 4,
-		});
+		const compaction = manager.getCompactionSettings();
+		assert.equal(compaction.enabled, false);
+		assert.equal(compaction.reserveTokens, 16384);
+		assert.equal(compaction.preserve_recent, 4);
 	});
 
 	it("keeps alternate SettingsStorage implementations source-compatible (#2299)", async () => {
@@ -211,7 +212,7 @@ describe("SettingsManager layered settings provenance", () => {
 		manager.setTheme("dark");
 		await manager.flush();
 
-		expect(JSON.parse(values.global ?? "{}")).toEqual({
+		assert.deepEqual(JSON.parse(values.global ?? "{}"), {
 			packages: ["npm:custom-storage"],
 			theme: "dark",
 		});
