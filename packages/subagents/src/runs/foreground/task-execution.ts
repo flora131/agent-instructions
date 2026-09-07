@@ -33,6 +33,8 @@ export async function runAgentTask(input: {
 	wait?: WaitPolicy;
 	runtime: SubagentExecutorRuntimeDeps;
 	onTerminal?: (result: SingleResult) => void;
+	schedule?: (dispatch: () => Promise<void>) => void;
+	outputText?: (result: SingleResult) => string;
 }): Promise<ModelSingleResponse> {
 	let yieldWait: ((reason: YieldReason) => Result<WaitOutcome, YieldError>) | undefined;
 	let pendingYield = false;
@@ -67,7 +69,7 @@ export async function runAgentTask(input: {
 						},
 					});
 					input.onTerminal?.(child);
-					const text = getSingleResultOutput(child);
+					const text = input.outputText?.(child) ?? getSingleResultOutput(child);
 					const bytes = Buffer.from(text);
 					context.reportActivity({
 						reportId: "terminal-output",
@@ -101,6 +103,7 @@ export async function runAgentTask(input: {
 			});
 			return { result, cleanup: cleaned.promise };
 		},
+		input.schedule,
 	);
 	if (!started.ok) return { kind: "unstarted", reason: { kind: "rejected", error: started.error } };
 	const observation = input.host.observeAgentLaunch(started.value.taskId, input.wait, (yieldRegistered) => {

@@ -179,6 +179,27 @@ function replaceTaskObservations(
 		next[key] = replaceTaskObservations(item, terminal);
 		changed ||= next[key] !== item;
 	}
+	if (
+		changed &&
+		next.details !== object.details &&
+		next.details &&
+		typeof next.details === "object" &&
+		!Array.isArray(next.details) &&
+		Array.isArray(object.content)
+	) {
+		const details = next.details as Record<string, WorkflowSerializableValue>;
+		const original = object.details as Record<string, WorkflowSerializableValue>;
+		if (details.taskResponse !== undefined && details.taskResponse !== original.taskResponse) {
+			const before = JSON.stringify(original.taskResponse);
+			next.content = object.content.map((part: WorkflowSerializableValue) => {
+				if (!part || typeof part !== "object" || Array.isArray(part)) return part;
+				const content = part as Record<string, WorkflowSerializableValue>;
+				return content.type === "text" && content.text === before
+					? { ...content, text: JSON.stringify(details.taskResponse) }
+					: part;
+			});
+		}
+	}
 	return changed ? next : value;
 }
 

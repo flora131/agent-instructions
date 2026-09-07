@@ -241,22 +241,34 @@ export async function runSinglePath(
 			skills: effectiveSkills,
 		};
 		if (ctx.getAgentTaskHost) {
-			return taskToolResult(
-				await runAgentTask({
-					host: ctx.getAgentTaskHost(),
-					cwd: ctx.cwd,
-					agents,
-					agent: params.agent!,
-					task,
-					intentTask: handoffTaskContext,
-					options: runOptions,
-					wait: params.wait,
-					runtime: deps.runtime,
-					onTerminal: () => cleanupTransientProgress(progressDir, artifactConfig.enabled),
-				}),
-			);
-		}
-		r = await deps.runtime.runSync(ctx.cwd, agents, params.agent!, task, runOptions);
+			let settledChild: SingleResult | undefined;
+			const response = await runAgentTask({
+				host: ctx.getAgentTaskHost(),
+				cwd: ctx.cwd,
+				agents,
+				agent: params.agent!,
+				task,
+				intentTask: handoffTaskContext,
+				options: runOptions,
+				wait: params.wait,
+				runtime: deps.runtime,
+				onTerminal: (child) => {
+					settledChild = child;
+					cleanupTransientProgress(progressDir, artifactConfig.enabled);
+				},
+				outputText: (child) =>
+					parentAsk && child.interrupted
+						? formatParentAskHandoffOutput({
+								askingChildIndex: 0,
+								releasedChildIndices: [0],
+								unlaunchedChildIndices: [],
+								request: parentAsk,
+							})
+						: getSingleResultOutput(child),
+			});
+			if (!parentAsk || !settledChild?.interrupted) return taskToolResult(response);
+			r = settledChild;
+		} else r = await deps.runtime.runSync(ctx.cwd, agents, params.agent!, task, runOptions);
 	} catch (error) {
 		cleanupTransientProgress(progressDir, artifactConfig.enabled);
 		throw error;

@@ -45,7 +45,11 @@ export class WorkflowStageAdmissionBoundary {
 		if (!this.open) throw new Error("Workflow stage generation is closed");
 		if (!this.taskScope) throw new Error("Workflow stage task identity is not bound");
 		this.taskHost ??= new AgentTaskHost({ ...binding, scope: this.taskScope });
+		this.taskHost.updateBinding(binding);
 		return this.taskHost;
+	}
+	hasAgentTaskHost(): boolean {
+		return this.taskHost !== undefined;
 	}
 
 	/** Aborts synchronously when close begins so stage-owned work can terminate before late delivery. */

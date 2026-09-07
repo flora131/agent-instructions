@@ -19,7 +19,7 @@ S1 adds an SDK-only task foundation in `src/core/tasks/contracts.ts` and
 `src/core/tasks/supervisor.ts`, backed by the native `TaskSupervisor`. It is an
 internal trusted-host integration surface, not a new CLI command. The package root
 exports the narrow `AgentTaskHost` adapter and its integration types, not the raw
-supervisor. Existing subagent execution, bash/PTY and task UI do not use it yet.
+supervisor. Runtime-created subagent contexts use it; bash/PTY and task UI integration are separate slices.
 
 `AgentTaskHost` binds an actual trusted scope and mandatory `authorizeLaunch` guard.
 Its `startAgentTask(intent, operation, runnerFactory)` returns a Result containing
@@ -36,8 +36,7 @@ For already-admitted in-process tasks, the optional `taskExecution` runner hooks
 retain the original execution and cleanup promises. An exact Intercom commit
 yields the registered observation. In an explicit foreground group it also yields
 active sibling observations through the existing group signal, once per child;
-neither path detaches or completes those executions. This opt-in bridge does not
-change the public subagent launch defaults yet.
+neither path detaches or completes those executions. Public launches in actual sessions use this bridge by default.
 
 Each workflow admission boundary allocates one process-private stage attempt identity.
 The actual stage session binds its original session/run/stage identity; fallback session
@@ -45,7 +44,7 @@ replacement keeps that identity and the same lazily bound `bindAgentTaskHost` ow
 Replacement disposal does not close tasks. Boundary sealing fences task admission and
 starts owner closure; generation close awaits independent cleanup and surfaces failure.
 Fresh boundaries have fresh identities, including restoration; history is not a restart
-capability. Producers, durable joins and completion delivery are not integrated yet.
+capability. Public producers, durable callback joins and nonvisual completion intent/admission use this owner binding.
 
 A host binds its actual session or workflow-stage scope with `bindHostSession`,
 provides launch authorization and a runner factory, then calls `openTaskOwner`.

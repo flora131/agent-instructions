@@ -191,6 +191,7 @@ class AgentSessionBase {
 	protected _workflowStageAdmission: WorkflowStageAdmissionBoundary | undefined;
 	protected _agentTaskHost: import("./tasks/agent-adapter.js").AgentTaskHost | undefined;
 	protected _taskCompletionOutbox: import("./tasks/completion.js").TaskCompletionOutbox | undefined;
+	protected _taskAdmission: WorkflowStageAdmissionBoundary | undefined;
 	constructor(config: AgentSessionConfig) {
 		this.agent = config.agent;
 		this.sessionManager = config.sessionManager;
@@ -269,6 +270,7 @@ class AgentSessionBase {
 			activeToolNames: this._initialActiveToolNames,
 			includeAllExtensionTools: true,
 		});
+		if (this._workflowStageAdmission?.hasAgentTaskHost()) internals.getAgentTaskHost();
 	}
 }
 

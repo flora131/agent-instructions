@@ -334,3 +334,60 @@ test("task-bound public single launch yields immediately and owner wait observes
 		h.unregisterNotify();
 	}
 });
+
+// RFC PR #2884: independent parallel launch admits queued slots without dispatching them.
+test("task-bound parallel launch keeps ordered duplicate slots queued under concurrency until owner close", async () => {
+	const root = makeTempDirectory("task-parallel-");
+	roots.push(root);
+	const boundary = new WorkflowStageAdmissionBoundary();
+	const ctx = stageContext(root, boundary, "task-parallel");
+	boundary.bindTaskIdentity(ctx.sessionManager.getSessionId(), "workflow-run", "task-parallel");
+	const host = boundary.bindAgentTaskHost({ authorizeLaunch() {} });
+	ctx.getAgentTaskHost = () => host;
+	const gate = Promise.withResolvers<void>();
+	const h = harness(
+		root,
+		new EventEmitter(),
+		Array.from({ length: 6 }, () => gate.promise),
+	);
+	try {
+		const response = await h.execute(
+			"parallel-task",
+			{
+				tasks: Array.from({ length: 6 }, () => ({ agent: "worker", task: " x ", progress: false, output: false })),
+				artifacts: false,
+			},
+			new AbortController().signal,
+			undefined,
+			ctx,
+		);
+		const dto = response.details?.taskResponse;
+		assert.ok(dto?.kind === "parallel");
+		assert.deepEqual(
+			dto.slots.map((slot) => slot.ordinal),
+			[0, 1, 2, 3, 4, 5],
+		);
+		assert.ok(
+			dto.slots.every(
+				({ outcome }) =>
+					outcome.kind === "admitted" &&
+					outcome.observation.kind === "yielded" &&
+					outcome.observation.reason === "default-background",
+			),
+		);
+		const watched = host.watchOwnerTasks();
+		assert.ok(watched.ok);
+		assert.deepEqual(
+			watched.value.snapshot.tasks.map((task) => task.execution.kind),
+			["running", "running", "running", "running", "queued", "queued"],
+		);
+		assert.equal(new Set(watched.value.snapshot.tasks.map((task) => task.ref.taskId)).size, 6);
+		watched.value.dispose();
+		await boundary.close();
+		assert.equal(h.emittedNotifications.length, 0);
+	} finally {
+		gate.resolve();
+		await boundary.close();
+		h.unregisterNotify();
+	}
+});

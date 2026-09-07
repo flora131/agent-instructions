@@ -178,6 +178,7 @@ export interface ModelAttempt {
 export type SubagentAttemptStatus = "ok" | "error" | "skipped" | "interrupted" | "continued";
 
 export interface SingleResult {
+	taskResponse?: import("../../../coding-agent/src/core/tasks/contracts.js").ModelSingleResponse;
 	agent: string;
 	task: string;
 	/** Typed terminal outcome; this is the only result discriminator. */

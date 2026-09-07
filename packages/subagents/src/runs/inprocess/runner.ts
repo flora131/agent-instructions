@@ -81,6 +81,8 @@ export interface TestSessionOptions {
 	readonly sessionThinkingLevel?: string;
 	/** Test-only session events emitted in order after the initial agent_start event. */
 	readonly events?: readonly AgentSessionEvent[];
+	/** Deterministic events before the held prompt gate, for continuity scenarios. */
+	readonly beforeGateEvents?: readonly AgentSessionEvent[];
 	/** Seed an earlier assistant message so abort recovery can find real text. */
 	readonly seededAssistantText?: string;
 	/** After abort, append a thinking-only aborted message with no text. */
@@ -460,6 +462,7 @@ function createTestSession(sessionManager: SessionManager, spec: ChildSpec): Age
 				appendAssistant([{ type: "text", text: lastAssistantText }], "stop");
 			}
 			if (testOptions.fallbackBeforeGate) emitFallback();
+			for (const event of testOptions.beforeGateEvents ?? []) for (const listener of listeners) listener(event);
 			if (testOptions.promptGate) {
 				const gateResult = await Promise.race([
 					testOptions.promptGate.then(() => "released" as const),

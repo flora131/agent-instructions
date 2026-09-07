@@ -20,14 +20,22 @@ const runners = new AsyncLocalStorage<AgentTaskRunnerFactory>();
 export class AgentTaskHost {
 	private readonly supervisor = new TaskSupervisor();
 	private readonly owner;
+	private binding: AgentTaskHostBinding;
+	/** Stage replacement updates callbacks, never native identity or ownership. */
+	updateBinding(binding: Omit<AgentTaskHostBinding, "scope">): void {
+		this.binding = { ...this.binding, ...binding };
+	}
 	/** Internal projection binding; never serialize these native-backed capabilities. */
 	get ownerBinding(): { supervisor: TaskSupervisor; owner: OwnerLease } {
 		return { supervisor: this.supervisor, owner: this.owner };
 	}
 
 	constructor(binding: AgentTaskHostBinding) {
+		this.binding = binding;
 		const host = this.supervisor.bindHostSession({
 			...binding,
+			authorizeLaunch: (intent) => this.binding.authorizeLaunch(intent),
+			onTaskSettled: (ref, receipt) => this.binding.onTaskSettled?.(ref, receipt),
 			createRunner: (context, intent) => {
 				const runner = runners.getStore();
 				if (!runner) throw new Error("Agent runner factory missing from launch context");
@@ -43,8 +51,11 @@ export class AgentTaskHost {
 		intent: C.AgentIntent,
 		operation: C.OperationId,
 		runner: AgentTaskRunnerFactory,
+		schedule?: (dispatch: () => Promise<void>) => void,
 	): Promise<C.Result<{ taskId: C.TaskId; lease: TaskLease }, C.StartFailure>> {
-		const started = await runners.run(runner, () => this.supervisor.startAgentTask(this.owner, intent, operation));
+		const started = await runners.run(runner, () =>
+			this.supervisor.startAgentTask(this.owner, intent, operation, schedule),
+		);
 		if (started.ok)
 			trackAdmittedAgentTask({ host: this, taskId: this.supervisor.taskReference(started.value).taskId });
 		return started.ok

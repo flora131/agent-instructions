@@ -7,6 +7,7 @@ export function getAgentTaskHost(this: AgentSession): AgentTaskHost {
 	if (this._disposed) throw new Error("Task owner is closed");
 	if (this._agentTaskHost) return this._agentTaskHost;
 	const admission = this._workflowStageAdmission ?? new WorkflowStageAdmissionBoundary();
+	this._taskAdmission = admission;
 	const outbox = new TaskCompletionOutbox(
 		this.sessionManager,
 		() => !this._disposed && admission.isOpen(),
@@ -51,6 +52,7 @@ export function getAgentTaskHost(this: AgentSession): AgentTaskHost {
 export async function closeSessionTasks(this: AgentSession): Promise<void> {
 	// Replacement stage sessions share generation lifetime; disposal is not stage closure.
 	if (this._workflowStageAdmission) return;
+	this._taskAdmission?.seal();
 	const closed = await this._agentTaskHost?.close("session-close");
 	if (closed && !closed.ok) throw new Error(`${closed.error.code}: ${closed.error.message}`);
 }

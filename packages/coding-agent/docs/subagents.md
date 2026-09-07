@@ -39,7 +39,7 @@ Subagents now run and return their results directly. Atomic does not infer accep
 
 Runtime-created session contexts bind single launches to their actual session or workflow-stage owner. Omitted `wait` returns an admitted observation with reason `default-background`; `wait: {kind: "background"}` uses reason `explicit`. `wait: {kind: "foreground", budgetMs: 30000}` opts into foreground-first observation. The omitted foreground budget is 30000 ms. `subagent({action: "wait", id: taskId, budgetMs: 1000})` observes an existing task in the same owner without restarting it.
 
-An Intercom peer-message yield keeps the original execution alive. Terminal completion is recorded separately and admitted as a `task-completion` custom message with `display:false`. Failed delivery retains the same persisted completion identity for retry. Existing unbound SDK callers and parallel launch handling retain their legacy result fields in this milestone.
+An Intercom peer-message yield keeps the original execution alive. Terminal completion is recorded separately and admitted as a `task-completion` custom message with `display:false`. Failed delivery retains the same persisted completion identity for retry. Default parallel launches admit all accepted slots and leave work queued under the configured concurrency limit; explicit foreground-first groups retain lazy admission and Intercom skip semantics. Existing unbound SDK callers retain their legacy result fields.
 
 Durable `ctx.tool` callbacks wait for tasks admitted inside their callback before checkpointing, even when the launching observation yielded. Session lifetime closure cancels session-owned work; stage generation closure, not pane detach or fallback session replacement, owns stage tasks.
 

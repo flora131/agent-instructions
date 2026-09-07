@@ -517,4 +517,5 @@ export interface AgentSessionInternalSurface extends AgentSessionMethodSurface, 
 	_workflowStageAdmission: import("./workflow-stage-admission.ts").WorkflowStageAdmissionBoundary | undefined;
 	_agentTaskHost: import("./tasks/agent-adapter.js").AgentTaskHost | undefined;
 	_taskCompletionOutbox: import("./tasks/completion.js").TaskCompletionOutbox | undefined;
+	_taskAdmission: import("./workflow-stage-admission.js").WorkflowStageAdmissionBoundary | undefined;
 }
