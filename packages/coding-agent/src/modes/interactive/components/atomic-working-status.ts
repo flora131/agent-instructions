@@ -8,7 +8,7 @@ import {
 	truncateToWidth,
 } from "@earendil-works/pi-tui";
 import { ansi256ToHex, fgAnsi, hexToRgb } from "../theme/color-utils.ts";
-import { theme } from "../theme/theme.ts";
+import { theme } from "../theme/theme.js";
 
 /** Atomic's literal one-cell identity follows the approved ten-step luminance ramp. */
 export const ATOMIC_WORKING_FRAMES = ["∀", "∀", "∀", "∀", "∀", "∀", "∀", "∀", "∀", "∀"] as const;

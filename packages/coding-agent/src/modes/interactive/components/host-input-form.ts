@@ -12,8 +12,8 @@ import {
 } from "@earendil-works/pi-tui";
 import type { HostInputFormField, HostInputFormRequest } from "../../../core/extensions/ui-types.ts";
 import type { KeybindingsManager } from "../../../core/keybindings.ts";
-import type { Theme } from "../theme/theme.ts";
-import { getEditorTheme } from "../theme/theme.ts";
+import type { Theme } from "../theme/theme.js";
+import { getEditorTheme } from "../theme/theme.js";
 
 /** Indent (cells) for a field's control, description, and error rows so they align under the field name. */
 const LABEL_INDENT = 2;

@@ -1,7 +1,7 @@
 import { Box, Markdown, type MarkdownTheme, Spacer, Text } from "@earendil-works/pi-tui";
 import type { BranchSummaryMessage } from "../../../core/messages.ts";
-import { getMarkdownTheme, theme } from "../theme/theme.ts";
-import { parenthesizedKeyHint } from "./keybinding-hints.ts";
+import { getMarkdownTheme, theme } from "../theme/theme.js";
+import { parenthesizedKeyHint } from "./keybinding-hints.js";
 
 /**
  * Component that renders a branch summary message with collapsed/expanded state.

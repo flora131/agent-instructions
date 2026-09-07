@@ -164,7 +164,7 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 				: undefined;
 		}
 		const store = session ? getOwnerTaskStore(session) : undefined;
-		if (!sessionChanged && store === this.taskStore) return;
+		if (store === this.taskStore) return;
 		this.unsubscribeTasks?.();
 		this.taskStore = store;
 		this.unsubscribeTasks = undefined;

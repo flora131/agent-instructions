@@ -11,7 +11,7 @@ import {
 import { CONFIG_DIR_NAME } from "../../../config.js";
 import type { PathMetadata, ResolvedPaths, ResolvedResource } from "../../../core/package-manager.ts";
 import type { PackageSource, SettingsManager } from "../../../core/settings-manager.ts";
-import { theme } from "../theme/theme.ts";
+import { theme } from "../theme/theme.js";
 import { toggleProjectResource } from "./config-selector-project-scope.ts";
 
 export type ResourceType = "extensions" | "skills" | "prompts" | "themes" | "workflows";

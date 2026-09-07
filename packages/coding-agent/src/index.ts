@@ -479,7 +479,7 @@ export {
 	initTheme,
 	Theme,
 	type ThemeColor,
-} from "./modes/interactive/theme/theme.ts";
+} from "./modes/interactive/theme/theme.js";
 // Run modes for programmatic SDK usage
 export { pickWhimsicalWorkingMessage } from "./modes/interactive/whimsical-messages.ts";
 export { createChildProcessEnvironment } from "./utils/child-process.ts";
