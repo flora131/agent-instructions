@@ -166,7 +166,7 @@ export class ExtensionRunner {
 	) {
 		this.extensions = extensions;
 		this.runtime = runtime;
-		this.runtime.workflowActivityHub.bindDispatcher((event) => this.emit(event));
+		this.runtime.workflowActivityHub.bindDispatcher((event, isCurrent) => this.emit(event, isCurrent));
 		this.uiContext = noOpUIContext;
 		this.cwd = cwd;
 		this.sessionManager = sessionManager;
@@ -513,9 +513,12 @@ export class ExtensionRunner {
 		};
 	}
 
-	async emit<TEvent extends RunnerEmitEvent>(event: TEvent): Promise<RunnerEmitResult<TEvent>> {
+	async emit<TEvent extends RunnerEmitEvent>(
+		event: TEvent,
+		isCurrent?: () => boolean,
+	): Promise<RunnerEmitResult<TEvent>> {
 		return runResourceRegistrationBatch(this.runtime, () =>
-			runGenericHandlers(this.extensions, this.createContext(), event, (error) => this.emitError(error)),
+			runGenericHandlers(this.extensions, this.createContext(), event, (error) => this.emitError(error), isCurrent),
 		);
 	}
 

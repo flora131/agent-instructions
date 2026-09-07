@@ -25,15 +25,15 @@ export class WorkflowActivityHub {
 	private observers = new Set<ObserverLease>();
 	private failures: WorkflowObservationDiagnostic[] = [];
 	private disposed = false;
-	private dispatch?: (event: WorkflowEvent) => Promise<void>;
-	bindDispatcher(dispatch: (event: WorkflowEvent) => Promise<void>): void {
+	private dispatch?: (event: WorkflowEvent, isCurrent: () => boolean) => Promise<void>;
+	bindDispatcher(dispatch: (event: WorkflowEvent, isCurrent: () => boolean) => Promise<void>): void {
 		this.dispatch = dispatch;
 	}
 	private emit(event: WorkflowEvent, isCurrent: () => boolean): void {
 		const copy = structuredClone(event);
 		queueMicrotask(() => {
 			if (!isCurrent()) return;
-			void this.dispatch?.(copy).catch(() => this.record("ObserverDeliveryFailed"));
+			void this.dispatch?.(copy, isCurrent).catch(() => this.record("ObserverDeliveryFailed"));
 		});
 	}
 
