@@ -11,7 +11,7 @@ import {
 } from "@earendil-works/pi-tui";
 import type { AppKeybinding, KeybindingsManager } from "../../../core/keybindings.ts";
 import { isPhysicalEscape } from "../interactive-key-identity.ts";
-import { theme } from "../theme/theme.ts";
+import { theme } from "../theme/theme.js";
 import type { AtomicWorkingLoader } from "./atomic-working-status.ts";
 
 export interface CustomEditorOptions extends EditorOptions {

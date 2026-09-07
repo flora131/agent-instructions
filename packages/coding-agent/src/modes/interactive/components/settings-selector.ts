@@ -1,5 +1,5 @@
 import { Container, SettingsList } from "@earendil-works/pi-tui";
-import { getSettingsListTheme } from "../theme/theme.ts";
+import { getSettingsListTheme } from "../theme/theme.js";
 import { DynamicBorder } from "./dynamic-border.ts";
 import { createSettingsChangeHandler } from "./settings-selector-handlers.ts";
 import { buildSettingsItems } from "./settings-selector-items.ts";

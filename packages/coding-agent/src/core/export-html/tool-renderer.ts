@@ -7,7 +7,7 @@
 
 import type { ImageContent, TextContent } from "@bastani/pi-ai/compat";
 import type { Component } from "@earendil-works/pi-tui";
-import type { Theme } from "../../modes/interactive/theme/theme.ts";
+import type { Theme } from "../../modes/interactive/theme/theme.js";
 import type { ToolDefinition, ToolRenderContext } from "../extensions/types.ts";
 import { ansiLinesToHtml } from "./ansi-to-html.ts";
 

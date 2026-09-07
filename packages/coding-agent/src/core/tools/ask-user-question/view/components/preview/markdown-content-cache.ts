@@ -1,5 +1,5 @@
 import { Markdown, type MarkdownTheme, visibleWidth } from "@earendil-works/pi-tui";
-import type { Theme } from "../../../../../../modes/interactive/theme/theme.ts";
+import type { Theme } from "../../../../../../modes/interactive/theme/theme.js";
 import type { QuestionData } from "../../../tool/types.ts";
 import { stripFenceMarkers } from "./preview-box-renderer.ts";
 

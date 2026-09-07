@@ -1,5 +1,5 @@
 import { type Component, Container, type Input, Spacer, Text } from "@earendil-works/pi-tui";
-import type { Theme } from "../../../../modes/interactive/theme/theme.ts";
+import type { Theme } from "../../../../modes/interactive/theme/theme.js";
 import { formatAnswerScalar } from "../tool/format-answer.ts";
 import type { QuestionData } from "../tool/types.ts";
 import type { ChatRowView } from "./components/chat-row-view.ts";

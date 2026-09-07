@@ -9,7 +9,7 @@ import type {
 	WorkingIndicatorOptions,
 } from "../../core/extensions/index.ts";
 import type { FooterDataProvider } from "../../core/footer-data-provider.ts";
-import { type Theme, theme } from "../interactive/theme/theme.ts";
+import { type Theme, theme } from "../interactive/theme/theme.js";
 import type { EngineCustomUiService } from "../interactive-engine/engine-custom-ui.ts";
 import type { EngineInputFormService } from "../interactive-engine/engine-input-form.ts";
 import type { EngineSessionPickerService } from "../interactive-engine/engine-session-picker.ts";

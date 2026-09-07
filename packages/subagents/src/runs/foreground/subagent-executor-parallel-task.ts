@@ -27,6 +27,7 @@ import type { WorktreeSetup } from "../shared/worktree.js";
 import { markLiveResultIndices } from "./subagent-executor-live-update.js";
 import type { SubagentExecutorRuntimeDeps, TaskParam } from "./subagent-executor-types.js";
 import { resolveParallelTaskCwd } from "./subagent-executor-worktree.js";
+import { runAgentTask } from "./task-execution.js";
 
 interface ForegroundParallelRunInput {
 	tasks: TaskParam[];
@@ -65,6 +66,8 @@ interface ForegroundParallelRunInput {
 	onUpdate?: (r: SubagentToolResult) => void;
 	onParentAskHandoff?: (handoff: ForegroundParentAskHandoff) => void;
 	onDetachedExit?: (index: number, result: SingleResult) => void;
+	onTaskTerminal?: (index: number) => void;
+	wait?: import("@bastani/atomic").WaitPolicy;
 	onExecution?: (index: number, runtimeCwd: string, options: RunSyncOptions) => void;
 	worktreeSetup?: WorktreeSetup;
 	runtime: Pick<SubagentExecutorRuntimeDeps, "runSync">;
@@ -86,7 +89,26 @@ export async function runForegroundParallelTasks(input: ForegroundParallelRunInp
 	const parentAskController = new AbortController();
 	const startedIndices = new Set<number>();
 	const activeIndices = new Set<number>();
-	return mapConcurrent(input.tasks, input.concurrencyLimit, async (task, index) => {
+	const host = input.ctx.getAgentTaskHost?.();
+	const independent = host !== undefined && input.wait?.kind !== "foreground";
+	let active = 0;
+	const queued: Array<() => Promise<void>> = [];
+	const pump = (): void => {
+		while (active < input.concurrencyLimit && queued.length > 0) {
+			const dispatch = queued.shift()!;
+			active++;
+			const release = () => {
+				active--;
+				pump();
+			};
+			void dispatch().then(release, release);
+		}
+	};
+	const schedule = (dispatch: () => Promise<void>) => {
+		queued.push(dispatch);
+		pump();
+	};
+	return mapConcurrent(input.tasks, independent ? input.tasks.length : input.concurrencyLimit, async (task, index) => {
 		if (parentAskController.signal.aborted) {
 			return skippedParallelResult(task, input.taskTexts[index] ?? task.task, "Skipped after parent ask handoff");
 		}
@@ -262,6 +284,40 @@ export async function runForegroundParallelTasks(input: ForegroundParallelRunInp
 				: undefined,
 		};
 		input.onExecution?.(index, input.ctx.cwd, runOptions);
+		if (host) {
+			if (independent) {
+				runOptions.intercomDetachSignal = undefined;
+				runOptions.onIntercomDetachCommit = undefined;
+			}
+			let terminalChild: SingleResult | undefined;
+			const response = await runAgentTask({
+				host,
+				cwd: input.ctx.cwd,
+				agents: taskAgents,
+				agent: task.agent,
+				task: taskText,
+				intentTask: task.task,
+				options: runOptions,
+				wait: input.wait,
+				runtime: input.runtime,
+				schedule: independent ? schedule : undefined,
+				onTerminal: (child) => {
+					terminalChild = child;
+					activeIndices.delete(index);
+					parentAskController.signal.removeEventListener("abort", interruptForParentAsk);
+					input.onTaskTerminal?.(index);
+				},
+			});
+			if (terminalChild) return { ...terminalChild, taskResponse: response };
+			return {
+				agent: task.agent,
+				task: task.task,
+				status: "continued",
+				messages: [],
+				usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 0 },
+				taskResponse: response,
+			};
+		}
 		return input.runtime.runSync(input.ctx.cwd, taskAgents, task.agent, taskText, runOptions).finally(() => {
 			activeIndices.delete(index);
 			parentAskController.signal.removeEventListener("abort", interruptForParentAsk);

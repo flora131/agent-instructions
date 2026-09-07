@@ -1,6 +1,6 @@
 import { Container, type Focusable, Spacer, Text } from "@earendil-works/pi-tui";
 import type { SessionTreeNode } from "../../../core/session-manager.ts";
-import { theme } from "../theme/theme.ts";
+import { theme } from "../theme/theme.js";
 import { DynamicBorder } from "./dynamic-border.ts";
 import { SearchLine, TreeHelp } from "./tree-selector-help.ts";
 import { LabelInput } from "./tree-selector-label-input.ts";

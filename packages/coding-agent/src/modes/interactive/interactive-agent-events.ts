@@ -20,6 +20,7 @@ import {
 	theme,
 } from "./interactive-mode-deps.ts";
 import { handleSummarizationRetryEvent } from "./interactive-summarization-retry-events.ts";
+import { disposeInteractiveTasks, refreshInteractiveTasks } from "./interactive-task-projection.js";
 import { applyAssistantMessageDelta, beginStreamingAssistantMessage } from "./streaming-assistant-message.ts";
 
 function createToolComponent(
@@ -48,9 +49,14 @@ function createToolComponent(
 }
 
 InteractiveModeBase.prototype.subscribeToAgent = function (this: InteractiveModeBase): void {
-	this.unsubscribe = this.session.subscribe(async (event) => {
+	refreshInteractiveTasks(this);
+	const unsubscribe = this.session.subscribe(async (event) => {
 		await this.handleEvent(event);
 	});
+	this.unsubscribe = () => {
+		unsubscribe();
+		disposeInteractiveTasks(this);
+	};
 };
 
 InteractiveModeBase.prototype.handleEvent = async function (

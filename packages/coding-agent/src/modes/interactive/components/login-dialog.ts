@@ -1,9 +1,9 @@
 import type { AuthInfoLink, OAuthDeviceCodeInfo } from "@bastani/pi-ai";
 import { Container, type Focusable, getKeybindings, Input, Spacer, Text, type TUI } from "@earendil-works/pi-tui";
 import { openBrowser } from "../../../utils/open-browser.ts";
-import { theme } from "../theme/theme.ts";
+import { theme } from "../theme/theme.js";
 import { DynamicBorder } from "./dynamic-border.ts";
-import { keyHint } from "./keybinding-hints.ts";
+import { keyHint } from "./keybinding-hints.js";
 
 /**
  * Login dialog component - replaces editor during OAuth login flow
