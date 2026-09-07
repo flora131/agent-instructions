@@ -447,7 +447,7 @@ export default async function init() {}
 			`
 await emit("session_shutdown", { type: "session_shutdown", reason: "quit" });
 let rejected = false;
-try { await execute("late"); } catch (error) { rejected = String(error).includes("no active session"); }
+try { await execute("late"); } catch (error) { rejected = String(error).includes("invalidated by session shutdown"); }
 console.log(JSON.stringify({ rejected, initialized: globalThis.intercomInitialized === true }));
 `,
 		);
