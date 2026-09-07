@@ -25,6 +25,7 @@ import type {
 	SubagentChildPolicy,
 } from "./types.ts";
 export interface ExtensionContextSource {
+	observeWorkflowActivity: ExtensionContext["observeWorkflowActivity"];
 	assertActive(): void;
 	getUIContext(): ExtensionUIContext;
 	getMode(): ExtensionMode;
@@ -118,6 +119,10 @@ export function createExtensionContext(source: ExtensionContextSource): Extensio
 		get mode() {
 			source.assertActive();
 			return source.getMode();
+		},
+		observeWorkflowActivity: (observer) => {
+			source.assertActive();
+			return source.observeWorkflowActivity(observer);
 		},
 		get hasUI() {
 			source.assertActive();

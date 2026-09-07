@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added host-side workflow activity observation with ordered snapshots, publisher epochs, bounded observer queues and diagnostics, plus typed `workflow_lifecycle`, `workflow_activity_changed`, `workflow_stage_completed`, and `workflow_heartbeat` extension hooks. Publisher and observer leases are fenced on reload. Workflow runtime publication is a separate integration ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).
+
 ### Fixed
 
 - Intercom now hides internal workflow routing/control connections and refuses messages to non-agent recipients, including model-less `ctx.ui` prompts and `ctx.tool` nodes, without hiding agents busy in tools or awaiting human input. Connected agent aliases remain reachable after pending capability changes or stage completion, even with same-name non-agent nodes.

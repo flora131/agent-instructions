@@ -119,6 +119,7 @@ function makeContext(cwd: string, subagentPolicy?: SubagentChildPolicy): Executo
 		getContextUsage: () => undefined,
 		compact: () => {},
 		getSystemPrompt: () => "",
+		observeWorkflowActivity: () => ({ dispose() {} }),
 	} satisfies ExecutorContextForTest;
 }
 

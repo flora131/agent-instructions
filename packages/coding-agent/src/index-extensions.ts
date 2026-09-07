@@ -148,3 +148,4 @@ export {
 	wrapRegisteredTool,
 	wrapRegisteredTools,
 } from "./core/extensions/index.ts";
+export type * from "./core/extensions/workflow-events.js";

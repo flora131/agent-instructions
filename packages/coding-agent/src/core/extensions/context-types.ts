@@ -10,6 +10,7 @@ import type { BuildSystemPromptOptions } from "../system-prompt.ts";
 import type { WorkflowStageAdmissionBoundary } from "../workflow-stage-admission.ts";
 import type { SendMessageOptions, SendMessagesOptions } from "./message-types.ts";
 import type { ExtensionUIContext } from "./ui-types.ts";
+import type { WorkflowActivityObserver, WorkflowActivitySubscription } from "./workflow-events.js";
 
 export interface ContextUsage {
 	/** Estimated context tokens, or null if unknown (e.g. right after compaction, before next LLM response). */
@@ -163,6 +164,8 @@ export type OrchestrationContext = WorkflowStageOrchestrationContext;
 export type ExtensionMode = "tui" | "rpc" | "json" | "print";
 
 export interface ExtensionContext {
+	/** Observe the owning session's workflow activity, starting with an ordered snapshot. */
+	observeWorkflowActivity(observer: WorkflowActivityObserver): WorkflowActivitySubscription;
 	/** Session-scoped orchestration policy for child runtimes such as workflow stages. */
 	readonly orchestrationContext?: OrchestrationContext;
 	/** Typed capability policy for an in-process subagent child, when this session is one. */

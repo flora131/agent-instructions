@@ -45,6 +45,7 @@ See [examples/extensions/](https://github.com/bastani-inc/atomic/tree/main/packa
   - [Agent Events](#agent-events)
   - [Model Events](#model-events)
   - [Tool Events](#tool-events)
+- [Workflow activity and lifecycle hooks](#workflow-activity-and-lifecycle-hooks)
 - [ExtensionContext](#extensioncontext)
 - [ExtensionCommandContext](#extensioncommandcontext)
 - [ExtensionAPI Methods](#extensionapi-methods)
@@ -1026,6 +1027,66 @@ pi.on("input", async (event, ctx) => {
 - `handled` - skip agent entirely (first handler to return this wins)
 
 Transforms chain across handlers. See [input-transform.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/extensions/input-transform.ts) and [input-transform-streaming.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/extensions/input-transform-streaming.ts) for `streamingBehavior`-aware routing.
+
+## Workflow activity and lifecycle hooks
+
+The host exposes typed workflow observation contracts. A workflow provider must register and publish activity; these APIs alone do not connect the workflow scheduler. Without a publisher snapshot, availability is `unavailable`, not an empty ready state.
+
+| Hook | Payload and semantics |
+| --- | --- |
+| `workflow_lifecycle` | `WorkflowLifecycleEvent`: run, stage, tool, or prompt target with typed status, optional previous status, event identity, cursor, ownership, timestamps, and `live` or `replay` delivery. Run targets may carry a control `action`, distinct from its eventual outcome. |
+| `workflow_activity_changed` | `WorkflowActivityChangedEvent`: full root replacement and the same cursor as the observer's `changed` frame. No initial snapshot guarantee. |
+| `workflow_stage_completed` | `WorkflowStageCompletedEvent`: the lifecycle envelope with a stage target whose status is `completed`. Shares the lifecycle event ID and cursor. Failed, skipped, cancelled, and killed outcomes do not produce this hook. |
+| `workflow_heartbeat` | `WorkflowHeartbeatEvent`: run/root/owner identity, `scheduledAt`, and `intervalMinutes`. Observation only, with no scheduler or cadence change. |
+
+Use `ctx.observeWorkflowActivity` for status consumers. Registration captures a snapshot atomically with attaching the observer. Delivery is asynchronous, snapshot first, then FIFO updates. Each callback finishes before the next callback for that observer starts; a slow observer does not delay the publisher or other observers.
+
+```typescript
+import type { ExtensionAPI, WorkflowActivitySubscription, WorkflowRootActivity } from "@bastani/atomic";
+
+export default function (pi: ExtensionAPI) {
+  let lease: WorkflowActivitySubscription | undefined;
+  const roots = new Map<string, WorkflowRootActivity>();
+
+  pi.on("session_start", (_event, ctx) => {
+    lease?.dispose();
+    lease = ctx.observeWorkflowActivity((frame) => {
+      if (frame.kind === "snapshot") {
+        roots.clear();
+        if (frame.availability !== "ready") {
+          // Unknown activity must not be interpreted as idle.
+          return;
+        }
+        for (const root of frame.roots) roots.set(root.rootRunId, root);
+      } else if (frame.kind === "changed") {
+        roots.set(frame.root.rootRunId, frame.root);
+      } else {
+        roots.delete(frame.rootRunId);
+      }
+    });
+  });
+  pi.on("session_shutdown", () => lease?.dispose());
+  pi.on("workflow_stage_completed", (event) => {
+    // Canonical nested identity, not the display name.
+    console.log(event.eventId, event.target.stageId, event.delivery);
+  });
+}
+```
+
+Frames are ordinary objects with a `{ epoch: string, revision: number }` cursor. Revisions increase within an epoch; lifecycle publication may leave gaps between activity revisions. A new publisher starts a new epoch and an `unavailable` snapshot. Never compare revision numbers across epochs. A `ready` snapshot has a `roots` array, including an empty array when known empty. `recovering` and `unavailable` snapshots omit `roots`. Subsequent snapshots replace all prior knowledge. Changes replace a complete root, not increment counters. Removals contain `rootRunId`. Root summaries include `state`, `reason`, execution/wait counts, and `needsAttention`.
+
+Providers call `pi.registerWorkflowActivityPublisher()` and retain its returned `WorkflowActivityPublisher`. Its methods are `publishSnapshot({ availability: "ready", roots })`, `publishSnapshot({ availability: "recovering" | "unavailable" })`, `publishChanged(root)`, `publishRemoved(rootRunId)`, `publishLifecycle(event)`, `publishHeartbeat(event)`, and `dispose()`. Lifecycle input includes `type: "workflow_lifecycle"` and the envelope except `cursor`, which the host supplies. Heartbeat input includes `type: "workflow_heartbeat"`. IDs, names, timestamps, zero counts and optional attribution are preserved. Roots are keyed by `rootRunId`; duplicate snapshot IDs use the last value at the first insertion position. Removing an absent ID is permitted. Changes do not turn an unknown source into `ready`; publish a snapshot to establish readiness.
+
+Observation leases and publisher disposal are idempotent. Runner retirement on reload disposes every observer and fences publishers. Already-running callbacks cannot be cancelled, but no queued observer callbacks run after disposal. Publisher disposal or replacement also fences queued hook delivery that has not started; already-published activity frames remain ordered before the new source snapshot. Activity recovery never synthesizes lifecycle completions; explicit lifecycle replay retains the supplied event ID and `delivery: "replay"`.
+
+The host hub retains at most 256 diagnostics, available through its host-side `diagnostics()` inspection API. These are diagnostic records, not thrown observation errors:
+
+- `ObserverDisposed`: an observation lease was retired.
+- `SourceRecovering`: the provider is hydrating state.
+- `SourceUnavailable`: no current source snapshot is known.
+- `ObserverDeliveryFailed`: a callback threw or rejected; other observers and publication continue.
+- `ObserverOverflow`: a per-observer queue reached its 256-frame limit. Pending frames are cleared and a fresh snapshot replaces them, invalidating continuity instead of silently losing updates.
+- `PublisherFenced`: a disposed or superseded publisher attempted publication.
 
 ## ExtensionContext
 

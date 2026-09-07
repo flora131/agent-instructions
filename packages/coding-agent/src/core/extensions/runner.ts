@@ -166,6 +166,7 @@ export class ExtensionRunner {
 	) {
 		this.extensions = extensions;
 		this.runtime = runtime;
+		this.runtime.workflowActivityHub.bindDispatcher((event) => this.emit(event));
 		this.uiContext = noOpUIContext;
 		this.cwd = cwd;
 		this.sessionManager = sessionManager;
@@ -480,6 +481,7 @@ export class ExtensionRunner {
 	private createContextSource(): ExtensionCommandContextSource {
 		return {
 			assertActive: () => this.assertActive(),
+			observeWorkflowActivity: (observer) => this.runtime.workflowActivityHub.observeWorkflowActivity(observer),
 			getUIContext: () => this.uiContext,
 			getMode: () => this.mode,
 			hasUI: () => this.hasUI(),

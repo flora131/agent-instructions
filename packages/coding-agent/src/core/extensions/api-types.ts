@@ -74,6 +74,13 @@ import type {
 } from "./session-events.ts";
 import type { ToolCallEvent, ToolResultEvent } from "./tool-events.ts";
 import type { ToolDefinition, ToolInfo } from "./tool-types.ts";
+import type {
+	WorkflowActivityChangedEvent,
+	WorkflowActivityPublisher,
+	WorkflowHeartbeatEvent,
+	WorkflowLifecycleEvent,
+	WorkflowStageCompletedEvent,
+} from "./workflow-events.js";
 
 /** Handler function type for events */
 // biome-ignore lint/suspicious/noConfusingVoidType: void allows bare return statements
@@ -83,6 +90,11 @@ export type ExtensionHandler<E, R = undefined> = (event: E, ctx: ExtensionContex
  * ExtensionAPI passed to extension factory functions.
  */
 export interface ExtensionAPI {
+	registerWorkflowActivityPublisher(): WorkflowActivityPublisher;
+	on(event: "workflow_lifecycle", handler: ExtensionHandler<WorkflowLifecycleEvent>): void;
+	on(event: "workflow_activity_changed", handler: ExtensionHandler<WorkflowActivityChangedEvent>): void;
+	on(event: "workflow_stage_completed", handler: ExtensionHandler<WorkflowStageCompletedEvent>): void;
+	on(event: "workflow_heartbeat", handler: ExtensionHandler<WorkflowHeartbeatEvent>): void;
 	// =========================================================================
 	// Event Subscription
 	// =========================================================================
