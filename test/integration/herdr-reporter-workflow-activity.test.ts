@@ -27,7 +27,8 @@ import { createStore } from "../../packages/workflows/src/shared/store.js";
 //   4. `--state blocked --message "Workflow needs attention"` (HIL prompt open)
 //   5. `--state working`  (execution resumed after the prompt was answered)
 //   6. `--state idle`     (run completed)
-// followed by `pane release-agent ... --seq N` (N = the last report's seq) on session_shutdown.
+// followed by `pane release-agent ... --seq N` on session_shutdown, with N strictly greater than the last report
+// (Herdr 0.8.2 ignores an equal or older `--seq`).
 // Between two nodes of the run body no stage or tool is executing, so the projection may publish a
 // momentary idle root (as in 2.). The reporter keeps only the newest pending state while a CLI child is
 // in flight, so such boundary idles are normally coalesced away; the assertion drops any idle that is
@@ -152,7 +153,7 @@ test("reporter reports working, blocked, working, idle for a real workflow with 
 		const release = calls.at(-1)!;
 		assert.equal(release.args[1], "release-agent");
 		assert.equal(calls.length, reports.length + 1);
-		assert.equal(Number(arg(release.args, "--seq")), seqs.at(-1));
+		assert.ok(Number(arg(release.args, "--seq")) > seqs.at(-1)!);
 		assert.equal(arg(reports[0].args, "--agent-session-id"), runner.createContext().sessionManager.getSessionId());
 		assert.ok(reports.slice(1).every((call) => arg(call.args, "--agent-session-id") === undefined));
 		assert.deepEqual(diagnostics, []);
