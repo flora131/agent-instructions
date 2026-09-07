@@ -186,6 +186,8 @@ Mounted HIL and custom prompts take precedence: a `/skill:` answer is literal pr
 
 `/tasks` opens the owner task list locally, never a skill or model message. Enter inspects the selected task; focused actions offer retained transcript inspection, foreground waiting, confirmed cancellation, and stdin when available. Terminal tasks omit live actions. Escape leaves task or stdin focus before applying the ordinary stage Escape behavior. Mounted human-input prompts retain priority. An empty owner explains that launched agents and shells appear here.
 
+If inspection fails, the host displays the error and keeps your input for retry. It does not send the command to the model.
+
 The shared chat host owns this local-command dispatch, including during interrupt settlement. Its host callback is the task-inspector integration point; stage session extension commands named `/tasks` do not override this reserved view action. Skill completion itself reuses the attached session and does not checkpoint it on each keystroke. Tab also completes relative paths rooted at the stage session cwd; `@` file-mention suggestions are not available.
 
 ## Monitor and Control Runs

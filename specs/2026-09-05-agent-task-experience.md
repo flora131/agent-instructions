@@ -17,11 +17,11 @@ owner: Atomic task experience
 | Compatibility | Breaking API/configuration changes allowed; explicit workflow and messaging guarantees retained |
 | Completion gate | Evidence-backed draft ready for human review. Human approval is required before implementation. |
 
-Post-review user decisions and the workflow-chat skill-command amendment are recorded in [the decision addendum](../research/2026-09-06-agent-task-decisions.md). Initial reviewer approval predates these additions; they remain design-only and require review before implementation.
+Post-review user decisions and the workflow-chat skill-command amendment are preserved in the [decision addendum](#decision-addendum) below. Initial reviewer approval predates these additions; they remain design-only and require review before implementation.
 
-The [confirmed follow-up decisions](../research/2026-09-06-agent-task-final-decisions.md) supersede earlier proposals about crash guarantees, extension isolation and output limits. This revision is reconciled directly at the user's request; the follow-up workflow was stopped before its writer edited artifacts. Earlier independent review remains historical.
+The [confirmed follow-up decisions](#confirmed-follow-up-decisions) supersede earlier proposals about crash guarantees, extension isolation and output limits. Earlier independent review remains historical.
 
-A later user amendment adopts the split 5 GiB command-output convention: kill background file-spool commands, truncate drained pipe/PTY output. See [the output-cap amendment](../research/2026-09-06-agent-task-output-cap-amendment.md). This supersedes the earlier truncate-and-continue-only choice.
+A later user amendment adopts the split 5 GiB command-output convention: kill background file-spool commands, truncate drained pipe/PTY output. The [output-cap amendment](#output-cap-amendment) supersedes the earlier truncate-and-continue-only choice. These three governing amendments are self-contained here; they do not depend on ignored local research files.
 
 ## 1. Executive Summary
 
@@ -31,11 +31,11 @@ This proposal introduces an owner-scoped Rust task supervisor with TypeScript mo
 
 Main and workflow chats share collapsed and Ctrl+O expanded views, with bounded activity, honest state labels and keyboard-accessible overflow. Completion updates the existing row while preserving model-context delivery and genuine messages. Closing an owner cancels unfinished work; changing panes does not.
 
-The deliverable is this RFC, [terminal mockups](../research/2026-09-05-agent-task-mockups.md), [research](../research/2026-09-05-agent-task-design-notes.md), and future implementation slices. Nothing here authorizes runtime implementation.
+The deliverable is this RFC, [terminal mockups](agent-task-experience-evidence/2026-09-05-agent-task-mockups.md), [research](agent-task-experience-evidence/2026-09-05-agent-task-design-notes.md), and future implementation slices. Nothing here authorizes runtime implementation.
 
 ## 2. Context and Motivation
 
-The [agreed brief](../research/2026-09-05-agent-task-experience-brief.md) is the product contract. [PRODUCT.md](../PRODUCT.md) identifies keyboard-first developers who need to trust long-running agent work. [DESIGN.md](../DESIGN.md) supplies the restrained terminal vocabulary. Evidence is split into [runtime](../research/2026-09-05-agent-task-runtime.md), [Intercom](../research/2026-09-05-agent-task-intercom.md), and [UI](../research/2026-09-05-agent-task-ui-research.md) notes. Those notes retain reference provenance, source snapshots and contradictions; this RFC uses Atomic-native names.
+The [agreed brief](agent-task-experience-evidence/2026-09-05-agent-task-experience-brief.md) is the product contract, subject to this RFC's governing amendments. [PRODUCT.md](../PRODUCT.md) identifies keyboard-first developers who need to trust long-running agent work. [DESIGN.md](../DESIGN.md) supplies the restrained terminal vocabulary. Evidence is split into [runtime](agent-task-experience-evidence/2026-09-05-agent-task-runtime.md), [Intercom](agent-task-experience-evidence/2026-09-05-agent-task-intercom.md), and [UI](agent-task-experience-evidence/2026-09-05-agent-task-ui-research.md) notes. Those notes retain reference provenance, source snapshots and contradictions; this RFC uses Atomic-native names. The [evidence index](agent-task-experience-evidence/README.md) records historical-reference limitations and precedence.
 
 ### 2.1 Current State
 
@@ -424,8 +424,12 @@ Command output uses two sinks. They share the 5 GiB cap and must not be collapse
 
 | Sink | When | At 5 GiB |
 |---|---|---|
-| File spool | Background command with stdout/stderr redirected to the task output file, no live drain | Poll the actual file size about every 5 s while backgrounded. If still backgrounded and size exceeds the cap, cancel with cause `output-limit`, SIGKILL the supervised process group, and settle `{kind:"failed", code:"OutputLimitExceeded", message:"Background command killed: output file exceeded 5 GiB"}`. Skip a poll on ENOENT. Do not start this watchdog during the initial foreground collection wait. |
+| File spool | Background command with stdout/stderr redirected to the task output file, no live drain | Enforce the file cap at write time. Reject bytes beyond the remaining capacity and signal overflow to the supervisor; cancel with cause `output-limit`, SIGKILL the supervised process group, and settle `{kind:"failed", code:"OutputLimitExceeded", message:"Background command killed: output limit exceeded (5 GiB)"}` after confirmed stop. The capped file never exceeds 5368709120 bytes, including while termination is pending. |
 | Drained pipe or PTY | Supervisor reads the stream | Stop growing the file. Keep the task running. Drain later bytes into the bounded live head/tail and record omitted ranges. Do not block the pipe or kill the process. Keep the truncation marker in metadata, not an extra write past the capped raw file. |
+
+Every write path, including foreground-prefix flush and concurrent stdout/stderr or descendant writes, must share the same enforced file budget. Direct file redirection requires a per-task storage quota or equivalent write-time enforcement; checking file size before an uncoordinated write is insufficient. A capped writer must reserve capacity atomically and write only the permitted prefix of a crossing chunk. No direct writer may bypass it. Establish enforcement before giving a command access to the spool; never fall back to an unbounded spool if enforcement cannot be established. A periodic size watchdog may aid diagnostics, but cannot enforce the cap and is not the overflow trigger. This tightens the reference implementation's polling mechanism without changing the selected kill-versus-truncate policy.
+
+If spool enforcement cannot be established before command execution, reject the start with `StartError { code: "SpawnFailed", message: "Command not started: output-cap enforcement setup failed" }`; do not execute the command or create an output-limit terminal result. `ContainmentUnavailable` remains reserved for process-containment setup failure.
 
 PTY commands always use the drained path. Background bash-like pipe commands default to file spool unless the tool requested a drained sink. Agent/session conversation records are not this command-file cap and are not killed or truncated by it. Disk-write errors still surface unavailable/truncated retention without inventing an output-limit kill. Do not accumulate an unbounded retry queue. Authoritative session/model persistence failures keep their separate delivery-pending semantics. First accepted terminal cause still wins: an already-settled task is not killed again; an in-flight user cancel is not rewritten into OutputLimitExceeded.
 
@@ -451,8 +455,8 @@ The renderer applies the terminal task record to its existing anchor. The comple
 | running | explicit/timed/Intercom yield | running; only designated host wait yield changes badge to background; same task/attempt/promise |
 | running background | foregroundTask | running; new wait ID; no new attempt |
 | queued/running | accepted terminal report | settled completed/failed; task identity permanently terminal |
-| cancelling | runner success arrives late | retain cancellation decision; finish cleanup, settle cancelled |
-| cancelling | confirmed execution stop | settled cancelled; cleanup separately reaped/draining/failed |
+| cancelling | runner success arrives late | retain the first accepted cause; finish cleanup, settle failed OutputLimitExceeded for output-limit, otherwise cancelled |
+| cancelling | confirmed execution stop | settled failed OutputLimitExceeded for output-limit, otherwise cancelled; cleanup separately reaped/draining/failed |
 | settled | same terminal report/cancel/yield replay | return recorded receipt; no new result or execution |
 | settled | conflicting terminal/activity/start-attempt | refuse or acknowledge stale report as specified; never mutate terminal result |
 | owner open | close | closing, atomically seal all admission and fence late model findings |
@@ -460,10 +464,10 @@ The renderer applies the terminal task record to its existing anchor. The comple
 | owner closing | cleanup fails | remain closing with CleanupFailed; never falsely report closed |
 | owner closed | start/foreground/reopen | OwnerClosed/OwnerClosing refusal; new chat/stage requires new generation |
 | any live owner | pane switch, Ctrl+O, task focus | no owner or execution transition |
-| running, file-spool, backgrounded | actual output file exceeds 5 GiB | cancelling with cause output-limit, then failed OutputLimitExceeded after confirmed stop |
+| running, file-spool, backgrounded | write-time enforcement rejects bytes beyond the 5 GiB file budget | cancelling with cause output-limit, then failed OutputLimitExceeded after confirmed stop; file remains within cap |
 | running, drained pipe/PTY | disk output reaches cap | running; disk prefix stops growing, live tail keeps draining, omitted ranges advance |
 
-Completion accepted before cancellation wins. Cancellation accepted first commits the cancellation decision, then rejects late success as terminal authority. Both routes must retain actual output and cleanup evidence. CancelReceipt includes `{taskId, decision:"already-settled"|"cancellation-requested", execution, cleanup}`; only `cleanup.kind === "reaped"` claims resource release. Natural command exit with lingering descendants requires cleanup too. OwnerCloseReceipt contains ordered task receipts; one failed resource prevents successful close.
+Completion accepted before cancellation wins. Cancellation accepted first commits its cause, then rejects late success as terminal authority. An accepted output-limit cause settles failed OutputLimitExceeded after confirmed stop; other cancellation causes settle cancelled. Both routes must retain actual output and cleanup evidence. CancelReceipt includes `{taskId, decision:"already-settled"|"cancellation-requested", execution, cleanup}`; only `cleanup.kind === "reaped"` claims resource release. Natural command exit with lingering descendants requires cleanup too. OwnerCloseReceipt contains ordered task receipts; one failed resource prevents successful close.
 
 Wait IDs separate concurrent observers. Repeated yield of the same wait returns its recorded outcome. A task's UI foreground badge describes the host's designated foreground observation, not every SDK waiter. SDK background waiters do not steal UI focus. When completion races a yield, the actor order produces either settled directly or yielded followed by task-settled. Neither produces two tasks or a second runner.
 
@@ -564,7 +568,7 @@ type TranscriptError = "UnknownTask"|"ScopeMismatch"|"TranscriptUnavailable";
 
 Page size and rendered content are bounded by the existing host history/viewport policy. The cursor is opaque and scoped to that task/session, not an array index or native lifecycle cursor. Page items reference original records for the existing message renderer; references are resolved only under owner-authorized access. The adapter deduplicates by item ID and correlates tool results without removing genuine repeated calls or messages. Live capture and persisted history reconcile once by those IDs. Lifecycle sequence still governs execution state; it is not reused as a fabricated message sequence. Read-only historical tasks use existing session-history authorization, not reconstructed live leases. If a task has no captured transcript, show Transcript unavailable with retained raw output where available; do not infer missing messages from metrics.
 
-Source-backed composition findings and deliberate design differences are recorded in [the UI fidelity review](../research/2026-09-06-agent-task-ui-fidelity.md). These changes improve disclosure and recognition without changing the approved execution or ownership policies.
+Source-backed composition findings and deliberate design differences are recorded in [the UI fidelity review](agent-task-experience-evidence/2026-09-06-agent-task-ui-fidelity.md). These changes improve disclosure and recognition without changing the approved execution or ownership policies.
 
 | Action | Default / route | Meaning and precedence |
 |---|---|---|
@@ -583,7 +587,7 @@ Hints resolve configured action names and disappear if unbound. Mounted HIL prom
 
 #### TUI preview: what to expect
 
-These are static proposed layouts, not runtime screenshots. The [complete 30-frame mockup set](../research/2026-09-05-agent-task-mockups.md) includes PTY input, normal owner close, HIL, failures, short-screen overflow and empty state. This revision replaces ID-first rows and numbered activity logs with recognizable task titles, grouped progress and real prompt/activity/response disclosure. Counts below are fixture values; absent metrics stay absent. Host headings identify the scenario, not a required new main-chat banner.
+These are static proposed layouts, not runtime screenshots. The [complete 30-frame mockup set](agent-task-experience-evidence/2026-09-05-agent-task-mockups.md) includes PTY input, normal owner close, HIL, failures, short-screen overflow and empty state. This revision replaces ID-first rows and numbered activity logs with recognizable task titles, grouped progress and real prompt/activity/response disclosure. Counts below are fixture values; absent metrics stay absent. Host headings identify the scenario, not a required new main-chat banner.
 
 **Default independent agents, 80×24.** A single group heading explains execution and background observation. Tree-connected children lead with their task, while queued work remains visibly queued.
 
@@ -773,11 +777,11 @@ Enter submit · Ctrl+F follow-up · F2 graph
 WORKFLOW  task review / verify · attempt 1
 
 ✗ bash · Process fixture records
-  Failed · output file exceeded 5 GiB · t81
+  Failed · output limit exceeded (5 GiB) · t81
   Output · latest 8 KiB
     processed record 91204
     processed record 91205
-  Background command killed: output file exceeded 5 GiB
+  Background command killed: output limit exceeded (5 GiB)
   /tasks t81 inspect retained log
   Ctrl+O collapse
 
@@ -787,7 +791,7 @@ Next: review · waiting for verify result
 Tasks  1 failed · /tasks · F2 graph
 ```
 
-The excerpts above match their full mockup counterparts exactly. Keep them synchronized. Lifecycle changes are verified through task/message identities and render events, not through copied fixture strings alone.
+The capped-shell excerpt reflects write-time enforcement rather than the historical mockup's post-write size check. Lifecycle changes are verified through task/message identities and render events, not through copied fixture strings alone.
 
 #### Workflow-chat skill commands, user amendment
 
@@ -913,7 +917,7 @@ npm run typecheck
 
 **Red:** real fixture writes parent/grandchild identities and incremental output; ordinary wait yields while both live. Owner close must confirm both exited. Separate execution timeout kills. Exercise shell exit before grandchild, spawn failure, stdin bytes/empty/EOF, input queue full, resize, cancellation/output/completion race and spool cap.
 
-Assert default output values 1048576/8388608/5368709120/8192 bytes. Use a smaller injected cap for stream tests and arithmetic tests at the real 5 GiB boundary. File-spool background commands must be killed after a size poll, settle OutputLimitExceeded, and reap the process group; an ENOENT poll is skipped and a foreground collection wait must not start that watchdog. Drained pipe/PTY commands must stay running, keep the file within cap, continue draining, and record omitted ranges, including a multibyte character that spans the cap. Exercise background spill before the foreground threshold, disk-write failure, paged prefix/tail reads and cancellation/terminal delivery under sustained output. Keep session history outside raw-output cap handling. Do not kill an agent task or a drained PTY because a sibling file-spool command hit the cap.
+Assert default output values 1048576/8388608/5368709120/8192 bytes. Use a smaller injected cap for stream tests and arithmetic tests at the real 5 GiB boundary. File-spool background commands must reject bytes beyond the remaining file budget, settle OutputLimitExceeded after confirmed stop, and reap the process group. Assert actual file size never exceeds the cap, even for a single oversized write, concurrent stdout/stderr and descendant writers, foreground-prefix flush, and a writer that fills the cap before a five-second poll could run. Exercise exact-cap success followed by a one-byte overflow, and enforcement-setup failure without exposing an unbounded spool. Drained pipe/PTY commands must stay running, keep the file within cap, continue draining, and record omitted ranges, including a multibyte character that spans the cap. Exercise background spill before the foreground threshold, disk-write failure, paged prefix/tail reads and cancellation/terminal delivery under sustained output. Keep session history outside raw-output cap handling. Do not kill an agent task or a drained PTY because a sibling file-spool command hit the cap.
 
 **Green:** one process resource abstraction with explicit pipe/PTY variants, input lease and cleanup receipts. Windows containment failure refuses launch before command execution.
 
@@ -1110,4 +1114,39 @@ Engineering follow-ups are bounded queue sizing and aggregate-memory accounting,
 
 Dependencies: UI research confirms #2700 remains open, not merged, with head `4914e13ea7f7d1addb03bab8dc7465770e2a1254`; #2824 and #2565 remain open. Reconcile their final widget/prompt identity changes before S4/S5 integration. Do not absorb their entire feature sets. Existing HIL routing stays authoritative; this draft shows attention and navigation rather than inventing parent-card or notification projects.
 
-Source limits remain explicit in the research: indexed synthesis has no declared snapshot, some timeout constants and platform internals were not verified, and the reported newline behavior was not interactively reproduced. The draft's own proposed guarantees are tested by future slices, not asserted as current product behavior. [Design notes](../research/2026-09-05-agent-task-design-notes.md) record actual artifact checks separately.
+Source limits remain explicit in the research: indexed synthesis has no declared snapshot, some timeout constants and platform internals were not verified, and the reported newline behavior was not interactively reproduced. The draft's own proposed guarantees are tested by future slices, not asserted as current product behavior. [Design notes](agent-task-experience-evidence/2026-09-05-agent-task-design-notes.md) record actual artifact checks separately.
+
+## Governing decision record
+
+The following preserves the normative content and source provenance of the three local research amendments dated 2026-09-06. Their historical validation receipts are not evidence that this revision or any runtime implementation has passed review.
+
+### Decision addendum
+
+The user first requested wait behavior "same as codex pls", then selected independent launch after the distinction between spawning and waiting was explained. Agent launch returns after setup, not after a 30-second completion wait. Explicit agent result waits default to 30000 ms; commands initially collect output for 10000 ms. Foreground-first agent launch remains explicit. HIL releases the wait immediately and shows attention while preserving the live task, prompt routing and owner. Main and workflow chats share `/tasks`; F2 remains the workflow graph. Completion updates the existing row quietly, with persistent error/HIL attention, no success toast or focus theft, and required model-context delivery.
+
+The user's scope amendment was: "if you are enabling slash commands in the workflow chat, you might as well allow for skill command invocation as well in the workflow chat pls". Editable stage chats therefore discover and invoke `/skill:<selector> [arguments]` through the attached stage's catalog, configuration and session. Qualified selectors, catalog precedence, resource reload and once-only expansion retain main-session semantics. Existing argument trimming, unknown unqualified-selector pass-through and qualified-resolution/read diagnostics remain unchanged. `enableSkillCommands` controls registration/suggestions, not a new security boundary for manually typed commands. Skills do not expose arbitrary parent commands, override HIL input, bypass stage admission or revive archive/replay nodes. Explicit editable postmortem chat remains conversational, not workflow revival. Pane changes must not redirect submitted commands.
+
+Timing provenance was inspected at Codex commit `e01f38c388f4907f02ac5b4980a37487686204c8`:
+
+- [`unified_exec.rs:62–68`](https://github.com/openai/codex/blob/e01f38c388f4907f02ac5b4980a37487686204c8/codex-rs/core/src/tools/handlers/unified_exec.rs#L62-L68) defines command yield 10000 ms and write-stdin yield 250 ms. The latter is not a universal empty-input polling interval.
+- [`multi_agents_common.rs:29–32`](https://github.com/openai/codex/blob/e01f38c388f4907f02ac5b4980a37487686204c8/codex-rs/core/src/tools/handlers/multi_agents_common.rs#L29-L32) defines legacy default wait 30000 ms. [`config/mod.rs:232–241`](https://github.com/openai/codex/blob/e01f38c388f4907f02ac5b4980a37487686204c8/codex-rs/core/src/config/mod.rs#L232-L241) gives V2 min/default/max 10000/30000/3600000 ms, with a hard configuration minimum of zero. These are wait constants, not launch delays.
+- [`multi_agents_v2/spawn.rs:207–269`](https://github.com/openai/codex/blob/e01f38c388f4907f02ac5b4980a37487686204c8/codex-rs/core/src/tools/handlers/multi_agents_v2/spawn.rs#L207-L269) returns identity/status after startup without a completion-wait timer. V2 wait observes activity/steering; Atomic's wait observes task results. The source inspection corrected an indexed synthesis that conflated spawn and wait. Matching defaults does not silently adopt upstream clamps or empty-stdin polling behavior.
+
+Local skill routing was inspected at Atomic baseline `230bb1f1c75508d087e09725014c69f022de02cc`: `agent-session-prompt.ts` supplies `_expandSkillCommand`, steer and followUp expansion; `agent-session-extension-bindings.ts` supplies command metadata; `interactive-autocomplete.ts` supplies catalog/config-aware suggestions. Workflow `stage-chat-view-state.ts` routes through the live handle's sendUserMessage, while `stage-chat-view-input.ts`, foreground stage admission, replay refusal and `postmortem-stage-chat.ts` supply the existing input/lifetime fences. This is source mapping, not a live UI reproduction. S6 must prove discovery and delivery parity before adding adapters.
+
+### Confirmed follow-up decisions
+
+The user subsequently confirmed the preceding launch, HIL, inspector, completion and skills choices, and selected the following policies over earlier stronger proposals:
+
+- "Normal stop; crash best effort (Recommended)". Normal session/stage/application shutdown cancels unfinished work and cleans up supervised native processes. Forced death receives available platform safeguards, not a universal descendant-cleanup promise. No crash guardian, universal crash-containment proof or refusal of normal supported execution is required.
+- "Preserve it (Recommended)" for the existing in-process Node/Bun JavaScript extension runtime. Keep cooperative cancellation, native termination and stale admission/result fences. Rust cannot preempt a synchronous callback on that host thread. No isolated extension migration, V8 migration, full Rust model runtime or blanket extension refusal is authorized. Cancellation bookkeeping is not proof of reaping.
+- "buffers plus disk logs, but can you use the same limits as the reference Codex/Claude Code?". The confirmed purpose-specific limits are 1048576 bytes of command live head/tail, an 8388608-byte foreground spill threshold, a 5368709120-byte per-task raw output file cap and an 8192-byte default shell-detail tail read. Background output spools immediately; detail reads are paged. Preview, foreground buffers and pending disk writes are separate memory budgets, with reuse where feasible. Count bytes, preserve UTF-8 decoding and explicit omissions, and keep authoritative session/conversation records outside raw command-output truncation.
+- The initial choice "Truncate logs, keep running (Recommended)" stopped disk growth while continuing bounded draining, with truncation metadata outside the raw payload. The later output-cap amendment below overrides this choice only for background file-spool commands.
+
+Codex V8 code-cell termination is not evidence that arbitrary Atomic extensions can be forcibly cancelled. Rust Drop does not run on SIGKILL. Linux pipe parent-death signaling cannot be generalized to macOS, every PTY or all descendants; the inspected Windows pipe assignment accepted a race. These source limitations must not become stronger product guarantees. There is no intentional ownership transfer or restored live capability from history. Independent parallel launch must keep admitted queued work scheduled under its live owner; only the existing Intercom foreground group-detach handshake may skip unadmitted siblings.
+
+### Output-cap amendment
+
+The later user direction was: "ok, adopt the same convention as Claude Code pls, update the spec". The historical source inspection used `mehmoodosman/claude-code` commit [`30a1fa0f5d84b23f05664378d4863dd42aef0952`](https://github.com/mehmoodosman/claude-code/tree/30a1fa0f5d84b23f05664378d4863dd42aef0952). Its `ShellCommand.ts` starts an unref'd five-second background file-size watchdog, skips ENOENT, and kills when the file exceeds `MAX_TASK_OUTPUT_BYTES = 5 * 1024 * 1024 * 1024`. Its `diskOutput.ts` pipe path stops appending, marks truncation and drops later chunks without killing the process.
+
+Atomic adopts the split overflow policy, not that watchdog as a hard bound. Section 5.3 requires write-time enforcement so actual file bytes cannot overshoot while waiting for a poll or termination. Background file-spool overflow kills with `OutputLimitExceeded`; drained pipe/PTY overflow truncates retention and continues bounded draining. The four byte limits remain unchanged, and agent/session history remains outside this command-file cap. This is still a design contract, not runtime implementation authorization.

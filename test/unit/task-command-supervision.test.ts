@@ -160,7 +160,7 @@ test.runIf(process.platform !== "win32")(
 );
 
 test.runIf(process.platform !== "win32")(
-	"file spool watchdog starts only after foreground collection yields",
+	"file spool enforces its cap during collection and kills overflow after yield",
 	async () => {
 		const supervisor = new native.TaskSupervisor();
 		const scope = { kind: "session" as const, sessionId: crypto.randomUUID() };
@@ -178,10 +178,18 @@ test.runIf(process.platform !== "win32")(
 				{ diskCapBytes: 4 },
 			);
 			assert.ok(task.ok);
-			const foreground = supervisor.waitForTask(task.value, 5200);
+			const deadline = Date.now() + 5000;
+			while (true) {
+				const page = await supervisor.readTaskOutput(task.value, { start: "0", maximumBytes: 8192 });
+				assert.ok(page.ok);
+				if (page.value.chunks.some((chunk) => BigInt(chunk.offsets.end) > 4n)) break;
+				assert.ok(Date.now() < deadline, "foreground overflow barrier");
+				await sleep(10);
+			}
+			const foreground = supervisor.waitForTask(task.value, 0);
 			assert.ok(foreground.ok);
 			const yielded = await supervisor.observeTaskWait(foreground.value);
-			assert.ok(yielded.ok && yielded.value.kind === "yielded", "initial collection must not start the watchdog");
+			assert.ok(yielded.ok && yielded.value.kind === "yielded", "foreground overflow must remain live until yield");
 			const background = supervisor.waitForTask(task.value, 8000);
 			assert.ok(background.ok);
 			const settled = await supervisor.observeTaskWait(background.value);
@@ -189,7 +197,7 @@ test.runIf(process.platform !== "win32")(
 			assert.equal(settled.value.result.kind, "failed");
 			if (settled.value.result.kind === "failed") {
 				assert.equal(settled.value.result.code, "OutputLimitExceeded");
-				assert.equal(settled.value.result.message, "Background command killed: output file exceeded 5 GiB");
+				assert.equal(settled.value.result.message, "Background command killed: output limit exceeded (5 GiB)");
 			}
 		} finally {
 			assert.ok((await supervisor.closeTaskOwner(owner.value, "session-close")).ok);

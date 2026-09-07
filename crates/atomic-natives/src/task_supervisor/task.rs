@@ -655,7 +655,7 @@ impl Actor {
 				if cause == CancelCause::OutputLimit && s.owners[oi].tasks[ti].command.is_some() {
 					TaskResult::Failed {
 						code: "OutputLimitExceeded".into(),
-						message: "Background command killed: output file exceeded 5 GiB".into(),
+						message: "Background command killed: output limit exceeded (5 GiB)".into(),
 						output,
 						exit_code: None,
 					}

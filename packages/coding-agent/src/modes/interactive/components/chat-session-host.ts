@@ -155,15 +155,23 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	/** Tasks outlive tools and turns; only host/session binding grants this read projection. */
 	refreshTaskStore(): void {
 		const session = this.state.getAgentSession?.();
-		if (session && session !== this.taskSession) {
+		const sessionChanged = session !== this.taskSession;
+		if (sessionChanged) {
 			this.unsubscribeTaskBinding?.();
 			this.taskSession = session;
-			this.unsubscribeTaskBinding = watchOwnerTaskStoreBinding(session, () => this.refreshTaskStore());
+			this.unsubscribeTaskBinding = session
+				? watchOwnerTaskStoreBinding(session, () => this.refreshTaskStore())
+				: undefined;
 		}
 		const store = session ? getOwnerTaskStore(session) : undefined;
-		if (!store || store === this.taskStore) return;
+		if (!sessionChanged && store === this.taskStore) return;
 		this.unsubscribeTasks?.();
 		this.taskStore = store;
+		this.unsubscribeTasks = undefined;
+		this.state.liveChat.clearTasks();
+		this.state.transcriptComponent.invalidate();
+		this.state.requestRender?.();
+		if (!store) return;
 		const update = () => {
 			this.state.liveChat.upsertTasks(store.tasks, store);
 			this.state.transcriptComponent.invalidate();

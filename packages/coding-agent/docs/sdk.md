@@ -46,6 +46,15 @@ starts owner closure; generation close awaits independent cleanup and surfaces f
 Fresh boundaries have fresh identities, including restoration; history is not a restart
 capability. Public producers, durable callback joins and nonvisual completion intent/admission use this owner binding.
 
+When a task completion outbox is created from session history, it immediately retries
+unacknowledged terminal completion intents through the current admission boundary.
+It does not wait for another task to settle or recreate execution capabilities.
+Acknowledged intents are not redelivered. Failed admission keeps the original completion
+identity pending for retry; a closed boundary prevents admission.
+Top-level session initialization restores admission keys from persisted custom messages,
+so a crash after delivery is persisted but before its outbox acknowledgement does not
+deliver the same completion again.
+
 A host binds its actual session or workflow-stage scope with `bindHostSession`,
 provides launch authorization and a runner factory, then calls `openTaskOwner`.
 Authorization runs before native admission. `startAgentTask` registers an agent
@@ -113,12 +122,18 @@ and replays recorded receipts without resending bytes. Ambiguous partial deliver
 returns `InputDeliveryUnknown`, including operation ID and known accepted-byte count.
 
 `readTaskOutput(task, {start, maximumBytes})` returns owned byte chunks at decimal
-offsets, requested bounds, omitted ranges and an optional next offset. It does not
-sanitize or normalize bytes. Retention uses a 1 MiB live head/tail, 8 MiB foreground
-spill threshold and 5 GiB disk cap. Retained output is not conversation history.
-Background file-spool commands are checked every five seconds after foreground
-collection yields. Exceeding the cap kills the group and settles `OutputLimitExceeded`.
-Drained pipe/PTY output instead keeps running with bounded retained bytes and omissions.
+offsets, requested bounds, omitted ranges and an optional next offset. Requests
+are clamped to the 1 MiB live-preview bound before allocating or reading a page;
+use `nextOffset` to continue. It does not sanitize or normalize bytes. Retention
+uses a 1 MiB live head/tail, 8 MiB foreground spill threshold and 5 GiB disk cap.
+Retained output is not conversation history. File-spool policy uses supervised
+pipe drains, never inherited direct file writers. Stdout, stderr and descendants
+share one serialized disk budget; crossing writes retain only the permitted prefix.
+The file remains within the cap during foreground collection and termination.
+After foreground collection yields, rejected overflow kills the group and settles
+`OutputLimitExceeded` after confirmed cleanup. Spool setup failure refuses launch
+with `SpawnFailed`. Drained pipe/PTY output instead keeps running with bounded
+retained bytes and omissions.
 PTY resize uses the retained portable-pty master. Windows pipe commands use a
 suspended `cmd.exe` launch assigned to a kill-on-close Job Object before resume.
 Failed assignment terminates and waits for the suspended process; unconfirmed
@@ -129,9 +144,12 @@ and owner-aware Windows bash transport are not implemented and refuse with
 Bash tools and `createLocalBashOperations` accept a trusted `taskOwner` binding.
 On Unix, that binding obtains pipe/PTY processes through supervised admission,
 preserving configured shell arguments, cwd, environment and existing authorization.
-The foreground collection returns a yielded task observation after 10000 ms;
-the process stays owned and its retained output remains readable. Without that
-binding, existing bash and native PTY execution are unchanged. No UI is added.
+Foreground collection honors the owner's command wait configuration, including
+`until-settled`; the automatic default is 10000 ms. A yielded process stays owned
+and its retained output remains readable. Bash output inserts explicit
+`[Output omitted: bytes start-end]` markers, with an exclusive end offset, between
+retained chunks rather than silently joining gaps. Without that binding, existing
+bash and native PTY execution are unchanged. No UI is added.
 
 `watchOwnerTasks(owner, cursor?)` provides an opaque `lease`, snapshot,
 decimal-string cursor and disposable `AsyncIterable<NativeEvent>`. Each iterator
@@ -151,6 +169,9 @@ cursor. Explicit `dispose()` (idempotent) or breaking out of a live iterator end
 observation, not the owner. Owner closure also ends delivery. Track your own disposal
 when deciding whether to resume. New subscriptions are refused once owner closing
 begins; existing subscriptions continue through cleanup/closure.
+Calling `dispose()` from `onReconcile` also stops the active drain from publishing
+its retained events. Pending and newly created iterators finish without those events;
+the reconciled snapshot remains available.
 
 The optional `subscription.onReconcile` callback is a convenience, not required for
 correctness; callback exceptions remain visible as `subscription.failure`. Raw strings

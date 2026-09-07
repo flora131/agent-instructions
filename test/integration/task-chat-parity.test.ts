@@ -353,3 +353,62 @@ test("main lifecycle handler filters the full completion envelope before compone
 		harness.cleanup();
 	}
 });
+
+// #2907: replacement transcript clears must not lose an already-bound task.
+test("main projection remounts after transcript clear", async () => {
+	const fixture = taskFixture();
+	const mode = {
+		session: {},
+		chatContainer: new Container(),
+		toolOutputExpanded: false,
+		ui: { requestRender() {} },
+		attachStartupNoticesContainer() {},
+		sessionManager: { getEntries: () => [], getLeafId: () => null },
+		renderSessionEntries() {},
+	};
+	try {
+		bindOwnerTaskStore(mode.session, fixture.store);
+		await fixture.start("replacement task");
+		refreshInteractiveTasks(mode);
+		mode.chatContainer.clear();
+		Reflect.apply(InteractiveMode.prototype.renderInitialMessages, mode, []);
+		assert.equal(mode.chatContainer.children.length, 1);
+		assert.match(mode.chatContainer.render(80).join("\n"), /replacement task/);
+		mode.session = {};
+		refreshInteractiveTasks(mode);
+		assert.equal(mode.chatContainer.children.length, 0);
+		await fixture.start("old owner update");
+		assert.equal(mode.chatContainer.children.length, 0);
+	} finally {
+		disposeInteractiveTasks(mode);
+		await fixture.dispose();
+	}
+});
+
+// #2907: a late-bound replacement session must not inherit the old owner's projection.
+test("shared host clears old tasks before a replacement store binds", async () => {
+	const old = taskFixture();
+	const replacement = taskFixture();
+	let session = fakeFooterAgentSession();
+	bindOwnerTaskStore(session, old.store);
+	const host = new ChatSessionHost({ style: plainStyle, editorTheme, getAgentSession: () => session });
+	try {
+		await old.start("OLD SESSION TASK");
+		assert.match(host.renderBody(80, 100).join("\n"), /OLD SESSION TASK/);
+		session = fakeFooterAgentSession();
+		host.refreshTaskStore();
+		assert.equal(host.entries().filter((entry) => entry.kind === "task").length, 0);
+		assert.doesNotMatch(host.renderTaskFooter(80).join("\n"), /Tasks/);
+		await old.start("STALE UPDATE");
+		assert.equal(host.entries().filter((entry) => entry.kind === "task").length, 0);
+		await replacement.start("NEW SESSION TASK");
+		bindOwnerTaskStore(session, replacement.store);
+		assert.equal(host.entries().filter((entry) => entry.kind === "task").length, 1);
+		assert.match(host.renderBody(80, 100).join("\n"), /NEW SESSION TASK/);
+		assert.doesNotMatch(host.renderBody(80, 100).join("\n"), /OLD SESSION TASK|STALE UPDATE/);
+	} finally {
+		host.dispose();
+		await old.dispose();
+		await replacement.dispose();
+	}
+});

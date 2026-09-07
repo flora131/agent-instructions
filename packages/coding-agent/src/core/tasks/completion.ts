@@ -36,6 +36,7 @@ export class TaskCompletionOutbox {
 				this.entries.delete((entry.data as { completionId: string }).completionId);
 			}
 		}
+		if (this.entries.size > 0) void this.flush();
 	}
 	get pending(): TaskCompletionEnvelope[] {
 		return [...this.entries.values()];
