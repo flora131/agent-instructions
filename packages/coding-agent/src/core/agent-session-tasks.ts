@@ -1,7 +1,7 @@
 import type { AgentSessionInternalSurface as AgentSession } from "./agent-session-methods.ts";
 import { AgentTaskHost } from "./tasks/agent-adapter.js";
 import { TASK_COMPLETION_MESSAGE_TYPE, TaskCompletionOutbox } from "./tasks/completion.js";
-import { bindOwnerTaskStore, OwnerTaskStore } from "./tasks/owner-store.ts";
+import { bindOwnerTaskStore, OwnerTaskStore } from "./tasks/owner-store.js";
 import { WorkflowStageAdmissionBoundary } from "./workflow-stage-admission.ts";
 
 export function getAgentTaskHost(this: AgentSession): AgentTaskHost {
