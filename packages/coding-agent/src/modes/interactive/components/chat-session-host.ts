@@ -2,6 +2,7 @@ import type { Component, Focusable } from "@earendil-works/pi-tui";
 import type { AgentSessionEvent, CompactionReason } from "../../../core/agent-session.ts";
 import { repairOrphanToolResults } from "../../../core/messages.ts";
 import { SessionManager } from "../../../core/session-manager.ts";
+import type { TaskId } from "../../../core/tasks/contracts.js";
 import { getOwnerTaskStore, type OwnerTaskStore, watchOwnerTaskStoreBinding } from "../../../core/tasks/owner-store.js";
 import {
 	abortChatSessionBash,
@@ -44,6 +45,7 @@ import type {
 	ChatSessionSubmitMode,
 } from "./chat-session-host-types.ts";
 import type { ChatTranscriptEntryLike } from "./chat-transcript.ts";
+import { TaskInspector } from "./task-inspector.js";
 import { renderTaskFooter } from "./task-list.js";
 
 export type {
@@ -63,12 +65,24 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	private unsubscribeTasks?: () => void;
 	private taskSession?: object;
 	private unsubscribeTaskBinding?: () => void;
+	private taskInspector?: TaskInspector;
 
 	constructor(opts: ChatSessionHostOpts<TExtraEntry>) {
-		this.state = new ChatSessionHostState(opts, {
-			renderEntry: (state, entry) => renderChatSessionEntry(state, entry),
-			transcriptCacheKey: (state, entry, index) => transcriptCacheKey(state, entry, index),
-		});
+		const commands = {
+			...opts.commands,
+			handleSlashCommand: async (text: string) => {
+				if (text === "/tasks" || text.startsWith("/tasks "))
+					return this.openTasks(text.slice(6).trim() || undefined);
+				return (await opts.commands?.handleSlashCommand?.(text)) ?? false;
+			},
+		};
+		this.state = new ChatSessionHostState(
+			{ ...opts, commands },
+			{
+				renderEntry: (state, entry) => renderChatSessionEntry(state, entry),
+				transcriptCacheKey: (state, entry, index) => transcriptCacheKey(state, entry, index),
+			},
+		);
 		this.state.editor = createChatSessionEditor(
 			this.state,
 			opts.tui,
@@ -82,6 +96,26 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 		this.refreshTaskStore();
 	}
 
+	openTasks(id?: string): boolean {
+		this.refreshTaskStore();
+		if (!this.taskStore) return false;
+		this.taskInspector?.dispose();
+		this.taskInspector = new TaskInspector(
+			this.taskStore,
+			() => this.state.requestRender?.(),
+			() => {
+				this.taskInspector?.dispose();
+				this.taskInspector = undefined;
+				this.state.requestRender?.();
+			},
+		);
+		this.taskInspector.open(id as TaskId | undefined);
+		this.state.requestRender?.();
+		return true;
+	}
+	handleTaskInput(data: string): boolean {
+		return this.taskInspector?.handleInput(data) ?? false;
+	}
 	appendMessages(messages: readonly AgentSnapshotMessage[]): void {
 		this.state.liveChat.appendMessages(messages);
 	}
@@ -183,6 +217,7 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	}
 
 	renderBody(width: number, budget: number): string[] {
+		if (this.taskInspector) return this.taskInspector.renderViewport(width, budget);
 		return renderChatSessionBody(this.state, width, budget);
 	}
 
@@ -353,6 +388,7 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	}
 
 	dispose(): void {
+		this.taskInspector?.dispose();
 		this.unsubscribeTasks?.();
 		this.unsubscribeTaskBinding?.();
 		disposeChatSession(this.state);

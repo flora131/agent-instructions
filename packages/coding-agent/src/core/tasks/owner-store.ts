@@ -6,9 +6,10 @@ import type {
 	Result,
 	TaskId,
 	TaskRecord,
+	WaitError,
 	WatchError,
 } from "./contracts.js";
-import type { OwnerLease, TaskSubscription, TaskSupervisor } from "./supervisor.js";
+import type { OwnerLease, TaskLease, TaskSubscription, TaskSupervisor } from "./supervisor.js";
 
 /** Activity previews are bounded independently of authoritative session history. */
 export const TASK_ACTIVITY_LIMIT = 64;
@@ -31,7 +32,7 @@ export class OwnerTaskStore {
 	private omittedActivity = new Set<TaskId>();
 	readonly anchors = new Map<TaskId, TaskAnchor>();
 	private current?: OwnerSnapshot;
-	private readonly supervisor: TaskSupervisor;
+	readonly supervisor: TaskSupervisor;
 	private readonly owner: OwnerLease;
 	constructor(supervisor: TaskSupervisor, owner: OwnerLease) {
 		this.supervisor = supervisor;
@@ -46,6 +47,10 @@ export class OwnerTaskStore {
 	}
 	get tasks(): TaskRecord[] {
 		return [...this.records.values()];
+	}
+	/** Resolve only within the owner that authorized this store. */
+	resolveTask(id: TaskId): Result<TaskLease, WaitError> {
+		return this.supervisor.lookupTask(this.owner, id);
 	}
 	recentActivity(id: TaskId): TaskActivity[] {
 		return [...(this.activity.get(id) ?? [])];
