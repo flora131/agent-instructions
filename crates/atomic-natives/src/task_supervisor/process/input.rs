@@ -194,9 +194,6 @@ impl Actor {
 		let resource = self.command_resource(task)?;
 		let start = range.start.parse::<u64>().map_err(|_| fail("OutputUnavailable"))?;
 		let mut store = resource.output.lock().unwrap();
-		if resource.file_spool() {
-			store.refresh_spool();
-		}
 		let mut page = store.page(start, range.maximum_bytes.into());
 		page.requested.start = range.start;
 		Ok(page)

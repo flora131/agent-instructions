@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { test } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { test, vi } from "vitest";
+import { getAgentTaskHost } from "../../packages/coding-agent/src/core/agent-session-tasks.js";
 import { SessionManager } from "../../packages/coding-agent/src/core/session-manager.js";
 import { AgentTaskHost } from "../../packages/coding-agent/src/core/tasks/agent-adapter.js";
 import { TaskCompletionOutbox } from "../../packages/coding-agent/src/core/tasks/completion.js";
@@ -61,4 +65,147 @@ test("completion intent precedes admission and retries a lost acknowledgement wi
 			),
 	);
 	await host.close("session-close");
+});
+
+// PR #2906: restored terminal intents must not wait for another task to settle.
+test("restored completion intents begin delivery without a new settlement", async () => {
+	const session = SessionManager.inMemory();
+	const envelope = {
+		completionId: "restored-completion",
+		ownerId: "historical-owner",
+		taskId: "historical-task",
+		terminalSequence: 7,
+		result: { kind: "completed" },
+		display: false,
+	};
+	session.appendCustomEntry("task-completion-intent", envelope);
+	session.appendCustomEntry("task-completion-intent", { ...envelope, completionId: "already-acked" });
+	session.appendCustomEntry("task-completion-ack", { completionId: "already-acked" });
+	const release = Promise.withResolvers<void>();
+	const admitted: string[] = [];
+	const outbox = new TaskCompletionOutbox(
+		session,
+		() => true,
+		async (restored) => {
+			admitted.push(restored.completionId);
+			assert.deepEqual(restored, envelope);
+			await release.promise;
+		},
+	);
+	await vi.waitFor(() => assert.deepEqual(admitted, [envelope.completionId]));
+	const concurrentFlush = outbox.flush();
+	release.resolve();
+	await concurrentFlush;
+	assert.deepEqual(outbox.pending, []);
+	new TaskCompletionOutbox(
+		session,
+		() => true,
+		async (restored) => {
+			admitted.push(restored.completionId);
+		},
+	);
+	await Promise.resolve();
+	assert.deepEqual(admitted, [envelope.completionId]);
+});
+
+test("restored completion retry respects closed admission and retains failed delivery", async () => {
+	const session = SessionManager.inMemory();
+	session.appendCustomEntry("task-completion-intent", {
+		completionId: "retry-completion",
+		ownerId: "historical-owner",
+		taskId: "historical-task",
+		terminalSequence: 7,
+		result: { kind: "completed" },
+		display: false,
+	});
+	let open = false;
+	let fail = true;
+	const admitted: string[] = [];
+	const outbox = new TaskCompletionOutbox(
+		session,
+		() => open,
+		async (envelope) => {
+			admitted.push(envelope.completionId);
+			if (fail) throw new Error("admission unavailable");
+		},
+	);
+	await outbox.flush();
+	assert.deepEqual(admitted, []);
+	assert.equal(outbox.pending.length, 1);
+	open = true;
+	await outbox.flush();
+	assert.equal(outbox.pending.length, 1);
+	fail = false;
+	await outbox.flush();
+	assert.deepEqual(admitted, ["retry-completion", "retry-completion"]);
+	assert.deepEqual(outbox.pending, []);
+	assert.equal(
+		session.getEntries().filter((entry) => entry.type === "custom" && entry.customType === "task-completion-intent")
+			.length,
+		1,
+	);
+	assert.equal(
+		session.getEntries().filter((entry) => entry.type === "custom" && entry.customType === "task-completion-ack")
+			.length,
+		1,
+	);
+});
+
+test("session task initialization deduplicates persisted delivery after a crash before acknowledgement", async () => {
+	const directory = mkdtempSync(join(tmpdir(), "task-completion-restart-"));
+	try {
+		const original = SessionManager.create(directory, directory);
+		const envelope = {
+			completionId: "delivered-before-crash",
+			ownerId: "historical-owner",
+			taskId: "historical-task",
+			terminalSequence: 7,
+			result: { kind: "completed" },
+			display: false,
+		};
+		original.appendCustomEntry("task-completion-intent", envelope);
+		original.appendCustomMessageEntry(
+			"task-completion",
+			JSON.stringify(envelope),
+			false,
+			envelope,
+			undefined,
+			undefined,
+			envelope.completionId,
+		);
+		original.flush();
+		const restored = SessionManager.open(original.getSessionFile()!);
+		let deliveries = 0;
+		const session = {
+			sessionManager: restored,
+			async sendCustomMessage() {
+				deliveries++;
+			},
+		} as unknown as ThisParameterType<typeof getAgentTaskHost>;
+		const host = getAgentTaskHost.call(session);
+		try {
+			await vi.waitFor(() =>
+				assert.equal(
+					restored
+						.getEntries()
+						.filter((entry) => entry.type === "custom" && entry.customType === "task-completion-ack").length,
+					1,
+				),
+			);
+			assert.equal(deliveries, 0);
+			restored.flush();
+			const restarted = SessionManager.open(restored.getSessionFile()!);
+			assert.equal(
+				restarted
+					.getEntries()
+					.filter((entry) => entry.type === "custom_message" && entry.stageAdmissionKey === envelope.completionId)
+					.length,
+				1,
+			);
+		} finally {
+			await host.close("session-close");
+		}
+	} finally {
+		rmSync(directory, { recursive: true, force: true });
+	}
 });

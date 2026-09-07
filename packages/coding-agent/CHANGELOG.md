@@ -17,6 +17,9 @@
 
 ### Fixed
 
+- Honored owner command wait budgets and `until-settled` in supervised bash/PTY execution, disclosed retained output gaps, and bounded output pages to 1 MiB. Supervised file-spool writes now share a hard disk cap rather than overshooting between polls ([#2905](https://github.com/bastani-inc/atomic/pull/2905)).
+- Stopped task subscription event delivery when a reconciliation callback disposes observation, including events retained by the active drain ([#2902](https://github.com/bastani-inc/atomic/pull/2902)).
+- Failed `/tasks` inspection now displays a diagnostic and preserves the input for retry instead of leaving an unhandled editor submission rejection.
 - Workflow skill autocomplete no longer reattaches and checkpoints the stage for every completion request. Concurrent lazy discovery requests share one attachment.
 - Intercom now hides internal workflow routing/control connections and refuses messages to non-agent recipients, including model-less `ctx.ui` prompts and `ctx.tool` nodes, without hiding agents busy in tools or awaiting human input. Connected agent aliases remain reachable after pending capability changes or stage completion, even with same-name non-agent nodes.
 - Preserved duplicate-agent routing beside same-name prompt/tool nodes, rejected malformed Intercom recipient purposes without breaking older hosts, and synchronized workflow roster-update completion with broker processing ([#2895](https://github.com/bastani-inc/atomic/pull/2895)).
@@ -27,6 +30,7 @@
 - Bounded S1 activity replay to the latest 256 accepted report identities per task without retaining their full payload history. Identical retained reports remain duplicates, conflicts remain refused, and evicted IDs are fresh reports; terminal receipts never expire while the task record exists ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Prevented accepted S1 activity IDs such as `runner-outcome` from blocking runner settlement, independent cleanup and owner closure. Internal terminal IDs are allocated atomically without reserving caller IDs or changing report conflict/replay and cancellation rules ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Prevented accepted NaN S1 wait budgets, including owner-configured agent budgets, from panicking native scheduling. Observations remain releasable by yield, settlement, disposal and owner closure without changing other budgets or per-call precedence ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Restored task completion outboxes now retry unacknowledged terminal intents on initialization instead of waiting for another task to settle, retaining completion identity and current admission checks ([#2906](https://github.com/bastani-inc/atomic/pull/2906)).
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

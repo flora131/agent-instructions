@@ -309,3 +309,36 @@ test.each(["auto", "followUp"] as const)("task commands stay local during %s int
 		host.dispose();
 	}
 });
+
+// Regression for #2888: Enter discards the submission promise.
+test("ChatSessionHost reports rejected task inspection without losing retry input", async () => {
+	let renders = 0;
+	const warnings: string[] = [];
+	const host = new ChatSessionHost({
+		style,
+		editorTheme,
+		requestRender: () => {
+			renders += 1;
+		},
+		showWarning: (message) => warnings.push(message),
+		commands: {
+			async handleSlashCommand() {
+				throw new Error("Inspector offline");
+			},
+			async prompt() {
+				assert.fail("Task inspection must remain local");
+			},
+		},
+	});
+	try {
+		host.setInputText("/tasks");
+		const before = renders;
+		host.handleInput("\r");
+		await new Promise<void>((resolve) => setImmediate(resolve));
+		assert.deepEqual(warnings, ["Inspector offline"]);
+		assert.equal(host.inputText(), "/tasks");
+		assert.ok(renders > before);
+	} finally {
+		host.dispose();
+	}
+});

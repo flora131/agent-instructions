@@ -2,7 +2,6 @@ import { setTimeout as poll } from "node:timers/promises";
 import { createChildProcessEnvironment } from "../../utils/child-process.ts";
 import { createModuleRequire } from "../../utils/module-require.ts";
 import { getShellConfig, getShellEnv } from "../../utils/shell.ts";
-import { COMMAND_FOREGROUND_BUDGET_MS } from "../tasks/command-output.js";
 import type { OperationId, WaitOutcome } from "../tasks/contracts.js";
 import type { OwnerLease, TaskSupervisor } from "../tasks/supervisor.js";
 
@@ -125,15 +124,22 @@ export async function executeSupervisedCommand(
 	if (options.signal?.aborted) abort();
 	let done = false;
 	let offset = "0";
-	const observation = context.supervisor.waitForTask(task, COMMAND_FOREGROUND_BUDGET_MS).finally(() => {
+	const observation = context.supervisor.waitForTask(task).finally(() => {
 		done = true;
 	});
 	const drain = async () => {
 		const page = await context.supervisor.readTaskOutput(task, { start: offset, maximumBytes: 8192 });
 		if (!page.ok) throw new Error(page.error.message);
-		for (const chunk of page.value.chunks) {
-			options.onData(Buffer.from(chunk.bytes));
-			offset = chunk.offsets.end;
+		const segments = [
+			...page.value.chunks.map((chunk) => ({ offsets: chunk.offsets, bytes: Buffer.from(chunk.bytes) })),
+			...page.value.omittedRanges.map((offsets) => ({
+				offsets,
+				bytes: Buffer.from(`\n[Output omitted: bytes ${offsets.start}-${offsets.end}]\n`),
+			})),
+		].sort((a, b) => (BigInt(a.offsets.start) < BigInt(b.offsets.start) ? -1 : 1));
+		for (const segment of segments) {
+			options.onData(segment.bytes);
+			offset = segment.offsets.end;
 		}
 		if (page.value.nextOffset !== undefined) offset = page.value.nextOffset;
 		return page.value.nextOffset !== undefined;
