@@ -10,12 +10,14 @@ import {
 	type CustomMessage,
 	isVerbatimCompactionMessage,
 } from "../../../core/messages.ts";
+import type { TaskRecord } from "../../../core/tasks/contracts.js";
+import type { OwnerTaskStore, TaskActivity } from "../../../core/tasks/owner-store.js";
 import {
 	applyAssistantMessageDelta,
 	beginStreamingAssistantMessage,
 	type StreamingAssistantDelta,
 } from "../streaming-assistant-message.ts";
-import { getMarkdownTheme, theme } from "../theme/theme.ts";
+import { getMarkdownTheme, theme } from "../theme/theme.js";
 import { AssistantMessageComponent } from "./assistant-message.ts";
 import { BashExecutionComponent } from "./bash-execution.ts";
 import { BranchSummaryMessageComponent } from "./branch-summary-message.ts";
@@ -23,10 +25,20 @@ import { extractMessageText } from "./chat-session-host-utils.ts";
 import { compactionBoundaryFromMessage } from "./compaction-boundary-message.ts";
 import { CustomMessageComponent } from "./custom-message.ts";
 import { SkillInvocationMessageComponent } from "./skill-invocation-message.ts";
+import { TaskRow } from "./task-row.js";
 import { ToolExecutionComponent } from "./tool-execution.ts";
 import { UserMessageComponent } from "./user-message.ts";
 export type ChatMessageEntry =
 	| { role: "assistant"; kind: "assistant"; message: AssistantMessage }
+	| {
+			role: "tool";
+			kind: "task";
+			task: TaskRecord;
+			duplicate: boolean;
+			siblings: readonly TaskRecord[];
+			activity: TaskActivity[];
+			activityOmitted: boolean;
+	  }
 	| {
 			role: "tool";
 			kind: "tool";
@@ -160,6 +172,43 @@ export class LiveChatEntriesController {
 	private declare readonly entries: LiveChatEntry[];
 	constructor(entries: LiveChatEntry[]) {
 		this.entries = entries;
+	}
+	clearTasks(): void {
+		const streaming =
+			this.streamingAssistantIndex === undefined ? undefined : this.entries[this.streamingAssistantIndex];
+		for (let index = this.entries.length - 1; index >= 0; index--) {
+			const entry = this.entries[index];
+			if ("kind" in entry && entry.kind === "task") this.entries.splice(index, 1);
+		}
+		this.streamingAssistantIndex = streaming === undefined ? undefined : this.entries.indexOf(streaming);
+		this.reindexPendingTools();
+	}
+	upsertTasks(tasks: readonly TaskRecord[], store?: OwnerTaskStore): void {
+		for (const task of tasks) {
+			const activity = store?.recentActivity(task.ref.taskId) ?? [];
+			const activityOmitted = store?.activityOmitted(task.ref.taskId) ?? false;
+			const duplicate =
+				tasks.filter((other) => other.agentName === task.agentName && other.title === task.title).length > 1;
+			const entry = this.entries.find(
+				(entry) => "kind" in entry && entry.kind === "task" && entry.task.ref.taskId === task.ref.taskId,
+			);
+			if (entry && "kind" in entry && entry.kind === "task") {
+				entry.task = task;
+				entry.duplicate = duplicate;
+				entry.siblings = tasks;
+				entry.activity = activity;
+				entry.activityOmitted = activityOmitted;
+			} else
+				this.entries.push({
+					role: "tool",
+					kind: "task",
+					task,
+					duplicate,
+					siblings: tasks,
+					activity,
+					activityOmitted,
+				});
+		}
 	}
 	appendMessages(messages: readonly AgentMessage[]): void {
 		this.entries.push(...chatEntriesFromAgentMessages(messages));
@@ -416,6 +465,14 @@ export function renderChatMessageEntry(entry: ChatMessageEntry, options: ChatMes
 	const messageEntry = entry as ChatMessageEntry;
 	const markdownTheme = options.markdownTheme ?? getMarkdownTheme();
 	switch (messageEntry.kind) {
+		case "task":
+			return new TaskRow(messageEntry.task, {
+				expanded: options.toolOutputExpanded,
+				duplicate: messageEntry.duplicate,
+				siblings: messageEntry.siblings,
+				activity: messageEntry.activity,
+				activityOmitted: messageEntry.activityOmitted,
+			});
 		case "assistant":
 			return new AssistantMessageComponent(
 				messageEntry.message,

@@ -180,6 +180,8 @@ export async function runParallelPath(
 		}
 
 		const results = await runForegroundParallelTasks({
+			wait: params.wait,
+			onTaskTerminal: (index) => detachedCleanup.recover(index),
 			onDetachedExit: (index, result) => {
 				try {
 					if (workflowStageAcceptsDetachedNotification(ctx)) {
@@ -238,6 +240,27 @@ export async function runParallelPath(
 			worktreeSetup: worktreeSetup as WorktreeSetup | undefined,
 			runtime: deps.runtime,
 		});
+		if (ctx.getAgentTaskHost && !parentAsk) {
+			const response: import("../../../../coding-agent/src/core/tasks/contracts.js").ModelParallelResponse = {
+				kind: "parallel",
+				slots: results.map((result, ordinal) => ({
+					ordinal,
+					outcome: result.taskResponse ?? {
+						kind: "unstarted",
+						reason: { kind: "skipped", cause: "parallel-group-detach" },
+					},
+				})),
+			};
+			worktreeCleanupDeferred = detachedCleanup.defer(
+				response.slots.flatMap(({ ordinal, outcome }) =>
+					outcome.kind === "admitted" && outcome.observation.kind === "yielded" ? [ordinal] : [],
+				),
+			);
+			return {
+				content: [{ type: "text", text: JSON.stringify(response) }],
+				details: { mode: "parallel", results: [], taskResponse: response },
+			};
+		}
 		for (let i = 0; i < results.length; i++) {
 			const run = results[i]!;
 			recordRun(run.agent, taskTexts[i]!, run.status, run.progressSummary?.durationMs ?? 0);

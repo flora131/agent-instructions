@@ -3,8 +3,10 @@ import { type Component, truncateToWidth, visibleWidth } from "@earendil-works/p
 import type { AgentSession } from "../../../core/agent-session.ts";
 import { areExperimentalFeaturesEnabled } from "../../../core/experimental.ts";
 import type { ReadonlyFooterDataProvider } from "../../../core/footer-data-provider.ts";
+import { getOwnerTaskStore } from "../../../core/tasks/owner-store.js";
 import { addUsageToTotals, createUsageTotals } from "../../../core/usage-totals.ts";
-import { theme } from "../theme/theme.ts";
+import { theme } from "../theme/theme.js";
+import { renderTaskFooter } from "./task-list.js";
 
 export interface FooterRenderStyle {
 	dim(text: string): string;
@@ -252,6 +254,7 @@ export class FooterComponent implements Component {
 				),
 			);
 		}
+		lines.unshift(...renderTaskFooter(getOwnerTaskStore(this.session)?.tasks ?? [], width));
 		return lines;
 	}
 }

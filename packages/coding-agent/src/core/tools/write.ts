@@ -10,8 +10,8 @@ import {
 } from "fs/promises";
 import { dirname, join } from "path";
 import { type Static, Type } from "typebox";
-import { parenthesizedKeyHint } from "../../modes/interactive/components/keybinding-hints.ts";
-import { getLanguageFromPath, highlightCode } from "../../modes/interactive/theme/theme.ts";
+import { parenthesizedKeyHint } from "../../modes/interactive/components/keybinding-hints.js";
+import { getLanguageFromPath, highlightCode } from "../../modes/interactive/theme/theme.js";
 import { experimentalToolSamplingProperty } from "../experimental.ts";
 import type { ExtensionContext, ToolDefinition, ToolRenderResultOptions } from "../extensions/types.ts";
 import { type ConflictBlock, getRegisteredConflictBlocks, parseConflictBlocks } from "./conflict-registry.ts";
@@ -262,7 +262,7 @@ function trimTrailingEmptyLines(lines: string[]): string[] {
 function formatWriteCall(
 	args: { path?: string; content?: string } | undefined,
 	options: ToolRenderResultOptions,
-	theme: typeof import("../../modes/interactive/theme/theme.ts").theme,
+	theme: typeof import("../../modes/interactive/theme/theme.js").theme,
 	cache: WriteHighlightCache | undefined,
 ): string {
 	const rawPath = str(args?.path);
@@ -296,7 +296,7 @@ function formatWriteCall(
 
 function formatWriteResult(
 	result: { content: Array<{ type: string; text?: string; data?: string; mimeType?: string }>; isError?: boolean },
-	theme: typeof import("../../modes/interactive/theme/theme.ts").theme,
+	theme: typeof import("../../modes/interactive/theme/theme.js").theme,
 ): string | undefined {
 	if (!result.isError) {
 		return undefined;

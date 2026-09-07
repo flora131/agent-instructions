@@ -10,10 +10,10 @@ import {
 import { CONFIG_DIR_NAME } from "../../../config.js";
 import type { ResolvedPaths } from "../../../core/package-manager.ts";
 import type { SettingsManager } from "../../../core/settings-manager.ts";
-import { theme } from "../theme/theme.ts";
+import { theme } from "../theme/theme.js";
 import { buildGroups, type ResourceGroup, ResourceList } from "./config-selector-list.ts";
 import { DynamicBorder } from "./dynamic-border.ts";
-import { keyHint, rawKeyHint } from "./keybinding-hints.ts";
+import { keyHint, rawKeyHint } from "./keybinding-hints.js";
 
 export type ConfigWriteScope = "global" | "project";
 export type ScopedResolvedPaths = Record<ConfigWriteScope, ResolvedPaths>;

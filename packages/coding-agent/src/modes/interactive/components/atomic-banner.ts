@@ -1,7 +1,7 @@
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { visibleWidth } from "@earendil-works/pi-tui";
-import type { Theme } from "../theme/theme.ts";
-import { theme } from "../theme/theme.ts";
+import type { Theme } from "../theme/theme.js";
+import { theme } from "../theme/theme.js";
 
 const ATOMIC_FORALL_BANNER_LINES: readonly string[] = [
 	"  ██████▙                  ▟██████  ",

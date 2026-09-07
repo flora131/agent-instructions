@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Already-admitted in-process task callers now yield each active foreground sibling's observation on an exact Intercom group commit without ending or replacing the original executions ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+
+### Changed
+
+- Session-bound launches now return task observations immediately by default. Independent parallel launches admit queued slots under their concurrency limit; explicit foreground groups retain Intercom yielding. Owner-scoped `action:"wait"` observes the same child; terminal completion uses a nonvisual persisted envelope ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+
 ## [0.9.18] - 2026-09-05
 
 Cumulative release of the `0.9.18-alpha.6` prerelease. Per-change details remain in the unchanged prerelease section below.

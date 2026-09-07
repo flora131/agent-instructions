@@ -1,4 +1,4 @@
-import { type Theme, theme } from "../../modes/interactive/theme/theme.ts";
+import { type Theme, theme } from "../../modes/interactive/theme/theme.js";
 import type { ExtensionUIContext } from "./types.ts";
 
 export const noOpUIContext: ExtensionUIContext = {

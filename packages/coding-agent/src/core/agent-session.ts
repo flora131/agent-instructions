@@ -26,6 +26,7 @@ import { agentSessionPromptMethods } from "./agent-session-prompt.ts";
 import { agentSessionRetryMethods } from "./agent-session-retry.ts";
 import { agentSessionStateMethods } from "./agent-session-state.ts";
 import { agentSessionSummaryMethods, type SessionSummaryRun } from "./agent-session-summary.ts";
+import { agentSessionTaskMethods } from "./agent-session-tasks.js";
 import { agentSessionToolHooksMethods } from "./agent-session-tool-hooks.ts";
 import { agentSessionToolRegistryMethods } from "./agent-session-tool-registry.ts";
 import { agentSessionTreeMethods } from "./agent-session-tree.ts";
@@ -188,6 +189,9 @@ class AgentSessionBase {
 	/** Protection claim on this session's temp tree and tool-results directory. */
 	protected _tempStorageLease: ProtectedPathLease | undefined;
 	protected _workflowStageAdmission: WorkflowStageAdmissionBoundary | undefined;
+	protected _agentTaskHost: import("./tasks/agent-adapter.js").AgentTaskHost | undefined;
+	protected _taskCompletionOutbox: import("./tasks/completion.js").TaskCompletionOutbox | undefined;
+	protected _taskAdmission: WorkflowStageAdmissionBoundary | undefined;
 	constructor(config: AgentSessionConfig) {
 		this.agent = config.agent;
 		this.sessionManager = config.sessionManager;
@@ -213,6 +217,13 @@ class AgentSessionBase {
 		this._workflowStageAdmission =
 			stageContext?.messageAdmission?.boundary ??
 			(stageContext ? WorkflowStageAdmissionBoundary.restore(this.sessionManager.getBranch()) : undefined);
+		if (stageContext) {
+			this._workflowStageAdmission?.bindTaskIdentity(
+				this.sessionManager.getSessionId(),
+				stageContext.workflowRunId,
+				stageContext.workflowStageId,
+			);
+		}
 		if (this._workflowStageAdmission && stageContext && stageContext.messageAdmission === undefined) {
 			(
 				stageContext as {
@@ -259,6 +270,7 @@ class AgentSessionBase {
 			activeToolNames: this._initialActiveToolNames,
 			includeAllExtensionTools: true,
 		});
+		if (this._workflowStageAdmission?.hasAgentTaskHost()) internals.getAgentTaskHost();
 	}
 }
 
@@ -289,4 +301,5 @@ Object.assign(
 	agentSessionTreeMethods,
 	agentSessionExportMethods,
 	agentSessionSummaryMethods,
+	agentSessionTaskMethods,
 );

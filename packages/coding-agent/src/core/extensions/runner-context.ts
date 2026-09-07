@@ -49,6 +49,7 @@ export interface ExtensionContextSource {
 	compact(options?: CompactOptions): void;
 	getSystemPrompt(): string;
 	getSkillCatalog?(): SkillCatalog;
+	getAgentTaskHost?(): import("../tasks/agent-adapter.js").AgentTaskHost;
 }
 
 export interface ExtensionCommandContextSource extends ExtensionContextSource {
@@ -117,6 +118,14 @@ export function createExtensionContext(source: ExtensionContextSource): Extensio
 			source.assertActive();
 			return source.getExtensionPaths?.() ?? [];
 		},
+		...(source.getAgentTaskHost
+			? {
+					getAgentTaskHost: () => {
+						source.assertActive();
+						return source.getAgentTaskHost!();
+					},
+				}
+			: {}),
 		get ui() {
 			source.assertActive();
 			return source.getUIContext();

@@ -8,8 +8,8 @@ import {
 } from "@earendil-works/pi-tui";
 import type { KeybindingsManager } from "../../../core/keybindings.ts";
 import type { SessionInfo } from "../../../core/session-manager.ts";
-import { theme } from "../theme/theme.ts";
-import { keyText } from "./keybinding-hints.ts";
+import { theme } from "../theme/theme.js";
+import { keyText } from "./keybinding-hints.js";
 import { filterAndSortSessions, hasSessionName, type NameFilter, type SortMode } from "./session-selector-search.ts";
 import { buildSessionTree, type FlatSessionNode, flattenSessionTree } from "./session-selector-tree.ts";
 import { canonicalizePath, formatSessionDate, shortenPath } from "./session-selector-utils.ts";
