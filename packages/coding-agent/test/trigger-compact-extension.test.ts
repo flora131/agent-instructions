@@ -1,9 +1,10 @@
+import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@bastani/atomic";
 import { describe, expect, test, vi } from "vitest";
-import triggerCompactExtension from "../examples/extensions/trigger-compact.ts";
-import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "../src/core/extensions/index.ts";
+import triggerCompactExtension from "../examples/extensions/trigger-compact.js";
 
 function createContext(tokens: number | null, compact = vi.fn()): ExtensionContext {
 	return {
+		observeWorkflowActivity: () => ({ dispose() {} }),
 		mode: "print",
 		hasUI: false,
 		ui: {} as ExtensionContext["ui"],
@@ -11,6 +12,7 @@ function createContext(tokens: number | null, compact = vi.fn()): ExtensionConte
 		sessionManager: {} as ExtensionContext["sessionManager"],
 		modelRegistry: {} as ExtensionContext["modelRegistry"],
 		model: undefined,
+		scopedModels: [],
 		isIdle: () => true,
 		isProjectTrusted: () => true,
 		signal: undefined,

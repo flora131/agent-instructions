@@ -4,7 +4,7 @@
 
 ### Added
 
-- Added host-side workflow activity observation with ordered snapshots, publisher epochs, bounded observer queues and diagnostics, plus typed `workflow_lifecycle`, `workflow_activity_changed`, `workflow_stage_completed`, and `workflow_heartbeat` extension hooks. Publisher and observer leases are fenced on reload, including pending hook handlers when an earlier handler is awaiting. Workflow runtime publication is a separate integration ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).
+- Added host-side workflow activity observation with ordered snapshots, publisher epochs, bounded observer queues and diagnostics, plus workflow_lifecycle, workflow_activity_changed, workflow_stage_completed, and workflow_heartbeat extension hooks typed as `WorkflowLifecycleEvent`, `WorkflowActivityChangedEvent`, `WorkflowStageCompletedEvent`, and `WorkflowHeartbeatEvent`. Initialization-time publications are retained until runner binding. Publisher and observer leases are fenced on reload, including pending hook handlers when an earlier handler is awaiting. Workflow runtime publication is a separate integration ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).
 
 ### Fixed
 

@@ -26,15 +26,22 @@ export class WorkflowActivityHub {
 	private failures: WorkflowObservationDiagnostic[] = [];
 	private disposed = false;
 	private dispatch?: (event: WorkflowEvent, isCurrent: () => boolean) => Promise<void>;
+	private pendingDispatches: (() => void)[] = [];
 	bindDispatcher(dispatch: (event: WorkflowEvent, isCurrent: () => boolean) => Promise<void>): void {
+		if (this.disposed) return;
 		this.dispatch = dispatch;
+		for (const deliver of this.pendingDispatches) deliver();
+		this.pendingDispatches = [];
 	}
 	private emit(event: WorkflowEvent, isCurrent: () => boolean): void {
 		const copy = structuredClone(event);
-		queueMicrotask(() => {
-			if (!isCurrent()) return;
-			void this.dispatch?.(copy, isCurrent).catch(() => this.record("ObserverDeliveryFailed"));
-		});
+		const deliver = () =>
+			queueMicrotask(() => {
+				if (!isCurrent()) return;
+				void this.dispatch?.(copy, isCurrent).catch(() => this.record("ObserverDeliveryFailed"));
+			});
+		if (this.dispatch) deliver();
+		else this.pendingDispatches.push(deliver);
 	}
 
 	getSnapshotFrame(): WorkflowActivitySnapshotFrame {
@@ -165,6 +172,7 @@ export class WorkflowActivityHub {
 		if (this.disposed) return;
 		this.disposed = true;
 		this.dispatch = undefined;
+		this.pendingDispatches = [];
 		for (const lease of this.observers) this.disposeLease(lease);
 	}
 	diagnostics(): readonly WorkflowObservationDiagnostic[] {

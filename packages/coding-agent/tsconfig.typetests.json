@@ -4,6 +4,6 @@
 		"noEmit": true,
 		"rootDir": "."
 	},
-	"include": ["src/**/*.ts", "src/**/*.d.ts", "test/types/**/*.ts"],
+	"include": ["src/**/*.ts", "src/**/*.d.ts", "test/types/**/*.ts", "test/trigger-compact-extension.test.ts"],
 	"exclude": ["node_modules", "dist"]
 }
