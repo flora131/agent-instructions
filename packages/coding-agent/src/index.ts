@@ -1,3 +1,10 @@
+// Internal trusted-host task integration (not model authority).
+export { AgentTaskHost, type AgentTaskHostBinding, type AgentTaskRunnerFactory } from "./core/tasks/agent-adapter.js";
+export type { AgentIntent, OperationId, TaskId, TaskResult, WaitPolicy } from "./core/tasks/contracts.js";
+export { type AdmittedAgentTask, collectAgentTasks } from "./core/tasks/execution-scope.js";
+export { bindOwnerTaskStore, getOwnerTaskStore, OwnerTaskStore } from "./core/tasks/owner-store.js";
+export { renderTaskFooter, TaskList, taskListSections } from "./modes/interactive/components/task-list.js";
+export { TaskRow } from "./modes/interactive/components/task-row.js";
 // Core session management
 
 export { type Args, parseArgs } from "./cli/args.ts";
@@ -457,6 +464,11 @@ export {
 	WorkingStatusComponent,
 	type WorkingStatusComponentOptions,
 } from "./modes/interactive/components/index.ts";
+export {
+	classifyChatCommand,
+	createSessionSkillAutocompleteProvider,
+	getSessionSkillCommands,
+} from "./modes/interactive/skill-command-autocomplete.ts";
 // Theme utilities for custom tools and extensions
 export {
 	getLanguageFromPath,
@@ -467,7 +479,7 @@ export {
 	initTheme,
 	Theme,
 	type ThemeColor,
-} from "./modes/interactive/theme/theme.ts";
+} from "./modes/interactive/theme/theme.js";
 // Run modes for programmatic SDK usage
 export { pickWhimsicalWorkingMessage } from "./modes/interactive/whimsical-messages.ts";
 export { createChildProcessEnvironment } from "./utils/child-process.ts";

@@ -168,6 +168,8 @@ export interface ExtensionContext {
 	observeWorkflowActivity(observer: WorkflowActivityObserver): WorkflowActivitySubscription;
 	/** Paths of actually loaded extensions, when supplied by the host. */
 	getExtensionPaths?(): string[];
+	/** Internal actual-session binding; never populated from model arguments. */
+	getAgentTaskHost?(): import("../tasks/agent-adapter.js").AgentTaskHost;
 	/** Session-scoped orchestration policy for child runtimes such as workflow stages. */
 	readonly orchestrationContext?: OrchestrationContext;
 	/** Typed capability policy for an in-process subagent child, when this session is one. */

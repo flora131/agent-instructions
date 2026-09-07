@@ -11,7 +11,7 @@ import {
 	setThemeInstance,
 	type TerminalTheme,
 	type Theme,
-} from "./theme.ts";
+} from "./theme.js";
 
 type ThemeResult = { success: boolean; error?: string };
 

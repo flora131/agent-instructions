@@ -190,6 +190,23 @@ Interactive model and thinking choices automatically become startup defaults. Th
 | `app.message.followUp` | `alt+enter` | Queue follow-up message |
 | `app.message.dequeue` | `alt+up` | Restore queued messages to editor |
 
+### Task inspector actions
+
+These action names are reserved for focused task inspection. They do not replace
+global Ctrl+O expansion, F2 graph navigation, or editor input. Host mounting is a
+separate integration gate; defining a key does not make an unavailable inspector open.
+
+| Keybinding id | Default | Description |
+|--------|---------|-------------|
+| `app.tasks.open` | Unbound | Command-only `/tasks` route |
+| `app.tasks.inspect` | `enter` | Inspect the selected task while task focus owns input |
+| `app.tasks.foreground` | Unbound | Observe the selected live task without restarting it |
+| `app.tasks.cancel` | Unbound | Request cancellation after confirming the target |
+| `app.tasks.input` | Unbound | Focus stdin only when the selected task has writable input |
+
+Mounted human-input prompts and the composer retain priority. Escape leaves stdin
+or task detail before leaving task focus. Unbound actions have no key hint.
+
 ### Tree Navigation
 
 | Keybinding id | Default | Description |

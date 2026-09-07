@@ -51,6 +51,7 @@ export function handleStageChatInput(ctx: StageChatViewContext, data: string): b
 		return true;
 	}
 	if (handleToolsExpandInput(ctx, data)) return true;
+	if (ctx.chatHost.handleTaskInput(data)) return true;
 	if (readOnlyPromptArchive && handlePromptScrollInput(ctx, data, true)) {
 		return true;
 	}

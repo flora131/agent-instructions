@@ -7,7 +7,7 @@ import type {
 	MermaidRenderingMode,
 	WarningSettings,
 } from "../../../core/settings-manager.ts";
-import type { TerminalTheme } from "../theme/theme.ts";
+import type { TerminalTheme } from "../theme/theme.js";
 
 export type QueueDeliveryMode = "all" | "one-at-a-time";
 export type DoubleEscapeAction = "fork" | "tree" | "none";

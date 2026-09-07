@@ -2,7 +2,7 @@ import type { Component } from "@earendil-works/pi-tui";
 import { Box, Container, Spacer, Text } from "@earendil-works/pi-tui";
 import type { EntryRenderer } from "../../../core/extensions/types.ts";
 import type { CustomEntry } from "../../../core/session-manager.ts";
-import { theme } from "../theme/theme.ts";
+import { theme } from "../theme/theme.js";
 
 /** Renders an extension-owned persistent session entry. */
 export class CustomEntryComponent extends Container {

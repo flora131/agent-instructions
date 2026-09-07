@@ -1,9 +1,9 @@
 import { type Component, Container, type Focusable, getKeybindings, Input, Spacer, Text } from "@earendil-works/pi-tui";
 import { KeybindingsManager } from "../../../core/keybindings.ts";
 import type { SessionInfo } from "../../../core/session-manager.ts";
-import { theme } from "../theme/theme.ts";
+import { theme } from "../theme/theme.js";
 import { DynamicBorder } from "./dynamic-border.ts";
-import { keyText } from "./keybinding-hints.ts";
+import { keyText } from "./keybinding-hints.js";
 import { deleteSessionFile } from "./session-selector-delete.ts";
 import { SessionSelectorHeader } from "./session-selector-header.ts";
 import { SessionList } from "./session-selector-list.ts";

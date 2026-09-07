@@ -1,8 +1,8 @@
 import { Container, getKeybindings, Spacer, Text } from "@earendil-works/pi-tui";
 import { APP_NAME } from "../../../config.js";
-import { type TerminalTheme, theme } from "../theme/theme.ts";
+import { type TerminalTheme, theme } from "../theme/theme.js";
 import { DynamicBorder } from "./dynamic-border.ts";
-import { keyHint, rawKeyHint } from "./keybinding-hints.ts";
+import { keyHint, rawKeyHint } from "./keybinding-hints.js";
 
 export interface FirstTimeSetupResult {
 	theme: TerminalTheme;

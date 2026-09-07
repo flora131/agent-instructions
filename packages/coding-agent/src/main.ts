@@ -104,7 +104,7 @@ import {
 import type { MainOptions } from "./main-types.ts";
 import { runMigrations, showDeprecationWarnings } from "./migrations.ts";
 import { InteractiveMode, runPrintMode, runRpcMode } from "./modes/index.ts";
-import { initTheme, stopThemeWatcher } from "./modes/interactive/theme/theme.ts";
+import { initTheme, stopThemeWatcher } from "./modes/interactive/theme/theme.js";
 import { createRuntimeForMode } from "./modes/interactive-engine/create-isolated-runtime.ts";
 import { startInteractiveEngineLiveness } from "./modes/interactive-engine/engine-child-liveness.ts";
 import { handleConfigCommand, handlePackageCommand } from "./package-manager-cli.ts";

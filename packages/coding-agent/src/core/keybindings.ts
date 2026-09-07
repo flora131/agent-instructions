@@ -21,6 +21,11 @@ export interface AppKeybindings {
 	"app.model.cycleBackward": true;
 	"app.model.select": true;
 	"app.tools.expand": true;
+	"app.tasks.open": true;
+	"app.tasks.inspect": true;
+	"app.tasks.foreground": true;
+	"app.tasks.cancel": true;
+	"app.tasks.input": true;
 	"app.thinking.toggle": true;
 	"app.session.toggleNamedFilter": true;
 	"app.editor.external": true;
@@ -110,6 +115,11 @@ export const KEYBINDINGS = {
 	},
 	"app.model.select": { defaultKeys: "ctrl+l", description: "Open model selector" },
 	"app.tools.expand": { defaultKeys: "ctrl+o", description: "Toggle tool output" },
+	"app.tasks.open": { defaultKeys: [], description: "Open task list" },
+	"app.tasks.inspect": { defaultKeys: "enter", description: "Inspect selected task" },
+	"app.tasks.foreground": { defaultKeys: [], description: "Wait for selected task" },
+	"app.tasks.cancel": { defaultKeys: [], description: "Cancel selected task with confirmation" },
+	"app.tasks.input": { defaultKeys: [], description: "Input to selected task" },
 	"app.thinking.toggle": {
 		defaultKeys: "ctrl+t",
 		description: "Toggle thinking blocks",

@@ -113,6 +113,23 @@ const ControlOverrides = Type.Object({
 
 export const SubagentParams = Type.Object(
 	{
+		// `enum` instead of `Type.Literal`: providers reject the `const` keyword Literal emits (see the
+		// upstream-sync "omits provider-rejected schema keywords" test).
+		wait: Type.Optional(
+			Type.Object(
+				{
+					kind: Type.String({
+						enum: ["background", "foreground"],
+						description: "Wait policy kind. 'background' yields immediately; 'foreground' waits up to budgetMs.",
+					}),
+					budgetMs: Type.Optional(
+						Type.Number({ description: "Foreground wait budget in milliseconds (kind='foreground' only)." }),
+					),
+				},
+				{ additionalProperties: false },
+			),
+		),
+		budgetMs: Type.Optional(Type.Number({ description: "Foreground wait budget in milliseconds." })),
 		agent: Type.Optional(
 			Type.String({ description: "Agent name (SINGLE mode) or target for management get/update/delete" }),
 		),

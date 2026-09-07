@@ -24,6 +24,7 @@ export function stageChatRenderSettings(
 	const rendererHost = stageSession as MessageRendererHost;
 	return {
 		...inherited,
+		toolOutputExpanded: ctx.getToolsExpanded?.() ?? inherited?.toolOutputExpanded,
 		getToolDefinition: (toolName) =>
 			stageSession.getToolDefinition(toolName) ?? inherited?.getToolDefinition?.(toolName),
 		getCustomMessageRenderer: (customType) =>
