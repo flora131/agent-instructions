@@ -119,6 +119,7 @@ function makeWorkflowStageContext(cwd: string, uiResult?: unknown): ExecutorCont
 		getContextUsage: () => undefined,
 		compact: () => {},
 		getSystemPrompt: () => "",
+		observeWorkflowActivity: () => ({ dispose() {} }),
 	} satisfies ExecutorContextForTest;
 }
 

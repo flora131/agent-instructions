@@ -1,12 +1,18 @@
-import type { CreateAgentSessionOptions, DefaultResourceLoaderInheritanceSnapshot } from "@bastani/atomic";
+import type {
+	CreateAgentSessionOptions,
+	DefaultResourceLoaderInheritanceSnapshot,
+	WorkflowActivityPublisher,
+} from "@bastani/atomic";
 import type { Api, Model } from "@bastani/pi-ai/compat";
 import type { StageSessionRuntime } from "../runs/foreground/stage-runner.js";
-import type { SessionManager } from "../shared/persistence-restore.js";
+import type { SessionManager as PersistenceSessionManager } from "../shared/persistence-restore.js";
 import type { RunStatus, StageStatus } from "../shared/store-types.js";
 import type { WorkflowBudget, WorkflowInputValues } from "../shared/types.js";
 import type { WidgetFactory } from "../tui/store-widget-installer.js";
 import type { RenderResultOpts, WorkflowRegisteredToolResult } from "./render-result.js";
 import type { PiUISurface } from "./wiring.js";
+
+type SessionManager = PersistenceSessionManager & { getSessionId?: () => string };
 
 export type PiTheme = Record<string, string>;
 
@@ -136,6 +142,7 @@ type StageLateMessageRouter = NonNullable<
 >;
 
 export interface ExtensionAPI {
+	registerWorkflowActivityPublisher?: () => WorkflowActivityPublisher;
 	/** Present only when this extension instance belongs to an admitted in-process subagent child. */
 	readonly subagentPolicy?: CreateAgentSessionOptions["subagentPolicy"];
 	registerTool?: <TArgs, TResult>(opts: PiToolOpts<TArgs, TResult>) => void;

@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { test } from "vitest";
 import { runBunSubprocess } from "../../packages/web-access/subprocess.ts";
 import { extractVideoFrame, getLocalVideoDuration } from "../../packages/web-access/video-extract.ts";
 import { getYouTubeStreamInfo } from "../../packages/web-access/youtube-extract.ts";
-import { bunExecutable, installBunGlobal } from "../helpers/runtime.js";
+import { bunExecutable, installBunGlobal, spawnSyncCollect } from "../helpers/runtime.js";
 
 // packages/web-access/subprocess.ts is shipped Bun-binary code that calls
 // Bun.spawn/Bun.sleep unguarded, and this suite imports it in-process. See
@@ -28,25 +28,62 @@ function executable(path: string, body: string): void {
 	chmodSync(path, 0o755);
 }
 
-test("Bun subprocess execution drains binary output without blocking the event loop", async () => {
-	let ticks = 0;
+async function assertResponsiveBinaryDrain(run: typeof runBunSubprocess): Promise<void> {
+	const directory = mkdtempSync(join(tmpdir(), "atomic-web-handshake-"));
+	const ready = join(directory, "ready");
+	const release = join(directory, "release");
+	let callbackRan = false;
+	// Readiness is published only after the first bytes are written. The child
+	// cannot write the remaining bytes or exit until this event-loop callback runs.
+	// Poll frequency is not an assertion: one callback after readiness suffices.
 	const timer = setInterval(() => {
-		ticks += 1;
+		if (!existsSync(ready) || callbackRan) return;
+		writeFileSync(release, "");
+		callbackRan = true;
 	}, 1);
 	try {
-		const result = await runBunSubprocess(
+		const result = await run(
 			bunExecutable(),
-			["-e", "await Bun.sleep(25); process.stdout.write(Buffer.from([0,1,2,255]))"],
-			{
-				timeoutMs: 1_000,
-				maxStdoutBytes: 1024,
-			},
+			[
+				"-e",
+				`
+				const { existsSync, writeFileSync } = await import('node:fs');
+				await new Promise(resolve => process.stdout.write(Buffer.from([0, 1]), resolve));
+				writeFileSync('ready', '');
+				while (!existsSync('release')) await Bun.sleep(1);
+				process.stdout.write(Buffer.from([2, 255]));
+			`,
+			],
+			{ timeoutMs: 1_000, maxStdoutBytes: 1024, cwd: directory },
 		);
+		assert.ok(callbackRan, "parent callback must release the pending child/output");
 		assert.deepEqual([...result.stdout], [0, 1, 2, 255]);
-		assert.ok(ticks > 5);
 	} finally {
 		clearInterval(timer);
+		rmSync(directory, { recursive: true, force: true });
 	}
+}
+
+test("Bun subprocess execution drains binary output without blocking the event loop", async () => {
+	await assertResponsiveBinaryDrain(runBunSubprocess);
+});
+
+test("binary drain responsiveness handshake rejects a synchronous drain", async () => {
+	await assert.rejects(
+		assertResponsiveBinaryDrain(async (command, args, options) => {
+			try {
+				const result = spawnSyncCollect([command, ...args], { cwd: options.cwd, timeout: options.timeoutMs });
+				return { ...result, stderr: result.stderr.toString("utf8") };
+			} catch (error) {
+				// A timeout alone could mean failed startup. Prove the child reached
+				// its output barrier and the blocked parent never acknowledged it.
+				assert.ok(existsSync(join(options.cwd!, "ready")));
+				assert.equal(existsSync(join(options.cwd!, "release")), false);
+				throw error;
+			}
+		}),
+		(error: NodeJS.ErrnoException) => error.code === "ETIMEDOUT",
+	);
 });
 
 test("Bun subprocess execution enforces timeout and output byte caps", async () => {

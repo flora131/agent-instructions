@@ -54,6 +54,7 @@ import type { RunUsageTree } from "../shared/budget-meter.js";
 import { appendRunStart } from "../shared/persistence-session-entries.js";
 import { coercePossibleStages } from "../shared/possible-stages.js";
 import { store as defaultStore } from "../shared/store.js";
+import { workflowObservationRuntime } from "../shared/store-factory.js";
 import type { RunSnapshot } from "../shared/store-types.js";
 import type {
 	StageOptions,
@@ -168,7 +169,10 @@ export async function run<TInputs extends WorkflowInputValues, TRunInputs extend
 		{ once: true },
 	);
 	const callerSignal = opts.signal;
-	const onCallerAbort = (): void => ownController.abort(callerSignal?.reason);
+	const onCallerAbort = (): void => {
+		workflowObservationRuntime(activeStore).control(runId, "kill");
+		ownController.abort(callerSignal?.reason);
+	};
 	const exit = createWorkflowExitManager({ runId, exitScope, controller: ownController });
 	// Durable child operations stay on stacked scoped views, while cached graph
 	// reconstruction keeps the physical root backend through arbitrary depth.
@@ -756,9 +760,10 @@ export async function run<TInputs extends WorkflowInputValues, TRunInputs extend
 	});
 	terminalEvents.register();
 	try {
+		workflowObservationRuntime(activeStore).startRun(runId);
+		activeStore.recordRunStart(runSnapshot);
 		if (callerSignal?.aborted) onCallerAbort();
 		else callerSignal?.addEventListener("abort", onCallerAbort, { once: true });
-		activeStore.recordRunStart(runSnapshot);
 		if (ownsCancellationRegistration) opts.cancellation?.register(runId, ownController);
 		opts.onRunStart?.(runSnapshot);
 		if (opts.persistence) {
@@ -992,6 +997,7 @@ export async function run<TInputs extends WorkflowInputValues, TRunInputs extend
 		});
 	} finally {
 		callerSignal?.removeEventListener("abort", onCallerAbort);
+		workflowObservationRuntime(activeStore).finishRun(runId);
 		runtimeSettled.resolve();
 		unregisterRunControl();
 		try {

@@ -123,6 +123,7 @@ export function createRunStoreMethods(context: StoreContext): RunStoreMethods {
 			}
 			const pending = run.pendingPrompt;
 			if (pending) {
+				context.observation.lifecycle({ kind: "prompt", runId, promptId: pending.id, status: "cancelled" });
 				run.pendingPrompt = undefined;
 				context.rejectPrompt(pending.id, `atomic-workflows: run ${runId} ended before prompt resolved`);
 			}
@@ -192,6 +193,7 @@ export function createRunStoreMethods(context: StoreContext): RunStoreMethods {
 			const run = state.runs[index]!;
 			const pending = run.pendingPrompt;
 			if (pending) {
+				context.observation.lifecycle({ kind: "prompt", runId, promptId: pending.id, status: "cancelled" });
 				context.rejectPrompt(pending.id, `atomic-workflows: run ${runId} was removed before prompt resolved`);
 			}
 			context.rejectAllStagePrompts(runId, run, `atomic-workflows: run ${runId} was removed before prompt resolved`);

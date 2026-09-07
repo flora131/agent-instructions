@@ -233,4 +233,5 @@ export {
 	isWriteToolResult,
 } from "./types.ts";
 export { OVERLAY_ACTIVE_ROW_MARKER } from "./ui-types.ts";
+export type * from "./workflow-events.js";
 export { wrapRegisteredTool, wrapRegisteredTools } from "./wrapper.ts";

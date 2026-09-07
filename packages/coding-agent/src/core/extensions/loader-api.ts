@@ -71,6 +71,12 @@ export function createExtensionAPI(
 	};
 	registerCanonicalEventBus(events, canonicalEventBusFor(eventBus));
 	const api = {
+		registerWorkflowActivityPublisher() {
+			assertActive();
+			const publisher = runtime.workflowActivityHub.registerWorkflowActivityPublisher();
+			if (state === "loading") loadingUnsubscribers.push(() => publisher.dispose());
+			return publisher;
+		},
 		on(event: string, handler: HandlerFn): void {
 			assertActive();
 			const list = extension.handlers.get(event) ?? [];

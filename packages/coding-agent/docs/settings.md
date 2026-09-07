@@ -29,6 +29,14 @@ Settings and trust JSON files may start with a UTF-8 BOM, as commonly written by
 
 ## All Settings
 
+### Herdr
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `herdr.enabled` | boolean | `true` | Enable the built-in reporter in an eligible Herdr pane. Set to `false`, then reload or restart to opt out. Requires `mode: "tui"`, a UI, and the Herdr environment variables. Child sessions and other modes never claim. |
+
+See [Herdr](/herdr) for state aggregation, reporter conflicts, privacy, and Herdr 0.8.2 limitations.
+
 ### Model & Thinking
 
 | Setting | Type | Default | Description |

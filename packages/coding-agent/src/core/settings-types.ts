@@ -137,6 +137,7 @@ export interface Settings {
 	workflows?: string[]; // Array of local workflow file paths or directories
 	enableSkillCommands?: boolean; // default: true - register skills as /skill:name commands
 	terminal?: TerminalSettings;
+	herdr?: { enabled?: boolean }; // default: true, only inside an interactive Herdr pane
 	images?: ImageSettings;
 	enabledModels?: string[]; // Model patterns for cycling (same format as --models CLI flag)
 	defaultTools?: string[]; // Initial built-in tool selection; extension and SDK custom tools stay enabled

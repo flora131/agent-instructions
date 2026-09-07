@@ -25,6 +25,8 @@ import type {
 	SubagentChildPolicy,
 } from "./types.ts";
 export interface ExtensionContextSource {
+	observeWorkflowActivity: ExtensionContext["observeWorkflowActivity"];
+	getExtensionPaths?(): string[];
 	assertActive(): void;
 	getUIContext(): ExtensionUIContext;
 	getMode(): ExtensionMode;
@@ -112,6 +114,10 @@ export function copyScopedModels(scoped: readonly ScopedModel[]): readonly Scope
  */
 export function createExtensionContext(source: ExtensionContextSource): ExtensionContext {
 	return {
+		getExtensionPaths: () => {
+			source.assertActive();
+			return source.getExtensionPaths?.() ?? [];
+		},
 		...(source.getAgentTaskHost
 			? {
 					getAgentTaskHost: () => {
@@ -127,6 +133,10 @@ export function createExtensionContext(source: ExtensionContextSource): Extensio
 		get mode() {
 			source.assertActive();
 			return source.getMode();
+		},
+		observeWorkflowActivity: (observer) => {
+			source.assertActive();
+			return source.observeWorkflowActivity(observer);
 		},
 		get hasUI() {
 			source.assertActive();

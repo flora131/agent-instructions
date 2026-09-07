@@ -37,6 +37,7 @@ export function createPromptStoreMethods(context: StoreContext): PromptStoreMeth
 			if (!run) return false;
 			const pending = run.pendingPrompt;
 			if (!pending || pending.id !== promptId) return false;
+			context.observation.lifecycle({ kind: "prompt", runId, promptId, status: "answered" });
 			run.pendingPrompt = undefined;
 			// Notify first so observers see the cleared state before the waiter resumes the workflow body.
 			context.bumpAndNotify();
@@ -109,6 +110,13 @@ export function createPromptStoreMethods(context: StoreContext): PromptStoreMeth
 				state.stagePromptAnswers.delete(context.stagePromptAnswerKey(runId, stageId));
 				delete stage.promptAnswerState;
 			}
+			context.observation.lifecycle({
+				kind: "prompt",
+				runId,
+				stageId,
+				promptId,
+				status: options.recordAnswer === false ? "cancelled" : "answered",
+			});
 			stage.pendingPrompt = undefined;
 			if (stage.status === "awaiting_input") {
 				stage.status = "running";
