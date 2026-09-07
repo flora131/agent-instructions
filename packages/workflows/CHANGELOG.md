@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Connected workflow activity to the host extension observer stream, independently of lifecycle-notification settings and attribution filters. Root activity is projected from workflow snapshots plus run-qualified runtime execution ownership: nested runs fold into full root replacements; independent execution is distinguished from human waits; runnable handoffs, retries, stop draining, pauses, and acknowledged failures are accounted for without treating historical running stages as execution. Tool-only execution, parallel human-input waits, pause, cancellation drain, and unresolved failures publish root activity replacements; late attachment receives current state, and durable hydration announces recovering before ready. Typed lifecycle hooks cover run, stage, tool, prompt, and control transitions with canonical nested identities; successful-stage completion hooks exclude failed/skipped outcomes, explicit execution replay is tagged, and restored history creates no synthetic completions. Heartbeat hooks follow the existing configured cadence without adding timers or graph nodes ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).
+
 ### Fixed
 
 - Same-name prompt/tool nodes no longer cause valid duplicate agent matches to be refused as non-agents. Live `ask` retains ambiguity diagnostics and name-based `send` retains sticky agent delivery ([#2895](https://github.com/bastani-inc/atomic/pull/2895)).

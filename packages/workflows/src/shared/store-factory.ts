@@ -6,16 +6,25 @@ import type { Store } from "./store-public-types.js";
 import { createRunStoreMethods } from "./store-run-methods.js";
 import { createStageStoreMethods } from "./store-stage-methods.js";
 import { createToolNodeStoreMethods } from "./store-tool-node-methods.js";
+import { type WorkflowObservationRuntime, workflowObservationRuntimeKey } from "./workflow-observation-runtime.js";
 
 export function createStore(): Store {
 	const context = createStoreContext();
-	return {
+	const created = {
+		[workflowObservationRuntimeKey]: context.observation,
 		...createRunStoreMethods(context),
 		...createPendingStageDeliveryStoreMethods(context),
 		...createStageStoreMethods(context),
 		...createToolNodeStoreMethods(context),
 		...createPromptStoreMethods(context),
 	};
+	return created;
+}
+
+export function workflowObservationRuntime(activeStore: Store): WorkflowObservationRuntime {
+	return (activeStore as Store & { [workflowObservationRuntimeKey]: WorkflowObservationRuntime })[
+		workflowObservationRuntimeKey
+	];
 }
 
 const SESSION_KEY = "workflows:store:v1";
@@ -57,4 +66,8 @@ export function adoptWorkflowHostStore(scope: object): WorkflowStoreAdoption {
 
 export function adoptStore(scope: object): Store {
 	return singleton.adopt(scope);
+}
+
+export function currentWorkflowStore(): Store {
+	return singleton.current();
 }

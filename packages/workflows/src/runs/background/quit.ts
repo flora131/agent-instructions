@@ -20,6 +20,7 @@ import { WorkflowGracefulQuitError } from "../../engine/workflow-tool-abort.js";
 import { expandWorkflowGraph } from "../../shared/expanded-workflow-graph.js";
 import { topLevelWorkflowRuns } from "../../shared/run-visibility.js";
 import { store as defaultStore } from "../../shared/store.js";
+import { workflowObservationRuntime } from "../../shared/store-factory.js";
 import { readGraphStoreSnapshot } from "../../shared/store-observation.js";
 import type { Store } from "../../shared/store-public-types.js";
 import type { RunSnapshot, StageSnapshot, WorkflowActor } from "../../shared/store-types.js";
@@ -112,6 +113,7 @@ export async function quitRun(
 	const run = activeStore.runs().find((candidate) => candidate.id === runId);
 	if (!run) return { ok: false, runId, reason: "not_found" };
 	if (run.endedAt !== undefined) return { ok: false, runId, reason: "already_ended" };
+	workflowObservationRuntime(activeStore).control(runId, "quit", opts?.actor);
 	const aggregateRootRunId = aggregateWorkflowRootRunId(activeStore, runId);
 	if (aggregateRootRunId !== runId) {
 		const hasTaskTail = expandedControlRunIds(activeStore, runId).some((controlRunId) =>

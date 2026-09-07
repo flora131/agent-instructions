@@ -9,6 +9,7 @@ import type {
 	StoreSnapshot,
 	WorkflowNotice,
 } from "./store-types.js";
+import { WorkflowObservationRuntime } from "./workflow-observation-runtime.js";
 
 /**
  * Statuses that represent a terminal run state — cannot be overwritten.
@@ -52,6 +53,7 @@ export interface StoreState {
 
 export interface StoreContext {
 	readonly state: StoreState;
+	readonly observation: WorkflowObservationRuntime;
 	snapshot(): StoreSnapshot;
 	graphSnapshot(): StoreSnapshot;
 	notify(): void;
@@ -142,6 +144,7 @@ export function createStoreState(): StoreState {
 export function createStoreContext(state: StoreState = createStoreState()): StoreContext {
 	let cachedGraphVersion = -1;
 	let cachedGraphSnapshot: StoreSnapshot | undefined;
+	const observation = new WorkflowObservationRuntime(() => state.runs, bumpAndNotify);
 
 	function snapshot(): StoreSnapshot {
 		return JSON.parse(
@@ -158,6 +161,7 @@ export function createStoreContext(state: StoreState = createStoreState()): Stor
 	}
 
 	function notify(): void {
+		observation.capture();
 		for (const fn of state.invalidationListeners) {
 			try {
 				fn();
@@ -223,6 +227,7 @@ export function createStoreContext(state: StoreState = createStoreState()): Stor
 	function rejectStagePrompt(runId: string, stage: StageSnapshot, reason: string): void {
 		const prompt = stage.pendingPrompt;
 		if (!prompt) return;
+		observation.lifecycle({ kind: "prompt", runId, stageId: stage.id, promptId: prompt.id, status: "cancelled" });
 		stage.pendingPrompt = undefined;
 		state.stagePromptDrafts.delete(stagePromptDraftKey(runId, stage.id, prompt.id));
 		rejectPrompt(prompt.id, reason);
@@ -236,6 +241,7 @@ export function createStoreContext(state: StoreState = createStoreState()): Stor
 
 	return {
 		state,
+		observation,
 		snapshot,
 		graphSnapshot,
 		notify,

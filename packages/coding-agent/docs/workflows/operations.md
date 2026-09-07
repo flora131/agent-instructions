@@ -305,6 +305,26 @@ Workflow stage sessions and first-party subagent transcripts created inside them
 
 Passing a stage session's file path to `--session` still opens it explicitly. Classification requires exact `internal: true` plus complete run/stage metadata; malformed legacy markers and ordinary user forks remain in standard history. Legacy workflow sessions created before this marker behavior lack provable ownership and continue to appear until they age out.
 
+## Workflow activity for extensions
+
+Extensions can subscribe with `ctx.observeWorkflowActivity(observer)` and use the typed `workflow_lifecycle`, `workflow_activity_changed`, `workflow_stage_completed`, and `workflow_heartbeat` hooks. See [Workflow activity and lifecycle hooks](../extensions.md#workflow-activity-and-lifecycle-hooks) for the public types and subscription example.
+
+The workflows extension publishes activity for its owning session, folding nested runs into full root summaries. Observation is silent and independent of `workflowNotifications.enabled`, `notifyOn`, and the user/agent attribution filters used by chat notices. It neither wakes the model nor adds graph nodes.
+
+| Runtime situation | Root activity |
+| --- | --- |
+| A stage or `ctx.tool` is executing | `working` |
+| One branch waits for human input while another executes | `working`, with `needsAttention: true` |
+| Only human input can advance the workflow | `blocked / awaiting_input` |
+| An unresolved failure requires intervention | `blocked / manual_intervention` |
+| Paused with no execution draining | `idle / paused` |
+| Quit or cancellation requested while work drains | `working / stopping`; independent sibling execution retains its own working reason |
+| Execution completed or intentionally stopped | `idle` |
+
+Registration delivers an ordered initial snapshot, followed by structurally changed root replacements and removals. Late attachment reconstructs current activity; historical `running` records alone are not evidence of live execution. Durable catalog/resume hydration publishes `recovering` before awaiting the backend and `ready` afterwards. `recovering` and `unavailable` are unknown source states, not empty ready snapshots: do not interpret them as idle.
+
+Lifecycle targets identify runs, stages, tools, and prompts. Nested stage/tool ids use the expanded graph's `runId:nodeId` identity; `runId` still names the actual owning run and `rootRunId` names the aggregate. Control requests carry `action` and remain distinct from the status outcome. Prompt cancellation is not an answer. The completion convenience hook shares its event id with the corresponding successful stage lifecycle event and excludes failed/skipped stages. Only an explicit execution replay publishes `delivery: "replay"`; reading restored history never manufactures completion hooks. Heartbeats observe the existing configured scheduler cadence and do not prove execution.
+
 ## Lifecycle Notices and Human Input
 
 Atomic emits deduplicated main-chat notices when top-level workflow runs complete, fail, end blocked, or stop at an active recoverable provider/auth/rate-limit block. A recoverable block remains resumable (`status` surfaces and headless results report it as blocked even though the stored live snapshot stays active), is retained durably as blocked for cross-session resume, appears in the resume picker, and its notice says the workflow **is blocked** rather than implying terminal completion. Each blocked occurrence is deduped by its `blockedAt` timestamp, so a resumed workflow that hits another recoverable block re-notifies the invoking chat. Nested child workflow outcomes are reflected inside the expanded parent graph instead of producing separate top-level cards.
