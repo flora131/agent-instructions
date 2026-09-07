@@ -11,6 +11,7 @@
 
 - Intercom now hides internal workflow routing/control connections and refuses messages to non-agent recipients, including model-less `ctx.ui` prompts and `ctx.tool` nodes, without hiding agents busy in tools or awaiting human input. Connected agent aliases remain reachable after pending capability changes or stage completion, even with same-name non-agent nodes.
 - Preserved duplicate-agent routing beside same-name prompt/tool nodes, rejected malformed Intercom recipient purposes without breaking older hosts, and synchronized workflow roster-update completion with broker processing ([#2895](https://github.com/bastani-inc/atomic/pull/2895)).
+- Fixed Herdr parent session identity being dropped after a failed first report. Later activity includes the identity until CLI delivery succeeds, while shutdown still attempts release after failed delivery ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

@@ -62,6 +62,59 @@ test("pane ownership serializes and coalesces reports across replacement and clo
 	}
 });
 
+// #2891: failed delivery must not consume the claim's parent identity.
+test("pane reporting retries identity until success", async () => {
+	const fake = await fakeHerdr('finish(args.includes("working") ? 1 : 0);');
+	const diagnostics: HerdrDiagnostic[] = [];
+	const identity = { id: "parent", path: `${fake.dir}/parent.jsonl` };
+	const owner = await claimPaneReporting(fake.environment, identity, {
+		diagnostic: (value) => diagnostics.push(value),
+	});
+	try {
+		reportPaneActivity(owner, { state: "working", reason: "executing" });
+		await owner.flush();
+		reportPaneActivity(owner, { state: "idle", reason: "quiescent" });
+		await owner.flush();
+		reportPaneActivity(owner, { state: "blocked", reason: "awaiting_input" });
+		await owner.flush();
+		await releasePaneReporting(owner);
+		const calls = (await fake.calls()).filter((call) => call.phase === "start");
+		assert.deepEqual(
+			calls.map((call) => arg(call.args, "--agent-session-id")),
+			["parent", "parent", undefined, undefined],
+		);
+		assert.deepEqual(
+			calls.map((call) => arg(call.args, "--agent-session-path")),
+			[identity.path, identity.path, undefined, undefined],
+		);
+		assert.deepEqual(diagnostics, [{ kind: "protocol_rejected" }]);
+		assert.equal(calls.at(-1)?.args[1], "release-agent");
+	} finally {
+		await releasePaneReporting(owner);
+		await fake.dispose();
+	}
+});
+
+// #2891: a failed response does not prove that Herdr never accepted authority.
+test("pane reporting releases after a failed report even without confirmed identity", async () => {
+	const fake = await fakeHerdr("finish(1);");
+	const owner = await claimPaneReporting(fake.environment, { id: "parent" });
+	try {
+		reportPaneActivity(owner, { state: "working", reason: "executing" });
+		await owner.flush();
+		await releasePaneReporting(owner);
+		const calls = (await fake.calls()).filter((call) => call.phase === "start");
+		assert.deepEqual(
+			calls.map((call) => call.args[1]),
+			["report-agent", "release-agent"],
+		);
+		assert.ok(Number(arg(calls[1].args, "--seq")) > Number(arg(calls[0].args, "--seq")));
+	} finally {
+		await releasePaneReporting(owner);
+		await fake.dispose();
+	}
+});
+
 // #2891: raw child output never becomes a diagnostic body.
 test("transport distinguishes spawn, timeout and protocol failures without exposing output", async () => {
 	assert.equal(HERDR_TIMEOUT_MS, 5_000);

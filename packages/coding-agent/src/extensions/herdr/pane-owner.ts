@@ -52,9 +52,10 @@ function argv(owner: PaneOwner, command: string): string[] {
 	];
 }
 
-async function send(owner: PaneOwner, args: string[]): Promise<void> {
+async function send(owner: PaneOwner, args: string[]): Promise<boolean> {
 	const result = await executeHerdr(owner.environment, args, owner.options.timeoutMs);
 	if (result) diagnostic(owner, result);
+	return result === undefined;
 }
 
 export async function claimPaneReporting(
@@ -96,9 +97,8 @@ export function reportPaneActivity(owner: PaneOwner, activity: SessionActivity):
 				args.push("--agent-session-id", owner.identity.id);
 				if (owner.identity.path && isAbsolute(owner.identity.path))
 					args.push("--agent-session-path", owner.identity.path);
-				owner.identitySent = true;
 			}
-			await send(owner, args);
+			if (await send(owner, args)) owner.identitySent = true;
 		}
 	})().finally(() => {
 		owner.flight = undefined;
@@ -115,7 +115,8 @@ export function releasePaneReporting(owner: PaneOwner): Promise<void> {
 	owner.pending = undefined;
 	owner.release = (async () => {
 		await owner.flight;
-		if (owner.identitySent) {
+		// A failed command may still have claimed authority before its response was lost.
+		if (owner.seq > 0) {
 			allocateSequence(owner);
 			await send(owner, argv(owner, "release-agent"));
 		}

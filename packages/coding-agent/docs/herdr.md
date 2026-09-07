@@ -55,7 +55,7 @@ One module-owned lease reports each pane. A successor retires the predecessor be
 
 The reporter invokes the CLI directly with an argument array, not a shell. It permits one child per pane at a time, keeps only the newest pending state, and uses a five-second timeout plus bounded output buffering. Transport errors produce bounded `spawn_failed`, `timeout`, or `protocol_rejected` diagnostics; obsolete ownership uses `stale_owner`. Errors do not become agent or workflow failures. Child stdout and stderr are never logged raw.
 
-Only the fixed messages in the table are sent. Prompt titles, tool arguments, provider error bodies, transcripts, and workflow outputs are not forwarded. The parent's session ID and, when available, native absolute session path are sent once per claim with `--agent-session-id` and `--agent-session-path`. Child sessions do not replace that identity.
+Only the fixed messages in the table are sent. Prompt titles, tool arguments, provider error bodies, transcripts, and workflow outputs are not forwarded. The parent's session ID and, when available, native absolute session path accompany reports until the first successful CLI delivery per claim, using `--agent-session-id` and `--agent-session-path`. After a transport failure, later activity retries that identity; no retry timer is added. Child sessions do not replace that identity.
 
 ## Herdr 0.8.2 limitations
 
