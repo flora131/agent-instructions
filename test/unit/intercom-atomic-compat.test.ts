@@ -425,14 +425,11 @@ describe("lazy intercom registration", () => {
 		assert.match(modelVisibleText, /other local agent sessions/);
 		assert.doesNotMatch(modelVisibleText, /\bpi session\b/i);
 		assert.doesNotMatch(modelVisibleText, /\blocal pi sessions\b/i);
-		assert.match(modelVisibleText, /returned retryToken/);
-		const retryTokenDescription = (
-			intercomTool.parameters as {
-				properties?: { retryToken?: { description?: string } };
-			}
-		).properties?.retryToken?.description;
-		assert.match(retryTokenDescription ?? "", /Opaque token/);
-		assert.match(retryTokenDescription ?? "", /omit it for fresh operations/);
+		assert.match(modelVisibleText, /retries recoverable disconnects internally up to three times/);
+		assert.match(modelVisibleText, /Each new tool call is a new operation/);
+		assert.match(modelVisibleText, /do not automatically repeat an unknown delivery outcome/);
+		assert.doesNotMatch(modelVisibleText, /retryToken/);
+		assert.doesNotMatch(JSON.stringify(intercomTool.parameters), /retryToken/);
 	});
 
 	test("guides model-visible sends to live sessions and exact workflow-stage targets", () => {
@@ -450,7 +447,7 @@ describe("lazy intercom registration", () => {
 		assert.ok(guidance.includes("`workflow:<rootRunId>/**`"));
 		assert.match(guidance, /notInKnownSet/);
 		assert.match(guidance, /live session/i);
-		assert.match(guidance, /returned `retryToken`.*three claimed attempts/u);
+		assert.match(guidance, /retries recoverable disconnects internally up to three times/);
 	});
 
 	test("registers contact_supervisor when PI or ATOMIC subagent bridge metadata exists", () => {

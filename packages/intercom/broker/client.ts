@@ -14,6 +14,7 @@ import type {
 	WorkflowStageRosterEntry,
 	WorkflowFutureStageRosterEntry,
 	WorkflowPossibleStageAnnouncement,
+	WorkflowRunParentAnnouncement,
 } from "../types.js";
 import { buildSendSignature, PendingSendRegistry } from "./pending-send-registry.js";
 import { readSubagentMessageSource } from "../source-ownership.js";
@@ -855,6 +856,7 @@ export class IntercomClient extends EventEmitter {
 	capability: string,
 	stages?: WorkflowStageRosterAnnouncement[],
 	possibleStages?: WorkflowPossibleStageAnnouncement[],
+	parent?: WorkflowRunParentAnnouncement,
   ): void {
 	writeMessage(this.requireActiveSocket(), {
 		type: "register_pending_stage_route",
@@ -863,6 +865,7 @@ export class IntercomClient extends EventEmitter {
 		capability,
 		stages,
 		possibleStages,
+		...(parent === undefined ? {} : { parent }),
 	});
   }
 

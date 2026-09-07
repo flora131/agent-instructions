@@ -161,7 +161,7 @@ test("a real post-registration transport error becomes a recoverable disconnect 
 	await assert.rejects(pending, (error: unknown) => {
 		assert.ok(error instanceof IntercomClientDisconnectedError, `expected the typed error, got ${String(error)}`);
 		assert.equal(isRecoverableIntercomDisconnect(error), true);
-		assert.equal(error.message, "Client disconnected. Retry the same Intercom call up to three times to reconnect.");
+		assert.equal(error.message, "Client disconnected");
 		const cause = error.cause;
 		assert.ok(cause instanceof Error, "the original transport error must be preserved as cause");
 		assert.equal(typeof (cause as NodeJS.ErrnoException).code, "string");

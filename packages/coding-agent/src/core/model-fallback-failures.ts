@@ -375,8 +375,8 @@ const TRANSPORT_OUTAGE_FAILURE_PATTERNS: readonly RegExp[] = [
 	// on the default `transport: "auto"` surfaces this as
 	// "Library error: zlib error: incorrect header check" (#2553). These are
 	// unanchored because the wrapper text varies by runtime and transport. `zlib`
-	// has no trailing word boundary on purpose: Bun 1.4.0, which the shipped
-	// binary runs on, throws `ZlibError fetching "..."` as one word.
+	// has no trailing word boundary on purpose: Bun 1.4.0, the shipped runtime
+	// when verified, throws `ZlibError fetching "..."` as one word.
 	/\bzlib/i,
 	/\bincorrect\s+header\s+check\b/i,
 	/\bdecompress(?:ion|ing|ed)?\b/i,

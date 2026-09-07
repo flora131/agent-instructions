@@ -14,9 +14,8 @@
  * non-recoverable initialization failure — stays actionable.
  */
 
-/** Model-visible recovery direction for a stale broker socket. */
-export const RECOVERABLE_DISCONNECT_MESSAGE =
-	"Client disconnected. Retry the same Intercom call up to three times to reconnect.";
+/** Transport diagnosis. Delivery tools own bounded recovery, not their callers. */
+export const RECOVERABLE_DISCONNECT_MESSAGE = "Client disconnected";
 
 /**
  * Bound on the `cause` chain walk. Intercom wraps failures with `cause` on the

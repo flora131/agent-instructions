@@ -1,5 +1,7 @@
 export interface SessionInfo {
   id: string;
+  /** Host-declared connection purpose; omitted by legacy agent clients. Immutable after registration. */
+  readonly recipientPurpose?: "agent" | "control";
   name?: string;
   cwd: string;
   model: string;
@@ -23,6 +25,13 @@ export interface WorkflowStageRosterEntry {
 	readonly group: string;
 	/** Broker session identity, present only while the workflow stage is connected. */
 	readonly sessionId?: string;
+}
+
+/** Internal run-tree edge used to resolve known recipients before dispatching to the owner. */
+export interface WorkflowRunParentAnnouncement {
+	readonly runId: string;
+	/** Boundary spellings that resolve uniquely to this child, with stage-ID precedence applied by the host. */
+	readonly stageKeys: readonly string[];
 }
 
 export interface WorkflowPossibleStageAnnouncement {
@@ -52,6 +61,8 @@ export interface WorkflowStageRosterAnnouncement {
 	readonly target: string;
 	readonly lifecycle: "pending" | "running";
 	readonly routeEligible: boolean;
+	/** Host-declared node purpose, independent of legacy pending-route eligibility. */
+	readonly recipientPurpose?: "agent" | "control";
 	/** Actual stage group after workflow invocation ownership resolution. */
 	readonly group: string;
 }
@@ -123,7 +134,7 @@ export type ClientMessage =
 			attemptId?: string;
 	  }
 	| { type: "pending_stage_notification_result"; requestId: string; delivered: boolean }
- | { type: "register_pending_stage_route"; runId: string; group: string; capability: string; stages?: WorkflowStageRosterAnnouncement[]; possibleStages?: WorkflowPossibleStageAnnouncement[] }
+ | { type: "register_pending_stage_route"; runId: string; group: string; capability: string; stages?: WorkflowStageRosterAnnouncement[]; possibleStages?: WorkflowPossibleStageAnnouncement[]; parent?: WorkflowRunParentAnnouncement }
   | {
       type: "register_live_workflow_stage_route";
       requestId: string;

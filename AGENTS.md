@@ -30,7 +30,7 @@ everywhere. Where the split differs from pi, the reason is written down.
 | `packages/coding-agent` suite | `vitest --run` | already parity; it now runs under Node rather than `bun --bun`, SQLite selectors included |
 | Script tests | `node --test scripts/*.test.mjs` | pi parity. Scripts Node can run are tested with Node's own runner |
 | Repository scripts | `bun run scripts/*.ts` | Bun executes `.ts` directly and resolves `.js` specifiers to `.ts` source with no loader hook. Bare `node` cannot; scripts meant for `node --test` are `.mjs` |
-| Binary compilation | `bun build --compile` | Cross-compiles the single-file executables; upstream pi uses Bun for exactly this step too. Bun pinned to 1.4.0 |
+| Binary compilation | `bun build --compile` | Cross-compiles the single-file executables; upstream pi uses Bun for exactly this step too. Bun pinned to 1.4.2 |
 | npm-package smoke tests | Node (`node-version: 22` in CI, matching pi) | `test/integration/installed-package-node-extensions.test.ts` verifies the shipped `atomic` bin under `#!/usr/bin/env node`, which is how npm installs run it |
 | Registry publish | `npm publish --provenance` | npm's OIDC-signed provenance lives in the npm CLI, and npm trusted publishing requires a GitHub-hosted runner |
 
@@ -69,7 +69,7 @@ name it.
 ## Best Practices
 
 - Avoid ambiguous types like `any` and `unknown`. Use specific types instead.
-- `@types/bun` is held at 1.3.14 while the Bun runtime/CI pin is 1.4.0: bun-types 1.4.0 declares `on`/`off`/`once` for its `memoryPressure` event directly on `NodeJS.Process`, which hides the inherited `EventEmitter` overloads and breaks every `process.off("SIGINT"|"unhandledRejection", ...)` call under `tsc`. Bump the types only once a bun-types release stops shadowing them (verify with `npm run typecheck`).
+- `@types/bun` is pinned to 1.4.1 while the Bun runtime/CI pin is 1.4.2: `@types/bun@1.4.2` is not yet published. bun-types 1.4.1 restores generic `off`/`removeListener` overloads on `NodeJS.Process` (oven-sh/bun#40003), resolving the `memoryPressure` shadowing that required the previous 1.3.14 compatibility pin. Both repository typecheck passes succeed with 1.4.1; verify with `npm run typecheck` when bumping types.
 - Source files use `.js` import extensions (TypeScript ESM convention). The repo ships as `.ts` files; Bun resolves `.js` specifiers to the underlying `.ts` source directly — no loader hook required. atomic's loader follows the same convention as pi.
 - Do not add a build step (`dist/`, `tsconfig.build.json`, etc.) to `packages/workflows`; it distributes raw TypeScript and the host loads it directly. `packages/coding-agent` is copied from upstream pi and keeps its existing build setup.
 - When using skills, if you see a frontmatter of `metadata: internal` set to `true` (if missing assume `false`), that means the skill is for internal developers of this package. If this flag is omitted, the skill is meant for consumers/everyday users.
@@ -128,9 +128,9 @@ the helper.
 ### SQLite selectors use node:sqlite on either runtime
 
 `src/core/tools/resource-selectors.ts` loads `node:sqlite`, which Node ≥ 22.13 and
-Bun ≥ 1.4.0 (this repository's Bun floor, oven-sh/bun#32498) both ship. The
-`bun:sqlite` fallback that covered older Bun binaries was removed with that floor;
-do not reintroduce it.
+Bun ≥ 1.4.2 (this repository's Bun floor) both ship. Bun introduced it in 1.4.0
+(oven-sh/bun#32498), when the `bun:sqlite` fallback for older Bun binaries was
+removed; do not reintroduce it.
 
 `better-sqlite3` was evaluated and rejected: it segfaults Bun 1.3.14 on construction, which is
 worse than a catchable missing-module error.
