@@ -10,6 +10,8 @@ use std::{
 	io::{self, Read, Seek, SeekFrom, Write},
 	path::PathBuf,
 };
+mod input;
+pub use input::*;
 
 #[napi(string_enum = "kebab-case")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -63,6 +65,7 @@ pub(super) const PROCESS_SHUTDOWN_GRACE: Duration = Duration::from_secs(3);
 pub(super) struct CommandTask {
 	intent: CommandIntent,
 	output: Mutex<OutputStore>,
+	input: Mutex<InputQueue>,
 	setup: Mutex<Option<Door<()>>>,
 	setup_changed: Condvar,
 	worker: Mutex<Option<std::thread::JoinHandle<()>>>,
@@ -179,6 +182,7 @@ impl Actor {
 		};
 		let command = Arc::new(CommandTask {
 			intent: intent.clone(),
+			input: Mutex::new(InputQueue::default()),
 			output: Mutex::new(OutputStore::new(
 				std::env::temp_dir().join(format!(
 					"atomic-command-{}-{}",
@@ -317,6 +321,10 @@ impl Actor {
 			},
 		};
 		let pid = child.id() as libc::pid_t;
+		let mut stdin = child.stdin.take();
+		if let Some(input) = &stdin {
+			let _ = make_nonblocking(input);
+		}
 		let mut stdout = child.stdout.take().unwrap();
 		let mut stderr = child.stderr.take().unwrap();
 		let nonblocking = make_nonblocking(&stdout).and_then(|()| make_nonblocking(&stderr));
@@ -342,6 +350,7 @@ impl Actor {
 		let mut read_failure = setup_failure.clone();
 		let mut cleanup_failure = None;
 		loop {
+			command.input.lock().unwrap().drain(&mut stdin);
 			// A failed O_NONBLOCK setup must never enter a potentially blocking read.
 			if setup_failure.is_none() {
 				for result in [
@@ -426,6 +435,7 @@ impl Actor {
 			}
 			std::thread::sleep(PROCESS_POLL);
 		}
+		command.input.lock().unwrap().close();
 		if let Some(message) = cleanup_failure {
 			child.stdout = Some(stdout);
 			child.stderr = Some(stderr);
@@ -581,31 +591,31 @@ const FOREGROUND_SPILL_BYTES: usize = 8_388_608;
 const TASK_DISK_BYTES: u64 = 5_368_709_120;
 const DETAIL_TAIL_BYTES: usize = 8_192;
 
+#[napi(object)]
 #[derive(Debug, PartialEq, Eq)]
-struct OutputOffsets {
-	start: String,
-	end: String,
+pub struct OutputOffsets {
+	pub start: String,
+	pub end: String,
 }
 impl OutputOffsets {
 	fn new(start: u64, end: u64) -> Self {
 		Self { start: start.to_string(), end: end.to_string() }
 	}
 }
-#[derive(Debug)]
-struct OutputChunk {
-	offsets: OutputOffsets,
-	bytes: Vec<u8>,
+#[napi(object)]
+pub struct OutputChunk {
+	pub offsets: OutputOffsets,
+	pub bytes: napi::bindgen_prelude::Buffer,
 }
-#[derive(Debug)]
-struct OutputPage {
-	requested: OutputOffsets,
-	chunks: Vec<OutputChunk>,
-	omitted_ranges: Vec<OutputOffsets>,
-	next_offset: Option<String>,
+#[napi(object)]
+pub struct OutputPage {
+	pub requested: OutputOffsets,
+	pub chunks: Vec<OutputChunk>,
+	pub omitted_ranges: Vec<OutputOffsets>,
+	pub next_offset: Option<String>,
 }
 
-/// Raw bytes retain original offsets, even when a cap splits a UTF-8 character.
-/// Consumers decoding adjacent chunks use Utf8Carry, not per-chunk lossy decoding.
+/// Raw bytes retain original offsets; consumers carry incomplete UTF-8 while decoding.
 struct OutputStore {
 	path: PathBuf,
 	live_limit: usize,
@@ -772,7 +782,7 @@ impl OutputStore {
 			let lo = cursor.max(offset);
 			page.chunks.push(OutputChunk {
 				offsets: OutputOffsets::new(lo, segment_end),
-				bytes: bytes[(lo - offset) as usize..].to_vec(),
+				bytes: bytes[(lo - offset) as usize..].to_vec().into(),
 			});
 			cursor = segment_end;
 		}
@@ -1081,13 +1091,13 @@ mod tests {
 		store.append(b"ghijkl");
 		let page = store.page(0, 12);
 		assert_eq!(
-			page.chunks.iter().map(|c| c.bytes.as_slice()).collect::<Vec<_>>(),
+			page.chunks.iter().map(|c| c.bytes.as_ref()).collect::<Vec<&[u8]>>(),
 			vec![b"abcde".as_slice(), b"kl".as_slice()]
 		);
 		assert_eq!(page.omitted_ranges, vec![OutputOffsets::new(5, 10)]);
 		assert_eq!(store.byte_count, 12);
 		store.append(b"mn");
-		assert_eq!(page.chunks[1].bytes, b"kl");
+		assert_eq!(page.chunks[1].bytes.as_ref(), b"kl");
 		assert_eq!(store.page(0, 14).omitted_ranges, vec![OutputOffsets::new(5, 12)]);
 		let missing = store.page(6, 3);
 		assert!(missing.chunks.is_empty());
@@ -1106,13 +1116,13 @@ mod tests {
 		let mut store = OutputStore::new(path.clone(), 4, 8, 20);
 		store.append(b"abcdefg");
 		assert!(!path.exists());
-		assert_eq!(store.page(2, 3).chunks[0].bytes, b"cde");
+		assert_eq!(store.page(2, 3).chunks[0].bytes.as_ref(), b"cde");
 		assert_eq!(store.page(2, 3).next_offset.as_deref(), Some("5"));
 		store.background();
 		store.background();
 		assert_eq!(std::fs::read(&path).unwrap(), b"abcdefg");
 		assert!(store.foreground.is_empty());
-		assert_eq!(store.page(1, 2).chunks[0].bytes, b"bc");
+		assert_eq!(store.page(1, 2).chunks[0].bytes.as_ref(), b"bc");
 		store.append(b"hi");
 		assert_eq!(std::fs::read(&path).unwrap(), b"abcdefghi");
 		assert_eq!(store.page(99, 0).requested, OutputOffsets::new(99, 99));
@@ -1132,9 +1142,9 @@ mod tests {
 		store.append(b"kl");
 		let page = store.page(1, 10);
 		assert_eq!(page.chunks[0].offsets, OutputOffsets::new(1, 2));
-		assert_eq!(page.chunks[0].bytes, b"b");
+		assert_eq!(page.chunks[0].bytes.as_ref(), b"b");
 		assert_eq!(page.chunks[1].offsets, OutputOffsets::new(10, 11));
-		assert_eq!(page.chunks[1].bytes, b"k");
+		assert_eq!(page.chunks[1].bytes.as_ref(), b"k");
 		assert_eq!(page.omitted_ranges, vec![OutputOffsets::new(2, 10)]);
 		assert_eq!(store.byte_count, 12);
 	}

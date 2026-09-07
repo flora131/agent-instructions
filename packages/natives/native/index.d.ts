@@ -35,6 +35,10 @@ export declare class RunnerLease {
 
 }
 
+export declare class StdinLease {
+
+}
+
 /**
  * N-API wrapper around the root-scoped Rust control plane. The host marker is
  * intentionally held by the wrapper while the cloneable core stores only a
@@ -74,6 +78,9 @@ openTaskOwner(host: HostSession, scope: OwnerScope): {ok:true,value:OwnerLease}|
 startAgentTask(owner: OwnerLease, intent: AgentIntent, operation: string): {ok:true,value:TaskLease}|{ok:false,error:TaskFailure}
 /** Admits one owned command; waiting for this setup never imposes an execution deadline. */
 startCommandTask(owner: OwnerLease, intent: CommandIntent, operation: string): Promise<{ok:true,value:TaskLease}|{ok:false,error:TaskFailure}>
+taskStdin(task: TaskLease): {ok:true,value:StdinLease}|{ok:false,error:TaskFailure}
+writeTaskInput(input: StdinLease, operation: string, data: InputData): Promise<{ok:true,value:InputReceipt}|{ok:false,error:TaskFailure}>
+readTaskOutput(task: TaskLease, range: OutputRange): Promise<{ok:true,value:OutputPage}|{ok:false,error:TaskFailure}>
 /** Claim once after host dispatch setup; operation replay never grants a second runner. */
 claimTaskRunner(task: TaskLease): {ok:true,value:RunnerLease}|{ok:false,error:TaskFailure}
 taskReference(task: TaskLease): {ok:true,value:NativeTaskRef}|{ok:false,error:TaskFailure}
@@ -468,6 +475,16 @@ export type HostObservation =
   | { kind: 'background', reason: string }
   | { kind: 'none', reason: string }
 
+export type InputData =
+  | { kind: 'bytes', bytes: Buffer }
+  | { kind: 'eof' }
+
+export interface InputReceipt {
+  operationId: string
+  acceptedBytes: number
+  kind: string
+}
+
 /**
  * Invalidate the filesystem scan cache.
  *
@@ -560,6 +577,28 @@ export interface OmittedRange {
 export interface OutcomeReport {
   reportId: string
   result: TaskResult
+}
+
+export interface OutputChunk {
+  offsets: OutputOffsets
+  bytes: Buffer
+}
+
+export interface OutputOffsets {
+  start: string
+  end: string
+}
+
+export interface OutputPage {
+  requested: OutputOffsets
+  chunks: Array<OutputChunk>
+  omittedRanges: Array<OutputOffsets>
+  nextOffset?: string
+}
+
+export interface OutputRange {
+  start: string
+  maximumBytes: number
 }
 
 export interface OutputRef {

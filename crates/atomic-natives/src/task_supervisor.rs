@@ -25,7 +25,10 @@ mod tests;
 mod waits;
 pub use events::*;
 pub use owner::*;
-pub use process::{CommandIntent, CommandTaskKind, CommandTerminal};
+pub use process::{
+	CommandIntent, CommandTaskKind, CommandTerminal, InputData, InputReceipt, OutputPage,
+	OutputRange, StdinLease,
+};
 use report_identity::{TASK_REPORT_IDENTITY_WINDOW, activity_hash};
 use strings::JsString;
 pub use task::*;
@@ -253,6 +256,49 @@ impl NapiTaskSupervisor {
 		env.spawn_future(async move {
 			let result = napi::tokio::task::spawn_blocking(move || {
 				check.and_then(|()| actor.start_command(&owner, intent, operation))
+			})
+			.await
+			.map_err(|error| napi::Error::from_reason(error.to_string()))?;
+			Ok(DoorValue(result))
+		})
+	}
+	#[napi(ts_return_type = "{ok:true,value:StdinLease}|{ok:false,error:TaskFailure}")]
+	pub fn task_stdin(&self, env: Env, task: &TaskLease) -> DoorValue<StdinLease> {
+		DoorValue(self.check(&env, "UnknownTask").and_then(|()| self.actor.stdin_lease(task)))
+	}
+	#[napi(ts_return_type = "Promise<{ok:true,value:InputReceipt}|{ok:false,error:TaskFailure}>")]
+	pub fn write_task_input<'env>(
+		&self,
+		env: &'env Env,
+		input: &StdinLease,
+		operation: String,
+		data: InputData,
+	) -> napi::Result<PromiseRaw<'env, DoorValue<InputReceipt>>> {
+		let check = self.check(env, "TaskTerminal");
+		let actor = self.actor.clone();
+		let input = input.clone();
+		env.spawn_future(async move {
+			let result = napi::tokio::task::spawn_blocking(move || {
+				check.and_then(|()| actor.input(&input, operation, data))
+			})
+			.await
+			.map_err(|error| napi::Error::from_reason(error.to_string()))?;
+			Ok(DoorValue(result))
+		})
+	}
+	#[napi(ts_return_type = "Promise<{ok:true,value:OutputPage}|{ok:false,error:TaskFailure}>")]
+	pub fn read_task_output<'env>(
+		&self,
+		env: &'env Env,
+		task: &TaskLease,
+		range: OutputRange,
+	) -> napi::Result<PromiseRaw<'env, DoorValue<OutputPage>>> {
+		let check = self.check(env, "UnknownTask");
+		let actor = self.actor.clone();
+		let task = task.clone();
+		env.spawn_future(async move {
+			let result = napi::tokio::task::spawn_blocking(move || {
+				check.and_then(|()| actor.output_page(&task, range))
 			})
 			.await
 			.map_err(|error| napi::Error::from_reason(error.to_string()))?;

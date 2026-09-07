@@ -705,6 +705,7 @@ module.exports.OwnerLease = nativeBinding.OwnerLease
 module.exports.PtySession = nativeBinding.PtySession
 module.exports.RetainedPostgres = nativeBinding.RetainedPostgres
 module.exports.RunnerLease = nativeBinding.RunnerLease
+module.exports.StdinLease = nativeBinding.StdinLease
 module.exports.SubagentControl = nativeBinding.SubagentControl
 module.exports.NapiSubagentControl = nativeBinding.NapiSubagentControl
 module.exports.SubscriptionLease = nativeBinding.SubscriptionLease

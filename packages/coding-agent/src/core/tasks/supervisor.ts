@@ -1,5 +1,6 @@
 import { AsyncResource } from "node:async_hooks";
 import * as native from "@bastani/atomic-natives";
+import { COMMAND_FOREGROUND_BUDGET_MS } from "./command-output.js";
 import type * as C from "./contracts.js";
 
 /** These objects are live authority, not DTOs, restart tokens or model arguments. */
@@ -24,6 +25,10 @@ class WaitCapability extends Capability {
 class SubscriptionCapability extends Capability {
 	readonly kind = "subscription";
 }
+class StdinCapability extends Capability {
+	readonly kind = "stdin";
+}
+export type StdinLease = StdinCapability;
 export type HostSession = HostCapability;
 export type OwnerLease = OwnerCapability;
 export type TaskLease = TaskCapability;
@@ -42,6 +47,7 @@ export type TrustedTaskHost = {
 	/** Owner-host observation settings; never an execution deadline. */
 	tasks?: { wait?: C.TaskWaitConfiguration };
 	/** The existing host/tool refusal throws here, before native admission. */
+	authorizeCommandLaunch?(intent: C.CommandIntent): void;
 	authorizeLaunch(intent: C.AgentIntent): void;
 	createRunner(context: FakeRunnerContext, intent: C.AgentIntent): FakeExecution;
 };
@@ -57,6 +63,7 @@ type TaskState = {
 	owner: OwnerState;
 	ref: C.NativeTaskRef;
 	controller: AbortController;
+	kind?: "command";
 	execution?: Promise<C.Result<C.Cleanup, C.ReportError>>;
 };
 type WaitState = { native: native.WaitLease; outcome: Promise<C.Result<C.WaitOutcome, C.WaitError>> };
@@ -66,6 +73,7 @@ const environment = {
 	hosts: new WeakMap<HostSession, HostState>(),
 	owners: new WeakMap<OwnerLease, OwnerState>(),
 	tasks: new WeakMap<TaskLease, TaskState>(),
+	inputs: new WeakMap<StdinLease, native.StdinLease>(),
 	waits: new WeakMap<WaitLease, WaitState>(),
 	waitRegistry: new Map<C.WaitId, WaitLease>(),
 	ownerIds: new Map<C.OwnerId, OwnerLease>(),
@@ -540,6 +548,79 @@ export class TaskSupervisor {
 			ownerErrors,
 		);
 	}
+	async startCommandTask(
+		owner: OwnerLease,
+		intent: C.CommandIntent,
+		operation: C.OperationId,
+	): Promise<C.Result<TaskLease, C.StartFailure>> {
+		const state = this.#owner(owner);
+		state.host.binding.authorizeCommandLaunch?.(intent);
+		const admitted = mapped(
+			await this.#native.startCommandTask(state.native, intent, operation),
+			(lease) => lease,
+			startErrors,
+		);
+		if (!admitted.ok) return admitted;
+		const ref = this.#native.taskReference(admitted.value);
+		if (!ref.ok) throw new Error(ref.error.message);
+		const id = ref.value.taskId as C.TaskId;
+		const existing = state.tasks.get(id);
+		if (existing) return { ok: true, value: existing };
+		const task = new TaskCapability();
+		this.#tasks.set(task, {
+			native: admitted.value,
+			owner: state,
+			ref: reference(ref.value),
+			controller: new AbortController(),
+			kind: "command",
+		});
+		state.tasks.set(id, task);
+		return { ok: true, value: task };
+	}
+	taskStdin(task: TaskLease): C.Result<StdinLease, C.InputError> {
+		return mapped(
+			this.#native.taskStdin(this.#task(task).native),
+			(input) => {
+				const lease = new StdinCapability();
+				environment.inputs.set(lease, input);
+				return lease;
+			},
+			["TaskTerminal", "StdinClosed", "UnknownTask", "OutputUnavailable"] as const,
+		);
+	}
+	async writeTaskInput(
+		input: StdinLease,
+		operation: C.OperationId,
+		data: C.InputData,
+	): Promise<C.Result<C.InputReceipt, C.InputError>> {
+		const lease = environment.inputs.get(input);
+		if (!lease) throw new TypeError("Foreign stdin capability");
+		return mapped(
+			await this.#native.writeTaskInput(
+				lease,
+				operation,
+				data.kind === "bytes" ? { kind: "bytes", bytes: Buffer.from(data.bytes) } : data,
+			),
+			(value) => ({
+				operationId: value.operationId as C.OperationId,
+				acceptedBytes: value.acceptedBytes,
+				kind: value.kind as "bytes" | "eof",
+			}),
+			["TaskTerminal", "StdinClosed", "InputBackpressure", "OperationConflict", "InputDeliveryUnknown"] as const,
+		);
+	}
+	async readTaskOutput(task: TaskLease, range: C.OutputRange): Promise<C.Result<C.OutputPage, C.OutputError>> {
+		return mapped(
+			await this.#native.readTaskOutput(this.#task(task).native, range),
+			(page) => ({
+				requested: page.requested,
+				chunks: page.chunks.map((chunk) => ({ offsets: chunk.offsets, bytes: new Uint8Array(chunk.bytes) })),
+				omittedRanges: page.omittedRanges,
+				...(page.nextOffset === undefined ? {} : { nextOffset: page.nextOffset }),
+			}),
+			["UnknownTask", "OutputUnavailable"] as const,
+		);
+	}
 	async startAgentTask(
 		owner: OwnerLease,
 		intent: C.AgentIntent,
@@ -638,7 +719,9 @@ export class TaskSupervisor {
 		const registered = mapped(
 			this.#native.waitForTask(
 				this.#task(task).native,
-				this.#agentBudget(this.#task(task).owner, budgetMs),
+				this.#task(task).kind === "command"
+					? (budgetMs ?? COMMAND_FOREGROUND_BUDGET_MS)
+					: this.#agentBudget(this.#task(task).owner, budgetMs),
 				designation ? this.#host(designation).native : undefined,
 			),
 			(lease) => this.#register(lease),

@@ -71,6 +71,29 @@ values use safe string conversion, with `Unprintable JavaScript rejection` if co
 throws. Cancelled cleanup still does not depend on the result promise settling.
 This slice exercises fake runners, not force-stop or real-process cleanup guarantees.
 
+### Supervised command SDK
+
+`startCommandTask(owner, intent, operation)` starts an owned Unix pipe command.
+The command intent keeps execution timeout separate from observation: `waitForTask`
+defaults to 10000 ms for commands, and expiry returns a yielded observation without
+terminating the process. Owner closure sends TERM, allows 250 ms grace, then KILL,
+reaps the leader and confirms process-group exit and reader drain. A cleanup failure
+retains diagnostics instead of claiming a closed owner. This is normal owner/host
+shutdown cleanup, not a guarantee for forced host death or a blocked JavaScript loop.
+
+`taskStdin(task)` returns a non-serializable stdin capability. `writeTaskInput` takes
+an operation ID and `{kind:"bytes", bytes:Uint8Array}` or `{kind:"eof"}`. Empty bytes
+are a no-op. Input has 65536 byte credits, refuses excess input before admission,
+and replays recorded receipts without resending bytes. Ambiguous partial delivery
+returns `InputDeliveryUnknown`, including operation ID and known accepted-byte count.
+
+`readTaskOutput(task, {start, maximumBytes})` returns owned byte chunks at decimal
+offsets, requested bounds, omitted ranges and an optional next offset. It does not
+sanitize or normalize bytes. Retention uses a 1 MiB live head/tail, 8 MiB foreground
+spill threshold and 5 GiB disk cap. Retained output is not conversation history.
+The current pipe milestone does not yet connect bash tools or implement supervised
+PTY/Windows launch and the background file-spool watchdog.
+
 `watchOwnerTasks(owner, cursor?)` provides an opaque `lease`, snapshot,
 decimal-string cursor and disposable `AsyncIterable<NativeEvent>`. Each iterator
 observes one contiguous delivery epoch. On local backlog overflow or native journal
