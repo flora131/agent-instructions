@@ -43,15 +43,16 @@ test("pane ownership serializes and coalesces reports across replacement and clo
 			calls.filter((args) => args[1] === "report-agent").map((args) => arg(args, "--state")),
 			["working", "idle", "working"],
 		);
+
 		for (const args of calls) {
 			assert.equal(args[2], "w1:p1; rm -rf /");
 			assert.equal(arg(args, "--source"), "custom:atomic");
 			assert.equal(arg(args, "--agent"), "atomic");
 		}
 		const seq = calls.map((args) => Number(arg(args, "--seq")));
-		assert.ok(seq[1] > seq[0] && seq[3] > seq[2]);
-		assert.equal(seq[2], seq[1]);
-		assert.equal(seq[4], seq[3]);
+		// Release carries its own sequence: Herdr 0.8.2 ignores an equal or older `--seq`, so a release that
+		// reused the last report's sequence would leave the pane claimed after quit.
+		for (let index = 1; index < seq.length; index += 1) assert.ok(seq[index]! > seq[index - 1]!);
 		assert.equal(calls.filter((args) => args.includes("--agent-session-id")).length, 2);
 		assert.equal(arg(calls[3], "--agent-session-path"), undefined);
 		assert.ok(diagnostics.some((value) => value.kind === "stale_owner"));

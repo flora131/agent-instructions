@@ -33,6 +33,11 @@ function diagnostic(owner: PaneOwner, value: HerdrDiagnostic): void {
 	owner.options.diagnostic?.(value);
 }
 
+/** Every admitted command, including release, takes a fresh strictly increasing sequence: Herdr ignores equal or older `--seq`. */
+function allocateSequence(owner: PaneOwner): void {
+	owner.seq = highWater = Math.max((owner.options.clock ?? Date.now)(), highWater + 1);
+}
+
 function argv(owner: PaneOwner, command: string): string[] {
 	return [
 		"pane",
@@ -84,7 +89,7 @@ export function reportPaneActivity(owner: PaneOwner, activity: SessionActivity):
 		while (owner.pending && owner.status === "active") {
 			const next = owner.pending;
 			owner.pending = undefined;
-			owner.seq = highWater = Math.max((owner.options.clock ?? Date.now)(), highWater + 1);
+			allocateSequence(owner);
 			const args = [...argv(owner, "report-agent"), "--state", next.state];
 			if (next.message) args.push("--message", next.message);
 			if (!owner.identitySent) {
@@ -110,7 +115,10 @@ export function releasePaneReporting(owner: PaneOwner): Promise<void> {
 	owner.pending = undefined;
 	owner.release = (async () => {
 		await owner.flight;
-		if (owner.identitySent) await send(owner, argv(owner, "release-agent"));
+		if (owner.identitySent) {
+			allocateSequence(owner);
+			await send(owner, argv(owner, "release-agent"));
+		}
 		owner.status = "retired";
 		if (owners.get(owner.environment.paneId) === owner) owners.delete(owner.environment.paneId);
 	})();

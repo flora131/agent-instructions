@@ -171,10 +171,8 @@ test("extension reload and engine replacement fence late predecessor callbacks a
 			["report-agent", "release-agent", "report-agent", "release-agent", "report-agent", "release-agent"],
 		);
 		const seq = calls.map((call) => Number(arg(call.args, "--seq")));
-		assert.ok(seq[0] < seq[2] && seq[2] < seq[4]);
-		assert.equal(seq[0], seq[1]);
-		assert.equal(seq[2], seq[3]);
-		assert.equal(seq[4], seq[5]);
+		// Every admitted command, release included, takes a strictly increasing sequence across reload and replacement.
+		for (let index = 1; index < seq.length; index += 1) assert.ok(seq[index]! > seq[index - 1]!);
 		assert.equal(calls.filter((call) => call.args.includes("--agent-session-id")).length, 3);
 	} finally {
 		await runners.at(-1)?.emit({ type: "session_shutdown", reason: "quit" });
