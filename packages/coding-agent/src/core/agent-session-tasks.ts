@@ -6,7 +6,8 @@ import { WorkflowStageAdmissionBoundary } from "./workflow-stage-admission.ts";
 export function getAgentTaskHost(this: AgentSession): AgentTaskHost {
 	if (this._disposed) throw new Error("Task owner is closed");
 	if (this._agentTaskHost) return this._agentTaskHost;
-	const admission = this._workflowStageAdmission ?? new WorkflowStageAdmissionBoundary();
+	const admission =
+		this._workflowStageAdmission ?? WorkflowStageAdmissionBoundary.restore(this.sessionManager.getEntries());
 	this._taskAdmission = admission;
 	const outbox = new TaskCompletionOutbox(
 		this.sessionManager,

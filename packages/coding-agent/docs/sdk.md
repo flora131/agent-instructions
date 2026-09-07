@@ -46,6 +46,15 @@ starts owner closure; generation close awaits independent cleanup and surfaces f
 Fresh boundaries have fresh identities, including restoration; history is not a restart
 capability. Public producers, durable callback joins and nonvisual completion intent/admission use this owner binding.
 
+When a task completion outbox is created from session history, it immediately retries
+unacknowledged terminal completion intents through the current admission boundary.
+It does not wait for another task to settle or recreate execution capabilities.
+Acknowledged intents are not redelivered. Failed admission keeps the original completion
+identity pending for retry; a closed boundary prevents admission.
+Top-level session initialization restores admission keys from persisted custom messages,
+so a crash after delivery is persisted but before its outbox acknowledgement does not
+deliver the same completion again.
+
 A host binds its actual session or workflow-stage scope with `bindHostSession`,
 provides launch authorization and a runner factory, then calls `openTaskOwner`.
 Authorization runs before native admission. `startAgentTask` registers an agent

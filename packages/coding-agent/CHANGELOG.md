@@ -26,6 +26,7 @@
 - Bounded S1 activity replay to the latest 256 accepted report identities per task without retaining their full payload history. Identical retained reports remain duplicates, conflicts remain refused, and evicted IDs are fresh reports; terminal receipts never expire while the task record exists ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Prevented accepted S1 activity IDs such as `runner-outcome` from blocking runner settlement, independent cleanup and owner closure. Internal terminal IDs are allocated atomically without reserving caller IDs or changing report conflict/replay and cancellation rules ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Prevented accepted NaN S1 wait budgets, including owner-configured agent budgets, from panicking native scheduling. Observations remain releasable by yield, settlement, disposal and owner closure without changing other budgets or per-call precedence ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Restored task completion outboxes now retry unacknowledged terminal intents on initialization instead of waiting for another task to settle, retaining completion identity and current admission checks ([#2906](https://github.com/bastani-inc/atomic/pull/2906)).
 
 ## [0.9.19-alpha.1] - 2026-09-06
 
