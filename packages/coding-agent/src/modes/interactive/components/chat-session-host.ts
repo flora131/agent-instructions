@@ -68,21 +68,13 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	private taskInspector?: TaskInspector;
 
 	constructor(opts: ChatSessionHostOpts<TExtraEntry>) {
-		const commands = {
-			...opts.commands,
-			handleSlashCommand: async (text: string) => {
-				if (text === "/tasks" || text.startsWith("/tasks "))
-					return this.openTasks(text.slice(6).trim() || undefined);
-				return (await opts.commands?.handleSlashCommand?.(text)) ?? false;
-			},
-		};
-		this.state = new ChatSessionHostState(
-			{ ...opts, commands },
-			{
-				renderEntry: (state, entry) => renderChatSessionEntry(state, entry),
-				transcriptCacheKey: (state, entry, index) => transcriptCacheKey(state, entry, index),
-			},
-		);
+		// `/tasks` stays a local action owned by the host's `commands.handleSlashCommand`
+		// (see submitChatSession). Hosts that mount the inspector call `openTasks` from
+		// that callback; the host must not intercept it ahead of the owner.
+		this.state = new ChatSessionHostState(opts, {
+			renderEntry: (state, entry) => renderChatSessionEntry(state, entry),
+			transcriptCacheKey: (state, entry, index) => transcriptCacheKey(state, entry, index),
+		});
 		this.state.editor = createChatSessionEditor(
 			this.state,
 			opts.tui,
