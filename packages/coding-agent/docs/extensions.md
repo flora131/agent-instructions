@@ -29,7 +29,7 @@ Extensions are TypeScript modules that extend Atomic's behavior. They can subscr
 
 See [examples/extensions/](https://github.com/bastani-inc/atomic/tree/main/packages/coding-agent/examples/extensions) for working implementations.
 
-Atomic also ships an environment-gated [Herdr reporter](/herdr). It combines settled agent activity, extension prompt events, and observed workflow roots under one parent pane owner. It defers to loaded community or legacy reporters and can be disabled with `herdr.enabled` in settings.
+Atomic also ships an environment-gated [Herdr reporter](/herdr). It combines settled agent activity, extension prompt events, and observed workflow roots under one parent pane owner. It defers to loaded community or legacy reporters and can be disabled with `herdr.enabled` in settings. The tested Herdr release and observed CLI behaviour are listed under [Compatibility](/herdr#compatibility).
 
 ## Table of Contents
 
@@ -1046,7 +1046,8 @@ The projection module's `workflowActivityNodeKey(runId, nodeId)` helper builds `
 
 The projector and its ownership-key helper are internal to the workflows package, not exports of the supported `@bastani/atomic/workflows` SDK. Extension consumers use `ctx.observeWorkflowActivity` rather than importing the projector.
 
-The workflows extension registers a publisher on activation and publishes this activity stream for its owning session: root snapshots and changes, plus `workflow_lifecycle`, `workflow_stage_completed`, and `workflow_heartbeat` hooks (the runtime state table is in [`workflows/operations.md`](/workflows/operations#workflow-activity-for-extensions)). It does not change chat notifications, and no built-in Herdr reporter is enabled yet.
+The workflows extension registers a publisher on activation and publishes this activity stream for its owning session: root snapshots and changes, plus `workflow_lifecycle`, `workflow_stage_completed`, and `workflow_heartbeat` hooks (the runtime state table is in [`workflows/operations.md`](/workflows/operations#workflow-activity-for-extensions)). It does not change chat notifications. The built-in [Herdr reporter](/herdr) consumes this stream to reflect workflow execution and human-input waits in the owning pane.
+
 
 | Hook | Payload and semantics |
 | --- | --- |
