@@ -1,5 +1,5 @@
 import { matchesKey } from "@earendil-works/pi-tui";
-import type { KeybindingsManager } from "../../../core/keybindings.js";
+import type { KeybindingsManager } from "../../../core/keybindings.ts";
 import type { PromptRoute, TaskId, TaskRecord } from "../../../core/tasks/contracts.js";
 import type { TaskDetailAction } from "./task-detail.js";
 

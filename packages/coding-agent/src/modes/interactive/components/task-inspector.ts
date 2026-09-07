@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { type Component, getKeybindings, Input, matchesKey, Text, truncateToWidth } from "@earendil-works/pi-tui";
-import type { KeybindingsManager } from "../../../core/keybindings.js";
+import type { KeybindingsManager } from "../../../core/keybindings.ts";
 import type { OperationId, PromptRoute, TaskId } from "../../../core/tasks/contracts.js";
 import type { OwnerTaskStore } from "../../../core/tasks/owner-store.js";
 import { taskTranscriptSource } from "../../../core/tasks/supervisor.js";
 import { readTaskTranscript } from "../../../core/tasks/transcript.js";
-import { chatEntriesFromAgentMessages, renderChatMessageEntry } from "./chat-message-renderer.js";
+import { chatEntriesFromAgentMessages, renderChatMessageEntry } from "./chat-message-renderer.ts";
 import { TaskDetail, taskDetailActions } from "./task-detail.js";
 import { taskListSections } from "./task-list.js";
 import { TaskNavigation } from "./task-navigation.js";
