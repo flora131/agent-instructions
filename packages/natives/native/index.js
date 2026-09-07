@@ -700,19 +700,34 @@ if (!nativeBinding) {
 }
 
 module.exports = nativeBinding
+module.exports.HostSession = nativeBinding.HostSession
+module.exports.OwnerLease = nativeBinding.OwnerLease
 module.exports.PtySession = nativeBinding.PtySession
 module.exports.RetainedPostgres = nativeBinding.RetainedPostgres
+module.exports.RunnerLease = nativeBinding.RunnerLease
+module.exports.StdinLease = nativeBinding.StdinLease
 module.exports.SubagentControl = nativeBinding.SubagentControl
 module.exports.NapiSubagentControl = nativeBinding.NapiSubagentControl
+module.exports.SubscriptionLease = nativeBinding.SubscriptionLease
+module.exports.TaskLease = nativeBinding.TaskLease
+module.exports.TaskSupervisor = nativeBinding.TaskSupervisor
+module.exports.NapiTaskSupervisor = nativeBinding.NapiTaskSupervisor
+module.exports.WaitLease = nativeBinding.WaitLease
 module.exports.AdmissionRefusalKind = nativeBinding.AdmissionRefusalKind
 module.exports.AgentStatus = nativeBinding.AgentStatus
+module.exports.AgentTaskKind = nativeBinding.AgentTaskKind
 module.exports.blockRangeAt = nativeBinding.blockRangeAt
+module.exports.CancelCause = nativeBinding.CancelCause
+module.exports.CommandOutputSink = nativeBinding.CommandOutputSink
+module.exports.CommandTaskKind = nativeBinding.CommandTaskKind
 module.exports.FileType = nativeBinding.FileType
 module.exports.glob = nativeBinding.glob
 module.exports.grep = nativeBinding.grep
 module.exports.GrepOutputMode = nativeBinding.GrepOutputMode
 module.exports.hasMatch = nativeBinding.hasMatch
 module.exports.invalidateFsScanCache = nativeBinding.invalidateFsScanCache
+module.exports.OwnerCloseCause = nativeBinding.OwnerCloseCause
 module.exports.search = nativeBinding.search
 module.exports.spawnRetainedPostgres = nativeBinding.spawnRetainedPostgres
 module.exports.TerminationCause = nativeBinding.TerminationCause
+module.exports.YieldReason = nativeBinding.YieldReason

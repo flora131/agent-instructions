@@ -1,4 +1,6 @@
 import { markLifecycleTiming } from "../../core/lifecycle-timings.ts";
+import type { TaskId } from "../../core/tasks/contracts.js";
+import { getOwnerTaskStore } from "../../core/tasks/owner-store.js";
 import { yieldToEventLoop } from "../../utils/event-loop.ts";
 import {
 	interactiveEngineNeedsExplicitTermination,
@@ -11,6 +13,7 @@ import {
 	remoteProxyHandlesCtrlC,
 } from "../interactive-engine/remote-input-ownership.ts";
 import { StartupIdentityComponent } from "./components/startup-identity.ts";
+import { TaskInspector } from "./components/task-inspector.js";
 import { COMPACTION_ALREADY_IN_PROGRESS_WARNING } from "./interactive-bash-compact.ts";
 import { routeGlobalClearInput } from "./interactive-global-clear.ts";
 import { isPhysicalCtrlC, isPhysicalEscape, isSafetyKeyRelease } from "./interactive-key-identity.ts";
@@ -275,6 +278,21 @@ InteractiveModeBase.prototype.setupEditorSubmitHandler = function (this: Interac
 		}
 		try {
 			// Handle commands
+			if (text === "/tasks" || text.startsWith("/tasks ")) {
+				if (!getOwnerTaskStore(this.session)) this.session.getAgentTaskHost();
+				const store = getOwnerTaskStore(this.session);
+				this.editor.setText("");
+				if (!store) {
+					this.showStatus("Launched agents and shells will appear here.");
+					return;
+				}
+				this.showSelector((done) => {
+					const inspector = new TaskInspector(store, () => this.ui.requestRender(), done);
+					inspector.open((text.slice(6).trim() || undefined) as TaskId | undefined);
+					return { component: inspector, focus: inspector, dispose: () => inspector.dispose() };
+				});
+				return;
+			}
 			if (text === "/settings") {
 				this.showSettingsSelector();
 				this.editor.setText("");

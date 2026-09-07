@@ -476,7 +476,7 @@ function dedupeRenderedSearchOutput(content: string): string {
 }
 function formatSearchCall(
 	args: { pattern: string; path?: string; paths?: string | string[]; glob?: string; limit?: number } | undefined,
-	theme: typeof import("../../modes/interactive/theme/theme.ts").theme,
+	theme: typeof import("../../modes/interactive/theme/theme.js").theme,
 ): string {
 	const pattern = str(args?.pattern);
 	const rawPaths = Array.isArray(args?.paths) ? args.paths.join(", ") : args?.paths;

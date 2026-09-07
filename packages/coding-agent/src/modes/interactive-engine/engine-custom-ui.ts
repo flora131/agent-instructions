@@ -10,8 +10,8 @@ import {
 import { getAgentDir } from "../../config.js";
 import { runCallback } from "../../core/callback-activity.ts";
 import type { KeybindingsManager } from "../../core/keybindings.ts";
-import type { Theme } from "../interactive/theme/theme.ts";
-import { theme } from "../interactive/theme/theme.ts";
+import type { Theme } from "../interactive/theme/theme.js";
+import { theme } from "../interactive/theme/theme.js";
 import {
 	type EngineTerminalControl,
 	type InteractiveEngineMessage,

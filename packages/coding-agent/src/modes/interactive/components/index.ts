@@ -45,7 +45,7 @@ export { ExtensionSelectorComponent } from "./extension-selector.ts";
 export { FirstTimeSetupComponent, type FirstTimeSetupOptions, type FirstTimeSetupResult } from "./first-time-setup.ts";
 export { FooterComponent, UsageMeterComponent } from "./footer.ts";
 export { IdleStatus } from "./idle-status.ts";
-export { keyHint, keyHintIfBound, keyText, rawKeyHint } from "./keybinding-hints.ts";
+export { keyHint, keyHintIfBound, keyText, rawKeyHint } from "./keybinding-hints.js";
 export { LoginDialogComponent } from "./login-dialog.ts";
 export { ModelSelectorComponent } from "./model-selector.ts";
 export { OAuthSelectorComponent } from "./oauth-selector.ts";

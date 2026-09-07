@@ -178,6 +178,7 @@ export interface ModelAttempt {
 export type SubagentAttemptStatus = "ok" | "error" | "skipped" | "interrupted" | "continued";
 
 export interface SingleResult {
+	taskResponse?: import("../../../coding-agent/src/core/tasks/contracts.js").ModelSingleResponse;
 	agent: string;
 	task: string;
 	/** Typed terminal outcome; this is the only result discriminator. */
@@ -213,6 +214,9 @@ export interface SingleResult {
 }
 
 export interface Details {
+	taskResponse?:
+		| import("../../../coding-agent/src/core/tasks/contracts.js").ModelSingleResponse
+		| import("../../../coding-agent/src/core/tasks/contracts.js").ModelParallelResponse;
 	mode: SubagentRunMode | "management";
 	runId?: string;
 	context?: "fresh" | "fork";

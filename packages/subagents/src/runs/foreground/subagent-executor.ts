@@ -20,7 +20,7 @@ import {
 
 const MUTATING_MANAGEMENT_ACTIONS = new Set(["create", "update", "delete"]);
 /** Observing management actions do not start or mutate child execution. */
-const READ_ONLY_MANAGEMENT_ACTIONS = new Set(["list", "get", "status"]);
+const READ_ONLY_MANAGEMENT_ACTIONS = new Set(["list", "get", "status", "wait"]);
 const FANOUT_REFUSAL_MESSAGE = "Subagent fanout is not authorized for this child.";
 
 export type { SubagentExecutorRuntimeDeps, SubagentParamsLike } from "./subagent-executor-types.js";
@@ -68,6 +68,17 @@ async function handleManagementRequest(input: {
 	if (!READ_ONLY_MANAGEMENT_ACTIONS.has(action)) {
 		const childRefusal = refuseSubagentChildDelegation(ctx, "management");
 		if (childRefusal) return childRefusal;
+	}
+	if (action === "wait") {
+		const observed =
+			ctx.getAgentTaskHost && params.id !== undefined
+				? await ctx.getAgentTaskHost().waitForTask(params.id as import("@bastani/atomic").TaskId, params.budgetMs)
+				: { ok: false as const, error: { code: "UnknownTask", message: "Task not found in this owner" } };
+		return {
+			content: [{ type: "text", text: JSON.stringify(observed.ok ? observed.value : observed.error) }],
+			details: { mode: "management", results: [] },
+			...(!observed.ok ? { isError: true } : {}),
+		};
 	}
 	if (action === "status") {
 		const targetRunId = paramsWithResolvedCwd.id ?? paramsWithResolvedCwd.runId;

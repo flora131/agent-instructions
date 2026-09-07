@@ -2,9 +2,26 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added an environment-local `TaskSupervisor` actor with owner-sealed admission, stable task/attempt identities, replay-safe reports, observation waits, cancellation and independently acknowledged cleanup. Generated bindings expose atomic snapshot subscriptions with a byte-bounded event journal; total task/report history and output storage are not bounded by this journal ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Added supervised Unix pipe/PTY commands with process-group cleanup, observation-independent execution deadlines, replay-safe byte-credit stdin, resize and retained output paging. Drained output stays live beyond its cap; background file-spool overflow settles `OutputLimitExceeded` ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Added Windows pipe task containment with suspended launch, explicit inherited handles and kill-on-close Job Objects. Assignment failure refuses execution and confirms suspended-process cleanup; failed cleanup retains diagnostic resources. Supervised Windows PTY remains unavailable ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+
 ### Changed
 
 - Raised the minimum supported Bun runtime to 1.4.2.
+
+### Fixed
+
+- Enforced the task file cap through shared supervised pipe draining on Unix and Windows, preventing stdout/stderr and descendant writes from bypassing the budget. Output page requests are clamped to 1 MiB before allocation ([#2905](https://github.com/bastani-inc/atomic/pull/2905)).
+- Preserved numeric task wait budgets above the u32 range and fractional milliseconds; timer scheduling no longer wraps `4294967296` ms into an immediate yield ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Preserved completed/failed task exit-code numbers without i32 narrowing, including unsigned statuses, fractional values and negative zero; exact terminal replay no longer collapses distinct numeric inputs ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Preserved exact activity metric replay for `elapsedMs`, `toolCount` and `tokenCount`: identical NaN reports acknowledge once, while changed signed zero or omitted/present fields conflict without normalizing values ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Preserved S1 caller strings losslessly across owner scopes, launch/report identity, activity, results and nested output/cleanup metadata; unpaired UTF-16 surrogates no longer become replacement characters or collapse distinct replays ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Bounded S1 activity replay identity to the latest 256 accepted IDs with SHA-256 payload hashes instead of retaining full report history. Evicted IDs are fresh reports subject to lifecycle guards; terminal reports and receipts remain retained for the task record's lifetime ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Allocated trusted S1 runner terminal identities atomically against the bounded activity window, so caller report IDs cannot consume the runner's settlement identity. Caller outcome conflicts, immutable terminal replay and cancellation precedence remain unchanged ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Prevented accepted `NaN` task wait budgets from panicking the native timer. Such waits use bounded sleep chunks until another observation or lifecycle action finishes them; finite budgets and infinities retain their existing behavior ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 
 ## [0.9.16] - 2026-08-29
 

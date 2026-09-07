@@ -1,4 +1,4 @@
-import type { Theme } from "../modes/interactive/theme/theme.ts";
+import type { Theme } from "../modes/interactive/theme/theme.js";
 import type { ResourceDiagnostic } from "./diagnostics.ts";
 import type { EventBus } from "./event-bus.ts";
 import type { WorkflowResourceProvider } from "./extensions/loader.ts";

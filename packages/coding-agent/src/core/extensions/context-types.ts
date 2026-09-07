@@ -166,6 +166,8 @@ export type ExtensionMode = "tui" | "rpc" | "json" | "print";
 export interface ExtensionContext {
 	/** Observe the owning session's workflow activity, starting with an ordered snapshot. */
 	observeWorkflowActivity(observer: WorkflowActivityObserver): WorkflowActivitySubscription;
+	/** Internal actual-session binding; never populated from model arguments. */
+	getAgentTaskHost?(): import("../tasks/agent-adapter.js").AgentTaskHost;
 	/** Session-scoped orchestration policy for child runtimes such as workflow stages. */
 	readonly orchestrationContext?: OrchestrationContext;
 	/** Typed capability policy for an in-process subagent child, when this session is one. */
