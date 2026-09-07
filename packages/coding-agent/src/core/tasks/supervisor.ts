@@ -1,8 +1,11 @@
 import { AsyncResource } from "node:async_hooks";
 import type * as native from "@bastani/atomic-natives";
 import { createModuleRequire } from "../../utils/module-require.ts";
+import type { SessionManager } from "../session-manager.ts";
 import { COMMAND_FOREGROUND_BUDGET_MS } from "./command-output.js";
 import type * as C from "./contracts.js";
+
+export type TaskTranscriptSource = Pick<SessionManager, "getSessionId" | "getEntries">;
 
 export const DEFAULT_AGENT_WAIT_BUDGET_MS = 30000;
 /** These objects are live authority, not DTOs, restart tokens or model arguments. */
@@ -41,6 +44,8 @@ export type FakeRunnerContext = {
 	ref: C.NativeTaskRef;
 	signal: AbortSignal;
 	reportActivity(report: C.ActivityReport): C.Result<C.ReportReceipt, C.ReportError>;
+	/** Bind existing child history while holding the admitted runner authority. */
+	bindTranscript(session: TaskTranscriptSource): void;
 };
 /** Independent cleanup evidence: an outcome alone never proves resource release. */
 export type FakeExecution = { result: Promise<C.TaskResult>; cleanup: Promise<C.Cleanup> };
@@ -68,6 +73,7 @@ type TaskState = {
 	controller: AbortController;
 	kind?: "command";
 	execution?: Promise<C.Result<C.Cleanup, C.ReportError>>;
+	transcript?: TaskTranscriptSource;
 };
 type WaitState = { native: native.WaitLease; outcome: Promise<C.Result<C.WaitOutcome, C.WaitError>> };
 
@@ -81,6 +87,17 @@ const environment = {
 	waitRegistry: new Map<C.WaitId, WaitLease>(),
 	ownerIds: new Map<C.OwnerId, OwnerLease>(),
 };
+
+/** Reads only history bound by the admitted runner, never a caller-selected session. */
+export function taskTranscriptSource(
+	task: TaskLease,
+): C.Result<{ session: TaskTranscriptSource; taskId: C.TaskId }, C.Failure<"UnknownTask" | "TranscriptUnavailable">> {
+	const state = environment.tasks.get(task);
+	if (!state) return { ok: false, error: { code: "UnknownTask", message: "Unknown task" } };
+	if (!state.transcript)
+		return { ok: false, error: { code: "TranscriptUnavailable", message: "Transcript unavailable" } };
+	return { ok: true, value: { session: state.transcript, taskId: state.ref.taskId } };
+}
 
 /** Promise rejections, setup throws and consumer exceptions may be arbitrary JavaScript values. */
 function rejectionMessage<T>(reason: T): string {
@@ -663,6 +680,9 @@ export class TaskSupervisor {
 					{
 						ref: reference(taskState.ref),
 						signal: taskState.controller.signal,
+						bindTranscript: (session) => {
+							taskState.transcript = session;
+						},
 						reportActivity: (report) =>
 							mapped(this.#native.reportTaskActivity(runner.value, report), reportReceipt, reportErrors),
 					},
