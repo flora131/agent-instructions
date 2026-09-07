@@ -1,7 +1,7 @@
 import { type Component, Text } from "@earendil-works/pi-tui";
 import type { Attention, Execution, TaskRecord } from "../../../core/tasks/contracts.js";
-import { theme } from "../theme/theme.ts";
-import { keyHintIfBound } from "./keybinding-hints.ts";
+import { theme } from "../theme/theme.js";
+import { keyHintIfBound } from "./keybinding-hints.js";
 
 export type TaskDetailAction = "transcript" | "foreground" | "cancel" | "input" | "question";
 
