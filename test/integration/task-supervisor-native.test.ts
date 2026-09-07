@@ -782,3 +782,15 @@ test("Node and Bun contain callback failures through real wake and timer paths",
 		);
 	}
 });
+
+// RFC #2884: lossless raw strings and exact replay survive both public native hosts.
+test("Node and Bun preserve UTF-16 code units across S1 records and replay", () => {
+	for (const runtime of [process.execPath, bunExecutable()]) {
+		const result = spawnSyncCollect([runtime, "--import", "jiti/register", "test/fixtures/task-s1-utf16.ts"]);
+		assert.equal(result.exitCode, 0, `${runtime}\n${result.stdout}\n${result.stderr}`);
+		assert.match(
+			result.stdout.toString(),
+			/UTF16 PRESERVED 9 strings 45 variant reports 387 conflicts 27 facade launches/,
+		);
+	}
+});

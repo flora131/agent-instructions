@@ -4,8 +4,10 @@ const JOURNAL_BYTES: usize = 64 * 1024;
 #[napi(object)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Cursor {
-	pub generation: String,
-	pub sequence: String,
+	#[napi(ts_type = "string")]
+	pub generation: JsString,
+	#[napi(ts_type = "string")]
+	pub sequence: JsString,
 }
 #[napi(discriminant = "kind", discriminant_case = "kebab-case")]
 #[derive(Clone, Debug, PartialEq)]
@@ -86,8 +88,8 @@ pub(super) struct Subscription {
 impl State {
 	pub fn cursor(&self, oi: usize) -> Cursor {
 		Cursor {
-			generation: self.owners[oi].cap.generation.to_string(),
-			sequence: self.sequence.to_string(),
+			generation: self.owners[oi].cap.generation.to_string().into(),
+			sequence: self.sequence.to_string().into(),
 		}
 	}
 	pub fn emit(&mut self, oi: usize, task_id: Option<String>, payload: TaskEvent) -> Cursor {
@@ -127,13 +129,12 @@ impl Actor {
 			return Err(fail("OwnerClosed"));
 		}
 		if let Some(cursor) = cursor {
-			if cursor.generation != owner.cap.generation.to_string() {
+			if !cursor.generation.equals_str(&owner.cap.generation.to_string()) {
 				return Err(fail("StaleGeneration"));
 			}
 			cursor
 				.sequence
-				.parse::<u64>()
-				.ok()
+				.parse_u64()
 				.filter(|n| *n <= s.sequence)
 				.ok_or_else(|| fail("StaleGeneration"))?;
 		}

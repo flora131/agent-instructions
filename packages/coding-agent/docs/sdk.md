@@ -94,8 +94,14 @@ fallback poll, stopped on disposal or observed closure.
 The native byte journal and facade delivery backlog are bounded; total task and exact
 report-replay history are not. This remains an unresolved S1 storage-contract limit.
 
-Raw text, absent optional fields, known zero metrics and ordered duplicate data
-remain distinct. The optional `elapsedMs`, `toolCount` and `tokenCount` metrics and
+Caller-provided strings retain their exact JavaScript UTF-16 code units, including
+isolated surrogates, valid pairs and embedded NUL, across scopes, intent, operation/report
+identity, activity, results and nested output/cleanup metadata. They remain ordinary
+`string` fields, not encoded wrappers. Replacing a surrogate with U+FFFD is a changed
+payload or identity, never an exact replay. Nonempty descriptions supply the title;
+otherwise the first nonblank task line is copied without rewriting its code units,
+falling back to the agent name. Absent optional fields, empty strings, known zero metrics
+and ordered duplicate data remain distinct. The optional `elapsedMs`, `toolCount` and `tokenCount` metrics and
 completed/failed `exitCode` preserve JavaScript numbers without narrowing or normalization,
 including fractional and extreme values. Exact report replay distinguishes omission,
 zero and negative zero; repeated NaN and infinite values acknowledge once. Changed

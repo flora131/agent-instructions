@@ -16,12 +16,14 @@ use std::{
 };
 mod events;
 mod owner;
+mod strings;
 mod task;
 #[cfg(test)]
 mod tests;
 mod waits;
 pub use events::*;
 pub use owner::*;
+use strings::JsString;
 pub use task::*;
 pub use waits::*;
 
@@ -224,7 +226,7 @@ impl NapiTaskSupervisor {
 		env: Env,
 		owner: &OwnerLease,
 		intent: AgentIntent,
-		operation: String,
+		#[napi(ts_arg_type = "string")] operation: JsString,
 	) -> DoorValue<TaskLease> {
 		DoorValue(
 			self.check(&env, "OwnerClosing").and_then(|()| self.actor.start(owner, intent, operation)),
@@ -244,7 +246,7 @@ impl NapiTaskSupervisor {
 		&self,
 		env: Env,
 		owner: &OwnerLease,
-		task_id: String,
+		#[napi(ts_arg_type = "string")] task_id: JsString,
 	) -> DoorValue<TaskLease> {
 		DoorValue((|| {
 			self.check(&env, "ScopeMismatch")?;
@@ -253,7 +255,7 @@ impl NapiTaskSupervisor {
 			s.owners[oi]
 				.tasks
 				.iter()
-				.find(|t| t.record.reference.task_id == task_id)
+				.find(|t| task_id.equals_str(&t.record.reference.task_id))
 				.map(|t| TaskLease { cap: t.cap.clone() })
 				.ok_or_else(|| fail("UnknownTask"))
 		})())

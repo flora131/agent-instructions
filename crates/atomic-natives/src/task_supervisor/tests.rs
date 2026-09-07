@@ -133,10 +133,10 @@ fn snapshot_journal_gap_and_decimal_u64() {
 	assert!(!events.reset);
 	assert!(!events.events.is_empty());
 	assert!(
-		events.events[0].cursor.sequence.parse::<u64>().unwrap()
-			> snapshot.cursor.sequence.parse::<u64>().unwrap()
+		events.events[0].cursor.sequence.parse_u64().unwrap()
+			> snapshot.cursor.sequence.parse_u64().unwrap()
 	);
-	assert!(events.events[0].cursor.sequence.parse::<u64>().unwrap() > 9_007_199_254_740_991);
+	assert!(events.events[0].cursor.sequence.parse_u64().unwrap() > 9_007_199_254_740_991);
 	let old = snapshot.cursor;
 	for _ in 0..600 {
 		let w = a.wait(&t, None, false).unwrap();
@@ -411,7 +411,7 @@ fn oversized_final_event_recovers_through_polled_drain_snapshot() {
 		report_id: "oversized-final".into(),
 		result: TaskResult::Failed {
 			code: "fake".into(),
-			message: "raw final ".repeat(10_000),
+			message: "raw final ".repeat(10_000).into(),
 			output: None,
 			exit_code: None,
 		},
@@ -455,10 +455,10 @@ fn raw_output_activity_and_replay_survive_bounded_journal_eviction() {
 		a.activity(
 			&r,
 			ActivityReport {
-				report_id: index.to_string(),
+				report_id: index.to_string().into(),
 				change: ActivityChange::Output {
-					offset: index.to_string(),
-					bytes_base64: "AAAA".repeat(1024),
+					offset: index.to_string().into(),
+					bytes_base64: "AAAA".repeat(1024).into(),
 				},
 			},
 		)
@@ -541,7 +541,7 @@ fn exact_metric_report_replay_and_snapshots() {
 			for token_count in values {
 				let fields = [elapsed_ms, tool_count, token_count];
 				let report = ActivityReport {
-					report_id: format!(" metric {index} \n"),
+					report_id: format!(" metric {index} \n").into(),
 					change: ActivityChange::Metrics { elapsed_ms, tool_count, token_count },
 				};
 				index += 1;

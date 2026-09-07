@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import type * as Native from "@bastani/atomic-natives";
 import { test } from "vitest";
 import type * as C from "../../packages/coding-agent/src/core/tasks/contracts.js";
 import type {
@@ -160,4 +161,34 @@ test("watch door and subscription fields assign to the exact RFC consumer shape"
 	const watch: (owner: S.OwnerLease, cursor?: C.Cursor) => C.Result<Subscription, C.WatchError> =
 		supervisor.watchOwnerTasks;
 	assert.equal(watch, supervisor.watchOwnerTasks);
+});
+
+// RFC #2884: native storage representation must not leak into generated/public string types.
+test("UTF-16 inputs remain ordinary strings in facade and generated contracts", () => {
+	const raw = "\ud800\0\udfff😀";
+	const intent: AgentIntent = { kind: "agent", agent: raw, task: raw, description: "", cwd: raw };
+	const nativeIntent: Native.AgentIntent = intent;
+	const report: ActivityReport = { reportId: raw, change: { kind: "action", tool: raw, text: raw } };
+	const nativeReport: Native.ActivityReport = report;
+	const nativeResult: Native.TaskResult = { kind: "failed", code: raw, message: raw };
+	const message: string = nativeResult.message;
+	const task: string = nativeIntent.task;
+	const rejectRepresentations = () => {
+		// @ts-expect-error Caller strings are not code-unit arrays.
+		const facadeArray: AgentIntent = { ...intent, task: [0xd800] };
+		// @ts-expect-error Generated fields must remain string, not the native owned vector.
+		const nativeArray: Native.AgentIntent = { ...nativeIntent, task: [0xd800] };
+		// @ts-expect-error Encoded/proxy objects cannot replace the facade string contract.
+		const facadeProxy: AgentIntent = { ...intent, task: { utf16: [0xd800], toString: () => raw } };
+		const nativeProxy: Native.ActivityReport = {
+			...nativeReport,
+			// @ts-expect-error Generated report strings cannot become encoded/proxy objects either.
+			reportId: { utf16: [0xd800], toString: () => raw },
+		};
+		return [facadeArray, nativeArray, facadeProxy, nativeProxy];
+	};
+	assert.equal(typeof rejectRepresentations, "function");
+	assert.equal(task, raw);
+	assert.equal(message, raw);
+	assert.equal(nativeReport.reportId, raw);
 });

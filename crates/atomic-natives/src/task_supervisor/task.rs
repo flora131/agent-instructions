@@ -6,15 +6,21 @@ pub enum AgentTaskKind {
 	Agent,
 }
 
+/// Caller-provided strings retain their exact JavaScript UTF-16 code units.
 #[napi(object)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AgentIntent {
 	pub kind: AgentTaskKind,
-	pub agent: String,
-	pub task: String,
-	pub description: Option<String>,
-	pub cwd: Option<String>,
-	pub parent_task_id: Option<String>,
+	#[napi(ts_type = "string")]
+	pub agent: JsString,
+	#[napi(ts_type = "string")]
+	pub task: JsString,
+	#[napi(ts_type = "string")]
+	pub description: Option<JsString>,
+	#[napi(ts_type = "string")]
+	pub cwd: Option<JsString>,
+	#[napi(ts_type = "string")]
+	pub parent_task_id: Option<JsString>,
 }
 #[napi(string_enum = "kebab-case")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -58,16 +64,22 @@ pub struct NativeTaskRef {
 #[napi(object)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OmittedRange {
-	pub start: String,
-	pub end: String,
+	#[napi(ts_type = "string")]
+	pub start: JsString,
+	#[napi(ts_type = "string")]
+	pub end: JsString,
 }
 #[napi(object)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OutputRef {
-	pub owner_id: String,
-	pub task_id: String,
-	pub artifact_id: String,
-	pub byte_count: String,
+	#[napi(ts_type = "string")]
+	pub owner_id: JsString,
+	#[napi(ts_type = "string")]
+	pub task_id: JsString,
+	#[napi(ts_type = "string")]
+	pub artifact_id: JsString,
+	#[napi(ts_type = "string")]
+	pub byte_count: JsString,
 	pub omitted_ranges: Vec<OmittedRange>,
 }
 // Report numbers retain their representation: omitted differs from zero, -0 from +0,
@@ -79,9 +91,22 @@ fn same_number(left: Option<f64>, right: Option<f64>) -> bool {
 #[napi(discriminant = "kind", discriminant_case = "kebab-case")]
 #[derive(Clone, Debug)]
 pub enum TaskResult {
-	Completed { output: OutputRef, exit_code: Option<f64> },
-	Failed { code: String, message: String, output: Option<OutputRef>, exit_code: Option<f64> },
-	Cancelled { cause: CancelCause, output: Option<OutputRef> },
+	Completed {
+		output: OutputRef,
+		exit_code: Option<f64>,
+	},
+	Failed {
+		#[napi(ts_type = "string")]
+		code: JsString,
+		#[napi(ts_type = "string")]
+		message: JsString,
+		output: Option<OutputRef>,
+		exit_code: Option<f64>,
+	},
+	Cancelled {
+		cause: CancelCause,
+		output: Option<OutputRef>,
+	},
 }
 // Exact replay compares the retained numeric representation: -0 is not 0 and NaN replays.
 impl PartialEq for TaskResult {
@@ -133,9 +158,12 @@ pub enum Execution {
 #[napi(object)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ResourceFailure {
-	pub resource: String,
-	pub code: String,
-	pub message: String,
+	#[napi(ts_type = "string")]
+	pub resource: JsString,
+	#[napi(ts_type = "string")]
+	pub code: JsString,
+	#[napi(ts_type = "string")]
+	pub message: JsString,
 }
 #[napi(discriminant = "kind", discriminant_case = "kebab-case")]
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -148,16 +176,28 @@ pub enum Cleanup {
 #[napi(object)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PromptRoute {
-	pub session_id: String,
-	pub prompt_id: String,
-	pub stage_attempt_id: Option<String>,
+	#[napi(ts_type = "string")]
+	pub session_id: JsString,
+	#[napi(ts_type = "string")]
+	pub prompt_id: JsString,
+	#[napi(ts_type = "string")]
+	pub stage_attempt_id: Option<JsString>,
 }
 #[napi(discriminant = "kind", discriminant_case = "kebab-case")]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Attention {
 	None {},
-	InputNeeded { request_id: String, prompt: String, route: PromptRoute },
-	NoRecentActivity { last_activity_at: Option<String> },
+	InputNeeded {
+		#[napi(ts_type = "string")]
+		request_id: JsString,
+		#[napi(ts_type = "string")]
+		prompt: JsString,
+		route: PromptRoute,
+	},
+	NoRecentActivity {
+		#[napi(ts_type = "string")]
+		last_activity_at: Option<JsString>,
+	},
 }
 #[napi(discriminant = "kind", discriminant_case = "kebab-case")]
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -169,8 +209,10 @@ pub enum HostObservation {
 #[napi(object)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CurrentAction {
-	pub tool: String,
-	pub text: String,
+	#[napi(ts_type = "string")]
+	pub tool: JsString,
+	#[napi(ts_type = "string")]
+	pub text: JsString,
 }
 /// Optional metrics preserve exact JavaScript numbers, including NaN and signed zero.
 #[napi(object)]
@@ -193,13 +235,17 @@ impl Eq for TaskMetrics {}
 pub struct TaskRecord {
 	#[napi(js_name = "ref")]
 	pub reference: NativeTaskRef,
-	pub launch_operation_id: String,
-	pub parent_task_id: Option<String>,
+	#[napi(ts_type = "string")]
+	pub launch_operation_id: JsString,
+	#[napi(ts_type = "string")]
+	pub parent_task_id: Option<JsString>,
 	pub launch_group_id: Option<String>,
 	pub launch_ordinal: u32,
 	pub kind: String,
-	pub title: String,
-	pub agent_name: Option<String>,
+	#[napi(ts_type = "string")]
+	pub title: JsString,
+	#[napi(ts_type = "string")]
+	pub agent_name: Option<JsString>,
 	pub execution: Execution,
 	pub observation: HostObservation,
 	pub attention: Attention,
@@ -211,11 +257,30 @@ pub struct TaskRecord {
 #[napi(discriminant = "kind", discriminant_case = "kebab-case")]
 #[derive(Clone, Debug)]
 pub enum ActivityChange {
-	Action { tool: String, text: String },
-	Metrics { elapsed_ms: Option<f64>, tool_count: Option<f64>, token_count: Option<f64> },
-	Output { offset: String, bytes_base64: String },
-	AttentionSet { attention: Attention },
-	AttentionClear { request_id: String },
+	Action {
+		#[napi(ts_type = "string")]
+		tool: JsString,
+		#[napi(ts_type = "string")]
+		text: JsString,
+	},
+	Metrics {
+		elapsed_ms: Option<f64>,
+		tool_count: Option<f64>,
+		token_count: Option<f64>,
+	},
+	Output {
+		#[napi(ts_type = "string")]
+		offset: JsString,
+		#[napi(ts_type = "string")]
+		bytes_base64: JsString,
+	},
+	AttentionSet {
+		attention: Attention,
+	},
+	AttentionClear {
+		#[napi(ts_type = "string")]
+		request_id: JsString,
+	},
 }
 impl PartialEq for ActivityChange {
 	fn eq(&self, other: &Self) -> bool {
@@ -253,19 +318,22 @@ impl Eq for ActivityChange {}
 #[napi(object)]
 #[derive(Clone, Debug, PartialEq)]
 pub struct ActivityReport {
-	pub report_id: String,
+	#[napi(ts_type = "string")]
+	pub report_id: JsString,
 	pub change: ActivityChange,
 }
 #[napi(object)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OutcomeReport {
-	pub report_id: String,
+	#[napi(ts_type = "string")]
+	pub report_id: JsString,
 	pub result: TaskResult,
 }
 #[napi(object)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReportReceipt {
-	pub report_id: String,
+	#[napi(ts_type = "string")]
+	pub report_id: JsString,
 	pub cursor: Cursor,
 	pub disposition: String,
 }
@@ -291,7 +359,7 @@ pub(super) struct Task {
 	pub intent: AgentIntent,
 	pub record: TaskRecord,
 	pub claimed: bool,
-	pub activities: BTreeMap<String, (ActivityReport, ReportReceipt)>,
+	pub activities: BTreeMap<JsString, (ActivityReport, ReportReceipt)>,
 	pub terminal: Option<(OutcomeReport, SettlementReceipt)>,
 	pub cancel_cause: Option<CancelCause>,
 	// Rejected late outcomes supply output evidence, never terminal authority.
@@ -326,7 +394,7 @@ impl Actor {
 		&self,
 		owner: &OwnerLease,
 		intent: AgentIntent,
-		operation: String,
+		operation: JsString,
 	) -> Door<TaskLease> {
 		let mut s = self.state.lock().unwrap();
 		let oi = s.owner(self.id, &owner.cap, "OwnerClosing")?;
@@ -343,7 +411,7 @@ impl Actor {
 		}
 		if let Some(parent) = &intent.parent_task_id
 			&& !s.owners[oi].tasks.iter().any(|t| {
-				t.record.reference.task_id == *parent
+				parent.equals_str(&t.record.reference.task_id)
 					&& matches!(t.record.execution, Execution::Running {} | Execution::Queued {})
 			}) {
 			return Err(fail("OwnerClosing"));
@@ -352,15 +420,15 @@ impl Actor {
 		let cap = Cap { task: Some(ordinal as usize), attempt: 1, ..owner.cap.clone() };
 		let reference = cap.reference();
 		let output = OutputRef {
-			owner_id: reference.owner_id.clone(),
-			task_id: reference.task_id.clone(),
-			artifact_id: format!("output-{}", reference.task_id),
+			owner_id: reference.owner_id.clone().into(),
+			task_id: reference.task_id.clone().into(),
+			artifact_id: format!("output-{}", reference.task_id).into(),
 			byte_count: "0".into(),
 			omitted_ranges: vec![],
 		};
 		let title =
 			intent.description.as_ref().filter(|d| !d.is_empty()).cloned().unwrap_or_else(|| {
-				intent.task.lines().find(|l| !l.trim().is_empty()).unwrap_or(&intent.agent).to_owned()
+				intent.task.first_nonblank_line().unwrap_or_else(|| intent.agent.clone())
 			});
 		let record = TaskRecord {
 			reference: reference.clone(),

@@ -125,6 +125,7 @@ export type AdmissionRefusalKind =  'depthExceeded'|
 'unknownAgent'|
 'terminalChild';
 
+/** Caller-provided strings retain their exact JavaScript UTF-16 code units. */
 export interface AgentIntent {
   kind: AgentTaskKind
   agent: string

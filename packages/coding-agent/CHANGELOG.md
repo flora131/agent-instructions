@@ -19,6 +19,7 @@
 - Corrected S1 SDK waits, foregrounding and cancellation to return promised Results, restored watch cursors and opaque subscription leases, applied configured agent wait budgets, and fixed cleanup/disposal races including external owner closure of settled tasks ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Preserved S1 cancellation attention consistently with native snapshots, made subscription overflow/reset observable through iterator completion without a required callback, and safely recorded non-Error runner/setup/cleanup rejections without blocking confirmed cleanup ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Contained arbitrary S1 reconciliation callback exceptions, including unprintable values, as safe `subscription.failure` diagnostics without interrupting native wake delivery or fallback polling ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Preserved exact JavaScript strings in S1 snapshots, titles and report replay, including isolated UTF-16 surrogates and embedded NUL, without changing the SDK's ordinary string types ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

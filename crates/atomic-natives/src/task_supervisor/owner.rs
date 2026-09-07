@@ -11,8 +11,20 @@ pub enum OwnerCloseCause {
 #[napi(discriminant = "kind", discriminant_case = "kebab-case")]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum OwnerScope {
-	Session { session_id: String },
-	WorkflowStage { session_id: String, run_id: String, stage_id: String, stage_attempt_id: String },
+	Session {
+		#[napi(ts_type = "string")]
+		session_id: JsString,
+	},
+	WorkflowStage {
+		#[napi(ts_type = "string")]
+		session_id: JsString,
+		#[napi(ts_type = "string")]
+		run_id: JsString,
+		#[napi(ts_type = "string")]
+		stage_id: JsString,
+		#[napi(ts_type = "string")]
+		stage_attempt_id: JsString,
+	},
 }
 #[napi(object)]
 #[derive(Clone, Debug, PartialEq)]

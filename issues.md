@@ -1,6 +1,6 @@
 # S1 consolidated review repair (#2884)
 
-Current repair evidence: `/workspace/task-experience-evidence/s1/round3/`, `round3-repair-notes.md` and `round3-debugger-handoff.md`. Earlier rounds remain historical evidence; their regressions are retained.
+Current repair evidence: `/workspace/task-experience-evidence/s1/round4/`, `round4-repair-notes.md` and `round4-debugger-handoff.md`. Earlier rounds remain historical evidence; their regressions are retained.
 
 | Root | Status | Defect / correction |
 |---|---|---|
@@ -27,7 +27,7 @@ Round2 repeatable original reviewer probe: `node /workspace/task-experience-evid
 
 Final gate counts, generated binding status, platform limits and local commit/status are recorded in the external handoff; full S1 acceptance remains blocked only by the storage contradiction below.
 
-## Latest full review: nine exact findings, three roots
+## Previous full review: nine exact findings, three roots
 
 | Reviewer | Original title | Root / current result |
 |---|---|---|
@@ -45,6 +45,20 @@ Final gate counts, generated binding status, platform limits and local commit/st
 - **Callbacks:** `String(error)` and even `instanceof Error` could throw for arbitrary JS values, interrupting drain/poll rearming. All four diagnostic catches (callback, setup, result, cleanup) now use the existing safe rejection helper. Node/Bun each pass 45 direct/native-wake/fallback-timer cases, including hostile conversion, null-prototype and revoked Proxy values. Safe failure messages, final snapshot/reset notification without later activity, iterator resumption and stopped polling after disposal are asserted. Original callback-optional regressions remain unchanged.
 - Original `native-contract.mjs` and `callback-contract.mjs` reproduce red and pass unchanged on Node/Bun after repair. Exact commands, stacks and statuses are under `round3/`. The first callback fixture's fault listener swallowed top-level assertion exit status; this harness defect was corrected before production repair. Its empty logs are retained, not treated as success; six corrected red scenarios fail with actual stacks.
 - **Storage remains unresolved:** `round3/history-current.log` accepted 192 × 256-KiB reports, evicted every journal event, retained oldest replay after closure, and recorded RSS 54,976,512 → 122,327,040 bytes (+67,350,528). The probe's exit 0 proves the unresolved retention behavior, not compliance with the bound. No expiry/admission/fingerprint/storage policy was added. Six findings/two roots repaired; three storage findings remain required.
+
+## Latest full review: four exact findings, two roots
+
+| Reviewer | Original title | Root / current result |
+|---|---|---|
+| completion-reviewer | [P2] Resolve unbounded report retention outside the journal | Storage: unresolved |
+| evidence-reviewer | [P2] Bound retained report history outside the event journal | Storage: unresolved |
+| evidence-reviewer | [P2] Preserve permitted JavaScript strings across native conversion | UTF-16 boundary: repaired |
+| risk-reviewer | [P2] Resolve unbounded report history outside the journal | Storage: unresolved |
+
+- **UTF-16:** napi-rs `String` ingress used UTF-8 and rewrote isolated surrogates to U+FFFD before storage/equality. The unchanged reviewer probe failed on Node/Bun with rewritten activity/terminal strings and false operation/activity replay. S1 now owns original code units and delegates conversion to supported napi-rs `Utf16String`. Equality/order/hash remain exact; generated fields/arguments and the facade remain ordinary strings with unchanged shapes.
+- Audited caller-owned scopes, all intent fields, operation/report IDs, attention/routes, every report variant, output/omitted ranges, cleanup resources and task/cursor lookups. Fixed generated ASCII identities, enum labels and separately formatted diagnostics remain Rust `String`; no caller text passes through those output-only fields. Title fallback copies original line units with the existing Unicode blank-line and empty-description rules. Diagnostics escape isolated units without modifying authoritative resources.
+- Durable Node/Bun coverage: nine string cases, 45 variant reports, 387 payload conflicts and 27 real facade launches each, plus exact report-ID distinctions, nested completed/cancelled outputs, cleanup/event/snapshot round-trips and replay after closure. Rust checks all 65,536 individual code-unit identities, raw title selection and actor replay. Checked fixtures still reject arrays/encoded objects. Original reviewer UTF-16 probes pass unchanged on both runtimes (`round4/original-utf16-*`). Prior numeric, lifecycle and observer regressions are retained.
+- **Storage:** all three repeated findings remain one required contract blocker, now explicitly recorded in the goal ledger. The unchanged current Node probe (`round4/history-current`) accepted 96×512-KiB reports, observed 96 empty reset journals, and replayed the oldest after close; RSS grew 56,156,160→185,335,808 bytes (+129,179,648). Exit0 confirms the defect, not compliance. One repaired finding does not imply S1 acceptance; no retention, admission, expiry, fingerprint or storage policy was invented.
 
 ## Root 8: precise blocker, not an exemption
 
