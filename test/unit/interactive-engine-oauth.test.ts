@@ -21,6 +21,7 @@ test.sequential("real isolated child discovers and acquires engine-only custom O
 		env: { ATOMIC_CODING_AGENT_DIR: agentDir, ATOMIC_CUSTOM_OAUTH_LOG: logFile },
 		args: [
 			"--no-session",
+			"--approve", // Explicit consent for this repository's controlled fixture extension.
 			"--no-extensions",
 			"--extension",
 			join(moduleDir(import.meta.url), "fixtures", "custom-oauth-extension.ts"),
