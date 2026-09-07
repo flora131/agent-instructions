@@ -52,7 +52,7 @@ function target(
 		executableDirectory: `C:/artifacts/${build}`,
 		metadata: {
 			artifactHashes: { "app.js": appHash, "atomic.exe": `sha256:${build}` },
-			runtime: { productSha, launcherMode, bun: "1.4.0" },
+			runtime: { productSha, launcherMode, bun: "1.4.2" },
 		},
 	};
 }
@@ -101,13 +101,22 @@ test("three-arm execution order gives every build one serial slot per round", ()
 	}
 });
 
-test("three-arm identity requires origin/main plus same-SHA non-bytecode and Bun 1.4.0 bytecode", () => {
+test("three-arm identity requires origin/main plus same-SHA non-bytecode and Bun 1.4.2 bytecode", () => {
 	const targets = [
 		target("baseline", "main-sha", "non-bytecode", "sha256:baseline-app"),
 		target("candidate", "optimized-sha", "non-bytecode"),
 		target("candidate-bytecode", "optimized-sha", "bytecode"),
 	];
 	assert.doesNotThrow(() => validateComparisonIdentity(targets, "main-sha", "optimized-sha"));
+	const bytecode = target("candidate-bytecode", "optimized-sha", "bytecode");
+	const oldBytecode = {
+		...bytecode,
+		metadata: { ...bytecode.metadata, runtime: { ...bytecode.metadata.runtime, bun: "1.4.0" } },
+	};
+	assert.throws(
+		() => validateComparisonIdentity([targets[0]!, targets[1]!, oldBytecode], "main-sha", "optimized-sha"),
+		/^Error: candidate-bytecode must use Bun 1\.4\.2$/u,
+	);
 	assert.throws(
 		() => validateComparisonIdentity(targets, "wrong-main", "optimized-sha"),
 		/baseline product SHA mismatch/u,

@@ -7,7 +7,7 @@ This document covers setup, the local dev loop, testing patterns, and project la
 ## Prerequisites
 
 - **[Node.js](https://nodejs.org) ≥ 22.13** — runs installs, checks, and the vitest suites (`node:sqlite` is unflagged from 22.13)
-- **[Bun](https://bun.sh) ≥ 1.4.0** — compiles release binaries, runs `scripts/*.ts`, and hosts the Bun-based test fixtures
+- **[Bun](https://bun.sh) ≥ 1.4.2** — compiles release binaries, runs `scripts/*.ts`, and hosts the Bun-based test fixtures
 - **[Rust](https://rustup.rs)** (stable, with `cargo`) — builds the `@bastani/atomic-natives` N-API module
 - **[uv](https://docs.astral.sh/uv/)** — Python package/environment manager for the `evals/` harness
 - **Docker** — required for local Pier/DeepSWE sandbox runs

@@ -177,7 +177,7 @@ Steps stay in one job only when one consumes another's build output. Nothing is 
 - `test/integration/installed-package-node-extensions.test.ts` needs `dist/` and Node and is hard-required by `ATOMIC_REQUIRE_INSTALLED_NODE_SMOKE=1`. All five work-job definitions install Node; `integration-tests` owns this package smoke.
 - `packages/coding-agent/test/native-binding-exports.test.ts` is hard-required by `ATOMIC_REQUIRE_NATIVE_BINDING_SMOKE=1`, so the vitest suite stays behind `npm run build --workspace=@bastani/atomic-natives`.
 - `scripts/build-binaries.sh` reuses `packages/natives/native/*.node` when present and otherwise builds them, so `release-archive` carries its own Rust toolchain and pays that build again rather than waiting on `agent-suite`. Both root-suite jobs also build native bindings explicitly. The CI project's native global setup builds a missing binding in `static-checks`, so a cold static job needs Rust despite having no explicit toolchain step.
-- `agent-suite` runs the coding-agent package in one step; its SQLite selectors resolve `node:sqlite` on both runtimes (Bun ships it from 1.4.0, the repository's Bun floor).
+- `agent-suite` runs the coding-agent package in one step; its SQLite selectors resolve `node:sqlite` on both runtimes (Bun ships it from 1.4.0; the repository's Bun floor is now 1.4.2).
 
 No suite uses `--parallel`, `--shard`, `--concurrent`, or `--max-concurrency`. Twenty unit files still import 108 sibling `*.test.ts` files, so an isolated module registry executes those registrations again. Those executions and their per-attempt diagnostics are intentional retained coverage here. Keep default isolation and worker sizing; do not remove duplicate executions, serialize suites or introduce worker caps to manufacture a timing improvement.
 
@@ -491,7 +491,7 @@ maintains both the pins and the comments.
 `taiki-e/install-action` is given exact tool versions (`cargo-zigbuild@0.23.0`,
 `cargo-xwin@0.23.0`). Unversioned, it resolves to `@latest`, which floats the
 build toolchain of a published, provenance-signed native artifact with no diff.
-`test.yml` pins `bun-version: 1.4.0` to match `publish.yml`; `latest` cannot be
+`test.yml` pins `bun-version: 1.4.2` to match `publish.yml`; `latest` cannot be
 cached by `setup-bun` and left the suite testing a different Bun from the one
 that builds the shipped artifact.
 
