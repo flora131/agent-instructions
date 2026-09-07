@@ -10,7 +10,7 @@
 - Added a narrow trusted-host agent task adapter with per-launch runner factories, owner-scoped observation and cancellation, and workflow generation ownership that survives fallback session replacement. Real subagent producers and completion delivery remain unintegrated ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added owner-bound agent task hosts to runtime-created session contexts, single-subagent observation waits, and terminal completion intents delivered nonvisually through existing model admission with stable retry identity ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added an owner-bound task projection and shared compact task rows for main and attached stage chats, with stable live anchors after tool/turn completion, snapshot reattachment, bounded activity previews and a compact background-task footer. Host adapters opt in by binding their session's task store; producer migration remains separate ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
-- Added SDK task transcript references bound by the admitted runner, with task-scoped paging, original message/tool-call identities, and explicit unavailable history. Hidden reasoning is excluded; production runner and inspector mounting remain separate integration work ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Added SDK task transcript references bound by the admitted runner, with task-scoped paging, original message/tool-call identities, and explicit unavailable history. Hidden reasoning is excluded; production subagent runners bind child history for the shared host inspector ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added a shared focused task inspector for owner-store hosts: stable grouped selection, retained transcript rendering, foreground waits, confirmed cancellation, and explicit stdin focus without replacing composer drafts ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 
 ### Changed
@@ -19,6 +19,7 @@
 
 ### Fixed
 
+- Discarded stale command detail results and read errors after task selection, focus, or inspector lifetime changes, preventing another task's output from appearing in the current view ([#2908](https://github.com/bastani-inc/atomic/pull/2908)).
 - Remounted active task rows after session transcript replacement and cleared prior-session task rows and footer state before a replacement owner store binds ([#2907](https://github.com/bastani-inc/atomic/pull/2907)).
 - Honored owner command wait budgets and `until-settled` in supervised bash/PTY execution, disclosed retained output gaps, and bounded output pages to 1 MiB. Supervised file-spool writes now share a hard disk cap rather than overshooting between polls ([#2905](https://github.com/bastani-inc/atomic/pull/2905)).
 - Stopped task subscription event delivery when a reconciliation callback disposes observation, including events retained by the active drain ([#2902](https://github.com/bastani-inc/atomic/pull/2902)).

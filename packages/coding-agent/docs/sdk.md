@@ -237,7 +237,9 @@ content. Cursors belong to one task and bound session. An unknown task returns
 `UnknownTask`, a cursor from another task/session returns `ScopeMismatch`, and an
 unbound or empty history returns `TranscriptUnavailable` with `Transcript unavailable`.
 This adapter does not launch work or reconstruct live capabilities from history.
-Production runner binding and the shared host inspector still require integration.
+Production subagent runners bind their child history, and main and attached workflow
+chat hosts mount the shared inspector. Command detail reads are scoped to the current
+selection and view lifetime: late results and errors cannot overwrite another view.
 
 ## Quick Start
 

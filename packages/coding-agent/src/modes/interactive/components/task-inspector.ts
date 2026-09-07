@@ -21,6 +21,8 @@ export class TaskInspector implements Component {
 	private status = "";
 	private scroll = 0;
 	private detailContent: { prompt?: string; output?: string } = {};
+	private detailGeneration = 0;
+	private disposed = false;
 	private readonly input = new Input();
 	private readonly unsubscribe: () => void;
 	constructor(
@@ -39,6 +41,7 @@ export class TaskInspector implements Component {
 				void this.loadDetail();
 			},
 			transcript: () => {
+				this.detailGeneration++;
 				void this.loadTranscript();
 			},
 			foreground: (task) => {
@@ -89,6 +92,7 @@ export class TaskInspector implements Component {
 		this.navigation.open(id);
 	}
 	dispose(): void {
+		this.disposed = true;
 		this.confirmation?.(false);
 		this.unsubscribe();
 	}
@@ -168,8 +172,17 @@ export class TaskInspector implements Component {
 	}
 	private async loadDetail(): Promise<void> {
 		this.detailContent = {};
+		this.status = "";
+		const generation = ++this.detailGeneration;
+		const focus = this.navigation.focus;
 		const task = this.selected();
 		if (!task) return;
+		const current = () =>
+			!this.disposed &&
+			generation === this.detailGeneration &&
+			this.navigation.focus === focus &&
+			focus.kind === "detail" &&
+			this.navigation.selectedTaskId === task.ref.taskId;
 		const lease = this.store.resolveTask(task.ref.taskId);
 		if (!lease.ok) return;
 		const source = taskTranscriptSource(lease.value);
@@ -187,17 +200,24 @@ export class TaskInspector implements Component {
 								.join("");
 		}
 		if (task.kind === "command") {
-			const count = BigInt(task.output.byteCount);
-			const output = await this.store.supervisor.readTaskOutput(lease.value, {
-				start: String(count > 8192n ? count - 8192n : 0n),
-				maximumBytes: 8192,
-			});
-			if (output.ok)
-				this.detailContent.output = output.value.chunks
-					.map((chunk) => Buffer.from(chunk.bytes).toString("utf8"))
-					.join("");
+			try {
+				const count = BigInt(task.output.byteCount);
+				const output = await this.store.supervisor.readTaskOutput(lease.value, {
+					start: String(count > 8192n ? count - 8192n : 0n),
+					maximumBytes: 8192,
+				});
+				if (!current()) return;
+				if (output.ok)
+					this.detailContent.output = output.value.chunks
+						.map((chunk) => Buffer.from(chunk.bytes).toString("utf8"))
+						.join("");
+				else this.status = output.error.message;
+			} catch {
+				if (!current()) return;
+				this.status = "Command output unavailable";
+			}
 		}
-		this.requestRender();
+		if (current()) this.requestRender();
 	}
 	handleInput(data: string): boolean {
 		if (this.confirmation) {
