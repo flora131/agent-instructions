@@ -217,7 +217,7 @@ over the observed duration, not over an unobserved completion after a timeout.
 
 | Job | Platform | Sample 1 (33997174167 unless noted) | Sample 2 (33997819241 unless noted) | Timeout |
 | --- | --- | ---: | ---: | ---: |
-| Unit tests | Linux | 371 s | 367 s | 10 min |
+| Unit tests | Linux | 618 s (34147316169; timeout-censored during the bounded flake retry) | 371 s | 14 min (formula gives 16; bounded by the 14-minute hang-detector maximum) |
 | Unit tests | Windows | 526 s | 511 s | 14 min |
 | Integration tests | Linux | 145 s (34142104101; success) | 118 s | 4 min |
 | Integration tests | Windows | 305 s (34142104101; timeout-censored) | 195 s | 8 min |
