@@ -51,7 +51,7 @@ If the actually loaded extension paths contain `herdr-atomic-reporter` or the le
 
 ## Ownership, delivery, and privacy
 
-One module-owned lease reports each pane. A successor retires the predecessor before reporting. Sequence numbers use a clock seed and a process-level high-water mark, increasing across extension reloads, runner replacement, and clock rollback within that process. Shutdown drains the current child and releases authority with a new sequence greater than the last report sequence. Late predecessor callbacks cannot report or release a successor.
+One module-owned lease reports each pane. A successor retires the predecessor before reporting. Sequence numbers use a clock seed and a process-level high-water mark, increasing across extension reloads, runner replacement, and clock rollback within that process. Shutdown drains the current child and releases authority with a fresh sequence strictly greater than the last report sequence. Late predecessor callbacks cannot report or release a successor.
 
 The reporter invokes the CLI directly with an argument array, not a shell. It permits one child per pane at a time, keeps only the newest pending state, and uses a five-second timeout plus bounded output buffering. Transport errors produce bounded `spawn_failed`, `timeout`, or `protocol_rejected` diagnostics; obsolete ownership uses `stale_owner`. Errors do not become agent or workflow failures. Child stdout and stderr are never logged raw.
 
@@ -66,7 +66,7 @@ The reporter is tested against Herdr **0.8.2 (protocol 20)**; that is the minimu
 | Custom-source authority | A `custom:*` source authors semantic pane state. `custom:atomic` shows as agent `atomic`. | The built-in reporter uses `custom:atomic` and does not depend on Herdr's own agent detection. |
 | Equal or older `--seq` | Exit 0, silently ignored by the server. The CLI never reports a rejected stale sequence. | Each report uses `max(clock ms, previous + 1)`, tracked in a process-level high-water mark; ordering is enforced by Atomic rather than inferred from exit codes. |
 | Sequence high-water mark after release | Survives `release-agent`. A later report with a lower sequence, even from a new owner, is ignored. | New processes seed from the clock. Ordering across a process restart with a rolled-back clock, or against another reporter's higher sequence, is not promised. |
-| `release-agent` without `--seq` | Exit 0, no change. Release by a non-owner source is also ignored. | Release always carries the last report sequence, so late predecessor releases cannot retire a successor. |
+| `release-agent` without `--seq` | Exit 0, no change. Release by a non-owner source is also ignored. | Release always carries a fresh sequence strictly greater than the last report sequence. Ownership checks prevent late predecessor releases from retiring a successor. |
 | `idle` after `working` | Surfaced as `agent_status: done`; `idle` on a fresh pane surfaces as `idle`. | Atomic reports `idle`. Consumers reading pane state must accept `idle` or `done` for the idle state. |
 | `--message` | Accepted, but not surfaced by `agent get` (`message: null`). | Only the fixed messages `Waiting for approval` and `Workflow needs attention` are sent. |
 | Session identity for custom sources | `--agent-session-id`, `--agent-session-path`, and `report-agent-session` are accepted, but `agent_session` stays `null`. | The parent session identity is reported once per claim as the documented contract. Retention and automatic restoration are not observable on 0.8.2. |

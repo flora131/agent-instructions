@@ -22,17 +22,14 @@ import { createStore } from "../../packages/workflows/src/shared/store.js";
 //
 // Observed argv sequence (each prefixed `pane report-agent <pane> --source custom:atomic --agent atomic --seq N`):
 //   1. `--state idle --agent-session-id <id>` (ready snapshot with no roots, parent identity sent once)
-//   2. `--state idle`     (the new root appears before its first execution)
-//   3. `--state working`  (tool-only execution)
-//   4. `--state blocked --message "Workflow needs attention"` (HIL prompt open)
-//   5. `--state working`  (execution resumed after the prompt was answered)
-//   6. `--state idle`     (run completed)
+//   2. `--state working`  (live author continuation and tool-only execution)
+//   3. `--state blocked --message "Workflow needs attention"` (HIL prompt open)
+//   4. `--state working`  (execution resumed after the prompt was answered)
+//   5. `--state idle`     (run completed)
 // followed by `pane release-agent ... --seq N` on session_shutdown, with N strictly greater than the last report
 // (Herdr 0.8.2 ignores an equal or older `--seq`).
-// Between two nodes of the run body no stage or tool is executing, so the projection may publish a
-// momentary idle root (as in 2.). The reporter keeps only the newest pending state while a CLI child is
-// in flight, so such boundary idles are normally coalesced away; the assertion drops any idle that is
-// immediately followed by another state and checks the remaining phase order exactly.
+// Consecutive identical reports are collapsed, but every state transition is retained.
+// In particular, an idle report between working and blocked must fail the assertion.
 test("reporter reports working, blocked, working, idle for a real workflow with increasing --seq", async () => {
 	const fake = await fakeHerdr();
 	const runtime = createExtensionRuntime();
@@ -48,6 +45,11 @@ test("reporter reports working, blocked, working, idle for a real workflow with 
 	runner.setUIContext({ ...noOpUIContext }, "tui");
 	const store = createStore();
 	let observation: { dispose(): void } | undefined;
+	const controller = new AbortController();
+	const firstToolRelease = Promise.withResolvers<void>();
+	const secondToolRelease = Promise.withResolvers<void>();
+	let unsubscribe: (() => void) | undefined;
+	let execution: ReturnType<typeof run> | undefined;
 	try {
 		let seen = 0;
 		const waitForReport = async (state: string) => {
@@ -72,14 +74,12 @@ test("reporter reports working, blocked, working, idle for a real workflow with 
 		await waitForReport("idle");
 
 		const firstToolEntered = Promise.withResolvers<void>();
-		const firstToolRelease = Promise.withResolvers<void>();
 		const secondToolEntered = Promise.withResolvers<void>();
-		const secondToolRelease = Promise.withResolvers<void>();
 		const prompted = Promise.withResolvers<void>();
-		const unsubscribe = store.subscribe(() => {
+		unsubscribe = store.subscribe(() => {
 			if (store.runs().some((item) => item.stages.some((stage) => stage.pendingPrompt))) prompted.resolve();
 		});
-		const execution = run(
+		execution = run(
 			workflow({
 				name: "herdr-activity",
 				description: "",
@@ -103,6 +103,7 @@ test("reporter reports working, blocked, working, idle for a real workflow with 
 			{},
 			{
 				store,
+				signal: controller.signal,
 				durableBackend: new InMemoryDurableBackend(),
 				usePromptNodesForUi: true,
 				adapters: { complete: { complete: async (text) => text } },
@@ -129,9 +130,7 @@ test("reporter reports working, blocked, working, idle for a real workflow with 
 		const states = reports
 			.map((call) => arg(call.args, "--state"))
 			.filter((state, index, all) => index === 0 || state !== all[index - 1]);
-		const phases = states.filter((state, index) => state !== "idle" || index === states.length - 1);
-		assert.deepEqual(phases, ["working", "blocked", "working", "idle"]);
-		assert.equal(states.at(0), "idle");
+		assert.deepEqual(states, ["idle", "working", "blocked", "working", "idle"]);
 		for (const call of reports) {
 			assert.equal(
 				arg(call.args, "--message"),
@@ -158,8 +157,16 @@ test("reporter reports working, blocked, working, idle for a real workflow with 
 		assert.ok(reports.slice(1).every((call) => arg(call.args, "--agent-session-id") === undefined));
 		assert.deepEqual(diagnostics, []);
 	} finally {
-		observation?.dispose();
-		runner.invalidate();
-		await fake.dispose();
+		unsubscribe?.();
+		controller.abort();
+		firstToolRelease.resolve();
+		secondToolRelease.resolve();
+		try {
+			await execution;
+		} finally {
+			observation?.dispose();
+			runner.invalidate();
+			await fake.dispose();
+		}
 	}
 });
