@@ -432,3 +432,54 @@ test("workflow activity retains a paused stage after its parallel sibling comple
 		);
 	}
 });
+
+// #2891: a paused stage retains its prompt, but it is not actionable until resume.
+test("workflow activity suspends a retained prompt across pause and sibling completion", () => {
+	const store = createStore();
+	store.recordRunStart(run({ stages: [stage("agent"), stage("sibling")] }));
+	const executingStageIds = new Set([
+		workflowActivityNodeKey("root", "agent"),
+		workflowActivityNodeKey("root", "sibling"),
+	]);
+	const owned = ownership({ executingStageIds });
+	const assertActivity = (expected: Partial<WorkflowRootActivity>) => {
+		const snapshot = store.graphSnapshot();
+		const before = structuredClone({ snapshot, ownership: owned });
+		assert.deepEqual(projectWorkflowActivity({ snapshot, ownership: owned }), [activity(expected)]);
+		assert.deepEqual({ snapshot, ownership: owned }, before);
+		assert.deepEqual(store.graphSnapshot(), before.snapshot);
+	};
+	assertActivity({ ...executing, activeExecutionCount: 2 });
+	assert.equal(store.recordStagePendingPrompt("root", "agent", prompt), true);
+	assertActivity({ ...executing, actionableBlockCount: 1, needsAttention: true });
+
+	assert.equal(store.recordStagePaused("root", "agent", 1), true);
+	assertActivity(executing);
+	store.recordStageEnd("root", { ...stage("sibling", "completed"), endedAt: 2 });
+	// Completion is not proof of released ownership: independent work may still drain.
+	assertActivity(executing);
+	executingStageIds.delete(workflowActivityNodeKey("root", "sibling"));
+	assertActivity({ reason: "paused" });
+	const paused = store.graphSnapshot().runs[0];
+	assert.equal(paused.status, "running");
+	assert.deepEqual(
+		paused.stages.map((stage) => stage.status),
+		["paused", "completed"],
+	);
+	assert.deepEqual(paused.stages[0].pendingPrompt, prompt);
+
+	// An independent active wait still needs attention while the first stage is paused.
+	store.recordStageStart("root", stage("waiter"));
+	assert.equal(store.recordStagePendingPrompt("root", "waiter", { ...prompt, id: "other-prompt" }), true);
+	assertActivity(waiting);
+	assert.equal(store.resolveStagePendingPrompt("root", "waiter", "other-prompt", true), true);
+	store.recordStageEnd("root", { ...stage("waiter", "completed"), endedAt: 3 });
+	assertActivity({ reason: "paused" });
+
+	assert.equal(store.recordStageResumed("root", "agent", 4), true);
+	assert.equal(store.graphSnapshot().runs[0].stages[0].status, "running");
+	assert.deepEqual(store.graphSnapshot().runs[0].stages[0].pendingPrompt, prompt);
+	assertActivity(waiting);
+	assert.equal(store.resolveStagePendingPrompt("root", "agent", prompt.id, true), true);
+	assertActivity(executing);
+});

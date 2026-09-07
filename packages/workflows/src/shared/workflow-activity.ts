@@ -90,7 +90,7 @@ function projectRoot(
 		for (const stage of run.stages) {
 			if (run.status === "running" && stage.status === "paused") paused = true;
 			if (stage.status === "awaiting_input" || stage.pendingPrompt) {
-				if (acceptsAttention) humanWaits++;
+				if (acceptsAttention && stage.status !== "paused") humanWaits++;
 				continue;
 			}
 			const key = workflowActivityNodeKey(run.id, stage.id);

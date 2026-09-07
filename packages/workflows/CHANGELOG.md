@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Added a pure root-activity projection over workflow snapshots and run-qualified runtime execution ownership. It folds nested runs into full root replacements, distinguishes independent execution from human waits, and accounts for runnable handoffs, retries, stop draining, pauses, and acknowledged failures without treating historical running stages as execution. Child stops preserve independent handoffs outside their subtree, and paused stages retain the paused activity reason after parallel siblings finish. Extension publication is not wired yet ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).
+- Added a pure root-activity projection over workflow snapshots and run-qualified runtime execution ownership. It folds nested runs into full root replacements, distinguishes independent execution from human waits, and accounts for runnable handoffs, retries, stop draining, pauses, and acknowledged failures without treating historical running stages as execution. Child stops preserve independent handoffs outside their subtree, and paused stages retain the paused activity reason after parallel siblings finish, even with a retained prompt. Extension publication is not wired yet ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).
 
 ### Fixed
 
