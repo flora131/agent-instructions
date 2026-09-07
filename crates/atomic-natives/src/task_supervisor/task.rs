@@ -70,6 +70,11 @@ pub struct OutputRef {
 	pub byte_count: String,
 	pub omitted_ranges: Vec<OmittedRange>,
 }
+// Report numbers retain their representation: omitted differs from zero, -0 from +0,
+// and an identical NaN payload replays. Share this across terminal and activity DTOs.
+fn same_number(left: Option<f64>, right: Option<f64>) -> bool {
+	left.map(f64::to_bits) == right.map(f64::to_bits)
+}
 /// Terminal numeric exit codes retain JavaScript number values without i32 narrowing.
 #[napi(discriminant = "kind", discriminant_case = "kebab-case")]
 #[derive(Clone, Debug)]
@@ -85,10 +90,7 @@ impl PartialEq for TaskResult {
 			(
 				Self::Completed { output, exit_code },
 				Self::Completed { output: other_output, exit_code: other_exit_code },
-			) => {
-				output == other_output
-					&& exit_code.map(f64::to_bits) == other_exit_code.map(f64::to_bits)
-			},
+			) => output == other_output && same_number(*exit_code, *other_exit_code),
 			(
 				Self::Failed { code, message, output, exit_code },
 				Self::Failed {
@@ -101,7 +103,7 @@ impl PartialEq for TaskResult {
 				code == other_code
 					&& message == other_message
 					&& output == other_output
-					&& exit_code.map(f64::to_bits) == other_exit_code.map(f64::to_bits)
+					&& same_number(*exit_code, *other_exit_code)
 			},
 			(
 				Self::Cancelled { cause, output },
@@ -170,13 +172,22 @@ pub struct CurrentAction {
 	pub tool: String,
 	pub text: String,
 }
+/// Optional metrics preserve exact JavaScript numbers, including NaN and signed zero.
 #[napi(object)]
-#[derive(Clone, Debug, PartialEq, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct TaskMetrics {
 	pub elapsed_ms: Option<f64>,
 	pub tool_count: Option<f64>,
 	pub token_count: Option<f64>,
 }
+impl PartialEq for TaskMetrics {
+	fn eq(&self, other: &Self) -> bool {
+		same_number(self.elapsed_ms, other.elapsed_ms)
+			&& same_number(self.tool_count, other.tool_count)
+			&& same_number(self.token_count, other.token_count)
+	}
+}
+impl Eq for TaskMetrics {}
 #[napi(object)]
 #[derive(Clone, Debug, PartialEq)]
 pub struct TaskRecord {
@@ -198,7 +209,7 @@ pub struct TaskRecord {
 	pub output: OutputRef,
 }
 #[napi(discriminant = "kind", discriminant_case = "kebab-case")]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum ActivityChange {
 	Action { tool: String, text: String },
 	Metrics { elapsed_ms: Option<f64>, tool_count: Option<f64>, token_count: Option<f64> },
@@ -206,6 +217,39 @@ pub enum ActivityChange {
 	AttentionSet { attention: Attention },
 	AttentionClear { request_id: String },
 }
+impl PartialEq for ActivityChange {
+	fn eq(&self, other: &Self) -> bool {
+		match (self, other) {
+			(Self::Action { tool, text }, Self::Action { tool: other_tool, text: other_text }) => {
+				tool == other_tool && text == other_text
+			},
+			(
+				Self::Metrics { elapsed_ms, tool_count, token_count },
+				Self::Metrics {
+					elapsed_ms: other_elapsed,
+					tool_count: other_tool,
+					token_count: other_token,
+				},
+			) => {
+				same_number(*elapsed_ms, *other_elapsed)
+					&& same_number(*tool_count, *other_tool)
+					&& same_number(*token_count, *other_token)
+			},
+			(
+				Self::Output { offset, bytes_base64 },
+				Self::Output { offset: other_offset, bytes_base64: other_bytes },
+			) => offset == other_offset && bytes_base64 == other_bytes,
+			(Self::AttentionSet { attention }, Self::AttentionSet { attention: other }) => {
+				attention == other
+			},
+			(Self::AttentionClear { request_id }, Self::AttentionClear { request_id: other }) => {
+				request_id == other
+			},
+			_ => false,
+		}
+	}
+}
+impl Eq for ActivityChange {}
 #[napi(object)]
 #[derive(Clone, Debug, PartialEq)]
 pub struct ActivityReport {

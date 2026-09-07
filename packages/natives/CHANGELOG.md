@@ -14,6 +14,7 @@
 
 - Preserved numeric task wait budgets above the u32 range and fractional milliseconds; timer scheduling no longer wraps `4294967296` ms into an immediate yield ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Preserved completed/failed task exit-code numbers without i32 narrowing, including unsigned statuses, fractional values and negative zero; exact terminal replay no longer collapses distinct numeric inputs ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Preserved exact activity metric replay for `elapsedMs`, `toolCount` and `tokenCount`: identical NaN reports acknowledge once, while changed signed zero or omitted/present fields conflict without normalizing values ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 
 ## [0.9.16] - 2026-08-29
 

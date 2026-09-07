@@ -697,6 +697,7 @@ export interface TaskFailure {
   message: string
 }
 
+/** Optional metrics preserve exact JavaScript numbers, including NaN and signed zero. */
 export interface TaskMetrics {
   elapsedMs?: number
   toolCount?: number

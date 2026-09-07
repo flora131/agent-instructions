@@ -85,17 +85,22 @@ when deciding whether to resume. New subscriptions are refused once owner closin
 begins; existing subscriptions continue through cleanup/closure.
 
 The optional `subscription.onReconcile` callback is a convenience, not required for
-correctness; callback exceptions remain visible as `subscription.failure`. Native
-callbacks are wake hints; journal drains and reset snapshots are authoritative. Each
-live subscription has one fallback poll, stopped on disposal or observed closure.
+correctness; callback exceptions remain visible as `subscription.failure`. Raw strings
+and Error messages are preserved; unprintable values (including hostile conversion or
+revoked proxies) use `Unprintable JavaScript rejection`. Diagnostic conversion cannot
+interrupt event delivery or rearming the fallback poll. Native callbacks are wake hints;
+journal drains and reset snapshots are authoritative. Each live subscription has one
+fallback poll, stopped on disposal or observed closure.
 The native byte journal and facade delivery backlog are bounded; total task and exact
 report-replay history are not. This remains an unresolved S1 storage-contract limit.
 
 Raw text, absent optional fields, known zero metrics and ordered duplicate data
-remain distinct. Completed/failed `exitCode` numbers are preserved without signed-32-bit
-narrowing, including fractional values and unsigned platform statuses. Omission, zero
-and negative zero remain distinct for exact replay; repeated NaN and infinite values
-also round-trip. `OutputRef` is metadata, not proof of retained bytes: output
+remain distinct. The optional `elapsedMs`, `toolCount` and `tokenCount` metrics and
+completed/failed `exitCode` preserve JavaScript numbers without narrowing or normalization,
+including fractional and extreme values. Exact report replay distinguishes omission,
+zero and negative zero; repeated NaN and infinite values acknowledge once. Changed
+numeric payloads return `ReportConflict` without earning another event. `OutputRef` is
+metadata, not proof of retained bytes: output
 storage, `readTaskOutput`, command input, persistence, completion delivery and
 real agent/Intercom integration belong to later slices. The credential-free
 repository fixture `test/fixtures/task-s1-demo.ts` exercises this real facade and

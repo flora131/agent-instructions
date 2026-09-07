@@ -71,7 +71,7 @@ const environment = {
 	ownerIds: new Map<C.OwnerId, OwnerLease>(),
 };
 
-/** Promise rejection reasons and setup throws may be any JavaScript value. */
+/** Promise rejections, setup throws and consumer exceptions may be arbitrary JavaScript values. */
 function rejectionMessage<T>(reason: T): string {
 	try {
 		const message = reason instanceof Error ? reason.message : reason;
@@ -463,7 +463,7 @@ export class TaskSubscription {
 			try {
 				this.#resource.runInAsyncScope(this.onReconcile, undefined, this.#snapshot);
 			} catch (error) {
-				this.#failure = error instanceof Error ? error : new Error(String(error));
+				this.#failure = new Error(rejectionMessage(error));
 			}
 		}
 		if (!reset)

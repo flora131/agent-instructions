@@ -512,3 +512,83 @@ fn timer_duration_preserves_default_wide_and_fractional_budgets() {
 	// A scheduling horizon does not truncate the total budget or overflow Instant.
 	assert_eq!(timer_delay(f64::MAX, Duration::from_secs(86400)), Duration::from_secs(86400));
 }
+
+// RFC #2884: every optional metric preserves numeric identity, alone and in combination.
+#[test]
+fn exact_metric_report_replay_and_snapshots() {
+	let values = [
+		None,
+		Some(f64::NAN),
+		Some(-0.0),
+		Some(0.0),
+		Some(0.5),
+		Some(-0.5),
+		Some(f64::MAX),
+		Some(-f64::MAX),
+		Some(f64::from_bits(1)),
+		Some(-f64::from_bits(1)),
+		Some(9007199254740994.0),
+		Some(f64::INFINITY),
+		Some(f64::NEG_INFINITY),
+		Some(4294967296.0),
+		Some(f64::from_bits(f64::NAN.to_bits() + 1)),
+	];
+	let (a, _, o, _, r) = setup();
+	let mut expected = TaskMetrics::default();
+	let mut index = 0;
+	for elapsed_ms in values {
+		for tool_count in values {
+			for token_count in values {
+				let fields = [elapsed_ms, tool_count, token_count];
+				let report = ActivityReport {
+					report_id: format!(" metric {index} \n"),
+					change: ActivityChange::Metrics { elapsed_ms, tool_count, token_count },
+				};
+				index += 1;
+				let accepted = a.activity(&r, report.clone()).unwrap();
+				let mut duplicate = accepted.clone();
+				duplicate.disposition = "duplicate".into();
+				assert_eq!(a.activity(&r, report.clone()).unwrap(), duplicate);
+				for field in 0..3 {
+					for replacement in values {
+						if fields[field].map(f64::to_bits) == replacement.map(f64::to_bits) {
+							continue;
+						}
+						let mut changed = fields;
+						changed[field] = replacement;
+						let change = ActivityChange::Metrics {
+							elapsed_ms: changed[0],
+							tool_count: changed[1],
+							token_count: changed[2],
+						};
+						assert_eq!(
+							a.activity(&r, ActivityReport { report_id: report.report_id.clone(), change })
+								.unwrap_err()
+								.code,
+							"ReportConflict"
+						);
+					}
+				}
+				if elapsed_ms.is_some() {
+					expected.elapsed_ms = elapsed_ms;
+				}
+				if tool_count.is_some() {
+					expected.tool_count = tool_count;
+				}
+				if token_count.is_some() {
+					expected.token_count = token_count;
+				}
+				let snapshot = a.snapshot(&o).unwrap();
+				assert_eq!(snapshot.cursor, accepted.cursor, "replay and refusal do not append events");
+				let metrics = snapshot.tasks[0].metrics.as_ref().unwrap();
+				assert_eq!(metrics.elapsed_ms.map(f64::to_bits), expected.elapsed_ms.map(f64::to_bits));
+				assert_eq!(metrics.tool_count.map(f64::to_bits), expected.tool_count.map(f64::to_bits));
+				assert_eq!(
+					metrics.token_count.map(f64::to_bits),
+					expected.token_count.map(f64::to_bits)
+				);
+				assert_eq!(metrics, &expected);
+			}
+		}
+	}
+}

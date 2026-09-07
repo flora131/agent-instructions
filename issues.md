@@ -1,6 +1,6 @@
 # S1 consolidated review repair (#2884)
 
-Current repair evidence: `/workspace/task-experience-evidence/s1/round2/`, `round2-repair-notes.md` and `round2-debugger-handoff.md`. Earlier seven repairs remain covered by the unchanged regression suite.
+Current repair evidence: `/workspace/task-experience-evidence/s1/round3/`, `round3-repair-notes.md` and `round3-debugger-handoff.md`. Earlier rounds remain historical evidence; their regressions are retained.
 
 | Root | Status | Defect / correction |
 |---|---|---|
@@ -13,7 +13,7 @@ Current repair evidence: `/workspace/task-experience-evidence/s1/round2/`, `roun
 | 7 Disposal replay | Repaired; focused checks pass | Native ObserverCancelled was omitted from yield mapping. Recorded refusal stays Result-shaped. |
 | 8 Retained report history | **Unresolved contract blocker** | Exact arbitrary report replay requires unbounded distinct-history information, outside the bounded journal. No authorized finite lifetime/cap or storage-failure contract exists. |
 
-## Latest full review: 13 entries, five roots
+## Previous full review: 13 entries, five roots
 
 | Root | Status | Proven defect / correction |
 |---|---|---|
@@ -26,6 +26,25 @@ Current repair evidence: `/workspace/task-experience-evidence/s1/round2/`, `roun
 Round2 repeatable original reviewer probe: `node /workspace/task-experience-evidence/s1/risk-probe-native-turn2.mjs` accepted 512 distinct 65,536-byte activity reports and increased RSS by 34,865,152 bytes; the oldest report still returned `duplicate` (`round2/history-current.log`). Exact replay semantics remain unchanged. No expiry, new cap/refusal, fingerprint or private persistence policy was added.
 
 Final gate counts, generated binding status, platform limits and local commit/status are recorded in the external handoff; full S1 acceptance remains blocked only by the storage contradiction below.
+
+## Latest full review: nine exact findings, three roots
+
+| Reviewer | Original title | Root / current result |
+|---|---|---|
+| completion-reviewer | [P2] Resolve unbounded report retention outside the journal | Storage: unresolved |
+| completion-reviewer | [P2] Preserve exact numeric identity when replaying metrics | Metrics: repaired |
+| completion-reviewer | [P2] Contain exceptions thrown while formatting callback failures | Callbacks: repaired |
+| evidence-reviewer | [P2] Bound report history outside the event journal | Storage: unresolved |
+| evidence-reviewer | [P2] Preserve exact numeric identity in metric report replay | Metrics: repaired |
+| evidence-reviewer | [P2] Contain failures while formatting callback exceptions | Callbacks: repaired |
+| risk-reviewer | [P2] Resolve unbounded report history outside the journal | Storage: unresolved |
+| risk-reviewer | [P2] Preserve numeric activity-report identity during replay | Metrics: repaired |
+| risk-reviewer | [P2] Safely record arbitrary reconciliation callback exceptions | Callbacks: repaired |
+
+- **Metrics:** derived `f64` equality rejected identical NaN and collapsed -0/+0. Reused terminal optional-number bit equality in `ActivityChange` and `TaskMetrics`; terminal results now call that same helper. All three metric fields preserve absence, raw values and exact replay. Durable Rust covers 3,375 combinations including distinct NaN payloads; Node/Bun each cover 2,744 combinations and 107,016 conflicts through real native reports, journal and facade/native snapshots. No normalization, limit, refusal or public shape change.
+- **Callbacks:** `String(error)` and even `instanceof Error` could throw for arbitrary JS values, interrupting drain/poll rearming. All four diagnostic catches (callback, setup, result, cleanup) now use the existing safe rejection helper. Node/Bun each pass 45 direct/native-wake/fallback-timer cases, including hostile conversion, null-prototype and revoked Proxy values. Safe failure messages, final snapshot/reset notification without later activity, iterator resumption and stopped polling after disposal are asserted. Original callback-optional regressions remain unchanged.
+- Original `native-contract.mjs` and `callback-contract.mjs` reproduce red and pass unchanged on Node/Bun after repair. Exact commands, stacks and statuses are under `round3/`. The first callback fixture's fault listener swallowed top-level assertion exit status; this harness defect was corrected before production repair. Its empty logs are retained, not treated as success; six corrected red scenarios fail with actual stacks.
+- **Storage remains unresolved:** `round3/history-current.log` accepted 192 × 256-KiB reports, evicted every journal event, retained oldest replay after closure, and recorded RSS 54,976,512 → 122,327,040 bytes (+67,350,528). The probe's exit 0 proves the unresolved retention behavior, not compliance with the bound. No expiry/admission/fingerprint/storage policy was added. Six findings/two roots repaired; three storage findings remain required.
 
 ## Root 8: precise blocker, not an exemption
 

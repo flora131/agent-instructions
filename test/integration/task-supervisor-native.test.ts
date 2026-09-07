@@ -761,3 +761,24 @@ test("Node and Bun report JavaScript rejection values without blocking cleanup o
 		assert.match(result.stdout.toString(), /JS REJECTIONS PRESERVED 42 diagnostics and 2 independent cleanup orders/);
 	}
 });
+
+// RFC #2884: metric fields share the terminal report's exact numeric replay semantics.
+test("Node and Bun preserve every metric combination and reject changed numeric reports", () => {
+	for (const runtime of [process.execPath, bunExecutable()]) {
+		const result = spawnSyncCollect([runtime, "--import", "jiti/register", "test/fixtures/task-s1-metrics.ts"]);
+		assert.equal(result.exitCode, 0, `${runtime}\n${result.stdout}\n${result.stderr}`);
+		assert.match(result.stdout.toString(), /METRICS PRESERVED 2744 combinations 107016 conflicts/);
+	}
+});
+
+// RFC #2884: arbitrary callback throws cannot interrupt native wakes or fallback reconciliation.
+test("Node and Bun contain callback failures through real wake and timer paths", () => {
+	for (const runtime of [process.execPath, bunExecutable()]) {
+		const result = spawnSyncCollect([runtime, "--import", "jiti/register", "test/fixtures/task-s1-callbacks.ts"]);
+		assert.equal(result.exitCode, 0, `${runtime}\n${result.stdout}\n${result.stderr}`);
+		assert.match(
+			result.stdout.toString(),
+			/CALLBACK FAILURES CONTAINED 45 direct\/native-wake\/fallback-timer cases/,
+		);
+	}
+});
