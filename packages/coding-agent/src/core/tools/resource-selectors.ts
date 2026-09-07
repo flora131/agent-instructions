@@ -46,9 +46,9 @@ type SqliteDatabaseConstructor = new (path: string, options?: { readonly?: boole
  * SQLite via `node:sqlite`.
  *
  * It is unflagged from Node v22.13.0, it is the module upstream pi uses, and
- * Bun ships it from 1.4.0 (oven-sh/bun#32498) — this repository's Bun floor —
+ * Bun ships it from 1.4.0 (oven-sh/bun#32498), before the current 1.4.2 floor,
  * so both runtimes provide it. The `bun:sqlite` fallback that covered older
- * Bun binaries was removed with that floor.
+ * Bun binaries was removed with the earlier 1.4.0 floor.
  *
  * `better-sqlite3` was evaluated and rejected: it segfaults Bun 1.3.14 on
  * construction, which is worse than a catchable missing-module error.
@@ -107,7 +107,7 @@ function sqliteDatabase(): SqliteDatabaseConstructor {
 		return nodeSqliteAdapter(DatabaseSync);
 	} catch {
 		throw new Error(
-			"SQLite selectors need node:sqlite (Node >= 22.13 or Bun >= 1.4.0); this runtime does not provide it.",
+			"SQLite selectors need node:sqlite (Node >= 22.13 or Bun >= 1.4.2); this runtime does not provide it.",
 		);
 	}
 }

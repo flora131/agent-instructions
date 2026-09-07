@@ -91,7 +91,7 @@ export function bunExecutable(): string {
 	throw new Error(
 		"Bun was not found on PATH. It remains a declared engine of this repository: it compiles the " +
 			"release binaries and runs scripts/*.ts and the Bun-hosted test fixtures. " +
-			"Install Bun >=1.4.0 or set ATOMIC_BUN_EXECUTABLE.",
+			"Install Bun >=1.4.2 or set ATOMIC_BUN_EXECUTABLE.",
 	);
 }
 

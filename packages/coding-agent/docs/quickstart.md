@@ -4,7 +4,7 @@ This page gets you from install to a useful first Atomic session. Atomic is the 
 
 ## Prerequisites
 
-- **Package install:** Node.js 22.19 or newer plus npm, pnpm, Yarn, or Bun. Use Bun 1.4.0+ for Bun installs or workflow-authoring examples.
+- **Package install:** Node.js 22.19 or newer plus npm, pnpm, Yarn, or Bun. Use Bun 1.4.2+ for Bun installs or workflow-authoring examples.
 - **Release archive install:** macOS and Linux need `tar` and either `curl` or `wget`; Windows uses built-in PowerShell commands. This path does not need Node.js or a package manager.
 - **Model-provider access** — use a supported subscription login or API key. Run `/login` after startup.
 

@@ -230,7 +230,7 @@ describe("decompression failures classify as transient transport errors (#2553)"
 		"Error: unexpected end of file (zlib)",
 		"Library error: failed to decompress response body",
 		"ContentDecoding: decompression failed",
-		// Verified against Bun 1.4.0 — the runtime the shipped Atomic binary uses —
+		// Verified against Bun 1.4.0 — the shipped Atomic runtime at the time —
 		// by serving a body whose Content-Encoding lies. This is the literal text
 		// `fetch` throws there, so the classifier must cover it, not just the
 		// "Library error:"-wrapped wording quoted in the issue.
