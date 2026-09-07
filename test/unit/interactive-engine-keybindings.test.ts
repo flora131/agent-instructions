@@ -281,6 +281,8 @@ test.sequential("direct RPC reload updates one shared global and injected manage
 		);
 		await client.start();
 		await client.waitForInteractiveEngineBound();
+		// Binding can open custom UI before deferred startup publishes its initial keybindings.
+		await client.waitForInteractiveEngineResources();
 		const open = await opened;
 		assert.equal(await renderCustom(client, open.componentId, 10), "same:true|injected:ctrl+x|global:ctrl+x");
 		assert.match(await renderSkill(client, false, 11), /\(ctrl\+x Expand\)/);
