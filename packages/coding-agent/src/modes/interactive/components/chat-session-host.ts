@@ -2,6 +2,7 @@ import type { Component, Focusable } from "@earendil-works/pi-tui";
 import type { AgentSessionEvent, CompactionReason } from "../../../core/agent-session.ts";
 import { repairOrphanToolResults } from "../../../core/messages.ts";
 import { SessionManager } from "../../../core/session-manager.ts";
+import type { TaskId } from "../../../core/tasks/contracts.js";
 import { getOwnerTaskStore, type OwnerTaskStore, watchOwnerTaskStoreBinding } from "../../../core/tasks/owner-store.js";
 import {
 	abortChatSessionBash,
@@ -44,6 +45,7 @@ import type {
 	ChatSessionSubmitMode,
 } from "./chat-session-host-types.ts";
 import type { ChatTranscriptEntryLike } from "./chat-transcript.ts";
+import { TaskInspector } from "./task-inspector.js";
 import { renderTaskFooter } from "./task-list.js";
 
 export type {
@@ -63,8 +65,12 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	private unsubscribeTasks?: () => void;
 	private taskSession?: object;
 	private unsubscribeTaskBinding?: () => void;
+	private taskInspector?: TaskInspector;
 
 	constructor(opts: ChatSessionHostOpts<TExtraEntry>) {
+		// `/tasks` stays a local action owned by the host's `commands.handleSlashCommand`
+		// (see submitChatSession). Hosts that mount the inspector call `openTasks` from
+		// that callback; the host must not intercept it ahead of the owner.
 		this.state = new ChatSessionHostState(opts, {
 			renderEntry: (state, entry) => renderChatSessionEntry(state, entry),
 			transcriptCacheKey: (state, entry, index) => transcriptCacheKey(state, entry, index),
@@ -82,6 +88,31 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 		this.refreshTaskStore();
 	}
 
+	openTasks(id?: string): boolean {
+		const session = this.state.getAgentSession?.();
+		if (session && !getOwnerTaskStore(session)) session.getAgentTaskHost?.();
+		this.refreshTaskStore();
+		if (!this.taskStore) {
+			this.showWarning("Launched agents and shells will appear here.");
+			return true;
+		}
+		this.taskInspector?.dispose();
+		this.taskInspector = new TaskInspector(
+			this.taskStore,
+			() => this.state.requestRender?.(),
+			() => {
+				this.taskInspector?.dispose();
+				this.taskInspector = undefined;
+				this.state.requestRender?.();
+			},
+		);
+		this.taskInspector.open(id as TaskId | undefined);
+		this.state.requestRender?.();
+		return true;
+	}
+	handleTaskInput(data: string): boolean {
+		return this.taskInspector?.handleInput(data) ?? false;
+	}
 	appendMessages(messages: readonly AgentSnapshotMessage[]): void {
 		this.state.liveChat.appendMessages(messages);
 	}
@@ -191,6 +222,7 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	}
 
 	renderBody(width: number, budget: number): string[] {
+		if (this.taskInspector) return this.taskInspector.renderViewport(width, budget);
 		return renderChatSessionBody(this.state, width, budget);
 	}
 
@@ -361,6 +393,7 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	}
 
 	dispose(): void {
+		this.taskInspector?.dispose();
 		this.unsubscribeTasks?.();
 		this.unsubscribeTaskBinding?.();
 		disposeChatSession(this.state);

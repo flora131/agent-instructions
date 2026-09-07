@@ -9,6 +9,12 @@ Atomic bundles `@bastani/subagents`, an extension for bounded specialist delegat
 
 You do not need to install anything separately when you use `@bastani/atomic`.
 
+## Task inspection
+
+Hosts with an owner task store expose `/tasks` and `/tasks <id>`. Agents and shells stay in admission order, including terminal tasks. Enter opens detail; arrows select an explicit action. Cancel asks for confirmation of the selected task. Terminal tasks retain transcript inspection but omit foreground, cancellation, and stdin actions. Escape returns from detail or stdin before returning to the composer.
+
+Transcript inspection uses retained child-session messages and the normal message renderers, excluding hidden reasoning. Missing capture is reported as `Transcript unavailable`; metrics never substitute for missing messages. In transcript focus, arrows scroll and PageUp requests earlier retained messages when available.
+
 ## Start with natural language
 
 Ask Atomic to coordinate subagents in plain language:

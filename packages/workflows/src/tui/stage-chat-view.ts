@@ -288,6 +288,14 @@ export class StageChatView implements Component, Focusable {
 		return this.chatHost.entries().flatMap((entry) => transcriptDebugEntries(entry));
 	}
 
+	get _taskDiagnostics(): { taskIds: string[]; emptyCompletionComponents: number } {
+		return {
+			taskIds: this.chatHost.entries().flatMap((entry) => (entry.kind === "task" ? [entry.task.ref.taskId] : [])),
+			emptyCompletionComponents: this.chatHost
+				.entries()
+				.filter((entry) => entry.kind === "custom" && entry.message.customType === "task-completion").length,
+		};
+	}
 	get _statusMessage(): string {
 		return this.chatHost.statusText();
 	}

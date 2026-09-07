@@ -1,6 +1,7 @@
 import type { AgentSessionInternalSurface as AgentSession } from "./agent-session-methods.ts";
 import { AgentTaskHost } from "./tasks/agent-adapter.js";
 import { TASK_COMPLETION_MESSAGE_TYPE, TaskCompletionOutbox } from "./tasks/completion.js";
+import { bindOwnerTaskStore, OwnerTaskStore } from "./tasks/owner-store.js";
 import { WorkflowStageAdmissionBoundary } from "./workflow-stage-admission.ts";
 
 export function getAgentTaskHost(this: AgentSession): AgentTaskHost {
@@ -50,6 +51,11 @@ export function getAgentTaskHost(this: AgentSession): AgentTaskHost {
 	this._agentTaskHost = this._workflowStageAdmission
 		? this._workflowStageAdmission.bindAgentTaskHost(binding)
 		: new AgentTaskHost({ ...binding, scope: { kind: "session", sessionId: this.sessionManager.getSessionId() } });
+	const { supervisor, owner } = this._agentTaskHost.ownerBinding;
+	const store = new OwnerTaskStore(supervisor, owner);
+	const connected = store.connect();
+	if (!connected.ok) throw new Error(connected.error.message);
+	bindOwnerTaskStore(this, store);
 	return this._agentTaskHost;
 }
 

@@ -221,6 +221,26 @@ real agent/Intercom integration belong to later slices. The credential-free
 repository fixture `test/fixtures/task-s1-demo.ts` exercises this real facade and
 native actor with one fake runner.
 
+### Task transcript references
+
+An admitted runner can call `context.bindTranscript(sessionManager)` with its existing
+child session history. `readTaskTranscript(task, cursor?)` in `core/tasks/transcript.ts`
+reads that binding through the task capability. It returns message and content-block
+references, not copied text: `id`, `kind`, `source`, and `toolCallId` when applicable.
+Kinds are `prompt`, `assistant`, `tool-call`, `tool-result`, and `response`.
+Thinking blocks and non-conversation entries are excluded. Repeated source IDs are
+deduplicated; repeated messages with different IDs remain distinct.
+
+The first page contains up to 100 recent references in source order. Pass the opaque
+`nextCursor` to read earlier references; `omittedEarlier` identifies remaining older
+content. Cursors belong to one task and bound session. An unknown task returns
+`UnknownTask`, a cursor from another task/session returns `ScopeMismatch`, and an
+unbound or empty history returns `TranscriptUnavailable` with `Transcript unavailable`.
+This adapter does not launch work or reconstruct live capabilities from history.
+Production subagent runners bind their child history, and main and attached workflow
+chat hosts mount the shared inspector. Command detail reads are scoped to the current
+selection and view lifetime: late results and errors cannot overwrite another view.
+
 ## Quick Start
 
 ```typescript
