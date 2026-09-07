@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { type ChildProcess, spawn } from "node:child_process";
+import { once } from "node:events";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import net from "node:net";
 import { tmpdir } from "node:os";
@@ -36,7 +37,6 @@ type Tool = {
 			message?: string;
 			attachments?: Attachment[];
 			replyTo?: string;
-			retryToken?: string;
 		},
 		signal: AbortSignal | undefined,
 		update: undefined,
@@ -69,11 +69,8 @@ function attachmentsInReorderedMemberOrder(): Attachment[] {
 	];
 }
 
-function requiredRetryToken(result: ToolResult): string {
-	const retryToken = result.details?.retryToken;
-	assert.equal(typeof retryToken, "string", "retryable tool errors expose an opaque retryToken");
-	assert.match(result.content[0]?.text ?? "", /retryToken/);
-	return retryToken as string;
+function assertNoRetryToken(result: ToolResult): void {
+	assert.doesNotMatch(JSON.stringify(result), /retryToken/);
 }
 async function waitUntil(condition: () => boolean, description: string): Promise<void> {
 	const deadline = Date.now() + 5_000;
@@ -121,10 +118,16 @@ function createClient(name: string): Promise<Client> {
 
 function registerTool(
 	sender: Client,
-	options: { readonly connectionName?: string; readonly replyTracker?: ReplyTracker } = {},
+	options: {
+		readonly connectionName?: string;
+		readonly replyTracker?: ReplyTracker;
+		readonly beforeReconnect?: () => Promise<void>;
+	} = {},
 ): Tool {
 	let tool: Tool | undefined;
 	const waiters = new ReplyWaiterRegistry();
+	// Match the runtime's single-flight reconnect admission for concurrent tool calls.
+	let reconnecting: Promise<void> | undefined;
 	sender.on("message", (from: SessionInfo, message: Message) => {
 		routeIncomingReply(waiters.pending(), from, message);
 	});
@@ -140,7 +143,15 @@ function registerTool(
 		} as never,
 		{
 			ensureConnected: async () => {
-				if (!sender.isConnected()) await connect(sender, options.connectionName ?? "sender");
+				if (!sender.isConnected()) {
+					reconnecting ??= (async () => {
+						await options.beforeReconnect?.();
+						if (!sender.isConnected()) await connect(sender, options.connectionName ?? "sender");
+					})().finally(() => {
+						reconnecting = undefined;
+					});
+					await reconnecting;
+				}
 				return sender;
 			},
 			syncPresenceIdentity() {},
@@ -203,7 +214,7 @@ afterAll(async () => {
 	rmSync(agentDir, { recursive: true, force: true });
 });
 
-test("a send retry with reordered attachment members keeps its broker-accepted ID and one raw delivery", async () => {
+test("one send invocation keeps its broker-accepted ID when reconnect transport reorders attachment members", async () => {
 	const received: Message[] = [];
 	const recipient = await createClient("recipient");
 	recipient.on("message", (_from: SessionInfo, message: Message) => received.push(message));
@@ -215,7 +226,9 @@ test("a send retry with reordered attachment members keeps its broker-accepted I
 	const retryAttachments = attachmentsInReorderedMemberOrder();
 	const brokerResults: SendResult[] = [];
 	const send = sender.send.bind(sender);
+	let attempts = 0;
 	sender.send = async (...args: Parameters<Client["send"]>) => {
+		if (++attempts > 1) args[1] = { ...args[1], attachments: retryAttachments };
 		const result = await send(...args);
 		brokerResults.push(result);
 		return result;
@@ -232,28 +245,13 @@ test("a send retry with reordered attachment members keeps its broker-accepted I
 	);
 	await waitUntil(() => received.length === 1, "the broker forwards the first operation");
 	socket.destroy();
-	const first = await firstExecution;
-	assert.equal(first.isError, true);
-	assert.match(first.content[0]?.text ?? "", /Client disconnected/);
-
+	const result = await firstExecution;
+	assertNoRetryToken(result);
 	const firstMessage = received[0];
 	assert.ok(firstMessage);
-	const retry = await tool.execute(
-		"model-retry",
-		{
-			action: "send",
-			to: "recipient",
-			message: "one logical operation",
-			attachments: retryAttachments,
-			retryToken: requiredRetryToken(first),
-		},
-		undefined,
-		undefined,
-		context,
-	);
 
 	assert.notEqual(sender.sessionId, firstSenderId, "the real broker must assign a new id on re-registration");
-	assert.deepEqual(retry, {
+	assert.deepEqual(result, {
 		content: [{ type: "text", text: "Message sent to recipient" }],
 		isError: false,
 		details: { messageId: firstMessage.id, delivered: true },
@@ -265,7 +263,7 @@ test("a send retry with reordered attachment members keeps its broker-accepted I
 	assert.deepEqual(Object.keys(retryAttachments[0] ?? {}), ["language", "content", "name", "type"]);
 });
 
-test("a reply retry with reordered attachment members keeps its broker-accepted ID and correlation", async () => {
+test("one reply invocation keeps its broker-accepted ID and correlation when transport reorders attachment members", async () => {
 	const replies: Message[] = [];
 	const asker = await createClient("asker");
 	asker.on("message", (_from: SessionInfo, message: Message) => replies.push(message));
@@ -295,6 +293,7 @@ test("a reply retry with reordered attachment members keeps its broker-accepted 
 	let loseFirstAcknowledgement = true;
 	replier.send = async (...args: Parameters<Client["send"]>) => {
 		attempts.push(args[1]);
+		if (attempts.length > 1) args[1] = { ...args[1], attachments: retryAttachments };
 		if (loseFirstAcknowledgement) {
 			loseFirstAcknowledgement = false;
 			socket.pause();
@@ -315,24 +314,13 @@ test("a reply retry with reordered attachment members keeps its broker-accepted 
 	);
 	await waitUntil(() => replies.length === 1, "the broker forwards the accepted reply");
 	socket.destroy();
-	const first = await firstExecution;
-	assert.equal(first.isError, true);
-	assert.match(first.content[0]?.text ?? "", /Client disconnected/);
-	assert.equal(replyTracker.listPending().length, 1, "acknowledgement loss keeps the question replyable");
-
-	const retry = await tool.execute(
-		"retry-reply",
-		{
-			action: "reply",
-			message: "one correlated answer",
-			attachments: retryAttachments,
-			replyTo: question.id,
-			retryToken: requiredRetryToken(first),
-		},
-		undefined,
-		undefined,
-		context,
+	assert.equal(
+		replyTracker.listPending().length,
+		1,
+		"acknowledgement loss keeps the question replyable during recovery",
 	);
+	const retry = await firstExecution;
+	assertNoRetryToken(retry);
 
 	assert.equal(retry.isError, false, retry.content[0]?.text);
 	assert.notEqual(replier.sessionId, firstReplierId);
@@ -355,7 +343,8 @@ test("a name-addressed tool retry keeps one identity and delivery after the reci
 	const originalRecipientId = recipient.sessionId;
 	assert.ok(originalRecipientId);
 	const sender = await createClient("sender");
-	const tool = registerTool(sender);
+	const reconnectReady = Promise.withResolvers<void>();
+	const tool = registerTool(sender, { beforeReconnect: () => reconnectReady.promise });
 	const socket = (sender as unknown as { socket: net.Socket }).socket;
 	socket.pause();
 	const firstExecution = tool.execute(
@@ -367,35 +356,36 @@ test("a name-addressed tool retry keeps one identity and delivery after the reci
 	);
 	await waitUntil(() => received.length === 1, "the first recipient generation receives the operation");
 	socket.destroy();
-	const first = await firstExecution;
-	assert.equal(first.isError, true);
-	await recipient.disconnect();
-	await connect(recipient, "recipient");
-	assert.notEqual(recipient.sessionId, originalRecipientId);
-
-	const retry = await tool.execute(
-		"retry-recipient-generation",
-		{ action: "send", to: "recipient", message: "stable raw target", retryToken: requiredRetryToken(first) },
-		undefined,
-		undefined,
-		context,
-	);
+	try {
+		await recipient.disconnect();
+		await connect(recipient, "recipient");
+		assert.notEqual(recipient.sessionId, originalRecipientId);
+	} finally {
+		reconnectReady.resolve();
+	}
+	const retry = await firstExecution;
+	assertNoRetryToken(retry);
 	assert.equal(retry.isError, false, retry.content[0]?.text);
 	assert.equal(retry.details?.messageId, received[0]?.id);
 	assert.equal(received.length, 1, "recipient churn must not produce a second logical delivery");
 });
 
-test("a claimed send keeps one ID through intermediate Session not found and broker dedupe", async () => {
+test("one send invocation keeps its ID through intermediate Session not found and broker dedupe", async () => {
 	const received: Message[] = [];
 	const recipient = await createClient("recipient");
 	recipient.on("message", (_from: SessionInfo, message: Message) => received.push(message));
 	const sender = await createClient("sender");
-	const tool = registerTool(sender);
+	const reconnectReady = Promise.withResolvers<void>();
+	const tool = registerTool(sender, { beforeReconnect: () => reconnectReady.promise });
 	const attemptedIds: Array<string | undefined> = [];
+	const brokerResults: SendResult[] = [];
 	const rawSend = sender.send.bind(sender);
 	sender.send = async (...args: Parameters<Client["send"]>) => {
 		attemptedIds.push(args[1].messageId);
-		return rawSend(...args);
+		const result = await rawSend(...args);
+		brokerResults.push(result);
+		if (!result.delivered) await connect(recipient, "recipient");
+		return result;
 	};
 
 	const socket = (sender as unknown as { socket: net.Socket }).socket;
@@ -409,29 +399,16 @@ test("a claimed send keeps one ID through intermediate Session not found and bro
 	);
 	await waitUntil(() => received.length === 1, "the raw operation is accepted once");
 	socket.destroy();
-	const first = await firstExecution;
-	const retryToken = requiredRetryToken(first);
-	await recipient.disconnect();
-
-	const intermediate = await tool.execute(
-		"recipient-absent",
-		{ action: "send", to: "recipient", message: "one durable operation", retryToken },
-		undefined,
-		undefined,
-		context,
-	);
-	assert.equal(intermediate.isError, true);
-	assert.match(intermediate.content[0]?.text ?? "", /Session not found/);
-	assert.equal(intermediate.details?.retryToken, retryToken);
-
-	await connect(recipient, "recipient");
-	const settled = await tool.execute(
-		"recipient-returned",
-		{ action: "send", to: "recipient", message: "one durable operation", retryToken },
-		undefined,
-		undefined,
-		context,
-	);
+	try {
+		await recipient.disconnect();
+	} finally {
+		reconnectReady.resolve();
+	}
+	const settled = await firstExecution;
+	assertNoRetryToken(settled);
+	assert.equal(brokerResults[0]?.delivered, false);
+	assert.match(brokerResults[0]?.reason ?? "", /Session not found/);
+	assert.equal(brokerResults[1]?.delivered, true);
 	assert.equal(settled.isError, false, settled.content[0]?.text);
 	assert.deepEqual(attemptedIds, Array(3).fill(received[0]?.id), "all three wire attempts use identity A");
 	assert.equal(received.length, 1, "the accepted operation has one raw delivery");
@@ -444,7 +421,14 @@ test("a raw name and its exact resolved ID remain distinct intentional tool call
 	const recipientId = recipient.sessionId;
 	assert.ok(recipientId);
 	const sender = await createClient("sender");
-	const tool = registerTool(sender);
+	const reconnectReady = Promise.withResolvers<void>();
+	const reconnectStarted = Promise.withResolvers<void>();
+	const tool = registerTool(sender, {
+		beforeReconnect: async () => {
+			reconnectStarted.resolve();
+			await reconnectReady.promise;
+		},
+	});
 	const socket = (sender as unknown as { socket: net.Socket }).socket;
 	socket.pause();
 	const firstExecution = tool.execute(
@@ -455,9 +439,11 @@ test("a raw name and its exact resolved ID remain distinct intentional tool call
 		context,
 	);
 	await waitUntil(() => received.length === 1, "the name-addressed operation is accepted");
+	const disconnected = once(sender, "disconnected");
 	socket.destroy();
-	const first = await firstExecution;
-	assert.equal(first.isError, true);
+	await disconnected;
+	await reconnectStarted.promise;
+	await connect(sender, "sender");
 	const exactCall = await tool.execute(
 		"exact-id-call",
 		{ action: "send", to: recipientId, message: "same payload" },
@@ -469,19 +455,15 @@ test("a raw name and its exact resolved ID remain distinct intentional tool call
 	assert.equal(received.length, 2, "the caller's distinct exact-ID operation must be delivered");
 	assert.notEqual(received[1]?.id, received[0]?.id);
 
-	const nameRetry = await tool.execute(
-		"name-retry",
-		{ action: "send", to: "recipient", message: "same payload", retryToken: requiredRetryToken(first) },
-		undefined,
-		undefined,
-		context,
-	);
+	reconnectReady.resolve();
+	const nameRetry = await firstExecution;
+	assertNoRetryToken(nameRetry);
 	assert.equal(nameRetry.isError, false, nameRetry.content[0]?.text);
 	assert.equal(nameRetry.details?.messageId, received[0]?.id);
 	assert.equal(received.length, 2);
 });
 
-test("an accepted ask retry with reordered attachment members survives broker replacement and remains replyable", async () => {
+test("one accepted ask invocation survives reordered attachment members and broker replacement and remains replyable", async () => {
 	const tracker = new ReplyTracker();
 	const questions: Array<{ from: SessionInfo; message: Message }> = [];
 	const recipient = await createClient("recipient");
@@ -492,7 +474,8 @@ test("an accepted ask retry with reordered attachment members survives broker re
 	const originalRecipientId = recipient.sessionId;
 	assert.ok(originalRecipientId);
 	const sender = await createClient("sender");
-	const senderTool = registerTool(sender);
+	const reconnectReady = Promise.withResolvers<void>();
+	const senderTool = registerTool(sender, { beforeReconnect: () => reconnectReady.promise });
 	const recipientTool = registerTool(recipient, { connectionName: "recipient", replyTracker: tracker });
 	const senderSocket = (sender as unknown as { socket: net.Socket }).socket;
 	const rawSend = sender.send.bind(sender);
@@ -502,7 +485,7 @@ test("an accepted ask retry with reordered attachment members survives broker re
 		if (loseFirstAcknowledgement) {
 			loseFirstAcknowledgement = false;
 			senderSocket.pause();
-		}
+		} else args[1] = { ...args[1], attachments: retryAttachments };
 		const result = await rawSend(...args);
 		successfulSends.push(result);
 		return result;
@@ -515,37 +498,23 @@ test("an accepted ask retry with reordered attachment members survives broker re
 		message: "survive broker replacement",
 		attachments: firstAttachments,
 	};
-	const retryParams = {
-		action: "ask",
-		to: "recipient",
-		message: "survive broker replacement",
-		attachments: retryAttachments,
-	};
-	const firstAttempt = senderTool.execute("before-broker-crash", firstParams, undefined, undefined, context);
+	const retryController = new AbortController();
+	const firstAttempt = senderTool.execute("single-ask", firstParams, retryController.signal, undefined, context);
 	await waitUntil(() => questions.length === 1, "the old broker forwards the accepted ask");
 	const questionId = questions[0]?.message.id;
 	assert.ok(questionId);
-	await stopBroker("SIGKILL");
-	senderSocket.destroy();
-	const first = await firstAttempt;
-	assert.equal(first.isError, true);
-	assert.match(first.content[0]?.text ?? "", /Client disconnected/);
-	await waitUntil(
-		() => !recipient.isConnected() && !sender.isConnected(),
-		"clients observe the old broker process exit",
-	);
-	await startBroker();
-	await connect(recipient, "recipient");
-	assert.notEqual(recipient.sessionId, originalRecipientId);
-
-	const retryController = new AbortController();
-	const retry = senderTool.execute(
-		"after-broker-restart",
-		{ ...retryParams, retryToken: requiredRetryToken(first) },
-		retryController.signal,
-		undefined,
-		context,
-	);
+	const senderDisconnected = once(sender, "disconnected");
+	const recipientDisconnected = once(recipient, "disconnected");
+	try {
+		await stopBroker("SIGKILL");
+		senderSocket.destroy();
+		await Promise.all([senderDisconnected, recipientDisconnected]);
+		await startBroker();
+		await connect(recipient, "recipient");
+		assert.notEqual(recipient.sessionId, originalRecipientId);
+	} finally {
+		reconnectReady.resolve();
+	}
 	await waitUntil(() => successfulSends.length === 1, "the replacement broker proves the accepted ask");
 	if (questions.length !== 1) retryController.abort();
 	assert.equal(successfulSends[0]?.id, questionId);
@@ -567,7 +536,8 @@ test("an accepted ask retry with reordered attachment members survives broker re
 	if (reply.isError) retryController.abort();
 	assert.equal(reply.isError, false, reply.content[0]?.text);
 	assert.deepEqual(tracker.listPending(), []);
-	const result = await retry;
+	const result = await firstAttempt;
+	assertNoRetryToken(result);
 	assert.equal(result.isError, false, result.content[0]?.text);
 	assert.match(result.content[0]?.text ?? "", /durable answer/);
 });
@@ -579,8 +549,10 @@ test("two concurrent accepted operations survive acknowledgement loss without a 
 	const sender = await createClient("sender");
 	const tool = registerTool(sender);
 	const brokerResults: SendResult[] = [];
+	const attemptedIds: Array<string | undefined> = [];
 	const send = sender.send.bind(sender);
 	sender.send = async (...args: Parameters<Client["send"]>) => {
+		attemptedIds.push(args[1].messageId);
 		const result = await send(...args);
 		brokerResults.push(result);
 		return result;
@@ -604,36 +576,24 @@ test("two concurrent accepted operations survive acknowledgement loss without a 
 	);
 	await waitUntil(() => received.length === 2, "the broker forwards both intentional operations");
 	socket.destroy();
-	const failed = await Promise.all([firstExecution, secondExecution]);
-	for (const result of failed) {
-		assert.equal(result.isError, true);
-		assert.match(result.content[0]?.text ?? "", /Client disconnected/);
+	const results = await Promise.all([firstExecution, secondExecution]);
+	for (const result of results) {
+		assert.equal(result.isError, false, result.content[0]?.text);
+		assertNoRetryToken(result);
 	}
-	const retryTokens = failed.map(requiredRetryToken);
 	const acceptedIds = received.map((message) => message.id);
 	assert.equal(new Set(acceptedIds).size, 2);
 
-	const firstRetry = await tool.execute(
-		"first-concurrent-retry",
-		{ action: "send", to: "recipient", message: "identical concurrent operation", retryToken: retryTokens[0] },
-		undefined,
-		undefined,
-		context,
-	);
-	const secondRetry = await tool.execute(
-		"second-concurrent-retry",
-		{ action: "send", to: "recipient", message: "identical concurrent operation", retryToken: retryTokens[1] },
-		undefined,
-		undefined,
-		context,
-	);
-
-	assert.equal(firstRetry.isError, false, firstRetry.content[0]?.text);
-	assert.equal(secondRetry.isError, false, secondRetry.content[0]?.text);
 	assert.deepEqual(
-		brokerResults.map(({ id, delivered }) => ({ id, delivered })),
-		acceptedIds.map((id) => ({ id, delivered: true })),
-		"FIFO retry calls must claim identities in the original call order",
+		results.map((result) => result.details?.messageId),
+		acceptedIds,
+		"each concurrent invocation must retain its own accepted identity",
+	);
+	for (const id of acceptedIds) assert.equal(attemptedIds.filter((attempt) => attempt === id).length, 2);
+	assert.deepEqual(
+		brokerResults.map(({ id, delivered }) => ({ id, delivered })).sort((a, b) => a.id.localeCompare(b.id)),
+		acceptedIds.map((id) => ({ id, delivered: true })).sort((a, b) => a.id.localeCompare(b.id)),
+		"both internal retries receive their retained broker receipts",
 	);
 	assert.equal(received.length, 2, "two accepted operations must never become three recipient deliveries");
 });
@@ -694,7 +654,16 @@ test("an accepted implicit reply retry stays bound to its original ask after a n
 	const originalQuestionId = questions[0]?.message.id;
 	assert.ok(originalQuestionId);
 
-	const tool = registerTool(replier, { connectionName: "reply-worker", replyTracker });
+	const reconnectReady = Promise.withResolvers<void>();
+	const reconnectStarted = Promise.withResolvers<void>();
+	const tool = registerTool(replier, {
+		connectionName: "reply-worker",
+		replyTracker,
+		beforeReconnect: async () => {
+			reconnectStarted.resolve();
+			await reconnectReady.promise;
+		},
+	});
 	const attempts: SendOptions[] = [];
 	const rawSend = replier.send.bind(replier);
 	const firstSocket = (replier as unknown as { socket: net.Socket }).socket;
@@ -715,11 +684,10 @@ test("an accepted implicit reply retry stays bound to its original ask after a n
 		context,
 	);
 	await waitUntil(() => originalReplies.length === 1, "the broker accepts the original implicit reply");
+	const disconnected = once(replier, "disconnected");
 	firstSocket.destroy();
-	const first = await firstExecution;
-	assert.equal(first.isError, true);
-	assert.match(first.content[0]?.text ?? "", /Client disconnected/);
-	const retryToken = requiredRetryToken(first);
+	await disconnected;
+	await reconnectStarted.promise;
 
 	await connect(replier, "reply-worker");
 	const secondQuestion = await newAsker.send("reply-worker", {
@@ -730,28 +698,15 @@ test("an accepted implicit reply retry stays bound to its original ask after a n
 	await waitUntil(() => questions.length === 2, "the new ambient ask is recorded before retry");
 	const newQuestionId = questions[1]?.message.id;
 	assert.ok(newQuestionId);
-	const mismatch = await tool.execute(
-		"mismatched-reply-after-state-change",
-		{ action: "reply", message: "different answer", retryToken },
-		undefined,
-		undefined,
-		context,
-	);
-	assert.equal(mismatch.isError, true);
-	assert.match(mismatch.content[0]?.text ?? "", /does not match this Intercom operation/);
-	assert.equal(attempts.length, 1, "mismatched token input fails before send and does not consume the stored route");
+	assert.equal(attempts.length, 1, "recovery stays gated while the ambient reply route changes");
 	assert.deepEqual(
 		replyTracker.listPending().map(({ message }) => message.id),
 		[originalQuestionId, newQuestionId],
 	);
 
-	const retry = await tool.execute(
-		"implicit-reply-after-state-change",
-		{ action: "reply", message: "answer only the original", retryToken },
-		undefined,
-		undefined,
-		context,
-	);
+	reconnectReady.resolve();
+	const retry = await firstExecution;
+	assertNoRetryToken(retry);
 	assert.equal(retry.isError, false, retry.content[0]?.text);
 	assert.deepEqual(
 		attempts.map(({ messageId, replyTo }) => ({ messageId, replyTo })),
@@ -811,7 +766,15 @@ test("a public reply reaches a retried cross-group ask after the asker reconnect
 		questions.push({ from, message: incoming });
 		recipientTracker.recordIncomingMessage(from, incoming);
 	});
-	const senderTool = registerTool(sender, { connectionName: "workflow-sender" });
+	const reconnectReady = Promise.withResolvers<void>();
+	const reconnectStarted = Promise.withResolvers<void>();
+	const senderTool = registerTool(sender, {
+		connectionName: "workflow-sender",
+		beforeReconnect: async () => {
+			reconnectStarted.resolve();
+			await reconnectReady.promise;
+		},
+	});
 	const recipientTool = registerTool(stage, {
 		connectionName: "workflow-reviewer",
 		replyTracker: recipientTracker,
@@ -832,27 +795,21 @@ test("a public reply reaches a retried cross-group ask after the asker reconnect
 		return result;
 	};
 	const params = { action: "ask", to: target, message: "answer after I reconnect" };
-	const firstAttempt = senderTool.execute("first-public-ask", params, undefined, undefined, context);
+	const retryController = new AbortController();
+	const firstAttempt = senderTool.execute("single-public-ask", params, retryController.signal, undefined, context);
 	await waitUntil(() => questions.length === 1, "the workflow stage receives the accepted public ask");
 	const questionId = questions[0]?.message.id;
 	assert.ok(questionId);
+	const disconnected = once(sender, "disconnected");
 	senderSocket.destroy();
-	const first = await firstAttempt;
-	assert.equal(first.isError, true);
-	assert.match(first.content[0]?.text ?? "", /Client disconnected/);
+	await disconnected;
+	await reconnectStarted.promise;
 	await waitForSessionDeparture(owner, originalSenderId);
 
 	await sender.connect({ ...session, name: "workflow-sender", group: "default" });
 	await sender.joinGroup(invocationGroup);
 	assert.notEqual(sender.sessionId, originalSenderId);
-	const retryController = new AbortController();
-	const retry = senderTool.execute(
-		"retry-public-ask",
-		{ ...params, retryToken: requiredRetryToken(first) },
-		retryController.signal,
-		undefined,
-		context,
-	);
+	reconnectReady.resolve();
 	await waitUntil(() => successfulSends.length === 1, "the retried ask receives its retained acknowledgement");
 	assert.equal(successfulSends[0]?.id, questionId);
 	assert.equal(routeValidations, 1, "deduplication must not reroute the accepted question");
@@ -883,7 +840,8 @@ test("a public reply reaches a retried cross-group ask after the asker reconnect
 	if (publicReply.isError) retryController.abort();
 	assert.equal(publicReply.isError, false, publicReply.content[0]?.text);
 	assert.deepEqual(recipientTracker.listPending(), [], "the public reply marks the exact pending ask as replied");
-	const retried = await retry;
+	const retried = await firstAttempt;
+	assertNoRetryToken(retried);
 	assert.equal(retried.isError, false, retried.content[0]?.text);
 	assert.match(retried.content[0]?.text ?? "", /correlated cross-group answer/);
 });
@@ -914,19 +872,8 @@ test("an ask retry reuses its real-broker question after disconnecting during th
 		"the broker accepts the question and the tool enters its reply wait",
 	);
 	(sender as unknown as { socket: net.Socket }).socket.destroy();
-	const first = await firstExecution;
-	assert.equal(first.isError, true);
-	assert.match(first.content[0]?.text ?? "", /Client disconnected/);
-
 	const originalQuestion = questions[0]?.message;
 	assert.ok(originalQuestion);
-	const retryExecution = tool.execute(
-		"retry-ask",
-		{ action: "ask", to: "recipient", message: "one accepted question", retryToken: requiredRetryToken(first) },
-		undefined,
-		undefined,
-		context,
-	);
 	await waitUntil(() => brokerResults.length === 2, "the reconnected ask receives its retained acknowledgement");
 	assert.equal(questions.length, 1, "the recipient must not receive the accepted question twice");
 	assert.deepEqual(
@@ -942,7 +889,8 @@ test("an ask retry reuses its real-broker question after disconnecting during th
 		replyTo: originalQuestion.id,
 	});
 	assert.equal(reply.delivered, true);
-	const retried = await retryExecution;
+	const retried = await firstExecution;
+	assertNoRetryToken(retried);
 	assert.equal(retried.isError, false);
 	assert.match(retried.content[0]?.text ?? "", /reply after sender re-registration/);
 
