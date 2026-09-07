@@ -13,6 +13,51 @@ The SDK provides programmatic access to atomic's agent capabilities. Use it to e
 
 See [examples/sdk/](https://github.com/bastani-inc/atomic/tree/main/packages/coding-agent/examples/sdk) for working examples from minimal to full control.
 
+## Owner-bound task supervisor (S1)
+
+S1 adds an SDK-only task foundation in `src/core/tasks/contracts.ts` and
+`src/core/tasks/supervisor.ts`, backed by the native `TaskSupervisor`. It is an
+internal trusted-host integration surface, not a package-root export or a new CLI
+command. Existing subagent runners, workflow execution, bash/PTY and task UI do
+not use it yet.
+
+A host binds its actual session or workflow-stage scope with `bindHostSession`,
+provides launch authorization and a runner factory, then calls `openTaskOwner`.
+Authorization runs before native admission. `startAgentTask` registers an agent
+task before runner setup and returns its lease without waiting for completion.
+Exact operation replay reuses that task and execution; a fresh operation creates
+a distinct task. Leases are environment-local capabilities, cannot be serialized,
+and cannot be reconstructed from task IDs or historical records.
+
+`initialObservation` applies launch policy: omitted policy yields
+`default-background`, explicit background yields `explicit`, and foreground
+registers a wait with its requested budget. A ready terminal result wins.
+`waitForTask` registers a synchronous WaitId; `observeTaskWait` awaits its outcome.
+An elapsed or explicit yield, or observer disposal, does not stop or relaunch the
+task. SDK waits do not replace the host's designated foreground observation.
+
+`cancelTask` preserves the first accepted cancellation cause. `closeTaskOwner`
+seals admission before draining and succeeds only after independent cleanup
+acknowledgement. The trusted runner supplies separate result and cleanup promises;
+a settled result alone never means resources were reaped. Failed cleanup remains
+observable; absent acknowledgement can leave close pending. This slice exercises
+fake runners, not force-stop or real-process cleanup guarantees.
+
+`watchOwnerTasks` provides a snapshot, decimal-string cursor and disposable async
+event iterable. Consumers must reconcile `snapshot`/`onReconcile`, then ignore
+deltas at or below that cursor: the iterable alone cannot recover evicted terminal
+events. Native callbacks are wake hints; journal drain and reset snapshots are
+authoritative. Each live facade subscription has one fallback poll, stopped on
+disposal or observed closure. The native byte journal and facade delivery backlog
+are bounded; total task and exact report-replay history are not.
+
+Raw text, absent optional fields, known zero metrics and ordered duplicate data
+remain distinct. `OutputRef` is metadata, not proof of retained bytes: output
+storage, `readTaskOutput`, command input, persistence, completion delivery and
+real agent/Intercom integration belong to later slices. The credential-free
+repository fixture `test/fixtures/task-s1-demo.ts` exercises this real facade and
+native actor with one fake runner.
+
 ## Quick Start
 
 ```typescript

@@ -5,6 +5,7 @@
 ### Added
 
 - Editable workflow stage chats now discover source-qualified skills from their own session catalog and expand `/skill:` submissions once through stage admission, preserving Enter/Ctrl+F delivery and literal human-input answers. Skill diagnostics remain in the stage chat; blocked, archived, and replayed stages stay read-only.
+- Added the SDK-only owner-bound task foundation: opaque host/task/wait capabilities, one execution per admitted attempt, observation-only yields, independent cleanup acknowledgement, and snapshot-reconciled subscriptions. Existing CLI, workflow and subagent runners are unchanged; output storage and real-runner integration remain later work ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 
 ### Changed
 

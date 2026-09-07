@@ -1,0 +1,129 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { test } from "vitest";
+import type {
+	ActivityReport,
+	AgentIntent,
+	ArtifactRef,
+	ModelParallelResponse,
+	ModelSingleResponse,
+	OutputRef,
+	OwnerId,
+	Result,
+	TaskId,
+	TaskResult,
+	WaitId,
+	WaitOutcome,
+} from "../../packages/coding-agent/src/core/tasks/contracts.js";
+import { TaskSupervisor } from "../../packages/coding-agent/src/core/tasks/supervisor.js";
+
+// RFC #2884: a released observation is not a terminal execution result.
+test("task contracts keep yielded observations out of terminal result sinks", () => {
+	const observation: WaitOutcome = {
+		kind: "yielded",
+		taskId: "task" as TaskId,
+		waitId: "wait" as WaitId,
+		reason: "elapsed",
+	};
+	const terminalSink = (result: TaskResult): string => result.kind;
+	const checkNegativeConstruction = (): void => {
+		// @ts-expect-error A WaitOutcome cannot settle a task or durable workflow.
+		terminalSink(observation);
+	};
+	assert.equal(typeof checkNegativeConstruction, "function");
+	assert.equal(terminalSink({ kind: "cancelled", cause: "user" }), "cancelled");
+	assert.equal(observation.kind, "yielded");
+});
+
+// RFC #2884: wire DTOs retain raw text, omitted fields, zero and ordered duplicates.
+test("task wire objects preserve raw intent and absent versus known empty artifacts", () => {
+	const intent: AgentIntent = { kind: "agent", agent: "worker", task: "\n x \n", description: "" };
+	assert.deepEqual(JSON.parse(JSON.stringify(intent)), intent);
+	assert.equal(Object.hasOwn(intent, "cwd"), false);
+	const output: OutputRef = {
+		ownerId: "owner" as OwnerId,
+		taskId: "task" as TaskId,
+		artifactId: "output",
+		byteCount: "9007199254740993",
+		omittedRanges: [],
+	};
+	const observation: WaitOutcome = { kind: "settled", taskId: output.taskId, result: { kind: "completed", output } };
+	const absent: ModelSingleResponse = { kind: "admitted", observation };
+	const empty: ModelSingleResponse = { kind: "admitted", observation, artifacts: [] };
+	assert.equal(Object.hasOwn(absent, "artifacts"), false);
+	assert.deepEqual(empty.artifacts, []);
+	const artifact: ArtifactRef = { kind: "result", uri: " raw uri " };
+	const parallel: ModelParallelResponse = {
+		kind: "parallel",
+		slots: [
+			{ ordinal: 0, outcome: { kind: "admitted", observation, artifacts: [artifact, artifact] } },
+			{ ordinal: 1, outcome: empty },
+			{ ordinal: 2, outcome: { kind: "unstarted", reason: { kind: "skipped", cause: "parallel-group-detach" } } },
+		],
+	};
+	assert.deepEqual(JSON.parse(JSON.stringify(parallel)), parallel);
+	assert.equal(output.byteCount, "9007199254740993");
+	const metrics: ActivityReport = { reportId: "r1", change: { kind: "metrics", toolCount: 0 } };
+	assert.deepEqual(metrics.change, { kind: "metrics", toolCount: 0 });
+	const attention: ActivityReport = {
+		reportId: "r2",
+		change: {
+			kind: "attention-set",
+			attention: { kind: "input-needed", requestId: "q1", prompt: "", route: { sessionId: "s", promptId: "q1" } },
+		},
+	};
+	assert.deepEqual(JSON.parse(JSON.stringify(attention)), attention);
+});
+
+// RFC #2884: success and refusal use explicit Result objects, not string proxies.
+test("Result discriminates a successful value from a named refusal", () => {
+	const success: Result<number, { code: "OwnerClosing"; message: string }> = { ok: true, value: 0 };
+	const refusal: Result<number, { code: "OwnerClosing"; message: string }> = {
+		ok: false,
+		error: { code: "OwnerClosing", message: "Owner is closing" },
+	};
+	assert.deepEqual(success, { ok: true, value: 0 });
+	assert.deepEqual(refusal, { ok: false, error: { code: "OwnerClosing", message: "Owner is closing" } });
+});
+
+// RFC #2884: the trusted host refusal remains outside the native StartError domain.
+test("facade host authorization rejects before runner creation and owner admission", async () => {
+	const supervisor = new TaskSupervisor();
+	const scope = { kind: "session" as const, sessionId: randomUUID() };
+	let runs = 0;
+	const host = supervisor.bindHostSession({
+		scope,
+		authorizeLaunch() {
+			throw new Error("delegation denied");
+		},
+		createRunner() {
+			runs++;
+			throw new Error("unreachable");
+		},
+	});
+	const opened = supervisor.openTaskOwner(host, scope);
+	assert.ok(opened.ok);
+	if (!opened.ok) return;
+	try {
+		const intent: AgentIntent = { kind: "agent", agent: "worker", task: " raw " };
+		await assert.rejects(
+			supervisor.startAgentTask(
+				opened.value,
+				intent,
+				"denied" as import("../../packages/coding-agent/src/core/tasks/contracts.js").OperationId,
+			),
+			/delegation denied/,
+		);
+		assert.equal(runs, 0);
+		const watched = supervisor.watchOwnerTasks(opened.value);
+		assert.ok(watched.ok);
+		if (watched.ok) {
+			assert.deepEqual(watched.value.snapshot.tasks, []);
+			watched.value.dispose();
+		}
+		assert.throws(() => JSON.stringify(host), /not serializable/);
+		assert.throws(() => JSON.stringify(opened.value), /not serializable/);
+	} finally {
+		assert.ok((await supervisor.closeTaskOwner(opened.value, "session-close")).ok);
+	}
+});

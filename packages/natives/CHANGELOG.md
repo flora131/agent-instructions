@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added an environment-local `TaskSupervisor` actor with owner-sealed admission, stable task/attempt identities, replay-safe reports, observation waits, cancellation and independently acknowledged cleanup. Generated bindings expose atomic snapshot subscriptions with a byte-bounded event journal; total task/report history and output storage are not bounded by this journal ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+
 ### Changed
 
 - Raised the minimum supported Bun runtime to 1.4.2.

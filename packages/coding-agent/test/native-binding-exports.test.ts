@@ -1,12 +1,25 @@
 import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 
+// RFC #2884: the generated S1 supervisor and opaque capabilities are shipped exports.
 const EXPECTED_NATIVE_EXPORTS = [
 	"AdmissionRefusalKind",
 	"AgentStatus",
+	"AgentTaskKind",
+	"CancelCause",
 	"FileType",
 	"GrepOutputMode",
+	"HostSession",
 	"NapiSubagentControl",
+	"NapiTaskSupervisor",
+	"OwnerCloseCause",
+	"OwnerLease",
+	"RunnerLease",
+	"SubscriptionLease",
+	"TaskLease",
+	"TaskSupervisor",
+	"WaitLease",
+	"YieldReason",
 	"RetainedPostgres",
 	"PtySession",
 	"SubagentControl",
