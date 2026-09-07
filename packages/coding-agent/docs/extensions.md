@@ -1040,6 +1040,8 @@ Stopping ownership follows each run's `parentRunId` chain and then its root iden
 
 The projection module's `workflowActivityNodeKey(runId, nodeId)` helper builds `${runId}:${nodeId}` keys for `executingStageIds`, `executingToolNodeIds`, and `retryingStageIds`. The first colon separates the runtime UUID run ID from the node ID, which may contain colons. Bare node IDs do not establish ownership: two runs can contain the same tool hash. `stoppingRunIds` and `acknowledgedFailureRunIds` use plain run IDs.
 
+The projector and its ownership-key helper are internal to the workflows package, not exports of the supported `@bastani/atomic/workflows` SDK. Extension consumers use `ctx.observeWorkflowActivity` rather than importing the projector.
+
 This projector is not yet wired into the workflows extension. It does not publish activity or lifecycle events, change notifications, or enable a Herdr reporter.
 
 | Hook | Payload and semantics |
