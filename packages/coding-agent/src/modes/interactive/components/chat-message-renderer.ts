@@ -173,6 +173,16 @@ export class LiveChatEntriesController {
 	constructor(entries: LiveChatEntry[]) {
 		this.entries = entries;
 	}
+	clearTasks(): void {
+		const streaming =
+			this.streamingAssistantIndex === undefined ? undefined : this.entries[this.streamingAssistantIndex];
+		for (let index = this.entries.length - 1; index >= 0; index--) {
+			const entry = this.entries[index];
+			if ("kind" in entry && entry.kind === "task") this.entries.splice(index, 1);
+		}
+		this.streamingAssistantIndex = streaming === undefined ? undefined : this.entries.indexOf(streaming);
+		this.reindexPendingTools();
+	}
 	upsertTasks(tasks: readonly TaskRecord[], store?: OwnerTaskStore): void {
 		for (const task of tasks) {
 			const activity = store?.recentActivity(task.ref.taskId) ?? [];

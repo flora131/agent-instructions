@@ -1,4 +1,4 @@
-import type { Container, TUI } from "@earendil-works/pi-tui";
+import type { Component, Container, TUI } from "@earendil-works/pi-tui";
 import type { TaskId } from "../../core/tasks/contracts.js";
 import { getOwnerTaskStore, type OwnerTaskStore, watchOwnerTaskStoreBinding } from "../../core/tasks/owner-store.js";
 import { TaskRow } from "./components/task-row.js";
@@ -10,7 +10,7 @@ type InteractiveTaskHost = {
 	ui: Pick<TUI, "requestRender">;
 };
 
-const bindings = new WeakMap<InteractiveTaskHost, { store: OwnerTaskStore; dispose: () => void }>();
+const bindings = new WeakMap<InteractiveTaskHost, { store: OwnerTaskStore; dispose: () => void; update: () => void }>();
 const sessionBindings = new WeakMap<InteractiveTaskHost, { session: object; dispose: () => void }>();
 /** The launch tool's pending component is not the lifetime of a task anchor. */
 export function refreshInteractiveTasks(mode: InteractiveTaskHost): void {
@@ -22,14 +22,20 @@ export function refreshInteractiveTasks(mode: InteractiveTaskHost): void {
 		});
 	}
 	const store = getOwnerTaskStore(mode.session);
-	if (!store || bindings.get(mode)?.store === store) return;
-	bindings.get(mode)?.dispose();
-	const mounted = new Set<TaskId>();
+	const binding = bindings.get(mode);
+	if (store && binding?.store === store) {
+		binding.update();
+		return;
+	}
+	binding?.dispose();
+	bindings.delete(mode);
+	if (!store) return;
+	const mounted = new Map<TaskId, Component>();
 	const update = () => {
 		for (const task of store.tasks) {
-			if (mounted.has(task.ref.taskId)) continue;
-			mounted.add(task.ref.taskId);
-			mode.chatContainer.addChild({
+			const anchor = mounted.get(task.ref.taskId);
+			if (anchor && mode.chatContainer.children.includes(anchor)) continue;
+			const component: Component = {
 				invalidate() {},
 				render(width: number) {
 					const current = store.tasks.find((item) => item.ref.taskId === task.ref.taskId) ?? task;
@@ -44,11 +50,21 @@ export function refreshInteractiveTasks(mode: InteractiveTaskHost): void {
 						activityOmitted: store.activityOmitted(current.ref.taskId),
 					}).render(width);
 				},
-			});
+			};
+			mounted.set(task.ref.taskId, component);
+			mode.chatContainer.addChild(component);
 		}
 		mode.ui.requestRender();
 	};
-	bindings.set(mode, { store, dispose: store.subscribe(update) });
+	const unsubscribe = store.subscribe(update);
+	bindings.set(mode, {
+		store,
+		update,
+		dispose() {
+			unsubscribe();
+			for (const component of mounted.values()) mode.chatContainer.removeChild(component);
+		},
+	});
 	update();
 }
 export function disposeInteractiveTasks(mode: InteractiveTaskHost): void {
