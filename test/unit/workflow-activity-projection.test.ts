@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import type { WorkflowRootActivity } from "@bastani/atomic";
 import { test } from "vitest";
+import { createStore } from "../../packages/workflows/src/shared/store.js";
 import type { RunSnapshot, StageSnapshot, ToolNodeSnapshot } from "../../packages/workflows/src/shared/store-types.js";
 import {
 	projectWorkflowActivity,
@@ -333,6 +334,101 @@ test("workflow activity qualifies stage execution and retry ownership", () => {
 				}),
 				activity({ rootRunId: "historical" }),
 			],
+		);
+	}
+});
+
+// #2891: stopping a workflow boundary must not suppress handoffs outside its subtree.
+test("workflow activity preserves independent handoffs while a child stops", () => {
+	const cases = [
+		{ target: "root", stopping: "child", runnable: true },
+		{ target: "sibling", stopping: "child", runnable: true },
+		{ target: "child", stopping: "child", runnable: false },
+		{ target: "grandchild", stopping: "child", runnable: false },
+		{ target: "grandchild", stopping: "root", runnable: false },
+	];
+	for (const scenario of cases) {
+		for (const withWait of [false, true]) {
+			const store = createStore();
+			store.recordRunStart(run());
+			// Descendant-before-parent order must not affect control scope.
+			store.recordRunStart(run({ id: "grandchild", parentRunId: "child", rootRunId: "root" }));
+			store.recordRunStart(run({ id: "child", parentRunId: "root", rootRunId: "root" }));
+			store.recordRunStart(run({ id: "sibling", parentRunId: "root", rootRunId: "root" }));
+			store.recordStageStart(scenario.target, stage("done"));
+			store.recordStageStart(scenario.target, stage("next", "pending", ["done"]));
+			store.recordStageEnd(scenario.target, { ...stage("done", "completed"), endedAt: 1 });
+			if (withWait) {
+				store.recordRunStart(run({ id: "waiter", parentRunId: "root", rootRunId: "root" }));
+				store.recordStageStart("waiter", stage("wait"));
+				assert.equal(store.recordStageAwaitingInput("waiter", "wait", true), true);
+			}
+			const owned = ownership({ stoppingRunIds: new Set([scenario.stopping]) });
+			const attention = { actionableBlockCount: withWait ? 1 : 0, needsAttention: withWait };
+			for (const paused of [false, true]) {
+				if (paused) store.recordRunPaused(scenario.stopping);
+				const snapshot = store.graphSnapshot();
+				const before = structuredClone(snapshot);
+				assert.deepEqual(
+					projectWorkflowActivity({ snapshot, ownership: owned }),
+					[
+						activity({
+							...attention,
+							state: scenario.runnable ? "working" : withWait ? "blocked" : "idle",
+							reason: scenario.runnable
+								? "automatic_continuation"
+								: withWait
+									? "awaiting_input"
+									: paused
+										? "paused"
+										: "quiescent",
+						}),
+					],
+					JSON.stringify({ ...scenario, withWait, paused }),
+				);
+				assert.deepEqual(snapshot, before);
+			}
+		}
+	}
+});
+
+// #2891: per-stage pause does not pause the run while another stage still executes.
+test("workflow activity retains a paused stage after its parallel sibling completes", () => {
+	for (const status of ["completed", "cancelled", "killed", "failed"] as const) {
+		const store = createStore();
+		store.recordRunStart(run({ stages: [stage("paused"), stage("sibling")] }));
+		assert.equal(store.recordStagePaused("root", "paused", 1), true);
+		assert.deepEqual(
+			projectWorkflowActivity({
+				snapshot: store.graphSnapshot(),
+				ownership: ownership({ executingStageIds: new Set([workflowActivityNodeKey("root", "sibling")]) }),
+			}),
+			[activity(executing)],
+		);
+		store.recordStageEnd("root", { ...stage("sibling", "completed"), endedAt: 2 });
+		const snapshot = store.graphSnapshot();
+		const before = structuredClone(snapshot);
+		assert.equal(snapshot.runs[0].status, "running");
+		assert.deepEqual(
+			snapshot.runs[0].stages.map((stage) => stage.status),
+			["paused", "completed"],
+		);
+		assert.deepEqual(projectWorkflowActivity({ snapshot, ownership: ownership() }), [activity({ reason: "paused" })]);
+		assert.deepEqual(snapshot, before);
+		assert.deepEqual(store.graphSnapshot(), before);
+		// Retained paused stages must not overwrite a terminal outcome or its acknowledgement.
+		store.recordRunEnd("root", status);
+		assert.deepEqual(
+			projectWorkflowActivity({
+				snapshot: store.graphSnapshot(),
+				ownership: ownership({ acknowledgedFailureRunIds: new Set(["root"]) }),
+			}),
+			[activity()],
+		);
+		assert.equal(store.runs()[0].status, status);
+		assert.deepEqual(
+			store.runs()[0].stages.map((stage) => stage.status),
+			["paused", "completed"],
 		);
 	}
 });

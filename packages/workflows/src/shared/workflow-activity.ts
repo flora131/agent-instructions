@@ -41,9 +41,23 @@ function rootId(run: RunSnapshot, runs: ReadonlyMap<string, RunSnapshot>): strin
 	return parent ? rootId(parent, runs) : run.parentRunId;
 }
 
+function isStoppingRun(
+	run: RunSnapshot,
+	runs: ReadonlyMap<string, RunSnapshot>,
+	stoppingRunIds: ReadonlySet<string>,
+): boolean {
+	let id: string | undefined = run.id;
+	while (id !== undefined) {
+		if (stoppingRunIds.has(id)) return true;
+		id = runs.get(id)?.parentRunId;
+	}
+	return false;
+}
+
 function projectRoot(
 	rootRunId: string,
 	runs: readonly RunSnapshot[],
+	runById: ReadonlyMap<string, RunSnapshot>,
 	ownership: WorkflowActivityOwnership,
 ): WorkflowRootActivity {
 	let activeExecutionCount = 0;
@@ -54,6 +68,8 @@ function projectRoot(
 	let paused = false;
 	const stopping = runs.some((run) => ownership.stoppingRunIds.has(run.id));
 	for (const run of runs) {
+		const runStopping =
+			ownership.stoppingRunIds.has(rootRunId) || isStoppingRun(run, runById, ownership.stoppingRunIds);
 		activeExecutionCount += (run.toolNodes ?? []).filter((tool) =>
 			ownership.executingToolNodeIds.has(workflowActivityNodeKey(run.id, tool.id)),
 		).length;
@@ -72,6 +88,7 @@ function projectRoot(
 			manualWaits++;
 		const statuses = new Map([...run.stages, ...(run.toolNodes ?? [])].map((node) => [node.id, node.status]));
 		for (const stage of run.stages) {
+			if (run.status === "running" && stage.status === "paused") paused = true;
 			if (stage.status === "awaiting_input" || stage.pendingPrompt) {
 				if (acceptsAttention) humanWaits++;
 				continue;
@@ -81,7 +98,7 @@ function projectRoot(
 			if (ownership.retryingStageIds.has(key)) retrying = true;
 			if (
 				run.status === "running" &&
-				!stopping &&
+				!runStopping &&
 				stage.status === "pending" &&
 				stage.parentIds.every((id) => statuses.get(id) === "completed")
 			)
@@ -126,5 +143,5 @@ export function projectWorkflowActivity({ snapshot, ownership }: WorkflowActivit
 		if (group) group.push(run);
 		else roots.set(id, [run]);
 	}
-	return [...roots].map(([id, runs]) => projectRoot(id, runs, ownership));
+	return [...roots].map(([id, runs]) => projectRoot(id, runs, byId, ownership));
 }

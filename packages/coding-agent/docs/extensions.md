@@ -1034,6 +1034,8 @@ The host exposes typed workflow observation contracts. A workflow provider must 
 
 The workflows package also contains a pure root-activity projector. It combines a store snapshot with runtime ownership of executing stages and tools, retries, stopping runs, and acknowledged failures. Nested runs fold into one root summary; historical `running` status alone never counts as execution. Runnable stage handoffs remain `working`, while a stage parked on its own prompt contributes attention rather than execution. Independent work keeps the root `working` with `needsAttention: true`. With no work progressing, human waits and unresolved failures are `blocked`; paused runs are `idle` with reason `paused`, and completed or intentionally stopped runs are `idle` with reason `quiescent`.
 
+Stopping a child suppresses handoffs only in that child's subtree, not in its parent or sibling runs. A paused stage keeps the root `idle` with reason `paused` after independent execution finishes, even when the stored run status remains `running`. The projector does not change stored run or stage outcomes.
+
 The projection module's `workflowActivityNodeKey(runId, nodeId)` helper builds `${runId}:${nodeId}` keys for `executingStageIds`, `executingToolNodeIds`, and `retryingStageIds`. The first colon separates the runtime UUID run ID from the node ID, which may contain colons. Bare node IDs do not establish ownership: two runs can contain the same tool hash. `stoppingRunIds` and `acknowledgedFailureRunIds` use plain run IDs.
 
 This projector is not yet wired into the workflows extension. It does not publish activity or lifecycle events, change notifications, or enable a Herdr reporter.
