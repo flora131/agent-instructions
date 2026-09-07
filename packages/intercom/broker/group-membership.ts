@@ -1,6 +1,7 @@
 import { hasGroup, normalizeGroup, normalizeGroups } from "../group.js";
 import type { GroupSummary, SessionInfo } from "../types.js";
 import type { BrokerConnectedSession } from "./send-handler.js";
+import { isAgentRecipient } from "../recipient-purpose.js";
 
 /** Return the normalized memberships carried by a wire session. */
 export function sessionGroups(session: SessionInfo): Set<string> {
@@ -28,7 +29,7 @@ export function sessionsVisibleTo(
 	sessions: ReadonlyMap<string, BrokerConnectedSession>,
 	requester: SessionInfo,
 ): SessionInfo[] {
-	return [...sessions.values()].map(({ info }) => info).filter((info) => sessionsShareGroup(requester, info));
+	return [...sessions.values()].map(({ info }) => info).filter((info) => isAgentRecipient(info) && sessionsShareGroup(requester, info));
 }
 
 /** Return sessions that belong to one explicit group. */
@@ -36,7 +37,7 @@ export function sessionsInGroup(
 	sessions: ReadonlyMap<string, BrokerConnectedSession>,
 	group: string | undefined,
 ): SessionInfo[] {
-	return [...sessions.values()].map(({ info }) => info).filter((info) => hasGroup(sessionGroups(info), group));
+	return [...sessions.values()].map(({ info }) => info).filter((info) => isAgentRecipient(info) && hasGroup(sessionGroups(info), group));
 }
 
 /** Summarize every group currently represented by a connected session. */
@@ -46,6 +47,7 @@ export function knownGroupSummaries(
 ): GroupSummary[] {
 	const counts = new Map<string, number>();
 	for (const { info } of sessions.values()) {
+		if (!isAgentRecipient(info)) continue;
 		for (const group of sessionGroups(info)) counts.set(group, (counts.get(group) ?? 0) + 1);
 	}
 	const requesterGroups = sessionGroups(requester);

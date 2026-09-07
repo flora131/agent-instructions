@@ -359,7 +359,7 @@ describe("Intercom recoverable disconnect at the lazy event-relay boundary", () 
 					payload: {
 						requestId: "req-1",
 						delivered: false,
-						error: "Client disconnected. Retry the same Intercom call up to three times to reconnect.",
+						error: "Client disconnected",
 					},
 				},
 			],

@@ -20,11 +20,7 @@ import { normalizeGroup, normalizeGroups, validateRuntimeGroup } from "./group.j
 import { parseWorkflowStageTarget, withWorkflowStageTargetFinalSegment } from "./workflow-stage-target.js";
 import { isRecoverableIntercomDisconnect } from "./recoverable-disconnect.js";
 import { RetryIdentityReservations, type RetryIdentityAttempt, RetryTokenError } from "./retry-identity.js";
-
-function retryTokenGuidance(retryToken: string | undefined, remainingRetries: number): string {
-	if (retryToken === undefined) return "";
-	return ` Retry this exact operation with retryToken \`${retryToken}\` (${remainingRetries} claimed ${remainingRetries === 1 ? "attempt" : "attempts"} remain; the original deadline is unchanged).`;
-}
+import { runIntercomOperation, type IntercomAttemptResult } from "./tool-retry.js";
 
 function retryErrorDetails(retryToken: string | undefined): Record<string, unknown> {
 	return retryToken === undefined ? { error: true } : { error: true, retryToken };
@@ -211,7 +207,7 @@ A valid target outside the known set queues speculatively with a \`notInKnownSet
 undeliverable at terminal only if never delivered. Use \`ask\` only for a live, reply-capable target.
 Stage paths win over same-named owned subgroups for send/ask; \`list\` with \`group\` continues to
 select the group.
-If a \`send\`, \`ask\`, or \`reply\` fails with \`Client disconnected\`, retry that exact operation with the returned \`retryToken\`, up to three claimed attempts; a call without the token is always a distinct operation.
+For send/ask/reply, Intercom retries recoverable disconnects internally up to three times with the same operation identity. Each new tool call is a new operation. If recovery ends with an unknown delivery outcome, do not repeat it automatically.
 
 Usage:
   intercom({ action: "list" })                    → List sessions visible through your groups
@@ -223,7 +219,6 @@ Usage:
   intercom({ action: "send", to: "session-name", message: "..." })  → Send message (shared group only)
   intercom({ action: "ask", to: "session-name", message: "..." })   → Ask and wait for reply
   intercom({ action: "reply", message: "..." })                      → Reply to the active or exact pending ask
-  intercom({ action: "send", to: "session-name", message: "...", retryToken: "..." }) → Claim the exact retry returned by a retryable failure
   intercom({ action: "pending" })                                      → List unresolved inbound asks
   intercom({ action: "status" })                  → Show connection status and all your groups
 
@@ -231,7 +226,7 @@ The "join" action is additive. "default" is the shared default group; "true" and
 "auto" are reserved for subagent auto-groups. Ordinary delivery requires at least
 one shared membership; contact_supervisor remains the only cross-group path.`,
     promptSnippet:
-      "Use to coordinate with other local agent sessions that share an intercom group. For a retryable send/ask/reply failure, repeat the exact operation with its returned retryToken; omit retryToken for fresh operations.",
+      "Use to coordinate with other local agent sessions that share an intercom group. Send/ask/reply retry reconnects internally; do not automatically repeat an unknown delivery outcome.",
     parameters: Type.Object({
       action: Type.String({
         description: "Action: 'list', 'groups', 'join', 'leave', 'send', 'ask', 'reply', 'pending', or 'status'",
@@ -251,20 +246,23 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
       replyTo: Type.Optional(Type.String({
         description: "Exact pending-ask message ID; disambiguates concurrent asks, including asks from one sender",
       })),
-      retryToken: Type.Optional(Type.String({
-        minLength: 1,
-        maxLength: 128,
-        description: "Opaque token returned after a retryable send/ask/reply failure. Repeat the exact same action and arguments with this token; omit it for every fresh operation.",
-      })),
       group: Type.Optional(Type.String({
         description: "Group name for 'join' or optional targeted 'leave'; read-only group filter for 'list'/'status'. 'send'/'ask' use shared memberships.",
       })),
     }),
 
-    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+    async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+      if ("retryToken" in params) {
+        return {
+          content: [{ type: "text", text: "Intercom manages retries internally. Caller-supplied retry tokens are not supported; this call was not sent." }],
+          isError: true,
+          details: { error: true },
+        };
+      }
       const toolSessionId = ctx.sessionManager.getSessionId();
-      const { action, to, message, attachments, replyTo, retryToken, group } = params;
-      let retryPreflightRemaining: number | undefined;
+      const { action, to, message, replyTo, group } = params;
+      const attachments = params.attachments?.map((attachment) => ({ ...attachment }));
+      const executeAttempt = async (retryToken: string | undefined, _signal?: AbortSignal): Promise<IntercomAttemptResult> => {
       if (retryToken !== undefined) {
         if (action !== "send" && action !== "ask" && action !== "reply") {
           const error = new RetryTokenError("mismatch");
@@ -275,7 +273,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
           };
         }
         try {
-          retryPreflightRemaining = retryIdentities.validateRetryToken(retryToken, toolSessionId, action);
+          retryIdentities.validateRetryToken(retryToken, toolSessionId, action);
         } catch (error) {
           return {
             content: [{ type: "text", text: getErrorMessage(error) }],
@@ -293,10 +291,10 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
         return {
           content: [{
             type: "text",
-            text: `Intercom not connected: ${getErrorMessage(error)}${retryTokenGuidance(retainedToken, retryPreflightRemaining ?? 0)}`,
+            text: `Intercom not connected: ${getErrorMessage(error)}`,
           }],
           isError: true,
-          details: retryErrorDetails(retainedToken),
+          details: { ...retryErrorDetails(retainedToken), retryable: isRecoverableIntercomDisconnect(error) },
         };
       }
 
@@ -502,7 +500,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
             return {
               content: [{
                 type: "text",
-                text: `Cancelled${retryTokenGuidance(retryToken, retryPreflightRemaining ?? 0)}`,
+                text: "Cancelled",
               }],
               isError: true,
               details: retryErrorDetails(retryToken),
@@ -521,7 +519,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
                 expectsReply: false,
               });
             }
-            if (!replyTo && deps.confirmSend && ctx.hasUI) {
+            if (retryToken === undefined && !replyTo && deps.confirmSend && ctx.hasUI) {
               const attachmentText = attachments?.length ? formatAttachments(attachments) : "";
               const confirmed = await ctx.ui.confirm(
                 "Send Message",
@@ -551,7 +549,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
               const retained = retainInconclusiveRetry(retryIdentities, retryIdentity);
               retryIdentity = undefined;
               return {
-                content: [{ type: "text", text: `Cancelled${retryTokenGuidance(retained.retryToken, retained.remainingRetries)}` }],
+                content: [{ type: "text", text: "Cancelled" }],
                 isError: true,
                 details: retryErrorDetails(retained.retryToken),
               };
@@ -562,7 +560,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
               return {
                 content: [{
                   type: "text",
-                  text: `Cannot message the current session${retryTokenGuidance(retained.retryToken, retained.remainingRetries)}`,
+                  text: "Cannot message the current session",
                 }],
                 isError: true,
                 details: retryErrorDetails(retained.retryToken),
@@ -613,7 +611,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
               return {
                 content: [{
                   type: "text",
-                  text: `Message to "${to}" was not delivered: ${errorText}${retryTokenGuidance(retained.retryToken, retained.remainingRetries)}`,
+                  text: `Message to "${to}" was not delivered: ${errorText}`,
                 }],
                 isError: true,
                 details: retryToken === undefined
@@ -656,10 +654,10 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
             return {
               content: [{
                 type: "text",
-                text: `Failed to send: ${getErrorMessage(failure)}${retryTokenGuidance(retained?.retryToken, retained?.remainingRetries ?? 0)}`,
+                text: `Failed to send: ${getErrorMessage(failure)}`,
               }],
               isError: true,
-              details: retryErrorDetails(retained?.retryToken),
+              details: { ...retryErrorDetails(retained?.retryToken), retryable: isRecoverableIntercomDisconnect(error) },
             };
           }
         }
@@ -680,7 +678,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
             return {
               content: [{
                 type: "text",
-                text: `Cancelled${retryTokenGuidance(retryToken, retryPreflightRemaining ?? 0)}`,
+                text: "Cancelled",
               }],
               isError: true,
               details: retryErrorDetails(retryToken),
@@ -688,6 +686,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
           }
           let wait: ReplyWait | null = null;
           let retryIdentity: RetryIdentityAttempt | undefined;
+          let askDelivered = false;
 
           try {
             if (retryToken !== undefined && !message) throw new RetryTokenError("mismatch");
@@ -715,7 +714,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
                 requestParentAskHandoff(pi.events, metadata, {
                   kind: "intercom",
                   question: typeof message === "string" ? message : "",
-                  attachments,
+                  attachments: params.attachments,
                   resolvedTargetId,
                 }),
               );
@@ -742,7 +741,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
               return {
                 content: [{
                   type: "text",
-                  text: `Cancelled${retryTokenGuidance(retained?.retryToken, retained?.remainingRetries ?? 0)}`,
+                  text: "Cancelled",
                 }],
                 isError: true,
                 details: retryErrorDetails(retained?.retryToken),
@@ -756,7 +755,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
               return {
                 content: [{
                   type: "text",
-                  text: `Cannot message the current session${retryTokenGuidance(retained?.retryToken, retained?.remainingRetries ?? 0)}`,
+                  text: "Cannot message the current session",
                 }],
                 isError: true,
                 details: retryErrorDetails(retained?.retryToken),
@@ -801,7 +800,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
 				return {
 					content: [{
 						type: "text",
-						text: `Message to "${to}" is ambiguous: ${replySender.reason}. Use the exact target shown by intercom list.${retryTokenGuidance(retained?.retryToken, retained?.remainingRetries ?? 0)}`,
+						text: `Message to "${to}" is ambiguous: ${replySender.reason}. Use the exact target shown by intercom list.`,
 					}],
 					isError: true,
 					details: retryErrorDetails(retained?.retryToken),
@@ -819,7 +818,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
               return {
                 content: [{
                   type: "text",
-                  text: `${text}${retryTokenGuidance(retained.retryToken, retained.remainingRetries)}`,
+                  text,
                 }],
                 isError: true,
                 details: retryErrorDetails(retained.retryToken),
@@ -868,7 +867,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
               return {
                 content: [{
                   type: "text",
-                  text: `Message to "${to}" was not delivered: ${errorText}${retryTokenGuidance(retained.retryToken, retained.remainingRetries)}`,
+                  text: `Message to "${to}" was not delivered: ${errorText}`,
                 }],
                 isError: true,
                 details: {
@@ -883,6 +882,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
                 },
               };
             }
+            askDelivered = true;
             pi.appendEntry("intercom_sent", {
               to,
               message: { text: message, attachments, replyTo },
@@ -932,10 +932,10 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
             return {
               content: [{
                 type: "text",
-                text: `Failed: ${getErrorMessage(failure)}${retryTokenGuidance(retained?.retryToken, retained?.remainingRetries ?? 0)}`,
+                text: `Failed: ${getErrorMessage(failure)}`,
               }],
               isError: true,
-              details: retryErrorDetails(retained?.retryToken),
+              details: { ...retryErrorDetails(retained?.retryToken), retryable: isRecoverableIntercomDisconnect(error), deliveryUncertain: askDelivered },
             };
           }
         }
@@ -952,6 +952,9 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
             };
           }
 
+          if (_signal?.aborted) {
+            return { content: [{ type: "text", text: "Cancelled" }], isError: true, details: retryErrorDetails(retryToken) };
+          }
           let retryIdentity: RetryIdentityAttempt | undefined;
           try {
             retryIdentity = retryIdentities.begin({
@@ -983,7 +986,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
               return {
                 content: [{
                   type: "text",
-                  text: `Cannot message the current session${retryTokenGuidance(retained.retryToken, retained.remainingRetries)}`,
+                  text: "Cannot message the current session",
                 }],
                 isError: true,
                 details: retryErrorDetails(retained.retryToken),
@@ -1037,7 +1040,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
               return {
                 content: [{
                   type: "text",
-                  text: `Reply to "${displayTarget}" was not delivered: ${errorText}${retryTokenGuidance(retained.retryToken, retained.remainingRetries)}`,
+                  text: `Reply to "${displayTarget}" was not delivered: ${errorText}`,
                 }],
                 isError: true,
                 details: retryToken === undefined
@@ -1080,10 +1083,10 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
             return {
               content: [{
                 type: "text",
-                text: `Failed to reply: ${getErrorMessage(failure)}${retryTokenGuidance(retained?.retryToken, retained?.remainingRetries ?? 0)}`,
+                text: `Failed to reply: ${getErrorMessage(failure)}`,
               }],
               isError: true,
-              details: retryErrorDetails(retained?.retryToken),
+              details: { ...retryErrorDetails(retained?.retryToken), retryable: isRecoverableIntercomDisconnect(error) },
             };
           }
         }
@@ -1152,6 +1155,9 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
             details: { error: true },
           };
       }
+      };
+      if (action !== "send" && action !== "ask" && action !== "reply") return executeAttempt(undefined, signal);
+      return runIntercomOperation(executeAttempt, (token) => retryIdentities.discard(token), signal);
     },
     renderCall(args, theme) {
       const action = typeof args.action === "string" ? args.action : "intercom";

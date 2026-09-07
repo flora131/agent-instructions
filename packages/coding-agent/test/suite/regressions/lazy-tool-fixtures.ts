@@ -107,6 +107,10 @@ export function runIntercomFixture<T>(heavySource: string, scriptBody: string): 
 			readFileSync(resolve(repoRoot, "packages/intercom/recoverable-disconnect.ts"), "utf-8"),
 		);
 		writeFileSync(
+			join(tempDir, "retry-policy.ts"),
+			readFileSync(resolve(repoRoot, "packages/intercom/retry-policy.ts"), "utf-8"),
+		);
+		writeFileSync(
 			join(tempDir, "reconnect-backoff.ts"),
 			readFileSync(resolve(repoRoot, "packages/intercom/reconnect-backoff.ts"), "utf-8"),
 		);

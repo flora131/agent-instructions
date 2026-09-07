@@ -28,7 +28,7 @@ type ToolResult = { content: Array<{ text: string }>; isError: boolean; details?
 type Tool = {
 	execute(
 		id: string,
-		params: { action: string; to?: string; message?: string; retryToken?: string },
+		params: { action: string; to?: string; message?: string },
 		signal: AbortSignal | undefined,
 		update: undefined,
 		ctx: object,
@@ -97,7 +97,7 @@ async function connect(name: string): Promise<Client> {
 	return client;
 }
 
-function registerTool(sender: Client, onResolve?: () => void): Tool {
+function registerTool(sender: Client, onResolve?: () => void | Promise<void>): Tool {
 	let tool: Tool | undefined;
 	const waiters = new ReplyWaiterRegistry();
 	registerIntercomTool(
@@ -123,7 +123,7 @@ function registerTool(sender: Client, onResolve?: () => void): Tool {
 			},
 			syncPresenceIdentity() {},
 			resolveSessionTarget: async () => {
-				onResolve?.();
+				await onResolve?.();
 				return "recipient-id";
 			},
 			homeGroup: () => "default",
@@ -169,7 +169,7 @@ afterAll(async () => {
 	rmSync(agentDir, { recursive: true, force: true });
 });
 
-test("an identical tool retry after broker acceptance and acknowledgement loss is delivered once", async () => {
+test("one tool invocation recovers after broker acceptance and acknowledgement loss with one delivery", async () => {
 	const recipient = await connect("recipient");
 	recipient.on("message", (_from: SessionInfo, message: Message) => received.push(message));
 	const sender = await connect("sender");
@@ -183,60 +183,43 @@ test("an identical tool retry after broker acceptance and acknowledgement loss i
 		undefined,
 		context,
 	);
-	assert.equal(first.isError, true);
-	assert.match(first.content[0]?.text ?? "", /Client disconnected/);
-	const retryToken = first.details?.retryToken;
-	assert.equal(typeof retryToken, "string", "the recoverable result must expose the retry claim to the model");
-	assert.match(first.content[0]?.text ?? "", /retryToken/);
-	assert.equal(first.details?.messageId, undefined, "recoverable results do not expose the internal message ID");
-	assert.equal(received.length, 1, "the broker accepted and forwarded the first operation");
-
-	const retry = await tool.execute(
-		"model-retry",
-		{ action: "send", to: "recipient", message: "one logical operation", retryToken: retryToken as string },
-		undefined,
-		undefined,
-		context,
-	);
-	assert.equal(retry.isError, false);
-	assert.equal(retry.content[0]?.text, "Message sent to recipient");
+	assert.equal(first.isError, false, first.content[0]?.text);
+	assert.equal(first.content[0]?.text, "Message sent to recipient");
+	assert.doesNotMatch(JSON.stringify(first), /retryToken/);
 	assert.equal(attemptedIds.length, 2);
-	assert.equal(attemptedIds[1], attemptedIds[0], "the model retry must retain the accepted operation identity");
-	assert.equal(retry.details?.messageId, attemptedIds[0]);
+	assert.equal(attemptedIds[1], attemptedIds[0], "internal recovery retains the accepted operation identity");
+	assert.equal(first.details?.messageId, attemptedIds[0]);
 	assert.equal(received.length, 1, "the broker must not forward a duplicate delivery");
-	const settledReplay = await tool.execute(
-		"settled-replay",
-		{ action: "send", to: "recipient", message: "one logical operation", retryToken: retryToken as string },
-		undefined,
-		undefined,
-		context,
-	);
-	assert.equal(settledReplay.isError, true);
-	assert.match(settledReplay.content[0]?.text ?? "", /already settled/);
-	assert.equal(attemptedIds.length, 2, "a settled token must fail before the client send");
 });
 
-test("a byte-identical tokenless call remains distinct while the failed operation is retained", async () => {
+test("a byte-identical concurrent call remains distinct while the first invocation recovers", async () => {
 	const recipient = await connect("recipient");
 	recipient.on("message", (_from: SessionInfo, message: Message) => received.push(message));
 	const sender = await connect("sender");
-	const tool = registerTool(sender);
+	const recoveryGate = Promise.withResolvers<void>();
+	const recoveryStarted = Promise.withResolvers<void>();
+	let resolutions = 0;
+	const tool = registerTool(sender, async () => {
+		if (++resolutions === 2) {
+			recoveryStarted.resolve();
+			await recoveryGate.promise;
+		}
+	});
 	dropNextSenderAcknowledgement = true;
 	const params = { action: "send", to: "recipient", message: "identical intentional bytes" };
 
-	const first = await tool.execute("retained-a", params, undefined, undefined, context);
-	const retryToken = first.details?.retryToken;
-	assert.equal(typeof retryToken, "string");
-	const intentional = await tool.execute("fresh-b", params, undefined, undefined, context);
-	assert.equal(intentional.isError, false, intentional.content[0]?.text);
-	const retry = await tool.execute(
-		"claimed-a",
-		{ ...params, retryToken: retryToken as string },
-		undefined,
-		undefined,
-		context,
-	);
-	assert.equal(retry.isError, false, retry.content[0]?.text);
+	const firstExecution = tool.execute("recovering-a", params, undefined, undefined, context);
+	await recoveryStarted.promise;
+	try {
+		const intentional = await tool.execute("fresh-b", params, undefined, undefined, context);
+		assert.equal(intentional.isError, false, intentional.content[0]?.text);
+		assert.doesNotMatch(JSON.stringify(intentional), /retryToken/);
+	} finally {
+		recoveryGate.resolve();
+	}
+	const recovered = await firstExecution;
+	assert.equal(recovered.isError, false, recovered.content[0]?.text);
+	assert.doesNotMatch(JSON.stringify(recovered), /retryToken/);
 	assert.deepEqual(attemptedIds, [received[0]?.id, received[1]?.id, received[0]?.id]);
 	assert.equal(received.length, 2);
 });
@@ -262,8 +245,8 @@ test("an intentional identical send after a successful result gets a fresh ident
 	assert.equal(received.length, 2);
 });
 
-// #2840: stage cancellation must not erase retry authority for an accepted send.
-test("stage closure before a lost acknowledgement preserves the accepted send's retry identity", async () => {
+// #2840: an accepted send may have been delivered even when cancellation stops recovery.
+test("stage closure after acceptance and acknowledgement loss stops retries with unknown outcome", async () => {
 	const recipient = await connect("recipient");
 	recipient.on("message", (_from: SessionInfo, message: Message) => received.push(message));
 	const sender = await connect("sender");
@@ -283,20 +266,13 @@ test("stage closure before a lost acknowledgement preserves the accepted send's 
 	);
 	assert.equal(boundary.closeSignal.aborted, true);
 	assert.equal(first.isError, true);
-	assert.match(first.content[0]?.text ?? "", /Client disconnected/);
-	const retryToken = first.details?.retryToken;
-	assert.equal(typeof retryToken, "string");
-	const retry = await tool.execute(
-		"resolve-accepted-send",
-		{ action: "send", to: "recipient", message: "accepted before closure", retryToken: retryToken as string },
-		undefined,
-		undefined,
-		context,
-	);
-	assert.equal(retry.isError, false);
-	assert.equal(attemptedIds.length, 2);
-	assert.equal(attemptedIds[1], attemptedIds[0]);
-	assert.equal(received.length, 1, "retry must not deliver the accepted message twice");
+	assert.match(first.content[0]?.text ?? "", /Cancelled/);
+	assert.match(first.content[0]?.text ?? "", /Delivery may already have occurred/);
+	assert.match(first.content[0]?.text ?? "", /Do not repeat this operation automatically/);
+	assert.deepEqual(first.details, { error: true, terminal: true, automaticRetries: 0, outcome: "unknown" });
+	assert.doesNotMatch(JSON.stringify(first), /retryToken/);
+	assert.equal(attemptedIds.length, 1, "stage cancellation must prevent internal retries");
+	assert.equal(received.length, 1, "cancellation cannot undo the already accepted delivery");
 });
 
 // #2840: a receipt still describes transport acceptance when the stage closes.
@@ -323,31 +299,24 @@ test("stage closure before acknowledgement preserves a successful transport rece
 	assert.equal(received.length, 1);
 });
 
-// #2840: cancelling before retry transport must not settle the original operation.
-test("cancellation during retry target resolution retains the original retry token", async () => {
+// #2840: cancelled recovery must neither send again nor report certain nondelivery.
+test("cancellation during internal retry target resolution stops with unknown outcome", async () => {
 	const recipient = await connect("recipient");
 	recipient.on("message", (_from: SessionInfo, message: Message) => received.push(message));
 	const sender = await connect("sender");
 	const boundary = new WorkflowStageAdmissionBoundary();
-	let cancelAtResolution = false;
+	let resolutions = 0;
 	const tool = registerTool(sender, () => {
-		if (cancelAtResolution) void boundary.close();
+		if (++resolutions === 2) void boundary.close();
 	});
 	const params = { action: "send", to: "recipient", message: "retry after cancelled resolution" };
 	dropNextSenderAcknowledgement = true;
-	const first = await tool.execute("first", params, undefined, undefined, context);
-	const retryToken = first.details?.retryToken;
-	assert.equal(typeof retryToken, "string");
-	const retryParams = { ...params, retryToken: retryToken as string };
-	cancelAtResolution = true;
-	const cancelled = await tool.execute("cancelled", retryParams, boundary.closeSignal, undefined, context);
+	const cancelled = await tool.execute("single-call", params, boundary.closeSignal, undefined, context);
 	assert.equal(cancelled.isError, true);
-	assert.equal(cancelled.details?.retryToken, retryToken);
+	assert.equal(resolutions, 2, "cancellation happens during the internal retry's resolution");
+	assert.deepEqual(cancelled.details, { error: true, terminal: true, automaticRetries: 1, outcome: "unknown" });
+	assert.match(cancelled.content[0]?.text ?? "", /Cancelled/);
+	assert.doesNotMatch(JSON.stringify(cancelled), /retryToken/);
 	assert.equal(attemptedIds.length, 1, "cancelled retry must not reach transport");
-	cancelAtResolution = false;
-	const retry = await tool.execute("retry", retryParams, undefined, undefined, context);
-	assert.equal(retry.isError, false);
-	assert.equal(attemptedIds.length, 2);
-	assert.equal(attemptedIds[1], attemptedIds[0]);
 	assert.equal(received.length, 1);
 });

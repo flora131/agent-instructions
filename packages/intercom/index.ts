@@ -642,7 +642,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 Use this to communicate findings, request help, or coordinate work with other sessions.
 Sessions belong to an intercom group and can ONLY message sessions in the same group; cross-group sends are rejected by the broker. Ungrouped sessions share the "default" group.
 For send, live session names and exact full session IDs remain supported. Workflow-stage targets use \`workflow:<rootRunId>/<segment>[/<segment>...]\`; \`*\` matches one segment and \`**\` any depth. Use \`intercom list\` inside the invocation group to see live, pending, and possible future targets with queued counts. \`workflow:<rootRunId>/**\` reaches live stages now and remains sticky for every future stage until root termination; valid targets outside the known set queue with a \`notInKnownSet\` warning and settle undeliverable at terminal only if never delivered. Use \`ask\` only on live targets.
-If a \`send\`, \`ask\`, or \`reply\` fails with \`Client disconnected\`, retry that exact operation with the returned \`retryToken\`, up to three claimed attempts; omit the token for every fresh operation.
+For send/ask/reply, Intercom retries recoverable disconnects internally up to three times with the same operation identity. Each new tool call is a new operation. If recovery ends with an unknown delivery outcome, do not repeat it automatically.
 Usage:
   intercom({ action: "list" })                    → List sessions in your group
   intercom({ action: "list", group: "name" })     → Read-only peek at another group's sessions
@@ -651,12 +651,11 @@ Usage:
   intercom({ action: "send", to: "session-name", message: "..." })  → Send message (own group only)
   intercom({ action: "ask", to: "session-name", message: "..." })   → Ask and wait for reply
   intercom({ action: "reply", message: "..." })                      → Reply to the active or exact pending ask
-  intercom({ action: "send", to: "session-name", message: "...", retryToken: "..." }) → Claim the exact retry returned by a retryable failure
   intercom({ action: "pending" })                                      → List unresolved inbound asks
   intercom({ action: "status" })                  → Show connection status and your group
 
 "default" is the shared group; "true" and "auto" are reserved for subagent auto-groups. Joining does not grant cross-group access; contact_supervisor remains the only cross-group path.`,
-		promptSnippet: "Use to coordinate with other local agent sessions in your intercom group. For a retryable send/ask/reply failure, repeat the exact operation with its returned retryToken; omit retryToken for fresh operations.",
+		promptSnippet: "Use to coordinate with other local agent sessions in your intercom group. Send/ask/reply retry reconnects internally; do not automatically repeat an unknown delivery outcome.",
 		parameters: Type.Object({
 			action: Type.String({ description: "Action: 'list', 'join', 'leave', 'send', 'ask', 'reply', 'pending', or 'status'" }),
 			to: Type.Optional(Type.String({ description: "Live session name, exact full session ID, or `workflow:<rootRunId>/<segment>[/<segment>...]` path; `*` matches one segment and `**` any depth. Send queues sticky pending/future delivery and `workflow:<rootRunId>/**` broadcasts to live and future stages; use `ask` only on live targets (for 'send', 'ask', or targeted 'reply')" })),
@@ -668,10 +667,16 @@ Usage:
 				language: Type.Optional(Type.String()),
 			}))),
 			replyTo: Type.Optional(Type.String({ description: "Exact pending-ask message ID; disambiguates concurrent asks, including asks from one sender" })),
-			retryToken: Type.Optional(Type.String({ minLength: 1, maxLength: 128, description: "Opaque token returned after a retryable send/ask/reply failure. Repeat the exact same action and arguments with it; omit it for fresh operations." })),
 			group: Type.Optional(Type.String({ description: "Group name for 'join'; read-only group filter for 'list'/'status'. 'send'/'ask' are locked to your own group." })),
 		}),
-		execute: (...args) => executeHeavyTool(loadHeavy, "intercom", args),
+		execute: (...args) => {
+			const invocationLease = activeLease;
+			return executeHeavyTool((ctx) => {
+				// Reconnect backoff must not move an old call into a new session.
+				assertLease(invocationLease);
+				return loadHeavy(ctx);
+			}, "intercom", args);
+		},
 		renderResult: (...args) => renderHeavyToolResult(loadedHeavy?.heavy ?? null, "intercom", args),
 		renderCall(args, theme) {
 			const input = args as { action?: string; to?: string; message?: string };

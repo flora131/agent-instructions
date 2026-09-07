@@ -159,6 +159,7 @@ async function runHost(): Promise<void> {
 			recovering: runtime instanceof IsolatedInteractiveRuntime ? runtime.isRecovering() : undefined,
 			editorText: mode?.editor.getText(),
 			streaming: mode?.session.isStreaming,
+			inputHandlerReady: mode?.inputHandlerReadyRecorded ?? false,
 			...hostUiState(mode),
 		});
 	}, 10);

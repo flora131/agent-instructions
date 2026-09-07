@@ -4,7 +4,7 @@ import "./bounded-stderr-install.js";
 import net from "net";
 import { chmodSync, writeFileSync, unlinkSync, mkdirSync, readFileSync } from "fs";
 import { randomUUID } from "crypto";
-import { createMessageReader } from "./framing.js";
+import { createMessageReader, type JsonWireValue } from "./framing.js";
 import { writeMessageIfOpen, writeMessageWithOutcome } from "./socket-writes.js";
 import {
 	getBrokerDeliveredMessagesPath,
@@ -21,6 +21,7 @@ import type {
 	WorkflowStageRosterEntry,
 	WorkflowPossibleStageAnnouncement,
 	WorkflowFutureStageRosterEntry,
+	WorkflowRunParentAnnouncement,
 } from "../types.js";
 import {
 	formatWorkflowStageTarget,
@@ -50,6 +51,7 @@ import {
 import { PendingQuestionIndex } from "./pending-question-index.js";
 import { matchStagePathSegments } from "../workflow-stage-path-matching.js";
 import { DELIVERED_MESSAGE_TTL_MS } from "../retry-policy.js";
+import { isAgentRecipient } from "../recipient-purpose.js";
 
 const INTERCOM_DIR = getIntercomDirPath();
 const SOCKET_PATH = getBrokerSocketPath();
@@ -68,6 +70,7 @@ interface WorkflowRosterRegistration {
 	readonly group: string;
 	readonly stages: WorkflowStageRosterAnnouncement[];
 	readonly possibleStages?: readonly WorkflowPossibleStageAnnouncement[];
+	readonly parent?: WorkflowRunParentAnnouncement;
 }
 
 
@@ -135,7 +138,10 @@ function isSessionRegistration(value: unknown): value is Omit<SessionInfo, "id">
     return false;
   }
 
-
+  if (session.recipientPurpose !== undefined &&
+    session.recipientPurpose !== "agent" && session.recipientPurpose !== "control") {
+    return false;
+  }
   if (session.groups !== undefined &&
     (!Array.isArray(session.groups) || !session.groups.every((group) => typeof group === "string"))) {
     return false;
@@ -153,6 +159,16 @@ function invocationOwnsGroup(invocationGroup: string, candidateGroup: string): b
 	const owner = normalizeGroup(invocationGroup);
 	const candidate = normalizeGroup(candidateGroup);
 	return candidate === owner || candidate.startsWith(`${owner}/`);
+}
+
+function readWorkflowRunParentAnnouncement(value: JsonWireValue | undefined): WorkflowRunParentAnnouncement | undefined {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+	if (
+		typeof value.runId !== "string" ||
+		!Array.isArray(value.stageKeys) ||
+		!value.stageKeys.every((key) => typeof key === "string")
+	) return undefined;
+	return { runId: value.runId, stageKeys: value.stageKeys };
 }
 
 function isWorkflowStageRosterAnnouncements(
@@ -183,6 +199,9 @@ function isWorkflowStageRosterAnnouncements(
 					parsed.segments.slice(0, -1).includes(runId)) &&
 				(announcement.lifecycle === "pending" || announcement.lifecycle === "running") &&
 				typeof announcement.routeEligible === "boolean" &&
+				(announcement.recipientPurpose === undefined ||
+					announcement.recipientPurpose === "agent" ||
+					announcement.recipientPurpose === "control") &&
 				typeof announcement.group === "string"
 			);
 		})
@@ -371,6 +390,35 @@ class IntercomBroker {
 		const matches = roster.stages.filter((stage) => stage.stageId === stageKey || stage.stageName === stageKey);
 		return matches.length === 1 ? matches[0]!.target : undefined;
 	};
+	private isNonAgentWorkflowTarget = (target: string): boolean => {
+		const parsed = parseWorkflowStageTarget(target);
+		if (parsed?.kind !== "path") return false;
+		// A connected agent's registered alias outlives its pending roster row.
+		// A same-name control announcement must not revoke that live identity.
+		if (this.resolveLiveWorkflowStage(target) !== undefined) return false;
+		const rosters = [...this.workflowRosters].filter(([, roster]) => roster.group === `workflow:${parsed.rootRunId}`);
+		let runId: string | undefined = parsed.rootRunId;
+		for (const segment of parsed.segments.slice(0, -1)) {
+			// Match the host's materialized-stage traversal: run IDs can jump at any
+			// depth; otherwise follow a uniquely resolved boundary ID/name edge.
+			if (rosters.some(([id]) => id === segment)) {
+				runId = segment;
+				continue;
+			}
+			const children = rosters.filter(([, roster]) => roster.parent?.runId === runId && roster.parent.stageKeys.includes(segment));
+			runId = children.length === 1 ? children[0]![0] : undefined;
+			if (runId === undefined) break;
+		}
+		const stageKey = parsed.segments.at(-1);
+		const stages = rosters.find(([id]) => id === runId)?.[1].stages;
+		const byId = stages?.filter((stage) => stage.stageId === stageKey) ?? [];
+		// Hosts without parent-edge metadata still support their advertised literal targets.
+		const matches = stages === undefined ? rosters.flatMap(([, roster]) => roster.stages.filter((stage) =>
+			stage.target === target || withWorkflowStageTargetFinalSegment(stage.target, stage.stageName) === target,
+		)) : byId.length > 0 ? byId : stages.filter((stage) => stage.stageName === stageKey);
+		return matches.some((stage) => !isAgentRecipient(stage)) && !matches.some(isAgentRecipient);
+	};
+
 
 	private resolveLiveWorkflowStage = (target: string): ConnectedSession | undefined => {
 		const registration = this.liveWorkflowStageRoutes.get(target);
@@ -392,7 +440,7 @@ class IntercomBroker {
 			return undefined;
 		}
 		const session = this.sessions.get(registration.sessionId);
-		if (session !== undefined) return session;
+		if (session !== undefined && isAgentRecipient(session.info)) return session;
 		this.liveWorkflowStageRoutes.delete(target);
 		return undefined;
 	};
@@ -440,7 +488,7 @@ class IntercomBroker {
 	const entries: WorkflowStageRosterEntry[] = [];
 	for (const [runId, roster] of this.workflowRosters) {
 		for (const stage of roster.stages) {
-			if (!stage.routeEligible) continue;
+			if (!stage.routeEligible || !isAgentRecipient(stage)) continue;
 			const parentControl =
 				this.canControlWorkflowInvocation(requester, roster.group) && invocationOwnsGroup(roster.group, stage.group);
 			const directMembership = requesterGroups.has(stage.group);
@@ -485,6 +533,7 @@ class IntercomBroker {
 			if (![...requesterGroups].some((group) => invocationOwnsGroup(roster.group, group))) continue;
 			if (selected !== undefined && selected !== roster.group) continue;
 			for (const row of roster.possibleStages) {
+				if (this.isNonAgentWorkflowTarget(row.target)) continue;
 				entries.push({
 					kind: "workflow-future-stage",
 					runId,
@@ -528,6 +577,10 @@ class IntercomBroker {
 		// swaps its final segment. Without a roster entry, fall back to the flat run-id prefix
 		// (still an accepted resolver input).
 		const roster = this.workflowRosters.get(runId);
+		if (uniqueStageKeys.some((key) => {
+			const matches = roster?.stages.filter((stage) => stage.stageId === key || stage.stageName === key) ?? [];
+			return matches.length > 0 && matches.every((stage) => !isAgentRecipient(stage));
+		})) return false;
 		const targets = uniqueStageKeys.map((stageKey) => {
 			const entry = roster?.stages.find((stage) => stage.stageId === stageKey || stage.stageName === stageKey);
 			const entryTarget = entry === undefined ? undefined : parseWorkflowStageTarget(entry.target);
@@ -1029,6 +1082,7 @@ class IntercomBroker {
 		}
 		if (
 			target === undefined ||
+			!isAgentRecipient(target.info) ||
 			target.info.id === currentId ||
 			normalizeGroup(target.registrationGroup) !== routeGroup ||
 			!hasGroup(sessionGroups(target.info), routeGroup)
@@ -1164,15 +1218,15 @@ class IntercomBroker {
 
   private handleMessage(
     socket: net.Socket,
-    msg: unknown,
+    msg: JsonWireValue,
     currentId: string | null,
     setId: (id: string | null) => void,
   ): void {
-    if (typeof msg !== "object" || msg === null || !("type" in msg) || typeof msg.type !== "string") {
+    if (typeof msg !== "object" || msg === null || Array.isArray(msg) || typeof msg.type !== "string") {
       throw new Error("Invalid client message");
     }
 
-    const clientMessage = msg as { type: string } & Record<string, unknown>;
+    const clientMessage = msg;
 
     if (currentId === null && clientMessage.type !== "register") {
       throw new Error(`Received ${clientMessage.type} before register`);
@@ -1248,7 +1302,7 @@ class IntercomBroker {
         writeMessageIfOpen(socket, supervisorId
           ? { type: "registered", sessionId: id, supervisorSessionId: supervisorId }
           : { type: "registered", sessionId: id });
-        this.broadcastToMemberships({ type: "session_joined", session: info }, sessionGroups(info), id);
+        if (isAgentRecipient(info)) this.broadcastToMemberships({ type: "session_joined", session: info }, sessionGroups(info), id);
         break;
       }
 
@@ -1377,6 +1431,10 @@ class IntercomBroker {
           clientMessage.possibleStages !== undefined
             ? clientMessage.possibleStages
             : this.workflowRosters.get(clientMessage.runId)?.possibleStages;
+		// Optional path metadata is advisory for old hosts; omission retains a
+		// previously announced edge during two-session route replay.
+		const parent = readWorkflowRunParentAnnouncement(clientMessage.parent)
+			?? this.workflowRosters.get(clientMessage.runId)?.parent;
         if (activeExisting !== undefined && activeExisting.sessionId !== currentId) {
           // A stage replays the process-shared owner announcement before registering its live aliases.
           // It may publish the materialized roster, but the original workflow owner must continue to
@@ -1387,6 +1445,7 @@ class IntercomBroker {
               group: ownerGroup,
               stages: clientMessage.stages ?? [],
               ...(possibleStages === undefined ? {} : { possibleStages }),
+              ...(parent === undefined ? {} : { parent }),
             });
           }
           break;
@@ -1402,6 +1461,7 @@ class IntercomBroker {
             group: ownerGroup,
             stages: clientMessage.stages ?? [],
             ...(possibleStages === undefined ? {} : { possibleStages }),
+            ...(parent === undefined ? {} : { parent }),
           });
         }
         break;
@@ -1437,6 +1497,7 @@ class IntercomBroker {
         if (
           ownerRegistration === undefined ||
           registeringSession === undefined ||
+		  !isAgentRecipient(registeringSession.info) ||
           ownerRegistration.capability !== clientMessage.capability ||
 		  !invocationOwnsGroup(
 			ownerRegistration.group,
@@ -1509,6 +1570,7 @@ class IntercomBroker {
 				this.canControlLiveWorkflowStage,
 				this.resolveLegacyWorkflowStageTarget,
 				writeMessageWithOutcome,
+				this.isNonAgentWorkflowTarget,
 			);
 			break;
 		}
@@ -1597,7 +1659,7 @@ class IntercomBroker {
 		if (activation.sessionId === sessionId) this.liveWorkflowStageRouteActivations.delete(requestId);
 	}
 	this.sessions.delete(sessionId);
-	this.broadcastToMemberships({ type: "session_left", sessionId }, sessionGroups(departed.info), sessionId);
+	if (isAgentRecipient(departed.info)) this.broadcastToMemberships({ type: "session_left", sessionId }, sessionGroups(departed.info), sessionId);
 	}
   /** Deliver a broadcast once to each session represented in any given group. */
   private broadcastToMemberships(msg: BrokerMessage, groups: ReadonlySet<string>, exclude?: string): void {

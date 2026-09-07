@@ -509,7 +509,8 @@ describe("registered blocking intercom tools", () => {
 			context,
 		);
 		await sleep(0);
-		assert.equal(current.sent[0]?.message.attachments, attachments);
+		// The tool snapshots attachments so later caller mutation cannot change a retry.
+		assert.deepEqual(current.sent[0]?.message.attachments, attachments);
 		current.reply("Received");
 		assert.equal((await execution).isError, false);
 	});
@@ -595,7 +596,8 @@ describe("registered blocking intercom tools", () => {
 
 		const result = await execution;
 		assert.equal(result.isError, true);
-		assert.equal(result.content[0]?.text, 'Failed: Session "sibling" disconnected before replying');
+		assert.match(result.content[0]?.text ?? "", /^Failed: Session "sibling" disconnected before replying/);
+		assert.match(result.content[0]?.text ?? "", /Do not repeat this operation automatically/);
 	});
 
 	test("contact_supervisor blocking waits receive the same peer disconnect release", async () => {

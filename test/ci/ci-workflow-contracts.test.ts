@@ -241,10 +241,10 @@ test("typecheck aliases the local pi-ai build before compiling dependents", asyn
  * became `it.skip` and eleven more kept their names, kept passing, and executed
  * no assertions behind `if (!sqlite) return`. Neither shows up in a pass/fail
  * count or a test-name diff, so the guard is structural: the loader must use
- * `node:sqlite`, which Node >= 22.13 and Bun >= 1.4.0 (this repository's
- * floor) both ship — the `bun:sqlite` fallback is deleted and must not come
- * back — and no test may reintroduce a soft guard that turns an unavailable
- * module into a green no-op.
+ * `node:sqlite`, which Node >= 22.13 and Bun >= 1.4.2 (this repository's
+ * floor) both ship — the `bun:sqlite` fallback was deleted at the earlier
+ * 1.4.0 floor and must not come back — and no test may reintroduce a soft
+ * guard that turns an unavailable module into a green no-op.
  */
 test("SQLite selectors resolve on either runtime and their tests cannot silently empty", async () => {
 	const selectors = await readText(join(root, "packages/coding-agent/src/core/tools/resource-selectors.ts"));
@@ -855,7 +855,7 @@ test("the shipped build toolchain and Bun do not float", async () => {
 			([, value]) => value as string,
 		),
 	);
-	assert.deepEqual([...bunVersions], ["1.4.0"], "test.yml and publish.yml must exercise one pinned Bun");
+	assert.deepEqual([...bunVersions], ["1.4.2"], "test.yml and publish.yml must exercise one pinned Bun");
 });
 
 test("each native leg declares its own measured job and compile budget", async () => {

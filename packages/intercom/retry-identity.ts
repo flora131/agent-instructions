@@ -10,7 +10,7 @@ import type { Attachment } from "./types.js";
 export { ASK_REPLY_TIMEOUT_MS, RETRY_IDENTITY_RETRY_OPPORTUNITY_MS, RETRY_IDENTITY_TTL_MS };
 /** Bounds process-local memory while preserving recoverable operations until pressure is reached. */
 export const RETRY_IDENTITY_MAX_ENTRIES = 1_000;
-/** Matches the model-visible direction to retry a disconnected call up to three times. */
+/** Maximum internal reconnect retries for one tool invocation. */
 export const RETRY_IDENTITY_MAX_REUSES = 3;
 
 export type RetryIdentityAction = "send" | "ask" | "reply";
@@ -102,8 +102,8 @@ function operationKey(input: RetryIdentityInput): string {
 
 /**
  * Retains message identities only after a typed recoverable disconnect. A fresh
- * call never consults retained operations: retry reuse requires the opaque token
- * returned for that exact operation. Tokens and their mappings are process-local,
+ * call never consults retained operations. The tool's internal retry loop alone
+ * holds the opaque claim for an exact operation. Claims are process-local,
  * registration-scoped, bounded, and expire at the original operation deadline.
  */
 export class RetryIdentityReservations {
@@ -200,6 +200,12 @@ export class RetryIdentityReservations {
 			return;
 		}
 		this.finishRetained(reservation, "settled");
+	}
+
+	/** The owning tool invocation ended; no caller can claim this identity later. */
+	discard(retryToken: string): void {
+		const reservation = this.tokenReservations.get(retryToken);
+		if (reservation !== undefined) this.expire(reservation);
 	}
 
 	remainingRetries(attempt: RetryIdentityAttempt): number {
