@@ -19,6 +19,7 @@ import type { ExtensionAPI } from "@bastani/atomic";
 import {
 	type BashOperations,
 	createBashTool,
+	createCodingTools,
 	createEditTool,
 	createReadTool,
 	createWriteTool,
@@ -82,7 +83,10 @@ function createRemoteWriteOps(remote: string, remoteCwd: string, localCwd: strin
 				if (!options?.exclusive) throw error;
 				// Re-probe rather than assume the failure was a collision. A permission error, a full disk,
 				// or a dropped connection fail the same write, and each of those stays itself.
-				const probe = await sshExec(remote, `test -e ${target} && echo yes || echo no`).catch(() => undefined);
+				const probe = await sshExec(
+					remote,
+					`{ test -e ${target} || test -L ${target}; } && echo yes || echo no`,
+				).catch(() => undefined);
 				if (probe?.toString().trim() !== "yes") throw error;
 				throw Object.assign(new Error(`EEXIST: file already exists, open '${toRemote(p)}'`), { code: "EEXIST" });
 			}
@@ -97,7 +101,10 @@ function createRemoteWriteOps(remote: string, remoteCwd: string, localCwd: strin
 			// `write` has already created the parent, so failure to enter it must remain
 			// an error. A subshell preserves the cwd used to resolve relative targets.
 			const parent = JSON.stringify(toRemote(dirname(p)));
-			const probe = await sshExec(remote, `(cd ${parent}) && { test -e ${target} && echo yes || echo no; }`);
+			const probe = await sshExec(
+				remote,
+				`(cd ${parent}) && { { test -e ${target} || test -L ${target}; } && echo yes || echo no; }`,
+			);
 			if (probe.toString().trim() === "no") return undefined;
 			return (await sshExec(remote, `cat ${target}`)).toString("utf8");
 		},
@@ -154,66 +161,42 @@ export default function (pi: ExtensionAPI) {
 
 	// Resolved lazily on session_start (CLI flags not available during factory)
 	let resolvedSsh: { remote: string; remoteCwd: string } | null = null;
+	// The bundle shares one snapshot store across read/edit/write until the next session.
+	let tools = createCodingTools(localCwd);
 
 	const getSsh = () => resolvedSsh;
 
 	pi.registerTool({
 		...localRead,
 		async execute(id, params, signal, onUpdate, _ctx) {
-			const ssh = getSsh();
-			if (ssh) {
-				const tool = createReadTool(localCwd, {
-					operations: createRemoteReadOps(ssh.remote, ssh.remoteCwd, localCwd),
-				});
-				return tool.execute(id, params, signal, onUpdate);
-			}
-			return localRead.execute(id, params, signal, onUpdate);
+			return tools.find((tool) => tool.name === "read")!.execute(id, params, signal, onUpdate);
 		},
 	});
 
 	pi.registerTool({
 		...localWrite,
 		async execute(id, params, signal, onUpdate, _ctx) {
-			const ssh = getSsh();
-			if (ssh) {
-				const tool = createWriteTool(localCwd, {
-					operations: createRemoteWriteOps(ssh.remote, ssh.remoteCwd, localCwd),
-				});
-				return tool.execute(id, params, signal, onUpdate);
-			}
-			return localWrite.execute(id, params, signal, onUpdate);
+			return tools.find((tool) => tool.name === "write")!.execute(id, params, signal, onUpdate);
 		},
 	});
 
 	pi.registerTool({
 		...localEdit,
 		async execute(id, params, signal, onUpdate, _ctx) {
-			const ssh = getSsh();
-			if (ssh) {
-				const tool = createEditTool(localCwd, {
-					operations: createRemoteEditOps(ssh.remote, ssh.remoteCwd, localCwd),
-				});
-				return tool.execute(id, params, signal, onUpdate);
-			}
-			return localEdit.execute(id, params, signal, onUpdate);
+			return tools.find((tool) => tool.name === "edit")!.execute(id, params, signal, onUpdate);
 		},
 	});
 
 	pi.registerTool({
 		...localBash,
 		async execute(id, params, signal, onUpdate, _ctx) {
-			const ssh = getSsh();
-			if (ssh) {
-				const tool = createBashTool(localCwd, {
-					operations: createRemoteBashOps(ssh.remote, ssh.remoteCwd, localCwd),
-				});
-				return tool.execute(id, params, signal, onUpdate);
-			}
-			return localBash.execute(id, params, signal, onUpdate);
+			return tools.find((tool) => tool.name === "bash")!.execute(id, params, signal, onUpdate);
 		},
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
+		tools = createCodingTools(localCwd);
+		resolvedSsh = null;
 		// Resolve SSH config now that CLI flags are available
 		const arg = pi.getFlag("ssh") as string | undefined;
 		if (arg) {
@@ -226,6 +209,13 @@ export default function (pi: ExtensionAPI) {
 				const pwd = (await sshExec(remote, "pwd")).toString().trim();
 				resolvedSsh = { remote, remoteCwd: pwd };
 			}
+			const { remote, remoteCwd } = resolvedSsh;
+			tools = createCodingTools(localCwd, {
+				read: { operations: createRemoteReadOps(remote, remoteCwd, localCwd) },
+				write: { operations: createRemoteWriteOps(remote, remoteCwd, localCwd) },
+				edit: { operations: createRemoteEditOps(remote, remoteCwd, localCwd) },
+				bash: { operations: createRemoteBashOps(remote, remoteCwd, localCwd) },
+			});
 			ctx.ui.setStatus("ssh", ctx.ui.theme.fg("accent", `SSH: ${resolvedSsh.remote}:${resolvedSsh.remoteCwd}`));
 			ctx.ui.notify(`SSH mode: ${resolvedSsh.remote}:${resolvedSsh.remoteCwd}`, "info");
 		}
