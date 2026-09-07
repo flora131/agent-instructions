@@ -14,6 +14,8 @@ import type { RunSnapshot, StoreSnapshot } from "./store-types.js";
  */
 export interface WorkflowActivityOwnership {
 	readonly ownerSessionId: string;
+	/** Live executor ownership, absent for historical/recovered snapshots. */
+	readonly liveRunIds?: ReadonlySet<string>;
 	readonly executingStageIds: ReadonlySet<string>;
 	readonly executingToolNodeIds: ReadonlySet<string>;
 	readonly stoppingRunIds: ReadonlySet<string>;
@@ -110,6 +112,24 @@ function projectRoot(
 				runnable = true;
 				independentContinuation = true;
 			}
+		}
+		// Author code can admit its successor only after the previous primitive
+		// settles. Retain the live executor's continuation across that gap, but
+		// never treat a parked node or historical running status as runnable work.
+		if (
+			ownership.liveRunIds?.has(run.id) &&
+			run.status === "running" &&
+			!runStopping &&
+			!run.pendingPrompt &&
+			run.blockedAt === undefined &&
+			run.failureDisposition !== "active_blocked" &&
+			run.stages.every(
+				(stage) => !stage.pendingPrompt && (stage.status === "completed" || stage.status === "skipped"),
+			) &&
+			(run.toolNodes ?? []).every((tool) => tool.status === "completed")
+		) {
+			runnable = true;
+			independentContinuation = true;
 		}
 		activeExecutionCount += runExecutionCount;
 		if (runStopping) stoppingExecutionCount += runExecutionCount;

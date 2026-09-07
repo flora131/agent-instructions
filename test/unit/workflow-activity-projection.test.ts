@@ -73,6 +73,34 @@ test("workflow activity projects owned tool-only execution", () => {
 	);
 });
 
+test("live author continuation stays working after its tool settles, but not while parked or recovered", () => {
+	const completedTool = { ...tool(), status: "completed" as const };
+	const live = { liveRunIds: new Set(["root"]) };
+	assert.deepEqual(project([run({ toolNodes: [completedTool] })], live), [
+		activity({ state: "working", reason: "automatic_continuation" }),
+	]);
+	assert.deepEqual(project([run({ toolNodes: [completedTool] })]), [activity()]);
+	assert.deepEqual(
+		project(
+			[
+				run({
+					toolNodes: [completedTool],
+					stages: [{ ...stage("prompt", "awaiting_input"), pendingPrompt: prompt }],
+				}),
+			],
+			live,
+		),
+		[activity(waiting)],
+	);
+	assert.deepEqual(project([run({ status: "paused", toolNodes: [completedTool] })], live), [
+		activity({ reason: "paused" }),
+	]);
+	assert.deepEqual(project([run({ status: "completed", toolNodes: [completedTool] })], live), [activity()]);
+	assert.deepEqual(project([run({ toolNodes: [completedTool] })], { ...live, stoppingRunIds: new Set(["root"]) }), [
+		activity(),
+	]);
+});
+
 // #2891: RFC 5.3 state precedence and ownership, rather than historical status.
 test("workflow activity state table", () => {
 	const cases: {
