@@ -14,6 +14,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { dirname } from "node:path";
 import type { ExtensionAPI } from "@bastani/atomic";
 import {
 	type BashOperations,
@@ -93,7 +94,10 @@ function createRemoteWriteOps(remote: string, remoteCwd: string, localCwd: strin
 		// stays a failure.
 		readFile: async (p) => {
 			const target = JSON.stringify(toRemote(p));
-			const probe = await sshExec(remote, `test -e ${target} && echo yes || echo no`);
+			// `write` has already created the parent, so failure to enter it must remain
+			// an error. A subshell preserves the cwd used to resolve relative targets.
+			const parent = JSON.stringify(toRemote(dirname(p)));
+			const probe = await sshExec(remote, `(cd ${parent}) && { test -e ${target} && echo yes || echo no; }`);
 			if (probe.toString().trim() === "no") return undefined;
 			return (await sshExec(remote, `cat ${target}`)).toString("utf8");
 		},
