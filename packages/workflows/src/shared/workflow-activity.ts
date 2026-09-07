@@ -41,8 +41,10 @@ function rootId(run: RunSnapshot, runs: ReadonlyMap<string, RunSnapshot>): strin
 	return parent ? rootId(parent, runs) : run.parentRunId;
 }
 
+/** Check retained parent ids before the folded root fallback, including absent ancestor snapshots. */
 function isStoppingRun(
 	run: RunSnapshot,
+	rootRunId: string,
 	runs: ReadonlyMap<string, RunSnapshot>,
 	stoppingRunIds: ReadonlySet<string>,
 ): boolean {
@@ -51,7 +53,7 @@ function isStoppingRun(
 		if (stoppingRunIds.has(id)) return true;
 		id = runs.get(id)?.parentRunId;
 	}
-	return false;
+	return stoppingRunIds.has(rootRunId);
 }
 
 function projectRoot(
@@ -66,12 +68,11 @@ function projectRoot(
 	let retrying = false;
 	let runnable = false;
 	let paused = false;
-	let stopping = false;
+	let stoppingExecutionCount = 0;
+	let independentContinuation = false;
 	for (const run of runs) {
-		const runStopping =
-			ownership.stoppingRunIds.has(rootRunId) || isStoppingRun(run, runById, ownership.stoppingRunIds);
-		stopping ||= runStopping;
-		activeExecutionCount += (run.toolNodes ?? []).filter((tool) =>
+		const runStopping = isStoppingRun(run, rootRunId, runById, ownership.stoppingRunIds);
+		let runExecutionCount = (run.toolNodes ?? []).filter((tool) =>
 			ownership.executingToolNodeIds.has(workflowActivityNodeKey(run.id, tool.id)),
 		).length;
 		const acceptsAttention =
@@ -95,16 +96,23 @@ function projectRoot(
 				continue;
 			}
 			const key = workflowActivityNodeKey(run.id, stage.id);
-			if (ownership.executingStageIds.has(key)) activeExecutionCount++;
-			if (ownership.retryingStageIds.has(key)) retrying = true;
+			if (ownership.executingStageIds.has(key)) runExecutionCount++;
+			if (ownership.retryingStageIds.has(key)) {
+				retrying = true;
+				if (!runStopping) independentContinuation = true;
+			}
 			if (
 				run.status === "running" &&
 				!runStopping &&
 				stage.status === "pending" &&
 				stage.parentIds.every((id) => statuses.get(id) === "completed")
-			)
+			) {
 				runnable = true;
+				independentContinuation = true;
+			}
 		}
+		activeExecutionCount += runExecutionCount;
+		if (runStopping) stoppingExecutionCount += runExecutionCount;
 	}
 	const actionableBlockCount = humanWaits + manualWaits;
 	let state: WorkflowRootActivity["state"] = "idle";
@@ -112,7 +120,7 @@ function projectRoot(
 	if (activeExecutionCount > 0 || retrying || runnable) {
 		state = "working";
 		reason =
-			stopping && activeExecutionCount > 0
+			activeExecutionCount > 0 && stoppingExecutionCount === activeExecutionCount && !independentContinuation
 				? "stopping"
 				: retrying
 					? "retrying"

@@ -583,3 +583,32 @@ test("workflow activity preserves stop draining after an intermediate ancestor i
 		}
 	}
 });
+
+// #2891: a draining branch must not relabel its independently executing sibling.
+test("workflow activity reports stopping only after independent sibling execution finishes", () => {
+	const store = createStore();
+	store.recordRunStart(run());
+	store.recordRunStart(run({ id: "a", parentRunId: "root", rootRunId: "root", toolNodes: [tool()] }));
+	store.recordRunStart(run({ id: "b", parentRunId: "root", rootRunId: "root", stages: [stage("agent")] }));
+	const executingStageIds = new Set([workflowActivityNodeKey("b", "agent")]);
+	const owned = ownership({
+		executingStageIds,
+		executingToolNodeIds: new Set([workflowActivityNodeKey("a", "tool")]),
+		stoppingRunIds: new Set(["a"]),
+	});
+	const phases = [
+		{ siblingCompleted: false, expected: { ...executing, activeExecutionCount: 2 } },
+		{ siblingCompleted: true, expected: { ...executing, reason: "stopping" as const } },
+	];
+	for (const phase of phases) {
+		if (phase.siblingCompleted) {
+			store.recordStageEnd("b", { ...stage("agent", "completed"), endedAt: 1 });
+			executingStageIds.clear();
+		}
+		const snapshot = store.graphSnapshot();
+		const before = structuredClone({ snapshot, ownership: owned });
+		assert.deepEqual(projectWorkflowActivity({ snapshot, ownership: owned }), [activity(phase.expected)]);
+		assert.deepEqual({ snapshot, ownership: owned }, before);
+		assert.deepEqual(store.graphSnapshot(), before.snapshot);
+	}
+});

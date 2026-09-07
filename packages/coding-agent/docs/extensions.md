@@ -1036,7 +1036,7 @@ The workflows package also contains a pure root-activity projector. It combines 
 
 Stopping a child suppresses handoffs only in that child's subtree, not in its parent or sibling runs. With no other active waits, a paused stage keeps the root `idle` with reason `paused` after independent execution finishes, even when the stored run status remains `running`. Its retained prompt does not request attention until the stage resumes; independent active waits still do. The projector does not change stored run or stage outcomes.
 
-An executing descendant retains the `stopping` reason when its explicit root or a parent named by its retained ancestry is stopping, even when that ancestor's snapshot is absent. Removing history does not release runtime execution or stop ownership.
+Stopping ownership follows each run's `parentRunId` chain and then its root identity, even when a named ancestor's snapshot is absent. The root reports `working` with reason `stopping` only when all executing contributions are draining under a stop and no unaffected retry or handoff can progress. Independent work retains the usual `retrying`, `executing`, or `automatic_continuation` reason; a stopped run with no execution left does not select the reason. Removing history does not release runtime execution or stop ownership.
 
 The projection module's `workflowActivityNodeKey(runId, nodeId)` helper builds `${runId}:${nodeId}` keys for `executingStageIds`, `executingToolNodeIds`, and `retryingStageIds`. The first colon separates the runtime UUID run ID from the node ID, which may contain colons. Bare node IDs do not establish ownership: two runs can contain the same tool hash. `stoppingRunIds` and `acknowledgedFailureRunIds` use plain run IDs.
 
