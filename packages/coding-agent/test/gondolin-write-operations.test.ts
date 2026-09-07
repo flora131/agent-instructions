@@ -1,6 +1,18 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { access, mkdir, mkdtemp, open, readFile, rm, writeFile } from "node:fs/promises";
+import {
+	access,
+	lstat,
+	mkdir,
+	mkdtemp,
+	open,
+	readFile,
+	readlink,
+	realpath,
+	rm,
+	symlink,
+	writeFile,
+} from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
 import { tmpdir } from "node:os";
 import path, { join } from "node:path";
@@ -9,7 +21,7 @@ import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "../src/core
 import { FileMutationConflict } from "../src/core/tools/file-mutation-coordinator.ts";
 import * as atomic from "../src/index.ts";
 
-const guest = { dir: "", race: false };
+const guest = { dir: "", race: false, dangling: false };
 
 function gondolinFixture() {
 	const local = (path: string) =>
@@ -20,8 +32,14 @@ function gondolinFixture() {
 			.replaceAll("\\", "/");
 	return {
 		RealFSProvider: class {
-			open(path: string, flags: string) {
-				return open(join(guest.dir, path), flags);
+			async open(path: string, flags: string) {
+				const target = join(guest.dir, path);
+				// RealFSProvider resolves an existing link before open, including dangling links.
+				if ((await lstat(target).catch(() => undefined))?.isSymbolicLink()) await realpath(target);
+				return open(target, flags);
+			}
+			lstat(path: string) {
+				return lstat(join(guest.dir, path));
 			}
 		},
 		VM: {
@@ -51,7 +69,8 @@ function gondolinFixture() {
 					if (result.error) throw result.error;
 					if (result.status === 44 && guest.race) {
 						guest.race = false;
-						await writeFile(local(args[4]), "external winner\n");
+						if (guest.dangling) await symlink("missing-referent", local(args[4]));
+						else await writeFile(local(args[4]), "external winner\n");
 					}
 					return { exitCode: result.status, stdout: result.stdout, stderr: result.stderr };
 				},
@@ -98,6 +117,7 @@ describe("Gondolin write target observations", () => {
 	beforeEach(async () => {
 		guest.dir = await mkdtemp(join(tmpdir(), "atomic-gondolin-write-"));
 		guest.race = false;
+		guest.dangling = false;
 	});
 	afterEach(async () => {
 		await rm(guest.dir, { recursive: true, force: true });
@@ -137,6 +157,19 @@ describe("Gondolin write target observations", () => {
 			await readFile(join(guest.dir, root === "/native" ? "native/raced.txt" : "raced.txt"), "utf8"),
 			"external winner\n",
 		);
+	});
+
+	it("reports a concurrent dangling symlink as a typed collision without changing it", async () => {
+		// #2482: the mounted provider throws ENOENT while resolving this occupied path.
+		const { tools, ctx } = await session();
+		guest.race = true;
+		guest.dangling = true;
+		await assert.rejects(
+			tools.get("write")!.execute("race", { path: "raced.txt", content: "loser\n" }, undefined, undefined, ctx),
+			(error: Error) => error instanceof FileMutationConflict && error.reason === "target_exists",
+		);
+		assert.equal(await readlink(join(guest.dir, "raced.txt")), "missing-referent");
+		await assert.rejects(lstat(join(guest.dir, "missing-referent")), { code: "ENOENT" });
 	});
 
 	it.each(["", "line\n$() `quoted` 雪\n"])("creates verbatim native guest content: %j", async (content) => {

@@ -126,7 +126,18 @@ function createGondolinWriteOps(vm: VM, localCwd: string, workspace: RealFSProvi
 				);
 			}
 			if (relativePath !== undefined) {
-				const handle = await workspace.open(relativePath, "wx");
+				const mountedPath = relativePath;
+				const handle = await workspace.open(mountedPath, "wx").catch(async (error: NodeJS.ErrnoException) => {
+					// The provider resolves links before open: a dangling collision becomes ENOENT.
+					// Check occupancy in that same mounted namespace, without following the link.
+					if (
+						error.code === "ENOENT" &&
+						(await workspace.lstat(mountedPath).catch(() => undefined))?.isSymbolicLink()
+					) {
+						throw Object.assign(new Error(`EEXIST: file already exists, open '${target}'`), { code: "EEXIST" });
+					}
+					throw error;
+				});
 				try {
 					await handle.writeFile(content, { encoding: "utf8" });
 				} finally {

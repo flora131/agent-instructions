@@ -28,6 +28,10 @@ function createDeferred(): { promise: Promise<void>; resolve: () => void } {
 	return { promise, resolve };
 }
 
+async function resolvesWithin(promise: Promise<unknown>, ms: number): Promise<boolean> {
+	return Promise.race([promise.then(() => true), delay(ms).then(() => false)]);
+}
+
 const tempDirs: string[] = [];
 
 async function createTempDir(): Promise<string> {
@@ -199,6 +203,7 @@ describe("built-in edit and write tools", () => {
 		const filePath = join(dir, "abort-write.txt");
 		const firstWriteStarted = createDeferred();
 		const finishFirstWrite = createDeferred();
+		const secondWriteStarted = createDeferred();
 		let firstWriteSettled = false;
 
 		const writeTool = createWriteTool(dir, {
@@ -215,6 +220,7 @@ describe("built-in edit and write tools", () => {
 					}
 					if (content === "second\n") {
 						expect(firstWriteSettled).toBe(true);
+						secondWriteStarted.resolve();
 					}
 					await writeFile(path, content, "utf8");
 				},
@@ -227,10 +233,8 @@ describe("built-in edit and write tools", () => {
 		controller.abort();
 
 		const secondWrite = writeTool.execute("call-2", { path: filePath, content: "second\n" });
-		// Ordering is proven inside the operations fake, which asserts `firstWriteSettled`
-		// before the second write is allowed to proceed. A wall-clock "has not started yet"
-		// check would only restate that weakly, and would pass on a loaded machine even if
-		// the queue released early.
+		// #2482: keep the first write in flight while the second call reaches the queue.
+		expect(await resolvesWithin(secondWriteStarted.promise, 20)).toBe(false);
 
 		finishFirstWrite.resolve();
 		await expect(firstWrite).rejects.toThrow("Operation aborted");
@@ -247,6 +251,7 @@ describe("built-in edit and write tools", () => {
 		const tag = store.record(filePath, dir, original).tag;
 		const firstWriteStarted = createDeferred();
 		const finishFirstWrite = createDeferred();
+		const secondWriteStarted = createDeferred();
 		let firstWriteSettled = false;
 
 		const editTool = createEditTool(dir, {
@@ -276,6 +281,7 @@ describe("built-in edit and write tools", () => {
 				writeFile: async (path, content) => {
 					if (content === "second\n") {
 						expect(firstWriteSettled).toBe(true);
+						secondWriteStarted.resolve();
 					}
 					await writeFile(path, content, "utf8");
 				},
@@ -292,10 +298,8 @@ describe("built-in edit and write tools", () => {
 		controller.abort();
 
 		const secondWrite = writeTool.execute("call-2", { path: filePath, content: "second\n" });
-		// Ordering is proven inside the operations fake, which asserts `firstWriteSettled`
-		// before the second write is allowed to proceed. A wall-clock "has not started yet"
-		// check would only restate that weakly, and would pass on a loaded machine even if
-		// the queue released early.
+		// #2482: keep the first edit in flight while the second call reaches the queue.
+		expect(await resolvesWithin(secondWriteStarted.promise, 20)).toBe(false);
 
 		finishFirstWrite.resolve();
 		await expect(firstEdit).rejects.toThrow("Operation aborted");
