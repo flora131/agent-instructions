@@ -18,8 +18,9 @@ export function registerExecutionIntercomDetach(
 	state: ExecutionIntercomDetachState,
 ): () => void {
 	const reservations = new IntercomDetachReservations();
+	let taskWaitYielded = false;
 	const unsubscribe = options.intercomEvents?.on?.(INTERCOM_DETACH_REQUEST_EVENT, (payload) => {
-		if (!options.allowIntercomDetach || state.isUnavailable()) return;
+		if (!options.allowIntercomDetach || state.isUnavailable() || taskWaitYielded) return;
 		if (!payload || typeof payload !== "object") return;
 		const event = payload as IntercomDetachRoute;
 		if (
@@ -35,11 +36,18 @@ export function registerExecutionIntercomDetach(
 			return;
 		}
 		if (event.phase !== "commit" || state.isDetached() || !reservations.commit(event)) return;
-		options.onIntercomDetachCommit?.();
-		state.detach();
+		if (options.taskExecution) {
+			taskWaitYielded = true;
+			options.taskExecution.yieldTaskWait("intercom-coordination");
+		} else {
+			options.onIntercomDetachCommit?.();
+			state.detach();
+		}
 		options.intercomEvents?.emit?.(INTERCOM_DETACH_RESPONSE_EVENT, { ...event, accepted: true });
 	});
-	const detachSibling = () => state.detach();
+	const detachSibling = () => {
+		if (!options.taskExecution) state.detach();
+	};
 	options.intercomDetachSignal?.addEventListener("abort", detachSibling, { once: true });
 	if (options.intercomDetachSignal?.aborted) detachSibling();
 

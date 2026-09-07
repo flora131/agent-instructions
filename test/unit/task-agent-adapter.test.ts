@@ -164,3 +164,37 @@ test("same-scope hosts dispatch each original launch factory", async () => {
 	}
 	assert.equal((await first.close("session-close")).ok, true);
 });
+
+// RFC #2884: an exact Intercom commit releases its registered observation, not execution.
+test("agent launch exposes an exact wait yield without settling the original runner", async () => {
+	const owner = host();
+	const result = deferred<TaskResult>();
+	const cleanup = deferred<Cleanup>();
+	let starts = 0;
+	const started = await owner.startAgentTask(intent, operation(), () => {
+		starts++;
+		return { result: result.promise, cleanup: cleanup.promise };
+	});
+	assert.ok(started.ok);
+	let commit: (() => void) | undefined;
+	const observation = owner.observeAgentLaunch(started.value.taskId, { kind: "foreground" }, (yieldWait) => {
+		commit = () => {
+			yieldWait("intercom-coordination");
+		};
+	});
+	assert.ok(commit);
+	commit();
+	const yielded = await observation;
+	assert.ok(yielded.ok);
+	assert.equal(yielded.value.kind, "yielded");
+	if (yielded.value.kind === "yielded") assert.equal(yielded.value.reason, "intercom-coordination");
+	assert.equal(starts, 1);
+	const terminal: TaskResult = { kind: "failed", code: "Expected", message: "Original runner completed" };
+	result.resolve(terminal);
+	assert.deepEqual(await owner.waitForTask(started.value.taskId), {
+		ok: true,
+		value: { kind: "settled", taskId: started.value.taskId, result: terminal },
+	});
+	cleanup.resolve({ kind: "reaped" });
+	assert.equal((await owner.close("session-close")).ok, true);
+});

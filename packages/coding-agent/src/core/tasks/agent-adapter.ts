@@ -50,9 +50,17 @@ export class AgentTaskHost {
 		return this.supervisor.lookupTask(this.owner, taskId);
 	}
 
-	observeAgentLaunch(taskId: C.TaskId, policy?: C.WaitPolicy) {
+	observeAgentLaunch(
+		taskId: C.TaskId,
+		policy?: C.WaitPolicy,
+		onRegistered?: (yieldWait: (reason: C.YieldReason) => C.Result<C.WaitOutcome, C.YieldError>) => void,
+	) {
 		const task = this.resolveTask(taskId);
-		return task.ok ? this.supervisor.initialObservation(task.value, policy) : Promise.resolve(task);
+		return task.ok
+			? this.supervisor.initialObservation(task.value, policy, (wait) => {
+					onRegistered?.((reason) => this.supervisor.yieldTaskWait(wait, reason));
+				})
+			: Promise.resolve(task);
 	}
 
 	waitForTask(taskId: C.TaskId, budgetMs?: number) {

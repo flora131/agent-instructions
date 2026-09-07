@@ -793,7 +793,11 @@ export class TaskSupervisor {
 	disposeTaskWait(wait: WaitLease): C.Result<void, C.WaitError> {
 		return mapped(this.#native.disposeTaskWait(this.#wait(wait).native), () => undefined, waitErrors);
 	}
-	async initialObservation(task: TaskLease, policy?: C.WaitPolicy): Promise<C.Result<C.WaitOutcome, C.WaitError>> {
+	async initialObservation(
+		task: TaskLease,
+		policy?: C.WaitPolicy,
+		onRegistered?: (wait: WaitLease) => void,
+	): Promise<C.Result<C.WaitOutcome, C.WaitError>> {
 		const state = this.#task(task);
 		policy ??= state.kind === "command" ? { kind: "foreground" } : undefined;
 		const registered = mapped(
@@ -808,6 +812,7 @@ export class TaskSupervisor {
 			waitErrors,
 		);
 		if (!registered.ok) return registered;
+		onRegistered?.(registered.value);
 		if (policy?.kind !== "foreground")
 			this.yieldTaskWait(registered.value, policy ? "explicit" : "default-background");
 		return this.observeTaskWait(registered.value);
