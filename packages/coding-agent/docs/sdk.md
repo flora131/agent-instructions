@@ -32,20 +32,37 @@ and cannot be reconstructed from task IDs or historical records.
 `initialObservation` applies launch policy: omitted policy yields
 `default-background`, explicit background yields `explicit`, and foreground
 registers a wait with its requested budget. A ready terminal result wins.
-`waitForTask` registers a synchronous WaitId; `observeTaskWait` awaits its outcome.
-An elapsed or explicit yield, or observer disposal, does not stop or relaunch the
-task. SDK waits do not replace the host's designated foreground observation.
+`await waitForTask(task, budgetMs?, designation?)` and
+`await foregroundTask(task, budgetMs?)` return a Result containing a WaitOutcome,
+not a lease. Native registration and the WaitId registry are populated synchronously
+before either door awaits. Host lifecycle actions can use `findWait(waitId)` to
+yield or dispose a registered observation; ordinary callers need no extra observe call.
+SDK waits do not replace the host designation unless given a matching HostSession.
+An elapsed/explicit yield or observer disposal never stops or relaunches execution;
+a later yield of a disposed wait replays its ObserverCancelled Result.
 
-`cancelTask` preserves the first accepted cancellation cause. `closeTaskOwner`
-seals admission before draining and succeeds only after independent cleanup
-acknowledgement. The trusted runner supplies separate result and cleanup promises;
-a settled result alone never means resources were reaped. Failed cleanup remains
-observable; absent acknowledgement can leave close pending. This slice exercises
-fake runners, not force-stop or real-process cleanup guarantees.
+Requested agent waits default to 30000 ms. Supply owner-host settings through
+`bindHostSession({ scope, tasks: { wait: { kind: "automatic", agentBudgetMs: 5000 } },
+authorizeLaunch, createRunner })`; `{ kind: "until-settled" }` disables timed yielding.
+Per-call budgets override settings, including zero for immediate yield. These settings
+apply to explicit foreground-first launch, live foregrounding and task-ID waits,
+never to a default independent launch. Wide numeric budgets are not narrowed to u32.
 
-`watchOwnerTasks` provides a snapshot, decimal-string cursor and disposable async
-event iterable. Consumers must reconcile `snapshot`/`onReconcile`, then ignore
-deltas at or below that cursor: the iterable alone cannot recover evicted terminal
+`await cancelTask(task, cause)` returns a Result containing a cancellation receipt
+and preserves the first accepted cause. `closeTaskOwner` seals admission before
+draining and succeeds only after independent cleanup acknowledgement. The trusted
+runner supplies separate result and cleanup promises: confirmed reaping after
+cancellation can close even if no result arrives. Natural cleanup-first delivery
+waits for its outcome before acknowledging reaping. External native owner closure
+also aborts resources attached to already-settled results without rewriting them.
+Failed cleanup remains observable; absent acknowledgement can leave close pending.
+This slice exercises fake runners, not force-stop or real-process cleanup guarantees.
+
+`watchOwnerTasks(owner, cursor?)` provides an opaque `lease`, snapshot,
+decimal-string cursor and disposable async event iterable. Optional reconciliation
+is configured on the returned `subscription.onReconcile`, not in the cursor argument.
+Consumers must reconcile `snapshot`/`onReconcile`, then ignore deltas at or below that cursor:
+the iterable alone cannot recover evicted terminal
 events. Native callbacks are wake hints; journal drain and reset snapshots are
 authoritative. Each live facade subscription has one fallback poll, stopped on
 disposal or observed closure. The native byte journal and facade delivery backlog

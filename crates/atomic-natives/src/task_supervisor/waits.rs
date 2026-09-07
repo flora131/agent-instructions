@@ -1,5 +1,11 @@
 use super::*;
 
+// Scheduling chunks are not a budget cap: retain the original JS number and
+// recompute against monotonic elapsed time, even beyond Instant's date range.
+pub(super) fn timer_delay(budget_ms: f64, elapsed: Duration) -> Duration {
+	Duration::from_secs_f64(((budget_ms / 1000.0) - elapsed.as_secs_f64()).clamp(0.0, 86400.0))
+}
+
 #[napi(discriminant = "kind", discriminant_case = "kebab-case")]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WaitOutcome {
@@ -131,8 +137,9 @@ impl Actor {
 		self.changed.notify_waiters();
 		Ok(())
 	}
-	pub(super) fn arm_timer(self: &Arc<Self>, wait: WaitLease, budget: Option<u32>) {
+	pub(super) fn arm_timer(self: &Arc<Self>, wait: WaitLease, budget: Option<f64>) {
 		if let Some(ms) = budget {
+			let started = std::time::Instant::now();
 			let mut record = wait.record.lock().unwrap();
 			if record.outcome.is_some() {
 				return;
@@ -140,7 +147,12 @@ impl Actor {
 			let actor = Arc::downgrade(self);
 			let timed = wait.clone();
 			record.timer = Some(napi::bindgen_prelude::spawn(async move {
-				napi::tokio::time::sleep(Duration::from_millis(ms.into())).await;
+				loop {
+					napi::tokio::time::sleep(timer_delay(ms, started.elapsed())).await;
+					if started.elapsed().as_secs_f64() >= ms / 1000.0 {
+						break;
+					}
+				}
 				if let Some(actor) = actor.upgrade() {
 					let _ = actor.yield_wait(&timed, YieldReason::Elapsed);
 				}

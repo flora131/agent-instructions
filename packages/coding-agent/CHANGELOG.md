@@ -16,6 +16,7 @@
 - Workflow skill autocomplete no longer reattaches and checkpoints the stage for every completion request. Concurrent lazy discovery requests share one attachment.
 - Intercom now hides internal workflow routing/control connections and refuses messages to non-agent recipients, including model-less `ctx.ui` prompts and `ctx.tool` nodes, without hiding agents busy in tools or awaiting human input. Connected agent aliases remain reachable after pending capability changes or stage completion, even with same-name non-agent nodes.
 - Preserved duplicate-agent routing beside same-name prompt/tool nodes, rejected malformed Intercom recipient purposes without breaking older hosts, and synchronized workflow roster-update completion with broker processing ([#2895](https://github.com/bastani-inc/atomic/pull/2895)).
+- Corrected S1 SDK waits, foregrounding and cancellation to return promised Results, restored watch cursors and opaque subscription leases, applied configured agent wait budgets, and fixed cleanup/disposal races including external owner closure of settled tasks ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

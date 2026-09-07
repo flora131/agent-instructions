@@ -4,14 +4,14 @@ import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { Worker } from "node:worker_threads";
 import * as native from "@bastani/atomic-natives";
-import { test } from "vitest";
+import { test, vi } from "vitest";
 import type * as C from "../../packages/coding-agent/src/core/tasks/contracts.js";
 import {
 	type FakeExecution,
 	type FakeRunnerContext,
 	TaskSupervisor,
 } from "../../packages/coding-agent/src/core/tasks/supervisor.js";
-import { sleep } from "../helpers/runtime.js";
+import { bunExecutable, sleep, spawnSyncCollect } from "../helpers/runtime.js";
 
 function value<T, E>(result: C.Result<T, E>): T {
 	assert.equal(result.ok, true, result.ok ? undefined : JSON.stringify(result.error));
@@ -27,7 +27,7 @@ function deferred<T>() {
 }
 const intent: C.AgentIntent = { kind: "agent", agent: "worker", task: "\n x \n", description: "" };
 const operation = () => randomUUID() as C.OperationId;
-function harness(factory?: (context: FakeRunnerContext) => FakeExecution) {
+function harness(factory?: (context: FakeRunnerContext) => FakeExecution, wait?: C.TaskWaitConfiguration) {
 	const supervisor = new TaskSupervisor();
 	const scope: C.OwnerScope = { kind: "session", sessionId: randomUUID() };
 	const contexts: FakeRunnerContext[] = [];
@@ -35,6 +35,7 @@ function harness(factory?: (context: FakeRunnerContext) => FakeExecution) {
 	const cleanups: Array<ReturnType<typeof deferred<C.Cleanup>>> = [];
 	const host = supervisor.bindHostSession({
 		scope,
+		tasks: { wait },
 		authorizeLaunch() {},
 		createRunner(context) {
 			contexts.push(context);
@@ -62,6 +63,16 @@ async function eventually(check: () => boolean): Promise<void> {
 	while (!check() && Date.now() < deadline) await sleep(5);
 	assert.ok(check(), "condition must converge through bounded reconciliation");
 }
+function designatedWait(h: ReturnType<typeof harness>) {
+	const watch = value(h.supervisor.watchOwnerTasks(h.owner));
+	const observation = watch.snapshot.tasks[0].observation;
+	watch.dispose();
+	assert.equal(observation.kind, "foreground");
+	if (observation.kind !== "foreground") throw new Error("missing designation");
+	const wait = h.supervisor.findWait(observation.waitId);
+	assert.ok(wait, "registration must precede the public promise's first await");
+	return wait;
+}
 
 // RFC #2884: observation never relaunches or stops the admitted execution.
 test("facade returns after setup, replays one execution and preserves identity across default, explicit and elapsed observations", async () => {
@@ -80,9 +91,11 @@ test("facade returns after setup, replays one execution and preserves identity a
 		assert.equal(explicit.kind === "yielded" && explicit.reason, "explicit");
 		const foreground = value(await h.supervisor.initialObservation(task, { kind: "foreground", budgetMs: 0 }));
 		assert.equal(foreground.kind === "yielded" && foreground.reason, "elapsed");
-		const wait = value(h.supervisor.waitForTask(task, 0));
+		const pending = h.supervisor.waitForTask(task, 0, h.host);
+		assert.ok(pending instanceof Promise);
+		const wait = designatedWait(h);
 		assert.equal(h.supervisor.findWait(h.supervisor.waitId(wait)), wait);
-		const elapsed = value(await h.supervisor.observeTaskWait(wait));
+		const elapsed = value(await pending);
 		assert.equal(elapsed.kind === "yielded" && elapsed.reason, "elapsed");
 		assert.equal(h.supervisor.findWait(h.supervisor.waitId(wait)), undefined);
 		assert.deepEqual(h.supervisor.taskReference(task), ref);
@@ -116,7 +129,7 @@ test("terminal-before-return is settled and cannot restart its runner", async ()
 		});
 		assert.equal(value(await h.supervisor.startAgentTask(h.owner, intent, op)), task);
 		assert.equal(h.contexts.length, 1);
-		const foreground = h.supervisor.foregroundTask(task);
+		const foreground = await h.supervisor.foregroundTask(task);
 		assert.equal(!foreground.ok && foreground.error.code, "TaskTerminal");
 	} finally {
 		value(await h.supervisor.closeTaskOwner(h.owner, "session-close"));
@@ -128,9 +141,9 @@ test("designation replacement, SDK yield and observer disposal leave the same ex
 	const h = harness();
 	try {
 		const task = value(await h.supervisor.startAgentTask(h.owner, intent, operation()));
-		const w1 = value(h.supervisor.foregroundTask(task));
-		const w2 = value(h.supervisor.waitForTask(task, 0));
-		await h.supervisor.observeTaskWait(w2);
+		const first = h.supervisor.foregroundTask(task);
+		const w1 = designatedWait(h);
+		await h.supervisor.waitForTask(task, 0);
 		const snapshot = () => {
 			const watch = value(h.supervisor.watchOwnerTasks(h.owner));
 			const state = watch.snapshot;
@@ -138,12 +151,17 @@ test("designation replacement, SDK yield and observer disposal leave the same ex
 			return state;
 		};
 		assert.deepEqual(snapshot().tasks[0].observation, { kind: "foreground", waitId: h.supervisor.waitId(w1) });
-		const w3 = value(h.supervisor.foregroundTask(task));
+		const third = h.supervisor.foregroundTask(task);
+		const w3 = designatedWait(h);
 		value(h.supervisor.yieldTaskWait(w1, "intercom-coordination"));
+		assert.equal(value(await first).kind, "yielded");
 		assert.deepEqual(snapshot().tasks[0].observation, { kind: "foreground", waitId: h.supervisor.waitId(w3) });
 		value(h.supervisor.disposeTaskWait(w3));
-		const disposed = await h.supervisor.observeTaskWait(w3);
+		const disposed = await third;
 		assert.equal(!disposed.ok && disposed.error.code, "ObserverCancelled");
+		// RFC #2884: a delayed yield replays disposal instead of throwing at the mapper.
+		assert.deepEqual(h.supervisor.yieldTaskWait(w3, "explicit"), disposed);
+		assert.deepEqual(h.supervisor.yieldTaskWait(w3, "intercom-coordination"), disposed);
 		assert.deepEqual(snapshot().tasks[0].observation, { kind: "background", reason: "observer-cancelled" });
 		assert.equal(snapshot().tasks[0].execution.kind, "running");
 		assert.equal(h.contexts[0].signal.aborted, false);
@@ -186,14 +204,15 @@ test("authorization denial admits nothing, scope and wrong-owner IDs are refused
 	const other = harness();
 	try {
 		const task = value(await other.supervisor.startAgentTask(other.owner, intent, operation()));
-		const refused = supervisor.waitForTaskId(owner, other.supervisor.taskReference(task).taskId);
+		const refused = await supervisor.waitForTaskId(owner, other.supervisor.taskReference(task).taskId);
 		assert.equal(!refused.ok && refused.error.code, "UnknownTask");
 		assert.throws(() => supervisor.taskReference(structuredClone(task)), /Foreign task/);
-		const wait = value(other.supervisor.waitForTask(task));
+		const pending = other.supervisor.waitForTask(task, undefined, other.host);
+		const wait = designatedWait(other);
 		assert.throws(() => JSON.stringify(task), /not serializable/);
 		assert.throws(() => JSON.stringify(wait), /not serializable/);
 		value(other.supervisor.disposeTaskWait(wait));
-		await other.supervisor.observeTaskWait(wait);
+		await pending;
 	} finally {
 		value(await other.supervisor.closeTaskOwner(other.owner, "session-close"));
 		value(await supervisor.closeTaskOwner(owner, "stage-close"));
@@ -210,7 +229,7 @@ test("owner-close seals admission and waits for explicit cleanup after cooperati
 		return { result: result.promise, cleanup: cleanup.promise };
 	});
 	const task = value(await h.supervisor.startAgentTask(h.owner, intent, operation()));
-	const wait = value(h.supervisor.waitForTask(task));
+	const wait = h.supervisor.waitForTask(task);
 	let closed = false;
 	const close = h.supervisor.closeTaskOwner(h.owner, "session-close").then((receipt) => {
 		closed = true;
@@ -226,7 +245,7 @@ test("owner-close seals admission and waits for explicit cleanup after cooperati
 	cleanup.resolve({ kind: "reaped" });
 	const receipt = value(await close);
 	assert.equal(receipt.tasks[0].cleanup.kind, "reaped");
-	const observed = value(await h.supervisor.observeTaskWait(wait));
+	const observed = value(await wait);
 	assert.equal(observed.kind === "settled" && observed.result.kind, "cancelled");
 	assert.equal(h.contexts.length, 1);
 });
@@ -283,13 +302,10 @@ test("bounded fallback poll reconciles evicted final activity in its captured as
 	let restored: string | undefined;
 	try {
 		await h.supervisor.startAgentTask(h.owner, intent, operation());
-		const watch = storage.run("owner-context", () =>
-			value(
-				h.supervisor.watchOwnerTasks(h.owner, () => {
-					restored = storage.getStore();
-				}),
-			),
-		);
+		const watch = storage.run("owner-context", () => value(h.supervisor.watchOwnerTasks(h.owner)));
+		watch.onReconcile = () => {
+			restored = storage.getStore();
+		};
 		const text = "x".repeat(2 * 1024 * 1024);
 		value(
 			h.contexts[0].reportActivity({ reportId: "oversized-final", change: { kind: "action", tool: "read", text } }),
@@ -400,11 +416,10 @@ test("oversized final settlement is recovered without cleanup or any later event
 test("bounded iterable overflow and throwing consumers preserve final closure", async () => {
 	const h = harness();
 	await h.supervisor.startAgentTask(h.owner, intent, operation());
-	const watch = value(
-		h.supervisor.watchOwnerTasks(h.owner, () => {
-			throw new Error("consumer failed");
-		}),
-	);
+	const watch = value(h.supervisor.watchOwnerTasks(h.owner));
+	watch.onReconcile = () => {
+		throw new Error("consumer failed");
+	};
 	for (let index = 0; index < 150; index++) {
 		value(
 			h.contexts[0].reportActivity({ reportId: `burst-${index}`, change: { kind: "metrics", toolCount: index } }),
@@ -496,10 +511,205 @@ test("operation replay across facade instances returns the original lease withou
 		assert.equal(value(peer.openTaskOwner(h.host, h.scope)), h.owner);
 		assert.equal(value(await peer.startAgentTask(h.owner, intent, op)), task);
 		assert.equal(h.contexts.length, 1);
-		const wait = value(peer.waitForTask(task, 0));
+		const pending = peer.waitForTask(task, 0, h.host);
+		const wait = designatedWait(h);
 		assert.equal(h.supervisor.findWait(peer.waitId(wait)), wait);
-		assert.equal(value(await peer.observeTaskWait(wait)).kind, "yielded");
+		assert.equal(value(await pending).kind, "yielded");
 	} finally {
 		value(await h.supervisor.closeTaskOwner(h.owner, "session-close"));
+	}
+});
+
+// RFC #2884: confirmed stop after cancellation does not require a late result.
+test("cancelled cleanup closes the owner while the independent result stays pending", async () => {
+	const result = deferred<C.TaskResult>();
+	const cleanup = deferred<C.Cleanup>();
+	const h = harness(() => ({ result: result.promise, cleanup: cleanup.promise }));
+	await h.supervisor.startAgentTask(h.owner, intent, operation());
+	let closed = false;
+	const closing = h.supervisor.closeTaskOwner(h.owner, "session-close").then((receipt) => {
+		value(receipt);
+		closed = true;
+		return receipt;
+	});
+	try {
+		cleanup.resolve({ kind: "reaped" });
+		await eventually(() => closed);
+		assert.equal(value(await closing).tasks[0].cleanup.kind, "reaped");
+	} finally {
+		result.resolve({ kind: "cancelled", cause: "owner-close" });
+		await closing;
+	}
+});
+
+// RFC #2884: owner lifetime includes resources attached to an accepted natural result.
+test("external native owner close aborts settled but unreaped resources without rewriting result", async () => {
+	const result = deferred<C.TaskResult>();
+	const cleanup = deferred<C.Cleanup>();
+	const natural: C.TaskResult = { kind: "failed", code: "natural", message: "", exitCode: 0 };
+	const h = harness(({ signal }) => {
+		signal.addEventListener("abort", () => cleanup.resolve({ kind: "reaped" }), { once: true });
+		return { result: result.promise, cleanup: cleanup.promise };
+	});
+	await h.supervisor.startAgentTask(h.owner, intent, operation());
+	const watch = value(h.supervisor.watchOwnerTasks(h.owner));
+	result.resolve(natural);
+	await eventually(() => watch.snapshot.tasks[0].execution.kind === "settled");
+	assert.equal(watch.snapshot.tasks[0].cleanup.kind, "active");
+	const peer = new native.TaskSupervisor();
+	const owner = value(peer.openTaskOwner(peer.bindHostSession(h.scope), h.scope));
+	const closing = peer.closeTaskOwner(owner, "session-close");
+	try {
+		await eventually(() => h.contexts[0].signal.aborted);
+		const receipt = value(await closing);
+		assert.deepEqual(receipt.tasks[0].execution, { kind: "settled", result: natural });
+		assert.equal(receipt.tasks[0].cleanup.kind, "reaped");
+	} finally {
+		await h.supervisor.closeTaskOwner(h.owner, "session-close");
+		await closing;
+	}
+});
+
+// RFC #2884: reconnect retains exact cursor argument and non-serializable lease identity.
+test("watch reconnect accepts a cursor and exposes a stable opaque subscription lease", async () => {
+	const h = harness();
+	try {
+		await h.supervisor.startAgentTask(h.owner, intent, operation());
+		const first = value(h.supervisor.watchOwnerTasks(h.owner));
+		const from = first.cursor;
+		first.dispose();
+		const watch = value(h.supervisor.watchOwnerTasks(h.owner, from));
+		assert.deepEqual(watch.cursor, from);
+		assert.equal(watch.lease, watch.lease);
+		assert.notEqual(watch.lease, first.lease);
+		assert.throws(() => JSON.stringify(watch.lease), /not serializable/);
+		watch.dispose();
+		watch.dispose();
+		assert.equal((await watch.events[Symbol.asyncIterator]().next()).done, true);
+	} finally {
+		value(await h.supervisor.closeTaskOwner(h.owner, "session-close"));
+	}
+});
+
+// RFC #2884: verify the real native registration budget without a >30s suite test.
+test("requested agent waits apply owner defaults, until-settled and highest-priority per-call budgets", async () => {
+	const waitDoor = vi.spyOn(native.TaskSupervisor.prototype, "waitForTask");
+	const foregroundDoor = vi.spyOn(native.TaskSupervisor.prototype, "foregroundTask");
+	try {
+		for (const [configuration, expected] of [
+			[undefined, 30000],
+			[{ kind: "automatic", commandBudgetMs: 17 }, 30000],
+			[{ kind: "automatic", agentBudgetMs: 7 }, 7],
+			[{ kind: "automatic", agentBudgetMs: 0 }, 0],
+			[{ kind: "until-settled" }, undefined],
+		] satisfies Array<[C.TaskWaitConfiguration | undefined, number | undefined]>) {
+			const h = harness(undefined, configuration);
+			try {
+				const task = value(await h.supervisor.startAgentTask(h.owner, intent, operation()));
+				const pending = [h.supervisor.waitForTask(task)];
+				assert.equal(waitDoor.mock.lastCall?.[1], expected);
+				pending.push(h.supervisor.waitForTaskId(h.owner, h.supervisor.taskReference(task).taskId));
+				assert.equal(waitDoor.mock.lastCall?.[1], expected);
+				const foreground = h.supervisor.foregroundTask(task);
+				assert.equal(foregroundDoor.mock.lastCall?.[2], expected);
+				pending.push(h.supervisor.initialObservation(task, { kind: "foreground" }));
+				assert.equal(waitDoor.mock.lastCall?.[1], expected);
+				pending.push(h.supervisor.waitForTask(task, 0));
+				assert.equal(waitDoor.mock.lastCall?.[1], 0);
+				const explicitForeground = h.supervisor.foregroundTask(task, 0);
+				assert.equal(foregroundDoor.mock.lastCall?.[2], 0);
+				pending.push(h.supervisor.initialObservation(task, { kind: "foreground", budgetMs: 0 }));
+				assert.equal(waitDoor.mock.lastCall?.[1], 0);
+				assert.equal(value(await h.supervisor.initialObservation(task)).kind, "yielded");
+				assert.equal(h.contexts[0].signal.aborted, false);
+				value(await h.supervisor.closeTaskOwner(h.owner, "session-close"));
+				for (const observed of await Promise.all(pending)) value(observed);
+				value(await foreground);
+				value(await explicitForeground);
+			} finally {
+				value(await h.supervisor.closeTaskOwner(h.owner, "session-close"));
+			}
+		}
+	} finally {
+		waitDoor.mockRestore();
+		foregroundDoor.mockRestore();
+	}
+});
+
+// RFC #2884: exercise generated N-API numeric conversion in both supported runtimes.
+test("Node and Bun preserve wide explicit wait and foreground budgets", () => {
+	for (const runtime of [process.execPath, bunExecutable()]) {
+		const result = spawnSyncCollect([runtime, "test/fixtures/task-s1-wide-budget.mjs"]);
+		assert.equal(result.exitCode, 0, `${runtime}\n${result.stdout}\n${result.stderr}`);
+		assert.match(result.stdout.toString(), /WIDE BUDGET PRESERVED/);
+	}
+});
+
+// RFC #2884: natural cleanup-first must not publish reaped before the natural result.
+test("natural result and cleanup are independent in either delivery order", async () => {
+	for (const cleanupFirst of [true, false]) {
+		const result = deferred<C.TaskResult>();
+		const cleanup = deferred<C.Cleanup>();
+		const h = harness(() => ({ result: result.promise, cleanup: cleanup.promise }));
+		const natural: C.TaskResult = { kind: "failed", code: "natural", message: "", exitCode: 0 };
+		const task = value(await h.supervisor.startAgentTask(h.owner, intent, operation()));
+		const watch = value(h.supervisor.watchOwnerTasks(h.owner));
+		try {
+			if (cleanupFirst) {
+				cleanup.resolve({ kind: "reaped" });
+				await sleep(0);
+				watch.drain();
+				assert.equal(watch.snapshot.tasks[0].execution.kind, "running");
+				assert.equal(watch.snapshot.tasks[0].cleanup.kind, "active");
+				result.resolve(natural);
+			} else {
+				result.resolve(natural);
+				await eventually(() => watch.snapshot.tasks[0].execution.kind === "settled");
+				assert.equal(watch.snapshot.tasks[0].cleanup.kind, "active");
+				cleanup.resolve({ kind: "reaped" });
+			}
+			await eventually(() => watch.snapshot.tasks[0].cleanup.kind === "reaped");
+			assert.deepEqual(value(await h.supervisor.waitForTask(task)), {
+				kind: "settled",
+				taskId: h.supervisor.taskReference(task).taskId,
+				result: natural,
+			});
+			const cancelled = h.supervisor.cancelTask(task, "user");
+			assert.ok(cancelled instanceof Promise);
+			assert.equal(value(await cancelled.then((receipt) => receipt)).decision, "already-settled");
+			assert.equal(h.contexts[0].signal.aborted, false);
+		} finally {
+			result.resolve(natural);
+			cleanup.resolve({ kind: "reaped" });
+			value(await h.supervisor.closeTaskOwner(h.owner, "session-close"));
+		}
+	}
+});
+
+// RFC #2884: abort must also release cleanup that was already waiting on a result.
+test("cleanup received before cancellation can close without a result", async () => {
+	const result = deferred<C.TaskResult>();
+	const cleanup = deferred<C.Cleanup>();
+	const h = harness(() => ({ result: result.promise, cleanup: cleanup.promise }));
+	const task = value(await h.supervisor.startAgentTask(h.owner, intent, operation()));
+	cleanup.resolve({ kind: "reaped" });
+	await sleep(0);
+	const requested = h.supervisor.cancelTask(task, "user");
+	assert.ok(requested instanceof Promise);
+	assert.equal(value(await requested).decision, "cancellation-requested");
+	let closed = false;
+	const closing = h.supervisor.closeTaskOwner(h.owner, "session-close").then((receipt) => {
+		closed = true;
+		return value(receipt);
+	});
+	try {
+		await eventually(() => closed);
+		assert.deepEqual((await closing).tasks[0].execution, {
+			kind: "settled",
+			result: { kind: "cancelled", cause: "user" },
+		});
+	} finally {
+		result.resolve({ kind: "cancelled", cause: "user" });
+		await closing;
 	}
 });

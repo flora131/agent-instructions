@@ -27,7 +27,7 @@ export type StartFailure = Failure<StartError>;
 export type WaitError = Failure<
 	"UnknownTask" | "OwnerClosed" | "EnvironmentClosing" | "ScopeMismatch" | "ObserverCancelled"
 >;
-export type YieldError = Failure<"UnknownWait" | "StaleGeneration">;
+export type YieldError = Failure<"UnknownWait" | "StaleGeneration" | "ObserverCancelled">;
 export type ForegroundError = Failure<"TaskTerminal" | "OwnerClosing" | "UnknownTask" | "ObserverCancelled">;
 export type CancelError = Failure<"UnknownTask" | "CleanupFailed">;
 export type CloseError = Failure<"CleanupFailed" | "EnvironmentClosing">;

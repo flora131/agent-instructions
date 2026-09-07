@@ -45,8 +45,7 @@ try {
 	const initial = value(await supervisor.initialObservation(task));
 	assert.equal(initial.kind === "yielded" && initial.reason, "default-background");
 	trace("INITIAL default-background");
-	const wait = value(supervisor.waitForTask(task, 0));
-	const elapsed = value(await supervisor.observeTaskWait(wait));
+	const elapsed = value(await supervisor.waitForTask(task, 0));
 	assert.equal(elapsed.kind === "yielded" && elapsed.reason, "elapsed");
 	watch.drain();
 	assert.equal(watch.snapshot.tasks[0].execution.kind, "running");
@@ -55,9 +54,9 @@ try {
 	watch.drain();
 	assert.deepEqual(watch.snapshot.tasks[0].currentAction, { tool: "read", text: "Inspect S1" });
 	trace("ACTIVITY read");
-	const terminal = value(supervisor.waitForTask(task));
+	const terminal = supervisor.waitForTask(task);
 	result.resolve({ kind: "completed", output: watch.snapshot.tasks[0].output, exitCode: 0 });
-	const settled = value(await supervisor.observeTaskWait(terminal));
+	const settled = value(await terminal);
 	assert.equal(settled.kind === "settled" && settled.result.kind, "completed");
 	trace("SETTLED completed");
 	cleanup.resolve({ kind: "reaped" });

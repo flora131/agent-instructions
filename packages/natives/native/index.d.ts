@@ -76,7 +76,10 @@ startAgentTask(owner: OwnerLease, intent: AgentIntent, operation: string): {ok:t
 claimTaskRunner(task: TaskLease): {ok:true,value:RunnerLease}|{ok:false,error:TaskFailure}
 taskReference(task: TaskLease): {ok:true,value:NativeTaskRef}|{ok:false,error:TaskFailure}
 lookupTask(owner: OwnerLease, taskId: string): {ok:true,value:TaskLease}|{ok:false,error:TaskFailure}
-/** Registers the observation before returning. Await observeTaskWait separately. */
+/**
+ * Registers the observation before returning. Await observeTaskWait separately.
+ * Accepts the host-resolved numeric budget without u32 narrowing; omission arms no timer.
+ */
 waitForTask(task: TaskLease, budgetMs?: number | undefined | null, designation?: HostSession | undefined | null): {ok:true,value:WaitLease}|{ok:false,error:TaskFailure}
 foregroundTask(task: TaskLease, host: HostSession, budgetMs?: number | undefined | null): {ok:true,value:WaitLease}|{ok:false,error:TaskFailure}
 observeTaskWait(wait: WaitLease): Promise<{ok:true,value:WaitOutcome}|{ok:false,error:TaskFailure}>

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "vitest";
+import type * as C from "../../packages/coding-agent/src/core/tasks/contracts.js";
 import type {
 	ActivityReport,
 	AgentIntent,
@@ -15,6 +16,7 @@ import type {
 	WaitId,
 	WaitOutcome,
 } from "../../packages/coding-agent/src/core/tasks/contracts.js";
+import type * as S from "../../packages/coding-agent/src/core/tasks/supervisor.js";
 import { TaskSupervisor } from "../../packages/coding-agent/src/core/tasks/supervisor.js";
 
 // RFC #2884: a released observation is not a terminal execution result.
@@ -126,4 +128,36 @@ test("facade host authorization rejects before runner creation and owner admissi
 	} finally {
 		assert.ok((await supervisor.closeTaskOwner(opened.value, "session-close")).ok);
 	}
+});
+
+// RFC #2884: checked consumers receive outcomes/promises, not registration leases.
+test("public observation and cancellation doors assign to the exact RFC signatures", () => {
+	const supervisor = new TaskSupervisor();
+	const doors: {
+		waitForTask(
+			task: S.TaskLease,
+			budgetMs?: number,
+			designation?: S.HostSession,
+		): Promise<C.Result<C.WaitOutcome, C.WaitError>>;
+		foregroundTask(task: S.TaskLease, budgetMs?: number): Promise<C.Result<C.WaitOutcome, C.ForegroundError>>;
+		cancelTask(task: S.TaskLease, cause: C.CancelCause): Promise<C.Result<C.CancelReceipt, C.CancelError>>;
+	} = supervisor;
+	assert.equal(doors.waitForTask, supervisor.waitForTask);
+	assert.equal(doors.foregroundTask, supervisor.foregroundTask);
+	assert.equal(doors.cancelTask, supervisor.cancelTask);
+});
+
+// RFC #2884: cursor is the second argument and subscription authority is opaque.
+test("watch door and subscription fields assign to the exact RFC consumer shape", () => {
+	const supervisor = new TaskSupervisor();
+	type Subscription = {
+		lease: S.SubscriptionLease;
+		snapshot: C.OwnerSnapshot;
+		cursor: C.Cursor;
+		events: AsyncIterable<C.NativeEvent>;
+		dispose(): void;
+	};
+	const watch: (owner: S.OwnerLease, cursor?: C.Cursor) => C.Result<Subscription, C.WatchError> =
+		supervisor.watchOwnerTasks;
+	assert.equal(watch, supervisor.watchOwnerTasks);
 });

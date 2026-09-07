@@ -497,3 +497,18 @@ fn callback_queue_full_and_exception_reset_then_closing_releases_subscription() 
 	assert_eq!(a.snapshot(&o).unwrap().state, "open");
 	a.dispose_subscription(&sub);
 }
+
+// RFC #2884: preserve the numeric budget, including fractional ms and >u32.
+#[test]
+fn timer_duration_preserves_default_wide_and_fractional_budgets() {
+	use super::waits::timer_delay;
+	assert_eq!(timer_delay(30000.0, Duration::ZERO), Duration::from_secs(30));
+	assert_eq!(timer_delay(0.0, Duration::ZERO), Duration::ZERO);
+	assert_eq!(timer_delay(0.5, Duration::ZERO), Duration::from_micros(500));
+	let wide = 4294967296.0;
+	assert_eq!(timer_delay(wide, Duration::ZERO), Duration::from_secs(86400));
+	assert_eq!(timer_delay(wide, Duration::from_millis(4294937296)), Duration::from_secs(30));
+	assert_eq!(timer_delay(wide, Duration::from_millis(4294967296)), Duration::ZERO);
+	// A scheduling horizon does not truncate the total budget or overflow Instant.
+	assert_eq!(timer_delay(f64::MAX, Duration::from_secs(86400)), Duration::from_secs(86400));
+}

@@ -21,10 +21,14 @@ class TaskCapability extends Capability {
 class WaitCapability extends Capability {
 	readonly kind = "wait";
 }
+class SubscriptionCapability extends Capability {
+	readonly kind = "subscription";
+}
 export type HostSession = HostCapability;
 export type OwnerLease = OwnerCapability;
 export type TaskLease = TaskCapability;
 export type WaitLease = WaitCapability;
+export type SubscriptionLease = SubscriptionCapability;
 
 export type FakeRunnerContext = {
 	ref: C.NativeTaskRef;
@@ -35,6 +39,8 @@ export type FakeRunnerContext = {
 export type FakeExecution = { result: Promise<C.TaskResult>; cleanup: Promise<C.Cleanup> };
 export type TrustedTaskHost = {
 	scope: C.OwnerScope;
+	/** Owner-host observation settings; never an execution deadline. */
+	tasks?: { wait?: C.TaskWaitConfiguration };
 	/** The existing host/tool refusal throws here, before native admission. */
 	authorizeLaunch(intent: C.AgentIntent): void;
 	createRunner(context: FakeRunnerContext, intent: C.AgentIntent): FakeExecution;
@@ -356,22 +362,19 @@ export class TaskSubscription {
 	#disposed = false;
 	#snapshot: C.OwnerSnapshot;
 	#cursor: C.Cursor;
-	#reconcile: (snapshot: C.OwnerSnapshot) => void;
+	/** Reconciliation supplements the RFC snapshot/cursor/iterable contract. */
+	onReconcile: (snapshot: C.OwnerSnapshot) => void = () => {};
 	#onDispose: () => void;
 	#failure?: Error;
 	readonly events: AsyncIterable<C.NativeEvent>;
+	readonly lease: SubscriptionLease = new SubscriptionCapability();
 
-	constructor(
-		actor: native.TaskSupervisor,
-		initial: native.NativeTaskSubscription,
-		reconcile: (snapshot: C.OwnerSnapshot) => void,
-		onDispose: () => void,
-	) {
+	constructor(actor: native.TaskSupervisor, initial: native.NativeTaskSubscription, onDispose: () => void) {
+		Object.freeze(this.lease);
 		this.#native = actor;
 		this.#lease = initial.lease;
 		this.#snapshot = snapshot(initial.snapshot);
 		this.#cursor = cursor(initial.cursor);
-		this.#reconcile = reconcile;
 		this.#onDispose = onDispose;
 		this.events = {
 			[Symbol.asyncIterator]: () => ({
@@ -434,7 +437,7 @@ export class TaskSubscription {
 		if (drained.value.reset || overflow) this.#queue = [];
 		if (drained.value.snapshot || events.length) {
 			try {
-				this.#resource.runInAsyncScope(this.#reconcile, undefined, this.#snapshot);
+				this.#resource.runInAsyncScope(this.onReconcile, undefined, this.#snapshot);
 			} catch (error) {
 				this.#failure = error instanceof Error ? error : new Error(String(error));
 			}
@@ -492,14 +495,22 @@ export class TaskSupervisor {
 				Object.freeze(owner);
 				this.#owners.set(owner, { native: lease, host: state, tasks: new Map(), watches: new Set() });
 				this.#ownerIds.set(id, owner);
-				this.watchOwnerTasks(owner, (projection) => {
+				const watched = this.watchOwnerTasks(owner);
+				if (!watched.ok) throw new Error(watched.error.message);
+				watched.value.onReconcile = (projection) => {
 					if (projection.state === "closed") this.#ownerIds.delete(projection.ownerId);
 					for (const record of projection.tasks) {
-						if (record.execution.kind !== "cancelling") continue;
+						const cause =
+							record.execution.kind === "cancelling"
+								? record.execution.cause
+								: projection.state !== "open" && record.cleanup.kind !== "reaped"
+									? "owner-close"
+									: undefined;
+						if (!cause) continue;
 						const task = this.#owner(owner).tasks.get(record.ref.taskId);
-						if (task) this.#task(task).controller.abort(record.execution.cause);
+						if (task) this.#task(task).controller.abort(cause);
 					}
-				});
+				};
 				return owner;
 			},
 			ownerErrors,
@@ -571,14 +582,25 @@ export class TaskSupervisor {
 				resources: [{ resource: "fake-runner", code: "CleanupFailed", message: error.message }],
 			}),
 		);
-		taskState.execution = Promise.all([outcome, cleanup]).then(([reported, evidence]) => {
+		taskState.execution = cleanup.then(async (evidence) => {
+			// Natural reaping follows its outcome; cancellation needs only confirmed stop.
+			// A result may never arrive after abort, including when cleanup arrived first.
+			const signal = taskState.controller.signal;
+			let stopped!: () => void;
+			const cancelled = new Promise<undefined>((resolve) => {
+				stopped = () => resolve(undefined);
+				if (signal.aborted) stopped();
+				else signal.addEventListener("abort", stopped, { once: true });
+			});
+			const reported = await Promise.race([outcome, cancelled]).finally(() => {
+				signal.removeEventListener("abort", stopped);
+			});
 			const acknowledged = mapped(
 				this.#native.acknowledgeTaskCleanup(runner.value, evidence),
 				(cleanup) => cleanup,
 				reportErrors,
 			);
-			if (!reported.ok && !(taskState.controller.signal.aborted && reported.error.code === "ReportConflict"))
-				return reported;
+			if (reported && !reported.ok && !(signal.aborted && reported.error.code === "ReportConflict")) return reported;
 			return acknowledged;
 		});
 		// Setup is complete. Do not await execution; ready terminal microtasks may win observation.
@@ -588,25 +610,47 @@ export class TaskSupervisor {
 	taskReference(task: TaskLease): C.NativeTaskRef {
 		return reference(this.#task(task).ref);
 	}
-	waitForTask(task: TaskLease, budgetMs?: number): C.Result<WaitLease, C.WaitError> {
-		return mapped(
-			this.#native.waitForTask(this.#task(task).native, budgetMs),
+	async waitForTask(
+		task: TaskLease,
+		budgetMs?: number,
+		designation?: HostSession,
+	): Promise<C.Result<C.WaitOutcome, C.WaitError>> {
+		const registered = mapped(
+			this.#native.waitForTask(
+				this.#task(task).native,
+				this.#agentBudget(this.#task(task).owner, budgetMs),
+				designation ? this.#host(designation).native : undefined,
+			),
 			(lease) => this.#register(lease),
 			waitErrors,
 		);
+		return registered.ok ? this.observeTaskWait(registered.value) : registered;
 	}
-	waitForTaskId(owner: OwnerLease, taskId: C.TaskId, budgetMs?: number): C.Result<WaitLease, C.WaitError> {
+	async waitForTaskId(
+		owner: OwnerLease,
+		taskId: C.TaskId,
+		budgetMs?: number,
+	): Promise<C.Result<C.WaitOutcome, C.WaitError>> {
 		const found = mapped(this.#native.lookupTask(this.#owner(owner).native, taskId), (lease) => lease, waitErrors);
 		if (!found.ok) return found;
-		return mapped(this.#native.waitForTask(found.value, budgetMs), (lease) => this.#register(lease), waitErrors);
-	}
-	foregroundTask(task: TaskLease, budgetMs?: number): C.Result<WaitLease, C.ForegroundError> {
-		const state = this.#task(task);
-		return mapped(
-			this.#native.foregroundTask(state.native, state.owner.host.native, budgetMs),
+		const registered = mapped(
+			this.#native.waitForTask(found.value, this.#agentBudget(this.#owner(owner), budgetMs)),
 			(lease) => this.#register(lease),
-			["TaskTerminal", "OwnerClosing", "UnknownTask", "ObserverCancelled"],
+			waitErrors,
 		);
+		return registered.ok ? this.observeTaskWait(registered.value) : registered;
+	}
+	async foregroundTask(task: TaskLease, budgetMs?: number): Promise<C.Result<C.WaitOutcome, C.ForegroundError>> {
+		const state = this.#task(task);
+		const errors = ["TaskTerminal", "OwnerClosing", "UnknownTask", "ObserverCancelled"] as const;
+		const registered = mapped(
+			this.#native.foregroundTask(state.native, state.owner.host.native, this.#agentBudget(state.owner, budgetMs)),
+			(lease) => this.#register(lease),
+			errors,
+		);
+		return registered.ok
+			? mapped(await this.observeTaskWait(registered.value), (outcome) => outcome, errors)
+			: registered;
 	}
 	waitId(wait: WaitLease): C.WaitId {
 		return this.#wait(wait).native.waitId as C.WaitId;
@@ -621,6 +665,7 @@ export class TaskSupervisor {
 		return mapped(this.#native.yieldTaskWait(this.#wait(wait).native, reason), waitOutcome, [
 			"UnknownWait",
 			"StaleGeneration",
+			"ObserverCancelled",
 		]);
 	}
 	disposeTaskWait(wait: WaitLease): C.Result<void, C.WaitError> {
@@ -631,7 +676,7 @@ export class TaskSupervisor {
 		const registered = mapped(
 			this.#native.waitForTask(
 				state.native,
-				policy?.kind === "foreground" ? policy.budgetMs : undefined,
+				policy?.kind === "foreground" ? this.#agentBudget(state.owner, policy.budgetMs) : undefined,
 				state.owner.host.native,
 			),
 			(lease) => this.#register(lease),
@@ -642,7 +687,7 @@ export class TaskSupervisor {
 			this.yieldTaskWait(registered.value, policy ? "explicit" : "default-background");
 		return this.observeTaskWait(registered.value);
 	}
-	cancelTask(task: TaskLease, cause: C.CancelCause): C.Result<C.CancelReceipt, C.CancelError> {
+	async cancelTask(task: TaskLease, cause: C.CancelCause): Promise<C.Result<C.CancelReceipt, C.CancelError>> {
 		const state = this.#task(task);
 		const result = mapped(this.#native.cancelTask(state.native, cause), cancelReceipt, [
 			"UnknownTask",
@@ -686,17 +731,13 @@ export class TaskSupervisor {
 	 * the snapshot first and ignore deltas at or below its cursor. Consumer exceptions
 	 * remain visible as subscription.failure; they never disable the fallback poll.
 	 */
-	watchOwnerTasks(
-		owner: OwnerLease,
-		onReconcile: (snapshot: C.OwnerSnapshot) => void = () => {},
-		from?: C.Cursor,
-	): C.Result<TaskSubscription, C.WatchError> {
+	watchOwnerTasks(owner: OwnerLease, from?: C.Cursor): C.Result<TaskSubscription, C.WatchError> {
 		const state = this.#owner(owner);
 		let subscription: TaskSubscription | undefined;
 		return mapped(
 			this.#native.watchOwnerTasks(state.native, (hint) => subscription?.wake(hint), from),
 			(initial) => {
-				subscription = new TaskSubscription(this.#native, initial, onReconcile, () => {
+				subscription = new TaskSubscription(this.#native, initial, () => {
 					if (subscription) state.watches.delete(subscription);
 				});
 				state.watches.add(subscription);
@@ -704,6 +745,11 @@ export class TaskSupervisor {
 			},
 			watchErrors,
 		);
+	}
+	#agentBudget(owner: OwnerState, budgetMs?: number): number | undefined {
+		if (budgetMs !== undefined) return budgetMs;
+		const configuration = owner.host.binding.tasks?.wait;
+		return configuration?.kind === "until-settled" ? undefined : (configuration?.agentBudgetMs ?? 30000);
 	}
 	#register(lease: native.WaitLease): WaitLease {
 		const wait = new WaitCapability();

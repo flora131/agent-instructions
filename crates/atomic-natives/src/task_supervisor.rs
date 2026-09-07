@@ -259,12 +259,13 @@ impl NapiTaskSupervisor {
 		})())
 	}
 	/// Registers the observation before returning. Await observeTaskWait separately.
+	/// Accepts the host-resolved numeric budget without u32 narrowing; omission arms no timer.
 	#[napi(ts_return_type = "{ok:true,value:WaitLease}|{ok:false,error:TaskFailure}")]
 	pub fn wait_for_task(
 		&self,
 		env: Env,
 		task: &TaskLease,
-		budget_ms: Option<u32>,
+		budget_ms: Option<f64>,
 		designation: Option<&HostSession>,
 	) -> DoorValue<WaitLease> {
 		DoorValue(
@@ -280,7 +281,7 @@ impl NapiTaskSupervisor {
 		env: Env,
 		task: &TaskLease,
 		host: &HostSession,
-		budget_ms: Option<u32>,
+		budget_ms: Option<f64>,
 	) -> DoorValue<WaitLease> {
 		DoorValue(
 			self
