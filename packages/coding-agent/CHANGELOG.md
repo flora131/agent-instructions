@@ -10,9 +10,6 @@
 
 - Prepare resume trust before disposing the outgoing session, preserve it on failed preflight, and allow pending prompt observers up to 1,000 ms to settle without delaying dialog display or answers. Isolated resume uses child-local trust UI and forwards missing-directory overrides without serializing callbacks. ([#2873](https://github.com/bastani-inc/atomic/issues/2873))
 - Startup trust waits now reach existing prompt lifecycle handlers with a live session context, including isolated-engine and borrowed-source dialogs. Only trust-safe extensions load before authorization; approval retains their session and factories, starts newly authorized extensions once, and does not replay earlier waits. ([#2873](https://github.com/bastani-inc/atomic/issues/2873))
-
-### Fixed
-
 - Intercom now hides internal workflow routing/control connections and refuses messages to non-agent recipients, including model-less `ctx.ui` prompts and `ctx.tool` nodes, without hiding agents busy in tools or awaiting human input. Connected agent aliases remain reachable after pending capability changes or stage completion, even with same-name non-agent nodes.
 - Preserved duplicate-agent routing beside same-name prompt/tool nodes, rejected malformed Intercom recipient purposes without breaking older hosts, and synchronized workflow roster-update completion with broker processing ([#2895](https://github.com/bastani-inc/atomic/pull/2895)).
 
