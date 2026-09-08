@@ -4,7 +4,7 @@ import type { ExtensionUIContext } from "../../core/extensions/index.js";
 import type { TaskId } from "../../core/tasks/contracts.js";
 import { getOwnerTaskStore, type OwnerTaskStore, watchOwnerTaskStoreBinding } from "../../core/tasks/owner-store.js";
 import { TaskInspector } from "../interactive/components/task-inspector.js";
-import { renderTaskFooter } from "../interactive/components/task-list.js";
+import { isActiveBackgroundTask, renderTaskFooter } from "../interactive/components/task-list.js";
 import { isPhysicalCtrlC } from "../interactive/interactive-key-identity.ts";
 
 const widgetVisibility = new WeakMap<AgentSession, (visible: boolean) => void>();
@@ -23,7 +23,7 @@ export function bindEngineTaskWidget(session: AgentSession, ui: ExtensionUIConte
 		const store = getOwnerTaskStore(session);
 		const update = () => {
 			if (disposed) return;
-			if (!visible || !store?.backgroundTasks.length) {
+			if (!visible || !store?.backgroundTasks.some(isActiveBackgroundTask)) {
 				if (mounted) ui.setWidget(key, undefined);
 				mounted = false;
 				return;
@@ -65,11 +65,14 @@ export function bindEngineTaskWidget(session: AgentSession, ui: ExtensionUIConte
 	};
 }
 
-export async function showEngineTaskInspector(session: AgentSession, taskId?: string): Promise<void> {
+export async function showEngineTaskInspector(
+	session: AgentSession,
+	ui: Pick<ExtensionUIContext, "custom">,
+	taskId?: string,
+): Promise<void> {
 	session.getAgentTaskHost();
 	const store = getOwnerTaskStore(session);
 	if (!store) throw new Error("Task owner is unavailable");
-	const ui = session.extensionRunner.getUIContext();
 	try {
 		widgetVisibility.get(session)?.(false);
 		await showTaskInspector(ui, store, taskId);

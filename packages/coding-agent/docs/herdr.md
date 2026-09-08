@@ -31,6 +31,8 @@ The reporter uses `agent_start`, `agent_settled`, `ui_prompt_start`, `ui_prompt_
 
 Independent workflow execution keeps the pane working even after the parent agent settles or while another contribution waits for approval. Reasons are internal reducer values, not extra CLI fields. Missing workflow knowledge is never treated as an empty ready snapshot, so an unavailable provider can leave the last reported state unchanged until a ready snapshot arrives.
 
+Opening or closing the host-owned `/tasks` inspector is navigation and does not emit an approval span or change Herdr activity. Genuine extension approval prompts still report `blocked`. This follows [Herdr's custom-agent contract](https://herdr.dev/docs/integrations/#integrate-your-own-agent), which defines `blocked` as needing a user decision. [Prime Agent's reporter](https://github.com/PrimeIntellect-ai/prime-agent/blob/main/packages/coding-agent/src/core/extensions/builtin/herdr-agent-state.ts) likewise observes explicit block notifications. Atomic retains its settled-event and workflow aggregation instead of copying Prime's retry grace timers.
+
 ## Opt out
 
 Set this in global `~/.atomic/agent/settings.json` or trusted project `.atomic/settings.json`, then reload or restart Atomic:

@@ -21,7 +21,7 @@
 ### Changed
 
 - `/tasks` in an attached stage chat is now a local inspection command, never a model message, including while an Escape interruption settles. Hosts without a task inspector report that it is unavailable.
-- Task lists and subagent detail views now use grouped counts, semantic status styling, pinned status/metrics/actions, recent tool activity, bounded response and shell-output previews, and narrow-terminal layouts. Finished tasks remain discoverable from the status footer; background bash receipts distinguish observation time from execution completion.
+- Task lists and subagent detail views now use grouped counts, semantic status styling, pinned status/metrics/actions, recent tool activity, bounded response and shell-output previews, and narrow-terminal layouts. Finished tasks remain discoverable through `/tasks`; background bash receipts distinguish observation time from execution completion.
 
 ### Fixed
 
@@ -31,8 +31,8 @@
 - Replaced raw JSON task-completion content with readable names, outcomes, errors, and available response excerpts. Background completions now show a visible notification in main and owning workflow-stage chat, using the existing persisted delivery identity rather than relying on a model reply.
 - Connected native shell settlement to completion delivery using retained receipts and snapshot reconciliation. Background shell cards show bounded output and exit status; foreground-only shells do not trigger duplicate notifications or model turns. Initial bash observation now designates the host so yielded commands update background counts.
 - Preserved pending transcript navigation and historical pages across background updates, and honored configured task keys before fallback navigation and stop shortcuts.
-- Restricted `/tasks` and below-prompt counts to background work and its retained results. Workflow-stage chat now uses the same footer-only status and completion notifications as main chat. Transcript inspection has a separate bounded viewport with position and paging controls instead of nested chat boxes.
-- Kept active and failed task status below MCP and above workflow background cards, including isolated sessions regardless of widget arrival order. Workflow-stage `/tasks` now appears in slash suggestions; selected skill suggestions use main-chat-style terminal-default backgrounds and accent text. Failed counts and `/tasks` remain visible at narrow widths.
+- Restricted `/tasks` to background work and its retained results, and below-prompt counts to active background work. Workflow-stage chat now uses the same footer-only status and completion notifications as main chat. Transcript inspection has a separate bounded viewport with position and paging controls instead of nested chat boxes.
+- Kept active task status below MCP and above workflow background cards, including isolated sessions regardless of widget arrival order. Workflow-stage `/tasks` now appears in slash suggestions; selected skill suggestions use main-chat-style terminal-default backgrounds and accent text. Active counts and `/tasks` remain visible at narrow widths.
 - Pausing main or workflow-stage chat keeps background agents and shells running with the same identities. Closing a stage generation cancels only that owner's remaining work.
 - Remounted active task rows after session transcript replacement and cleared prior-session task rows and footer state before a replacement owner store binds ([#2907](https://github.com/bastani-inc/atomic/pull/2907)).
 - Honored owner command wait budgets and `until-settled` in supervised bash/PTY execution, disclosed retained output gaps, and bounded output pages to 1 MiB. Supervised file-spool writes now share a hard disk cap rather than overshooting between polls ([#2905](https://github.com/bastani-inc/atomic/pull/2905)).
@@ -53,6 +53,10 @@
 - Prevented accepted NaN S1 wait budgets, including owner-configured agent budgets, from panicking native scheduling. Observations remain releasable by yield, settlement, disposal and owner closure without changing other budgets or per-call precedence ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Restored task completion outboxes now retry unacknowledged terminal intents on initialization instead of waiting for another task to settle, retaining completion identity and current admission checks ([#2906](https://github.com/bastani-inc/atomic/pull/2906)).
 - Fixed unrelated settings changes copying inherited `.pi` fields into primary `.atomic` settings and changing their resource provenance. Scoped writes preserve newer primary-file edits, explicit Atomic overrides (including empty arrays), and inherited builtin-resource precedence ([#2299](https://github.com/bastani-inc/atomic/issues/2299)).
+- Automatic and summary retry countdowns now use Atomic's theme-aware `∀` indicator instead of a braille spinner, preserving cancellation and countdown updates.
+- Settled tasks now leave the compact footer immediately while remaining inspectable in `/tasks` and completion cards, so retained failures do not keep the live indicator red.
+- Opening `/tasks` in isolated mode no longer emits an approval prompt or incorrectly changes Herdr to blocked. Genuine approval reporting remains unchanged.
+- Filled theme backgrounds now survive nested and truncation resets, keeping long task-completion titles, previews, and expand hints shaded through the last column.
 
 ## [0.9.19-alpha.1] - 2026-09-06
 
