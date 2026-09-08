@@ -209,7 +209,7 @@ jobs:
       - name: Install cargo-zigbuild for portable Linux builds
         if: matrix.platform == 'linux'
         timeout-minutes: 3
-        uses: taiki-e/install-action@b6ff580856c41316412a0b9b60540fbc6f8c82cc # v2.86.7
+        uses: taiki-e/install-action@84f5ac3124727fb3d284d4d22ee9ab3654fd09a6 # v2.87.7
         with:
           tool: cargo-zigbuild@0.23.0
       - name: Install Windows cross-compile tooling
@@ -221,7 +221,7 @@ jobs:
       - name: Install cargo-xwin
         if: matrix.platform == 'win32'
         timeout-minutes: 3
-        uses: taiki-e/install-action@b6ff580856c41316412a0b9b60540fbc6f8c82cc # v2.86.7
+        uses: taiki-e/install-action@84f5ac3124727fb3d284d4d22ee9ab3654fd09a6 # v2.87.7
         with:
           tool: cargo-xwin@0.23.0
       # Pinned so the populate step, the build step, and actions/cache agree

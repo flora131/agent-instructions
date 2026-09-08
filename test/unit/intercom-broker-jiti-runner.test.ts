@@ -152,7 +152,7 @@ describe("shipped dependency manifests", () => {
 		);
 
 		assert.deepEqual(obsolete, []);
-		assert.equal(shrinkwrap.packages["node_modules/esbuild"]?.version, "0.28.1");
+		assert.equal(shrinkwrap.packages["node_modules/@earendil-works/chord/node_modules/esbuild"]?.version, "0.28.1");
 		assert.ok(Object.keys(shrinkwrap.packages).some((entry) => entry.endsWith("node_modules/jiti")));
 	});
 });

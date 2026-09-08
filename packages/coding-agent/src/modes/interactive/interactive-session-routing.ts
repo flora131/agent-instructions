@@ -169,6 +169,17 @@ InteractiveModeBase.prototype.showTreeSelector = async function (
 					}
 				}
 
+				if (this.session.isStreaming) {
+					this.restoreQueuedMessagesToEditor();
+					await this.session.abort();
+				}
+				if (this.session.isCompacting) {
+					this.showError(
+						"Wait for the current compaction or tree navigation to finish before navigating the session tree.",
+					);
+					return;
+				}
+
 				// Set up escape handler and loader if summarizing
 				let summaryLoader: Loader | undefined;
 				const originalOnEscape = this.defaultEditor.onEscape;
@@ -186,14 +197,6 @@ InteractiveModeBase.prototype.showTreeSelector = async function (
 					);
 					this.statusContainer.addChild(summaryLoader);
 					this.ui.requestRender();
-				}
-
-				// The user committed to navigating: stop the active response first, so the
-				// aborted turn is settled on the branch it belongs to. navigateTree()
-				// rejects while streaming.
-				if (this.session.isStreaming) {
-					this.restoreQueuedMessagesToEditor();
-					await this.session.abort();
 				}
 
 				try {

@@ -405,6 +405,32 @@ export function _expandSkillCommand(this: AgentSession, text: string): string {
 	}
 }
 
+async function queueUserInput(
+	session: AgentSession,
+	text: string,
+	images: ImageContent[] | undefined,
+	behavior: "steer" | "followUp",
+	source: NonNullable<PromptOptions["source"]>,
+): Promise<void> {
+	if (text.startsWith("/")) session._throwIfExtensionCommand(text);
+	if (session._extensionRunner?.hasHandlers("input")) {
+		const result = await session._extensionRunner.emitInput(
+			text,
+			images,
+			source,
+			session.isStreaming ? behavior : undefined,
+		);
+		if (result.action === "handled") return;
+		if (result.action === "transform") {
+			text = result.text;
+			images = result.images ?? images;
+		}
+	}
+	const expandedText = expandPromptTemplate(session._expandSkillCommand(text), [...session.promptTemplates]);
+	if (behavior === "steer") await session._queueSteer(expandedText, images);
+	else await session._queueFollowUp(expandedText, images);
+}
+
 /**
  * Queue a steering message while the agent is running.
  * Delivered after the current assistant turn finishes executing its tool calls,
@@ -414,17 +440,13 @@ export function _expandSkillCommand(this: AgentSession, text: string): string {
  * @throws Error if text is an extension command
  */
 
-export async function steer(this: AgentSession, text: string, images?: ImageContent[]): Promise<void> {
-	// Check for extension commands (cannot be queued)
-	if (text.startsWith("/")) {
-		this._throwIfExtensionCommand(text);
-	}
-
-	// Expand skill commands and prompt templates
-	let expandedText = this._expandSkillCommand(text);
-	expandedText = expandPromptTemplate(expandedText, [...this.promptTemplates]);
-
-	await this._queueSteer(expandedText, images);
+export async function steer(
+	this: AgentSession,
+	text: string,
+	images?: ImageContent[],
+	options?: Pick<PromptOptions, "source">,
+): Promise<void> {
+	await queueUserInput(this, text, images, "steer", options?.source ?? "interactive");
 }
 
 /**
@@ -435,17 +457,13 @@ export async function steer(this: AgentSession, text: string, images?: ImageCont
  * @throws Error if text is an extension command
  */
 
-export async function followUp(this: AgentSession, text: string, images?: ImageContent[]): Promise<void> {
-	// Check for extension commands (cannot be queued)
-	if (text.startsWith("/")) {
-		this._throwIfExtensionCommand(text);
-	}
-
-	// Expand skill commands and prompt templates
-	let expandedText = this._expandSkillCommand(text);
-	expandedText = expandPromptTemplate(expandedText, [...this.promptTemplates]);
-
-	await this._queueFollowUp(expandedText, images);
+export async function followUp(
+	this: AgentSession,
+	text: string,
+	images?: ImageContent[],
+	options?: Pick<PromptOptions, "source">,
+): Promise<void> {
+	await queueUserInput(this, text, images, "followUp", options?.source ?? "interactive");
 }
 
 /**

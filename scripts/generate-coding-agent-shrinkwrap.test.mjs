@@ -32,6 +32,26 @@ test("the published tree keeps coding-agent dependencies on satisfying versions"
 	assert.equal(generated.packages["node_modules/markit-ai/node_modules/chalk"]?.version, "5.6.2");
 });
 
+test("the published tree preserves internal workspace-local dependencies and their nested tree", async () => {
+	const generated = await generateShrinkwrap();
+	const lock = JSON.parse(readFileSync(join(root, "package-lock.json"), "utf8"));
+	const workspacePrefix = "packages/ai/";
+	let compared = 0;
+	for (const [path, entry] of Object.entries(lock.packages)) {
+		if (!path.startsWith(`${workspacePrefix}node_modules/`) || entry.dev) continue;
+		const publishedPath = `node_modules/@bastani/pi-ai/${path.slice(workspacePrefix.length)}`;
+		assert.equal(generated.packages[publishedPath]?.version, entry.version, publishedPath);
+		assert.equal(generated.packages[publishedPath]?.integrity, entry.integrity, publishedPath);
+		compared += 1;
+	}
+	assert.ok(compared > 0, "expected workspace-local dependencies with versions distinct from root dependencies");
+	assert.equal(
+		generated.packages["node_modules/@google/genai"]?.version,
+		lock.packages["node_modules/@google/genai"].version,
+	);
+	assert.ok(Object.keys(generated.packages).every((path) => path === "" || path.startsWith("node_modules/")));
+});
+
 test("the shrinkwrap is derived from the lockfile npm ci verifies", async () => {
 	const generated = await generateShrinkwrap();
 	const lock = JSON.parse(readFileSync(join(root, "package-lock.json"), "utf8"));

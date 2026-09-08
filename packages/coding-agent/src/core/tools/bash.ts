@@ -18,7 +18,6 @@ import {
 	untrackDetachedChildPid,
 } from "../../utils/shell.ts";
 import type { BashResult } from "../bash-executor.ts";
-import { experimentalToolSamplingProperty } from "../experimental.ts";
 import type { ExtensionContext, ToolDefinition, ToolRenderResultOptions } from "../extensions/types.ts";
 import type { WaitPolicy } from "../tasks/contracts.js";
 import {
@@ -435,7 +434,7 @@ export function createBashToolDefinition(
 		description:
 			"Execute a shell command with optional PTY handling and foreground/background observation. Choose the observation mode without asking the user; omitted wait auto-yields per owner configuration (default 10s). Observation does not change execution timeout. Background requires a supported task owner; unbound foreground waits until completion.",
 		promptSnippet: bashToolSystemPromptContribution.snippet,
-		...experimentalToolSamplingProperty(),
+		constrainedSampling: { type: "json_schema", strict: "prefer" },
 		promptGuidelines: exposeSessionEnvironment ? [...bashToolSystemPromptContribution.guidelines] : undefined,
 		parameters: bashSchema,
 		maxResultSizeChars: Infinity,
