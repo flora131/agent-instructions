@@ -184,6 +184,9 @@ export class FooterComponent implements Component {
 	private declare footerData: ReadonlyFooterDataProvider;
 	private declare readonly renderStyle: FooterRenderStyle;
 	private readonly navigationActive: () => boolean;
+	private branchCwd: string | undefined;
+	private releaseBranch: (() => void) | undefined;
+	private disposed = false;
 
 	constructor(
 		session: AgentSession,
@@ -198,6 +201,11 @@ export class FooterComponent implements Component {
 	}
 
 	setSession(session: AgentSession): void {
+		if (this.session !== session) {
+			this.releaseBranch?.();
+			this.releaseBranch = undefined;
+			this.branchCwd = undefined;
+		}
 		this.session = session;
 	}
 
@@ -213,17 +221,23 @@ export class FooterComponent implements Component {
 		// No-op: git branch is cached/invalidated by provider
 	}
 
-	/**
-	 * Clean up resources.
-	 * Git watcher cleanup now handled by provider.
-	 */
+	/** Release this viewer's branch subscription without disposing shared footer data. */
 	dispose(): void {
-		// Git watcher cleanup handled by provider
+		this.disposed = true;
+		this.releaseBranch?.();
+		this.releaseBranch = undefined;
 	}
 
 	render(width: number): string[] {
+		if (this.disposed) return [];
 		const state = this.session.state;
 		const cwd = this.session.sessionManager.getCwd();
+		if (this.branchCwd !== cwd) {
+			this.releaseBranch?.();
+			// Repaints are requested by the host's existing shared branch subscription.
+			this.releaseBranch = this.footerData.onBranchChange(() => {}, cwd);
+			this.branchCwd = cwd;
+		}
 		let pwd = replaceHome(cwd);
 		const branch = this.footerData.getGitBranch(cwd);
 		if (branch) pwd += ` (${branch})`;

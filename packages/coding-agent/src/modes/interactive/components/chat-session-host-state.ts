@@ -13,6 +13,7 @@ import {
 	type ChatTranscriptEntryLike,
 	ScrollableComponentViewport,
 } from "./chat-transcript.js";
+import type { FooterComponent } from "./footer.js";
 
 export interface ChatSessionHostStateCallbacks<TExtraEntry extends ChatTranscriptEntryLike> {
 	renderEntry: (state: ChatSessionHostState<TExtraEntry>, entry: ChatSessionHostEntry<TExtraEntry>) => Component;
@@ -43,6 +44,8 @@ export class ChatSessionHostState<TExtraEntry extends ChatTranscriptEntryLike = 
 	readonly renderExtraEntry: ((entry: TExtraEntry) => Component) | undefined;
 	readonly tui: TUI | undefined;
 
+	footer: FooterComponent | undefined;
+	footerNavigationActive = false;
 	inputBuffer = "";
 	transcript: ChatSessionHostEntry<TExtraEntry>[] = [];
 	extraEntries: TExtraEntry[] = [];

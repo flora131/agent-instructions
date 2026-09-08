@@ -172,6 +172,8 @@ Background means independent of the current observation, not independent of its 
 
 Task inspection is owner-scoped. It is not a machine-wide process list. Switching sessions does not copy the previous session's task rows into the new one. Missing retained history is reported explicitly.
 
+Git branch watchers for alternate folders are shared by their chat footers and released when the last viewer closes or changes folders. Main chat and other open stage chats keep their live branch updates; closing `/tasks` alone leaves its chat footer active.
+
 ## Task state and completion delivery
 
 Foreground and background describe observation, not different executions. Each admitted task keeps its identity and owning session as callers start or stop waiting. The native `wasBackground` field remains set after a designated wait yields, including after a later foreground wait or settlement.

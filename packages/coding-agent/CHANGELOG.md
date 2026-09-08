@@ -70,6 +70,7 @@
 - Fixed Anthropic Messages tool requests advertising root object-union parameter schemas without fields by projecting their branch fields into Anthropic-compatible object schemas ([#2190](https://github.com/bastani-inc/atomic/pull/2190) by [@elefthei](https://github.com/elefthei)).
 - Matched main and workflow-stage `/tasks` compact pickers, retaining model, reasoning, session cwd/branch, and MCP context even while the owner streams. Task navigation no longer produces a false main-chat input notice; genuine pending prompts keep their routing and clear the notice when answered or the graph is hidden.
 - Fixed concurrent inline approvals hiding one another when completed or canceled out of order. The surviving prompt or task picker stays visible and regains input after leaving the workflow graph, in both local and isolated interactive modes. Canceled isolated approvals no longer leave a dead loading component behind.
+- Released alternate-folder Git branch watchers, polling and retry timers when their last chat footer closes or changes folders, while preserving concurrent main/stage updates and ignoring stale refreshes after replacement ([#2926](https://github.com/bastani-inc/atomic/pull/2926)).
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

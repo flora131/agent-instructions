@@ -128,7 +128,9 @@ export class FooterDataProvider {
 	private refreshPending = false;
 	private disposed = false;
 	private gitWatchersStarted = false;
-	private readonly cwdBranches = new Map<string, FooterDataProvider>();
+	private cwdGeneration = 0;
+	private watcherGeneration = 0;
+	private readonly cwdBranches = new Map<string, { provider: FooterDataProvider; references: number }>();
 
 	constructor(cwd: string) {
 		this.cwd = cwd;
@@ -140,20 +142,24 @@ export class FooterDataProvider {
 		this.gitWatchersStarted = true;
 		this.ensureGitPaths();
 		this.setupGitWatcher();
-		for (const provider of this.cwdBranches.values()) provider.startGitWatcher();
+		for (const { provider } of this.cwdBranches.values()) {
+			if (provider !== this) provider.startGitWatcher();
+		}
 	}
 
 	/** Current git branch for the displayed session cwd, defaulting to this provider's cwd. */
 	getGitBranch(cwd = this.cwd): string | null {
+		if (this.disposed) return null;
 		if (cwd !== this.cwd) {
-			let provider = this.cwdBranches.get(cwd);
-			if (!provider) {
-				provider = new FooterDataProvider(cwd);
-				provider.onBranchChange(() => this.notifyBranchChange());
-				this.cwdBranches.set(cwd, provider);
-				if (this.gitWatchersStarted && !this.disposed) provider.startGitWatcher();
+			const leased = this.cwdBranches.get(cwd);
+			if (leased) return leased.provider.getGitBranch();
+			// A read without a viewer must not retain watchers or cached child providers.
+			const provider = new FooterDataProvider(cwd);
+			try {
+				return provider.getGitBranch();
+			} finally {
+				provider.dispose();
 			}
-			return provider.getGitBranch();
 		}
 		if (this.cachedBranch === undefined) {
 			this.ensureGitPaths();
@@ -167,10 +173,38 @@ export class FooterDataProvider {
 		return this.extensionStatuses;
 	}
 
-	/** Subscribe to git branch changes. Returns unsubscribe function. */
-	onBranchChange(callback: () => void): () => void {
-		this.branchChangeCallbacks.add(callback);
-		return () => this.branchChangeCallbacks.delete(callback);
+	/** Subscribe to branch changes. An explicit cwd retains its watcher until unsubscribe. */
+	onBranchChange(callback: () => void, cwd?: string): () => void {
+		if (this.disposed) return () => {};
+		if (cwd === undefined) {
+			this.branchChangeCallbacks.add(callback);
+			return () => this.branchChangeCallbacks.delete(callback);
+		}
+		let entry = this.cwdBranches.get(cwd);
+		if (!entry) {
+			entry = { provider: cwd === this.cwd ? this : this.createCwdProvider(cwd), references: 0 };
+			this.cwdBranches.set(cwd, entry);
+		}
+		entry.references++;
+		const listener = () => callback();
+		this.branchChangeCallbacks.add(listener);
+		let released = false;
+		return () => {
+			if (released) return;
+			released = true;
+			this.branchChangeCallbacks.delete(listener);
+			if (--entry.references === 0 && this.cwdBranches.get(cwd) === entry) {
+				this.cwdBranches.delete(cwd);
+				if (entry.provider !== this) entry.provider.dispose();
+			}
+		};
+	}
+
+	private createCwdProvider(cwd: string): FooterDataProvider {
+		const provider = new FooterDataProvider(cwd);
+		provider.onBranchChange(() => this.notifyBranchChange());
+		if (this.gitWatchersStarted) provider.startGitWatcher();
+		return provider;
 	}
 
 	/** Internal: set extension status */
@@ -198,12 +232,20 @@ export class FooterDataProvider {
 	}
 
 	setCwd(cwd: string): void {
-		if (this.cwd === cwd) {
+		if (this.disposed || this.cwd === cwd) {
 			return;
 		}
 
 		const restartGitWatcher = this.gitWatchersStarted;
+		const previous = this.cwdBranches.get(this.cwd);
+		if (previous) previous.provider = this.createCwdProvider(this.cwd);
+		const next = this.cwdBranches.get(cwd);
+		if (next) {
+			next.provider.dispose();
+			next.provider = this;
+		}
 		this.cwd = cwd;
+		this.cwdGeneration++;
 		if (this.refreshTimer) {
 			clearTimeout(this.refreshTimer);
 			this.refreshTimer = null;
@@ -228,7 +270,9 @@ export class FooterDataProvider {
 		this.clearGitWatchers();
 		this.gitWatchersStarted = false;
 		this.branchChangeCallbacks.clear();
-		for (const provider of this.cwdBranches.values()) provider.dispose();
+		for (const { provider } of this.cwdBranches.values()) {
+			if (provider !== this) provider.dispose();
+		}
 		this.cwdBranches.clear();
 	}
 
@@ -261,9 +305,10 @@ export class FooterDataProvider {
 		}
 
 		this.refreshInFlight = true;
+		const generation = this.cwdGeneration;
 		try {
 			const nextBranch = await this.resolveGitBranchAsync();
-			if (this.disposed) return;
+			if (this.disposed || generation !== this.cwdGeneration) return;
 			if (this.cachedBranch !== undefined && this.cachedBranch !== nextBranch) {
 				this.cachedBranch = nextBranch;
 				this.notifyBranchChange();
@@ -310,6 +355,7 @@ export class FooterDataProvider {
 	}
 
 	private clearGitWatchers(): void {
+		this.watcherGeneration++;
 		closeWatcher(this.headWatcher);
 		this.headWatcher = null;
 		if (this.headWatchFilePath && this.headWatchFileListener) {
@@ -334,7 +380,7 @@ export class FooterDataProvider {
 	}
 
 	private installHeadPollingFallback(): void {
-		if (!this.gitPaths || this.headWatchFilePath || this.headWatchFileListener) {
+		if (this.disposed || !this.gitPaths || this.headWatchFilePath || this.headWatchFileListener) {
 			return;
 		}
 		this.headWatchFilePath = this.gitPaths.headPath;
@@ -351,7 +397,7 @@ export class FooterDataProvider {
 	}
 
 	private installReftableTablesListPolling(tablesListPath: string): void {
-		if (this.reftableTablesListWatchFileListener) {
+		if (this.disposed || this.reftableTablesListWatchFileListener) {
 			return;
 		}
 		this.reftableTablesListWatchFileListener = (current, previous) => {
@@ -416,7 +462,10 @@ export class FooterDataProvider {
 	}
 
 	private setupGitWatcher(): void {
+		if (this.disposed || !this.gitWatchersStarted) return;
 		this.clearGitWatchers();
+		const generation = this.watcherGeneration;
+		const isCurrent = () => !this.disposed && generation === this.watcherGeneration;
 		this.ensureGitPaths();
 		if (!this.gitPaths) return;
 		const pollGitHead = shouldPollGitHead(this.gitPaths.repoDir);
@@ -427,11 +476,13 @@ export class FooterDataProvider {
 		this.headWatcher = watchWithErrorHandler(
 			dirname(this.gitPaths.headPath),
 			(_eventType, filename) => {
+				if (!isCurrent()) return;
 				if (!filename || filename === "HEAD") {
 					this.scheduleRefresh();
 				}
 			},
 			(error) => {
+				if (!isCurrent()) return;
 				if (isSafeFsWatchPathError(error)) {
 					this.installHeadPollingFallback();
 					return;
@@ -455,9 +506,11 @@ export class FooterDataProvider {
 			this.reftableWatcher = watchWithErrorHandler(
 				reftableDir,
 				(_eventType, filename) => {
+					if (!isCurrent()) return;
 					this.handleReftableDirectoryEvent(filename);
 				},
 				(error) => {
+					if (!isCurrent()) return;
 					if (isSafeFsWatchPathError(error)) {
 						return;
 					}
@@ -470,9 +523,11 @@ export class FooterDataProvider {
 				this.reftableTablesListWatcher = watchWithErrorHandler(
 					tablesListPath,
 					() => {
+						if (!isCurrent()) return;
 						this.scheduleReftableRefresh();
 					},
 					(error) => {
+						if (!isCurrent()) return;
 						if (isSafeFsWatchPathError(error)) {
 							this.installReftableTablesListPolling(tablesListPath);
 							return;
@@ -480,7 +535,7 @@ export class FooterDataProvider {
 						this.handleGitWatcherError();
 					},
 				);
-				this.installReftableTablesListPolling(tablesListPath);
+				if (isCurrent()) this.installReftableTablesListPolling(tablesListPath);
 			}
 		}
 	}

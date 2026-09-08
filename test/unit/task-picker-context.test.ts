@@ -63,7 +63,8 @@ test("workflow compact picker retains exact owner context through empty, live an
 		onClose() {},
 	});
 	const render = () => stripAnsi(stage.render(120).join("\n"));
-	const context = "(openai-codex) gpt-6-astra medium • ~/Documents/projects/atomic (main)";
+	// PR #2926: preserve the full context assertion with the platform's native separators.
+	const context = `(openai-codex) gpt-6-astra medium • ${join("~", "Documents/projects/atomic")} (main)`;
 	try {
 		submitStageChatText(stage, "/tasks");
 		await flush();
@@ -166,6 +167,7 @@ test("shared task context resolves and watches the stage cwd branch without chan
 		);
 		assert.equal(provider.getGitBranch(), "main");
 	} finally {
+		footer.dispose();
 		provider.dispose();
 		rmSync(directory, { recursive: true, force: true });
 	}

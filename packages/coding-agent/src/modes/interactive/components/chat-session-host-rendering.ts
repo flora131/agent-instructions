@@ -133,9 +133,11 @@ export function renderChatSessionFooter<TExtraEntry extends ChatTranscriptEntryL
 	width: number,
 	navigationActive = false,
 ): string[] {
+	if (state.disposed) return [];
 	const agentSession = state.getAgentSession?.();
+	state.footerNavigationActive = navigationActive;
 	if (agentSession && state.footerData) {
-		return new FooterComponent(
+		state.footer ??= new FooterComponent(
 			agentSession,
 			state.footerData,
 			{
@@ -143,9 +145,13 @@ export function renderChatSessionFooter<TExtraEntry extends ChatTranscriptEntryL
 				muted: (text) => state.style.textMuted(text),
 				warning: (text) => state.style.accent(text),
 			},
-			() => navigationActive,
-		).render(width);
+			() => state.footerNavigationActive,
+		);
+		state.footer.setSession(agentSession);
+		return state.footer.render(width);
 	}
+	state.footer?.dispose();
+	state.footer = undefined;
 	return [];
 }
 

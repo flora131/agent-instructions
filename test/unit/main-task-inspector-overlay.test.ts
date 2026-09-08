@@ -355,6 +355,8 @@ for (const [isolated, completeOlderFirst] of [
 		const adapter = buildGraphOverlayAdapter({ ui: surface }, createStore());
 		const key = "pi-workflows:main-chat-input";
 		const notice = "Main chat needs input — exit graph to answer.";
+		// PR #2926: the footer abbreviates home using native path separators on Windows too.
+		const context = `(openai-codex) gpt-6-astra medium • ${join("~", "Documents/projects/atomic")} (main)`;
 		let finishFirst = () => {};
 		let finishSecond = () => {};
 		let first: Promise<void> | undefined;
@@ -362,12 +364,12 @@ for (const [isolated, completeOlderFirst] of [
 		const answered: string[] = [];
 		try {
 			await host.paint();
-			assert.ok(host.frame().includes("(openai-codex) gpt-6-astra medium • ~/Documents/projects/atomic (main)"));
+			assert.ok(host.frame().includes(context), host.frame());
 			assert.ok(host.frame().includes("MCP: 0/1 servers"));
 			assert.ok(host.frame().includes("0 active · 0 total"));
 			Object.defineProperty(host.session, "isStreaming", { value: true, configurable: true });
 			await host.paint();
-			assert.ok(host.frame().includes("(openai-codex) gpt-6-astra medium • ~/Documents/projects/atomic (main)"));
+			assert.ok(host.frame().includes(context), host.frame());
 			assert.doesNotMatch(host.frame(), /esc to interrupt/i);
 			Object.defineProperty(host.session, "isStreaming", { value: false, configurable: true });
 			await host.fixture.start("Late task owned by main");
