@@ -282,6 +282,8 @@ export interface ExtensionUIContext {
 			done: (result: T) => void,
 		) => ExtensionCustomComponent | Promise<ExtensionCustomComponent>,
 		options?: {
+			/** Navigation does not emit approval-prompt events. Defaults to "prompt". */
+			purpose?: "prompt" | "navigation";
 			overlay?: boolean;
 			/** Keep host inline custom UI pending in the background while this overlay is visible. */
 			deferInlineCustomUiFocus?: boolean;

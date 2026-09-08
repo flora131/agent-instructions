@@ -223,6 +223,47 @@ test("all blocking extension UI prompts emit lifecycle events and preserve their
 	]);
 });
 
+test("navigation custom UI does not hold nested approval prompts open", async () => {
+	const { runner, events } = await createRunner();
+	const navigation = deferred<string>();
+	const approval = deferred<boolean>();
+	const options = { purpose: "navigation", overlay: true } as const;
+	const factory: Parameters<ExtensionUIContext["custom"]>[0] = () => ({
+		render: () => [],
+		invalidate: () => {},
+	});
+	runner.setUIContext(
+		createUI({
+			custom: ((actualFactory, actualOptions) => {
+				assert.equal(actualFactory, factory);
+				assert.equal(actualOptions, options);
+				return navigation.promise;
+			}) as ExtensionUIContext["custom"],
+			confirm: () => approval.promise,
+		}),
+		"tui",
+	);
+	const ui = runner.getUIContext();
+	const view = ui.custom(factory, options);
+	await flushNotifications();
+	assert.deepEqual(events, []);
+	const decision = ui.confirm("Approval", "Continue?");
+	await flushNotifications();
+	assert.equal(events.length, 1);
+	approval.resolve(true);
+	assert.equal(await decision, true);
+	await flushNotifications();
+	assert.deepEqual(events, [
+		{ type: "ui_prompt_start", reason: "ui_prompt", kind: "confirm", title: "Approval" },
+		{ type: "ui_prompt_end", reason: "ui_prompt", kind: "confirm", title: "Approval" },
+	]);
+	navigation.resolve("closed");
+	assert.equal(await view, "closed");
+	await flushNotifications();
+	assert.equal(events.length, 2);
+	runner.invalidate();
+});
+
 test("Atomic-only host UI methods pass through without prompt lifecycle events", async () => {
 	const { runner, events } = await createRunner();
 	const hostInputForm: NonNullable<ExtensionUIContext["hostInputForm"]> = async () => undefined;

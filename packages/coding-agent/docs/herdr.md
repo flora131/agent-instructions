@@ -33,6 +33,8 @@ Independent workflow execution keeps the pane working even after the parent agen
 
 Opening or closing the host-owned `/tasks` inspector is navigation and does not emit an approval span or change Herdr activity. Genuine extension approval prompts still report `blocked`. This follows [Herdr's custom-agent contract](https://herdr.dev/docs/integrations/#integrate-your-own-agent), which defines `blocked` as needing a user decision. [Prime Agent's reporter](https://github.com/PrimeIntellect-ai/prime-agent/blob/main/packages/coding-agent/src/core/extensions/builtin/herdr-agent-state.ts) likewise observes explicit block notifications. Atomic retains its settled-event and workflow aggregation instead of copying Prime's retry grace timers.
 
+`/workflow connect` and its run picker are also navigation. Opening, hiding, reopening, or closing the graph does not create an approval wait. Real workflow input waits and extension approvals still contribute their normal state, including while the graph is hidden.
+
 ## Opt out
 
 Set this in global `~/.atomic/agent/settings.json` or trusted project `.atomic/settings.json`, then reload or restart Atomic:

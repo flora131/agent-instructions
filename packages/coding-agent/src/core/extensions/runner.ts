@@ -303,7 +303,9 @@ export class ExtensionRunner {
 			editor: (title, prefill, opts) =>
 				this.withUIPrompt(binding, "editor", title, () => ui.editor(title, prefill, opts)),
 			custom: (factory, options) =>
-				this.withUIPrompt(binding, "custom", undefined, () => ui.custom(factory, options)),
+				options?.purpose === "navigation"
+					? ui.custom(factory, options)
+					: this.withUIPrompt(binding, "custom", undefined, () => ui.custom(factory, options)),
 		};
 	}
 
