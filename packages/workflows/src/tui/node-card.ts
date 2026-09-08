@@ -25,6 +25,7 @@
  *     `Theme` when the overlay mounts.
  */
 
+import { stripTerminalSequences } from "@earendil-works/pi-tui";
 import type { StageSnapshot, StageStatus } from "../shared/store-types.js";
 import { elapsedStageMs } from "../shared/timing.js";
 import { BOLD, DEFAULT_BG, hexToAnsi, lerpColor, paint, RESET } from "./color-utils.js";
@@ -215,7 +216,9 @@ function buildTitleSlot(
 	compact = false,
 ): { slot: string; visibleWidth: number } {
 	const maxName = Math.max(2, compact ? innerWidth - 1 : innerWidth - 4);
-	const safeName = truncate(name, maxName);
+	// Labels are plain text. Remove the truncator's resets before styling the
+	// whole tab so its ellipsis keeps the same background, foreground and weight.
+	const safeName = stripTerminalSequences(truncate(name, maxName));
 	if (focused) {
 		// Flanking spaces sit on the accent tab so the pill reads as a
 		// single coloured run. Use `paint` to combine bg + fg + bold +
