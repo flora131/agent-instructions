@@ -387,6 +387,9 @@ function completeTaskResult(
 			? { artifacts: [...(base.artifacts ?? checkpoint.artifacts ?? [])] }
 			: {}),
 		...(base.model !== undefined || checkpoint.model !== undefined ? { model: base.model ?? checkpoint.model } : {}),
+		...(base.thinkingLevel !== undefined || checkpoint.thinkingLevel !== undefined
+			? { thinkingLevel: base.thinkingLevel ?? checkpoint.thinkingLevel }
+			: {}),
 		...(base.attemptedModels !== undefined || checkpoint.attemptedModels !== undefined
 			? { attemptedModels: [...(base.attemptedModels ?? checkpoint.attemptedModels ?? [])] }
 			: {}),
