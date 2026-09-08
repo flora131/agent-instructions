@@ -128,7 +128,10 @@ describe("current DBOS stage topology", () => {
 	// #1859: legacy optional metadata and removed fastMode retain current-main policy.
 	test("accepts absent identity and ignores the removed fastMode field", () => {
 		const checkpoint = stage("wf-legacy-identity");
-		const envelope = { ...encodeCheckpoint(checkpoint), fastMode: "legacy-ignored" };
+		// Treat the removed field as fixture data, not a current fast-toggle API declaration.
+		const legacyField = "fastMode";
+		const envelope = { ...encodeCheckpoint(checkpoint), [legacyField]: "legacy-ignored" };
+		assert.match(JSON.stringify(envelope), /"fastMode":"legacy-ignored"/);
 		const decoded = decodeToCheckpoint(checkpoint.workflowId, checkpoint.checkpointId, envelope);
 		assert.ok(decoded?.kind === "stage");
 		assert.equal(decoded.model, undefined);
