@@ -45,13 +45,13 @@ jobs:
         include:
           - os: blacksmith-4vcpu-ubuntu-2404
             binary_platform: linux-x64
-            timeout_minutes: 14
+            timeout_minutes: 22
           - os: blacksmith-4vcpu-windows-2025
             binary_platform: windows-x64
-            timeout_minutes: 14
+            timeout_minutes: 22
       fail-fast: false
     runs-on: ${{ matrix.os }}
-    # ceil(1.5 x slower job duration / 60) from runs 33997174167 and 33997819241.
+    # Run 34270757695: 869s Linux / 870s Windows, timeout-censored, plus 50%.
     # Measurements and retry/cold-cache limitations are recorded in docs/ci.md.
     timeout-minutes: ${{ matrix.timeout_minutes }}
     steps:
@@ -208,13 +208,13 @@ jobs:
         include:
           - os: blacksmith-4vcpu-ubuntu-2404
             binary_platform: linux-x64
-            timeout_minutes: 6
+            timeout_minutes: 10
           - os: blacksmith-4vcpu-windows-2025
             binary_platform: windows-x64
-            timeout_minutes: 9
+            timeout_minutes: 14
       fail-fast: false
     runs-on: ${{ matrix.os }}
-    # Two-run maximum plus 50% headroom, rounded up to minutes; see docs/ci.md.
+    # Run 34270757695: 382s Linux / 552s Windows, timeout-censored, plus 50%; see docs/ci.md.
     timeout-minutes: ${{ matrix.timeout_minutes }}
     steps:
       - uses: useblacksmith/checkout@6fd481652155169ed4d2f25ebaf97464f685175f # v1.1

@@ -206,8 +206,8 @@ The initial job caps used the latest two completed CI runs available at calibrat
 [33997819241](https://github.com/bastani-inc/atomic/actions/runs/33997819241)
 (PR, `bafc6ebd17`). Both succeeded. Run `33998194502` was still in progress
 and was excluded rather than treating unfinished durations as measurements.
-Those samples and caps remain unchanged except for Windows release archive
-and integration tests, whose recalibrations use the explicitly identified runs below.
+Those samples and caps remain unchanged except for unit tests, agent suites,
+Windows release archive and integration tests, recalibrated using the runs below.
 
 For each job/platform, the cap in minutes is
 `ceil(max(run_1_seconds, run_2_seconds) × 1.5 / 60)`. Durations come from
@@ -217,12 +217,12 @@ over the observed duration, not over an unobserved completion after a timeout.
 
 | Job | Platform | Sample 1 (33997174167 unless noted) | Sample 2 (33997819241 unless noted) | Timeout |
 | --- | --- | ---: | ---: | ---: |
-| Unit tests | Linux | 618 s (34147316169; timeout-censored during the bounded flake retry) | 371 s | 14 min (formula gives 16; bounded by the 14-minute hang-detector maximum) |
-| Unit tests | Windows | 526 s | 511 s | 14 min |
+| Unit tests | Linux | 869 s (34270757695; timeout-censored, both attempts failed) | 371 s | 22 min |
+| Unit tests | Windows | 870 s (34270757695; timeout-censored during retry) | 511 s | 22 min |
 | Integration tests | Linux | 145 s (34142104101; success) | 118 s | 4 min |
 | Integration tests | Windows | 305 s (34142104101; timeout-censored) | 195 s | 8 min |
-| Agent suite | Linux | 226 s | 216 s | 6 min |
-| Agent suite | Windows | 331 s | 327 s | 9 min |
+| Agent suite | Linux | 382 s (34270757695; job timeout, test step succeeded) | 216 s | 10 min |
+| Agent suite | Windows | 552 s (34270757695; job timeout, test step succeeded) | 327 s | 14 min |
 | Release archive | Linux | 76 s | 80 s | 2 min |
 | Release archive | Windows | 244 s (34035777039; timeout-censored) | 149 s (34037177374; success) | 7 min |
 | Static checks | Linux | 78 s | 88 s | 3 min |
@@ -231,6 +231,49 @@ over the observed duration, not over an unobserved completion after a timeout.
 
 Both final gate legs execute on Linux. The topology contract pins the caps and
 the sampled matrix-job maxima used to calculate them.
+
+#### Prerelease 0.9.19-alpha.2 repair, September 8, 2026
+
+[Run 34270757695](https://github.com/bastani-inc/atomic/actions/runs/34270757695)
+at `b6f5b01fa5fdc9cf40ad95e72a35d69409aeb6b6` cancelled four work jobs.
+The job annotations, full cancelled-job logs and all six diagnostic artifacts
+were inspected, not just the aggregate failed-check log.
+
+| Job ID | Platform / suite | Job start to completion, UTC | Test execution | Old cap | New cap |
+| --- | --- | --- | --- | ---: | ---: |
+| 102211457492 | Linux unit | 19:45:13 to 19:59:42, 869 s | 400.58 s then 381.56 s; same three failures in both attempts | 14 min | 22 min |
+| 102211457215 | Windows unit | 19:45:39 to 20:00:09, 870 s | 631.86 s first attempt; retry cancelled without a second JSON report | 14 min | 22 min |
+| 102211457418 | Linux agent | 19:45:13 to 19:51:35, 382 s | 305.36 s, first attempt passed | 6 min | 10 min |
+| 102211457032 | Windows agent | 19:45:52 to 19:55:04, 552 s | 420.83 s, first attempt passed | 9 min | 14 min |
+
+All four annotations explicitly report that the job exceeded its execution
+limit. These are timeout-affected job observations, including cancellation and
+teardown, not successful uncapped job durations. Both agent test steps and their
+diagnostic uploads succeeded despite the job-level cancellations: Linux passed
+4,365 tests with 40 existing skips, Windows passed 4,341 with 64 existing skips.
+Their test durations are complete observations, but their cancelled job results
+do not establish a successful end-to-end completion under the old caps.
+
+Linux unit diagnostics show 7,905 passed, 3 failed and 20 existing skips on each
+attempt. Windows recorded 7,849 passed, the same 3 failed and 72 existing skips
+on its first attempt. The failures were stale `skill: "tmux"` assertions in
+`builtin-workflows-goal-01.test.ts`, `builtin-workflows-goal-02.test.ts` and
+`builtin-workflows-ralph-01.test.ts`. PR #2932 intentionally changed the shared
+terminal guidance to prefer Herdr and retain tmux/psmux as fallback. The repair
+asserts that preference, fallback and explicit-request/`HERDR_ENV=1` safeguards
+in the rendered stage prompts. It does not roll back the prompt change or drop
+any test. A timeout increase alone would leave both unit jobs failing.
+
+Applying `ceil(sample_seconds × 1.5 / 60)` gives 22, 22, 10 and 14 minutes.
+The largest measured cap is now 22 minutes, replacing the former 14-minute
+hang-detector ceiling that clipped the Linux unit formula to 14. This grants
+50% headroom over observed job time, not an unobserved full Windows retry:
+120 s of setup plus two 631.86 s attempts would already exceed 22 minutes.
+The stale assertions are repaired rather than budgeting for their guaranteed
+retry. An authorized exact-head Linux/Windows CI run must confirm completion;
+cold setup and a future full retry are still not guaranteed to fit.
+Required contexts, suite inventory and duplicate executions, default workers,
+bounded retry count, shared per-test budget and duration thresholds are unchanged.
 
 For the S1 task supervisor suites in PR #2902, run `34142104101` measured
 [Linux integration job 101806128732](https://github.com/bastani-inc/atomic/actions/runs/34142104101/job/101806128732)
