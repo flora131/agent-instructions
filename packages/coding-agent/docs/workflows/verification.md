@@ -4,9 +4,9 @@ Use executable verification appropriate to the changed behavior. Workflow author
 
 ## Execution mode
 
-An explicit request to work `inline`, `do this directly`, `don't use a workflow`, or equivalent overrides workflow-first defaults for that task, including complex implementation and review loops. Do not create or launch a hidden or nested replacement workflow, or ask the user to reapprove the choice. Keep appropriate testing, review and evidence inline. Safety and authorization requirements do not change.
+An explicit request to work `quickly`, `inline`, `do this directly`, `don't use a workflow`, or equivalent overrides workflow-first defaults for that task, including complex implementation and review loops. Treat "quickly" as an inline execution choice, not a request for a faster workflow. Do not create or launch a hidden or nested replacement workflow, or ask the user to reapprove the choice. Keep appropriate testing, review and evidence inline. Safety and authorization requirements do not change.
 
-Apply the preference only to its stated task. Quoted examples and questions about inline code are not execution-mode instructions. Without an opt-out, normal workflow fit defaults apply.
+Apply the preference only to its stated task. Quoted examples and questions about inline code are not execution-mode instructions; neither are descriptions of software that should run quickly. Without an opt-out, normal workflow fit defaults apply.
 
 If the user switches during an active workflow, safely hold or stop the affected run using its available lifecycle controls. Reconcile completed work and in-flight side effects before continuing inline so commands and external writes are not duplicated. Stages notify the controlling session rather than launching a replacement. Already-completed work remains completed; do not claim it was undone.
 

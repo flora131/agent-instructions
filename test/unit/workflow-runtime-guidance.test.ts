@@ -37,14 +37,43 @@ const contracts = [
 		],
 	},
 	{
-		name: "reports source-backed launch estimates and actual duration without changing budgets",
+		name: "reports source-backed estimates before launch without confidence markers",
 		phrases: [
-			"Immediately after a successful workflow launch",
-			"estimated wall-clock completion range before ending the turn",
+			"Before launching a workflow, give the user an estimated wall-clock completion range",
+			"without confidence labels or scores",
 			"critical path",
-			"low-confidence",
+			"If history is missing, state that briefly rather than inventing metrics",
 			"An estimate is not a `budget` override or a promise",
 			"actual elapsed time against the estimate",
+		],
+	},
+	{
+		name: "asks for a budget after the estimate but before launch and waits for a decision",
+		phrases: [
+			"After sharing the estimate and before calling `workflow run`",
+			"use `ask_user_question` or an equivalent usable question tool",
+			"ask whether the user wants an explicit budget",
+			'Offer "Proceed with inherited limits", "Set an explicit budget", and "Do not launch"',
+			"Wait for the answer; a cancelled or unanswered question is not approval to launch or set a cap",
+			"collect the desired duration, token, or cost limit before launch",
+		],
+	},
+	{
+		name: "honors existing choices and avoids repeated questions for inline work or nested children",
+		phrases: [
+			"Skip this question when the user already supplied a budget choice",
+			"including an explicit choice to inherit limits",
+			"share per-item estimates and ask once with clear per-run budget scope, not between launches",
+			"This pre-launch step does not apply to inline work or each nested child",
+		],
+	},
+	{
+		name: "continues autonomously without a question tool but preserves limits and approval gates",
+		phrases: [
+			"If no usable question tool exists, proceed autonomously on best judgment",
+			"briefly state the assumption",
+			"preserve existing budget limits and approval gates",
+			"Never convert an estimate into a cap",
 		],
 	},
 ];
@@ -75,4 +104,15 @@ test("uses available question tools and continues autonomously when none is usab
 		assert.ok(guidance.includes(phrase), `model guidance missing: ${phrase}`);
 	}
 	assert.ok(!guidance.includes("prefer the `ask_user_question` tool"));
+});
+
+test("removes contradictory post-launch estimate and unanswered-question fallback instructions", async () => {
+	const docs = await readText(resolve(root, "packages/coding-agent/docs/workflows/reliable-design.md"));
+	for (const text of [guidance, docs]) {
+		assert.ok(!text.includes("Immediately after a successful workflow launch"));
+		assert.ok(!text.includes("estimate as low-confidence"));
+		assert.ok(!text.includes("or nobody answers, do not stall"));
+		assert.ok(!text.includes("assuming no budget is always the correct default"));
+		assert.ok(text.indexOf("Before launching a workflow, give") < text.indexOf("After sharing the estimate"));
+	}
 });
