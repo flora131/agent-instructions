@@ -211,6 +211,7 @@ function record(value: native.TaskRecord): C.TaskRecord {
 		...(value.agentName === undefined ? {} : { agentName: value.agentName }),
 		execution: execution(value.execution),
 		observation: observation(value.observation),
+		...(value.wasBackground === undefined ? {} : { wasBackground: value.wasBackground }),
 		attention: value.attention,
 		cleanup: value.cleanup,
 		...(value.currentAction === undefined
@@ -343,6 +344,8 @@ function applyEvent(current: C.OwnerSnapshot, value: C.NativeEvent): C.OwnerSnap
 			break;
 		case "host-observation-changed":
 			task.observation = change.observation;
+			if (change.observation.kind === "background" && change.observation.reason !== "not-observed")
+				task.wasBackground = true;
 			break;
 		case "task-cancelling":
 			task.execution = { kind: "cancelling", cause: change.cause };
@@ -550,6 +553,7 @@ export class TaskSupervisor {
 				this.#ownerIds.set(id, owner);
 				const watched = this.watchOwnerTasks(owner);
 				if (!watched.ok) throw new Error(watched.error.message);
+				const settledCommands = new Set<C.TaskId>();
 				watched.value.onReconcile = (projection) => {
 					if (projection.state === "closed") this.#ownerIds.delete(projection.ownerId);
 					for (const record of projection.tasks) {
@@ -563,7 +567,37 @@ export class TaskSupervisor {
 						const task = this.#owner(owner).tasks.get(record.ref.taskId);
 						if (task) this.#task(task).controller.abort(cause);
 					}
+					let failure: Error | undefined;
+					for (const record of projection.tasks) {
+						if (
+							record.kind !== "command" ||
+							record.execution.kind !== "settled" ||
+							settledCommands.has(record.ref.taskId) ||
+							!state.binding.onTaskSettled
+						)
+							continue;
+						try {
+							// The journal may have reset, and native setup may finish before its JS lease exists.
+							const task = this.#native.lookupTask(lease, record.ref.taskId);
+							if (!task.ok) throw new Error(task.error.message);
+							const settled = this.#native.taskSettlement(task.value);
+							if (!settled.ok) throw new Error(settled.error.message);
+							const receipt = settled.value;
+							// Mark before entering host code: reentrant drains and callback failures must not redeliver.
+							settledCommands.add(record.ref.taskId);
+							state.binding.onTaskSettled(record.ref, {
+								taskId: receipt.taskId as C.TaskId,
+								cursor: cursor(receipt.cursor),
+								result: taskResult(receipt.result),
+								completionId: receipt.completionId,
+							});
+						} catch (error) {
+							failure ??= new Error(rejectionMessage(error));
+						}
+					}
+					if (failure) throw failure;
 				};
+				watched.value.onReconcile(watched.value.snapshot);
 				return owner;
 			},
 			ownerErrors,

@@ -1,6 +1,7 @@
 import { type AutocompleteProvider, CombinedAutocompleteProvider, type SlashCommand } from "@earendil-works/pi-tui";
 import type { AgentSession } from "../../core/agent-session.ts";
 import { getSkillCatalog } from "../../core/skill-catalog.ts";
+import { BUILTIN_SLASH_COMMANDS } from "../../core/slash-commands.js";
 import type { SourceInfo } from "../../core/source-info.ts";
 import { parseGitUrl } from "../../utils/git.ts";
 
@@ -62,7 +63,10 @@ export function createSessionSkillAutocompleteProvider(
 				return null;
 			}
 			return new CombinedAutocompleteProvider(
-				getSessionSkillCommands(session),
+				[
+					...BUILTIN_SLASH_COMMANDS.filter((command) => command.name === "tasks"),
+					...getSessionSkillCommands(session),
+				],
 				session.sessionManager.getCwd(),
 				null,
 			).getSuggestions(lines, cursorLine, cursorCol, options);

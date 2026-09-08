@@ -85,6 +85,8 @@ readTaskOutput(task: TaskLease, range: OutputRange): Promise<{ok:true,value:Outp
 /** Claim once after host dispatch setup; operation replay never grants a second runner. */
 claimTaskRunner(task: TaskLease): {ok:true,value:RunnerLease}|{ok:false,error:TaskFailure}
 taskReference(task: TaskLease): {ok:true,value:NativeTaskRef}|{ok:false,error:TaskFailure}
+/** Read the retained terminal receipt without registering an observation or replaying execution. */
+taskSettlement(task: TaskLease): {ok:true,value:SettlementReceipt}|{ok:false,error:TaskFailure}
 lookupTask(owner: OwnerLease, taskId: string): {ok:true,value:TaskLease}|{ok:false,error:TaskFailure}
 /**
  * Registers the observation before returning. Await observeTaskWait separately.
@@ -800,6 +802,8 @@ export interface TaskRecord {
   agentName?: string
   execution: Execution
   observation: HostObservation
+  /** True after a designated observation yields; retained after settlement and snapshot resets. */
+  wasBackground?: boolean
   attention: Attention
   cleanup: Cleanup
   currentAction?: CurrentAction

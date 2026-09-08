@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { type Component, truncateToWidth } from "@earendil-works/pi-tui";
+import { taskOutcomeStatus } from "../../../core/tasks/command-output.js";
 import type { TaskRecord } from "../../../core/tasks/contracts.js";
 import type { TaskActivity } from "../../../core/tasks/owner-store.js";
 import { theme } from "../theme/theme.js";
@@ -10,7 +11,7 @@ export function taskDisplayText(text: string): string {
 	return text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x1f\x7f-\x9f]/g, " ");
 }
 export function taskState(task: TaskRecord): string {
-	if (task.execution.kind === "settled") return task.execution.result.kind;
+	if (task.execution.kind === "settled") return taskOutcomeStatus(task.execution.result, task.kind);
 	if (task.execution.kind === "cancelling") return "cancelling";
 	if (task.attention.kind === "input-needed") return "input-needed";
 	return task.execution.kind;
@@ -23,6 +24,45 @@ export function taskTitle(task: TaskRecord): string {
 }
 export function taskShortId(task: TaskRecord): string {
 	return createHash("sha256").update(task.ref.taskId).digest("hex").slice(0, 6);
+}
+export function taskDuration(milliseconds: number): string {
+	const seconds = Math.max(0, Math.floor(milliseconds / 1000));
+	return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+}
+
+/** One semantic status palette for inline rows, lists and detail headers. */
+export function taskStatusAppearance(task: TaskRecord): {
+	label: string;
+	icon: string;
+	color: "accent" | "success" | "error" | "warning" | "muted";
+} {
+	switch (taskState(task)) {
+		case "completed":
+			return { label: "Completed", icon: "✓", color: "success" };
+		case "failed":
+			return { label: "Failed", icon: "✗", color: "error" };
+		case "cancelled":
+			return { label: "Stopped", icon: "✗", color: "warning" };
+		case "cancelling":
+			return { label: "Stopping", icon: "!", color: "warning" };
+		case "input-needed":
+			return { label: "Input needed", icon: "?", color: "warning" };
+		case "queued":
+			return { label: "Queued", icon: "○", color: "muted" };
+		default:
+			return { label: "Running", icon: "∀", color: "accent" };
+	}
+}
+
+export function taskMetricsText(task: TaskRecord): string {
+	const metrics = task.metrics;
+	return [
+		metrics?.elapsedMs === undefined ? "" : taskDuration(metrics.elapsedMs),
+		metrics?.tokenCount === undefined ? "" : `${metrics.tokenCount.toLocaleString("en-US")} tokens`,
+		metrics?.toolCount === undefined ? "" : `${metrics.toolCount} ${metrics.toolCount === 1 ? "tool" : "tools"}`,
+	]
+		.filter(Boolean)
+		.join(" · ");
 }
 export type TaskRowOptions = {
 	expanded?: boolean;
@@ -51,7 +91,7 @@ export class TaskRow implements Component {
 		const state = taskState(task);
 		const live = task.execution.kind === "running" || task.execution.kind === "queued";
 		const badge = live && task.observation.kind !== "none" ? ` · ${task.observation.kind}` : "";
-		const glyph = live ? "∀" : state === "completed" ? "✓" : state === "failed" ? "✗" : "·";
+		const { icon: glyph, color } = taskStatusAppearance(task);
 		const displayLabel = (item: TaskRecord) =>
 			truncateToWidth(
 				`${taskDisplayText(taskLabel(item))}: ${taskDisplayText(taskTitle(item))}`,
@@ -63,22 +103,22 @@ export class TaskRow implements Component {
 				(item) => item.ref.taskId !== task.ref.taskId && displayLabel(item) === displayLabel(task),
 			);
 		const suffix = duplicate ? ` [${taskShortId(task)}]` : "";
-		const title = `${glyph} ${taskDisplayText(taskLabel(task))}: ${taskDisplayText(taskTitle(task))}`;
-		const lines = [
-			theme.bold(truncateToWidth(title, Math.max(1, rowWidth - suffix.length))) + theme.fg("dim", suffix),
-		];
+		const title =
+			theme.fg(color, glyph) +
+			" " +
+			theme.bold(taskDisplayText(taskLabel(task))) +
+			theme.fg("muted", `: ${taskDisplayText(taskTitle(task))}`);
+		const lines = [truncateToWidth(title, Math.max(1, rowWidth - suffix.length)) + theme.fg("dim", suffix)];
 		const action =
 			live && task.currentAction
 				? ` · ${taskDisplayText(task.currentAction.tool)} ${taskDisplayText(task.currentAction.text)}`
 				: "";
 		const tools = task.metrics?.toolCount === undefined ? "" : ` · ${task.metrics.toolCount} tool uses`;
-		lines.push(truncateToWidth(`  ${state}${badge}${tools}${action}`, width));
+		const duration = task.metrics?.elapsedMs === undefined ? "" : ` · ${taskDuration(task.metrics.elapsedMs)}`;
+		lines.push(theme.fg("dim", truncateToWidth(`  ${state}${badge}${tools}${duration}${action}`, width)));
 		if (this.options.expanded) {
 			lines.push(theme.fg("dim", truncateToWidth(`  ${task.ref.taskId} · owner ${task.ref.ownerId}`, width)));
-			if (task.metrics?.elapsedMs !== undefined)
-				lines.push(theme.fg("dim", `  elapsed ${task.metrics.elapsedMs} ms`));
 			if (task.metrics?.tokenCount !== undefined) lines.push(theme.fg("dim", `  ${task.metrics.tokenCount} tokens`));
-			lines.push("  Prompt", theme.fg("dim", "    Transcript unavailable"));
 			lines.push("  Activity");
 			if (this.options.activityOmitted) lines.push(theme.fg("dim", "    Earlier activity omitted"));
 			const retained = retainedActivityLines(this.options.activity ?? []);
@@ -92,7 +132,7 @@ export class TaskRow implements Component {
 							: "    No retained activity",
 					),
 				);
-			lines.push("  Response", theme.fg("dim", "    Transcript unavailable"));
+			lines.push(theme.fg("dim", "  /tasks to inspect transcript and task details"));
 			if (task.execution.kind === "settled" && task.execution.result.kind === "failed")
 				lines.push(truncateToWidth(`    ${taskDisplayText(task.execution.result.message)}`, width));
 		}

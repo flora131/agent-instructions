@@ -2,13 +2,19 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added `/agents` to browse and filter effective agent definitions by source, with model, tool, description, and prompt details.
+
 ### Fixed
 
 - Already-admitted in-process task callers now yield each active foreground sibling's observation on an exact Intercom group commit without ending or replacing the original executions ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Status and interrupt now accept owner-bound task IDs returned by launches, and wait results use readable observation summaries. Corrected foreground-only claims in orchestrator guidance, the bundled delegation and terminal skills, and the README. Agents can choose foreground-first or background observation; automatic yielding preserves the original execution.
 
 ### Changed
 
 - Session-bound launches now return task observations immediately by default. Independent parallel launches admit queued slots under their concurrency limit; explicit foreground groups retain Intercom yielding. Owner-scoped `action:"wait"` observes the same child; terminal completion uses a nonvisual persisted envelope ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Subagent tool results now summarize launch observations and agent discovery instead of displaying raw task receipts or full catalog dumps by default. Parallel receipts show numbered sibling rows and errors; expanded results retain task identities. Owner-task progress includes recorded elapsed time, tool/token counts, and concise current-tool arguments.
 
 ## [0.9.18] - 2026-09-05
 

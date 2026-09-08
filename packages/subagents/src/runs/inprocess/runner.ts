@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, statSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import {
@@ -987,16 +988,26 @@ export class SubagentControlRuntime {
 				lastActivityAt: Date.now(),
 			};
 			const attemptStartedAt = Date.now();
+			const activityPrefix = randomUUID();
 			let lastProgressEmit = 0;
 			const emitProgress = (force: boolean) => {
 				const onProgress = admitted.spec.onProgress;
-				if (!onProgress) return;
+				if (!onProgress && !taskHooks) return;
 				const now = Date.now();
 				if (!force && now - lastProgressEmit < 400) return;
 				lastProgressEmit = now;
 				progressState.durationMs = now - attemptStartedAt;
 				progressState.lastActivityAt = now;
-				onProgress({ ...progressState, recentTools: [...progressState.recentTools] });
+				taskHooks?.reportActivity({
+					reportId: `${activityPrefix}:metrics-${++activitySequence}`,
+					change: {
+						kind: "metrics",
+						elapsedMs: progressState.durationMs,
+						toolCount: progressState.toolCount,
+						tokenCount: progressState.tokens,
+					},
+				});
+				onProgress?.({ ...progressState, recentTools: [...progressState.recentTools] });
 			};
 			let activitySequence = 0;
 			unsubscribe = session.subscribe((event) => {
@@ -1004,8 +1015,8 @@ export class SubagentControlRuntime {
 				const emission = progressEmissionFor(event.type);
 				if (event.type === "tool_execution_start") {
 					taskHooks?.reportActivity({
-						reportId: `tool-${++activitySequence}`,
-						change: { kind: "action", tool: event.toolName, text: `Running ${event.toolName}` },
+						reportId: `${activityPrefix}:tool-${++activitySequence}`,
+						change: { kind: "action", tool: event.toolName, text: safeArgsPreview(event.args) },
 					});
 				}
 				if (event.type === "agent_start") {

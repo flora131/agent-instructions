@@ -128,6 +128,8 @@ export type TaskRecord = {
 	agentName?: string;
 	execution: Execution;
 	observation: HostObservation;
+	/** Retained native background membership, independent of the current wait. */
+	wasBackground?: boolean;
 	attention: Attention;
 	cleanup: Cleanup;
 	currentAction?: { tool: string; text: string };

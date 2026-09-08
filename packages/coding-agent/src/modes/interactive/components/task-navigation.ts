@@ -64,6 +64,11 @@ export class TaskNavigation {
 		}
 	}
 
+	moveSelection(delta: number): void {
+		const index = this.tasks.findIndex((task) => task.ref.taskId === this.selectedTaskId);
+		this.selectedTaskId = this.tasks[Math.max(0, Math.min(this.tasks.length - 1, index + delta))]?.ref.taskId;
+	}
+
 	handleInput(data: string, inputOwner: "composer" | "hil" | "tasks"): boolean {
 		if (inputOwner !== "tasks" || this.focus.kind === "composer") return false;
 		if (matchesKey(data, "escape")) {

@@ -16,6 +16,7 @@ import {
 	type RpcOutput,
 } from "./rpc-responses.ts";
 import type { RpcCommand, RpcResponse, RpcSessionState, RpcSlashCommand } from "./rpc-types.ts";
+import { showEngineTaskInspector } from "./task-ui-bridge.js";
 
 export type RpcCommandHandler = (command: RpcCommand) => Promise<RpcResponse | undefined>;
 export type ManagedRpcCommandHandler = RpcCommandHandler & { disposeActiveBash(): Promise<void> };
@@ -92,6 +93,14 @@ export function createRpcCommandHandler({
 		}
 		const session = getSession();
 		switch (command.type) {
+			case "open_task_inspector": {
+				if (!keybindings)
+					return createRpcErrorResponse(id, command.type, "Task inspection requires an interactive host");
+				void showEngineTaskInspector(session, command.taskId).catch((error: Error) =>
+					session.extensionRunner.getUIContext().notify(error.message, "error"),
+				);
+				return createRpcSuccessResponse(id, command.type);
+			}
 			case "prompt": {
 				let preflightSucceeded = false;
 				void (async () => {

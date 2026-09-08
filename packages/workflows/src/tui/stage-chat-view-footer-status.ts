@@ -90,8 +90,12 @@ export function renderFooterWithOrchestratorReturnHint(
 		return [mergeOrchestratorReturnHintIntoLine(ctx, "", width)];
 	}
 	const lines = [...footerLines];
-	const lastIndex = lines.length - 1;
-	lines[lastIndex] = mergeOrchestratorReturnHintIntoLine(ctx, lines[lastIndex] ?? "", width);
+	const hasTasks = ctx.chatHost.renderTaskFooter(width).length > 0;
+	// Never trade the task status or /tasks route for the graph shortcut.
+	// With tasks, share the identity line instead and leave MCP intact.
+	if (hasTasks && lines.length === 1) lines.unshift("");
+	const hintIndex = hasTasks ? 0 : lines.length - 1;
+	lines[hintIndex] = mergeOrchestratorReturnHintIntoLine(ctx, lines[hintIndex] ?? "", width);
 	return lines;
 }
 export function renderReadOnlyArchiveFooter(ctx: StageChatViewContext, width: number): string[] {

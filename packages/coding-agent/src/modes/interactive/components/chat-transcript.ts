@@ -654,7 +654,7 @@ export class ScrollableChatTranscriptComponent<TEntry extends ChatTranscriptEntr
 	}
 }
 
-function mouseWheelDeltaRows(data: string): number {
+export function mouseWheelDeltaRows(data: string): number {
 	const sgr = data.match(/^\x1b\[<(\d+);\d+;\d+M$/);
 	if (sgr) return wheelDeltaForButtonCode(Number.parseInt(sgr[1]!, 10));
 	if (data.startsWith("\x1b[M") && data.length >= 6) {

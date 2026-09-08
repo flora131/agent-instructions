@@ -179,6 +179,9 @@ export class IsolatedInteractiveRuntime extends AgentSessionRuntime {
 		this.patchSession(session);
 		return session;
 	}
+	async openTaskInspector(taskId?: string): Promise<void> {
+		await this.client.requestInternal({ type: "open_task_inspector", ...(taskId ? { taskId } : {}) });
+	}
 	async initializeFromEngine(generation = this.client.getGeneration?.()): Promise<void> {
 		const run = this.initializationTail
 			? this.initializationTail.then(() => this.initializeFromEngineGeneration(generation))

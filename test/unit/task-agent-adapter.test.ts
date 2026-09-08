@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "vitest";
 import { AgentTaskHost } from "../../packages/coding-agent/src/core/tasks/agent-adapter.js";
-import type { Cleanup, OperationId, TaskResult } from "../../packages/coding-agent/src/core/tasks/contracts.js";
+import type {
+	Cleanup,
+	OperationId,
+	TaskResult,
+	WaitPolicy,
+} from "../../packages/coding-agent/src/core/tasks/contracts.js";
 import { WorkflowStageAdmissionBoundary } from "../../packages/coding-agent/src/core/workflow-stage-admission.js";
 
 const intent = { kind: "agent" as const, agent: "worker", task: "Work" };
@@ -198,3 +203,58 @@ test("agent launch exposes an exact wait yield without settling the original run
 	cleanup.resolve({ kind: "reaped" });
 	assert.equal((await owner.close("session-close")).ok, true);
 });
+
+for (const [label, policy, reason] of [
+	["explicit background", { kind: "background" }, "explicit"],
+	["explicit foreground budget", { kind: "foreground", budgetMs: 1 }, "elapsed"],
+	["owner foreground budget", { kind: "foreground" }, "elapsed"],
+] satisfies Array<[string, WaitPolicy, string]>) {
+	test(`${label} releases observation while the same subagent completes later`, async () => {
+		const owner = new AgentTaskHost({
+			scope: { kind: "session", sessionId: randomUUID() },
+			tasks: { wait: { kind: "automatic", agentBudgetMs: 1 } },
+			authorizeLaunch() {},
+		});
+		const result = deferred<TaskResult>();
+		let starts = 0;
+		let signal: AbortSignal | undefined;
+		try {
+			const started = await owner.startAgentTask(intent, operation(), (context) => {
+				starts++;
+				signal = context.signal;
+				return { result: result.promise, cleanup: result.promise.then(() => ({ kind: "reaped" as const })) };
+			});
+			assert.ok(started.ok);
+			const observed = await owner.observeAgentLaunch(started.value.taskId, policy);
+			assert.ok(observed.ok && observed.value.kind === "yielded");
+			assert.equal(observed.value.reason, reason);
+			assert.equal(observed.value.taskId, started.value.taskId);
+			assert.equal(signal?.aborted, false);
+			const watch = owner.watchOwnerTasks();
+			assert.ok(watch.ok);
+			try {
+				assert.equal(watch.value.snapshot.tasks[0].execution.kind, "running");
+				assert.equal(watch.value.snapshot.tasks[0].wasBackground, true);
+			} finally {
+				watch.value.dispose();
+			}
+			const output = {
+				ownerId: owner.ownerBinding.supervisor.taskReference(started.value.lease).ownerId,
+				taskId: started.value.taskId,
+				artifactId: "result",
+				byteCount: "0",
+				omittedRanges: [],
+			};
+			const terminal: TaskResult = { kind: "completed", output };
+			result.resolve(terminal);
+			assert.deepEqual(await owner.waitForTask(started.value.taskId), {
+				ok: true,
+				value: { kind: "settled", taskId: started.value.taskId, result: terminal },
+			});
+			assert.equal(starts, 1);
+		} finally {
+			result.resolve({ kind: "cancelled", cause: "user" });
+			assert.ok((await owner.close("session-close")).ok);
+		}
+	});
+}

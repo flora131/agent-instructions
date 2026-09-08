@@ -1,13 +1,20 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { stripVTControlCharacters } from "node:util";
 import { test, vi } from "vitest";
 import { getAgentTaskHost } from "../../packages/coding-agent/src/core/agent-session-tasks.js";
 import { SessionManager } from "../../packages/coding-agent/src/core/session-manager.js";
 import { AgentTaskHost } from "../../packages/coding-agent/src/core/tasks/agent-adapter.js";
 import { TaskCompletionOutbox } from "../../packages/coding-agent/src/core/tasks/completion.js";
 import type { OperationId, TaskResult } from "../../packages/coding-agent/src/core/tasks/contracts.js";
+import {
+	completionNoticeFromDetails,
+	TaskCompletionMessage,
+} from "../../packages/coding-agent/src/modes/interactive/components/task-completion-message.js";
+import { initTheme } from "../../packages/coding-agent/src/modes/interactive/theme/theme.js";
 
 // RFC PR #2884: task settlement is separate from persisted model delivery.
 test("completion intent precedes admission and retries a lost acknowledgement with the same identity", async () => {
@@ -209,3 +216,150 @@ test("session task initialization deduplicates persisted delivery after a crash 
 		rmSync(directory, { recursive: true, force: true });
 	}
 });
+
+test("session completion delivers readable text once while preserving the receipt details", async () => {
+	const sessionManager = SessionManager.inMemory();
+	const sendCustomMessage = vi.fn(async () => {});
+	const session = { sessionManager, sendCustomMessage } as unknown as ThisParameterType<typeof getAgentTaskHost>;
+	const host = getAgentTaskHost.call(session);
+	try {
+		const result = Promise.withResolvers<TaskResult>();
+		const started = await host.startAgentTask(
+			{ kind: "agent", agent: "reviewer", task: "Review the task UI" },
+			"readable-completion" as OperationId,
+			() => ({ result: result.promise, cleanup: Promise.resolve({ kind: "reaped" }) }),
+		);
+		assert.ok(started.ok);
+		await host.observeAgentLaunch(started.value.taskId);
+		result.resolve({ kind: "failed", code: "Probe", message: "A regression was found" });
+		await host.waitForTask(started.value.taskId);
+		await vi.waitFor(() => assert.equal(sendCustomMessage.mock.calls.length, 1));
+		const [message] = sendCustomMessage.mock.calls[0] as unknown as Parameters<
+			ThisParameterType<typeof getAgentTaskHost>["sendCustomMessage"]
+		>;
+		assert.equal(message.display, true, "completion must be visible without waiting for a model reply");
+		assert.equal(message.customType, "task-completion");
+		assert.match(String(message.content), /Subagent reviewer failed: Review the task UI/);
+		assert.match(String(message.content), /A regression was found/);
+		assert.doesNotMatch(String(message.content), /"terminalSequence"|"byteCount"/);
+		await session._taskCompletionOutbox?.flush();
+		assert.equal(sendCustomMessage.mock.calls.length, 1);
+	} finally {
+		await host.close("session-close");
+	}
+});
+
+test.runIf(process.platform !== "win32")(
+	"background shells deliver one shaded completion card with retained output",
+	async () => {
+		initTheme("dark");
+		const sessionManager = SessionManager.inMemory();
+		const sendCustomMessage = vi.fn(async () => {});
+		const session = { sessionManager, sendCustomMessage } as unknown as ThisParameterType<typeof getAgentTaskHost>;
+		const host = getAgentTaskHost.call(session);
+		const { supervisor, owner } = host.ownerBinding;
+		try {
+			for (const exitCode of [0, 2]) {
+				const started = await supervisor.startCommandTask(
+					owner,
+					{
+						kind: "command",
+						command: `read value; printf 'Shell result preview\\n'; exit ${exitCode}`,
+						description: "Verify background shell",
+						terminal: { kind: "pipe" },
+						executionTimeoutMs: 5000,
+					},
+					randomUUID() as OperationId,
+				);
+				assert.ok(started.ok);
+				const observation = await supervisor.initialObservation(started.value, { kind: "background" });
+				assert.ok(observation.ok && observation.value.kind === "yielded");
+				const stdin = supervisor.taskStdin(started.value);
+				assert.ok(stdin.ok);
+				assert.ok(
+					(
+						await supervisor.writeTaskInput(stdin.value, randomUUID() as OperationId, {
+							kind: "bytes",
+							bytes: Buffer.from("go\n"),
+						})
+					).ok,
+				);
+				await supervisor.waitForTask(started.value);
+				const expectedCount = exitCode === 0 ? 1 : 2;
+				await vi.waitFor(() => assert.equal(sendCustomMessage.mock.calls.length, expectedCount));
+				const [message] = sendCustomMessage.mock.calls[expectedCount - 1] as unknown as Parameters<
+					ThisParameterType<typeof getAgentTaskHost>["sendCustomMessage"]
+				>;
+				assert.equal(message.display, true);
+				assert.match(String(message.content), /Shell result preview/);
+				assert.match(String(message.content), new RegExp(`Exit code: ${exitCode}`));
+				const notice = completionNoticeFromDetails(message.details);
+				assert.ok(notice);
+				const rows = new TaskCompletionMessage(notice, false).render(100);
+				const text = rows.map(stripVTControlCharacters).join("\n");
+				assert.match(text, exitCode === 0 ? /Background shell completed/ : /Background shell failed/);
+				assert.match(text, /Shell result preview/);
+				assert.match(rows[0], /\x1b\[48;/);
+				await session._taskCompletionOutbox?.flush();
+				assert.equal(sendCustomMessage.mock.calls.length, expectedCount);
+			}
+			const cancelled = await supervisor.startCommandTask(
+				owner,
+				{
+					kind: "command",
+					command: "read value",
+					description: "Stopped background shell",
+					terminal: { kind: "pipe" },
+					executionTimeoutMs: 5000,
+				},
+				randomUUID() as OperationId,
+			);
+			assert.ok(cancelled.ok);
+			assert.ok((await supervisor.initialObservation(cancelled.value, { kind: "background" })).ok);
+			assert.ok((await supervisor.cancelTask(cancelled.value, "user")).ok);
+			await supervisor.waitForTask(cancelled.value);
+			await vi.waitFor(() => assert.equal(sendCustomMessage.mock.calls.length, 3));
+			const [stoppedMessage] = sendCustomMessage.mock.calls[2] as unknown as Parameters<
+				ThisParameterType<typeof getAgentTaskHost>["sendCustomMessage"]
+			>;
+			assert.equal(stoppedMessage.display, true);
+			assert.match(String(stoppedMessage.content), /Background shell stopped/);
+			assert.equal(completionNoticeFromDetails(stoppedMessage.details)?.status, "cancelled");
+		} finally {
+			await host.close("session-close");
+		}
+	},
+);
+
+test.runIf(process.platform !== "win32")(
+	"foreground-only shells do not create background notifications or model turns",
+	async () => {
+		const sessionManager = SessionManager.inMemory();
+		const sendCustomMessage = vi.fn(async () => {});
+		const session = { sessionManager, sendCustomMessage } as unknown as ThisParameterType<typeof getAgentTaskHost>;
+		const host = getAgentTaskHost.call(session);
+		const { supervisor, owner } = host.ownerBinding;
+		try {
+			const started = await supervisor.startCommandTask(
+				owner,
+				{
+					kind: "command",
+					command: "printf foreground",
+					terminal: { kind: "pipe" },
+					executionTimeoutMs: 5000,
+				},
+				randomUUID() as OperationId,
+			);
+			assert.ok(started.ok);
+			assert.ok((await supervisor.initialObservation(started.value)).ok);
+			const watch = host.watchOwnerTasks();
+			assert.ok(watch.ok);
+			watch.value.drain();
+			watch.value.dispose();
+			await session._taskCompletionOutbox?.flush();
+			assert.equal(sendCustomMessage.mock.calls.length, 0);
+		} finally {
+			await host.close("session-close");
+		}
+	},
+);

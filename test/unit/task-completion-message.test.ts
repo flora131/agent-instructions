@@ -1,0 +1,69 @@
+import assert from "node:assert/strict";
+import { stripVTControlCharacters } from "node:util";
+import { visibleWidth } from "@earendil-works/pi-tui";
+import { test } from "vitest";
+import {
+	formatTaskCompletion,
+	type TaskCompletionEnvelope,
+} from "../../packages/coding-agent/src/core/tasks/completion.js";
+import type { Sequence } from "../../packages/coding-agent/src/core/tasks/contracts.js";
+import { TaskCompletionMessage } from "../../packages/coding-agent/src/modes/interactive/components/task-completion-message.js";
+import { initTheme, theme } from "../../packages/coding-agent/src/modes/interactive/theme/theme.js";
+import { taskRecord } from "../helpers/task-record.js";
+
+const task = taskRecord("completion");
+const envelope: TaskCompletionEnvelope = {
+	completionId: "completion-fixture",
+	ownerId: task.ref.ownerId,
+	taskId: task.ref.taskId,
+	terminalSequence: "7" as Sequence,
+	result: { kind: "completed", output: task.output },
+	display: false,
+};
+
+test("completion content is readable, bounded and leaves structured identity unchanged", () => {
+	const before = JSON.stringify(envelope);
+	const text = formatTaskCompletion(envelope, task, `Hello world\n${"x".repeat(9000)}`);
+	assert.match(text, /Subagent .* completed/);
+	assert.match(text, /Hello world/);
+	assert.match(text, /Result excerpt truncated/);
+	assert.doesNotMatch(text, /"completionId"|"terminalSequence"/);
+	assert.ok(text.length < 9000);
+	assert.equal(JSON.stringify(envelope), before);
+});
+
+test("restored and stopped completions report only known context", () => {
+	assert.match(formatTaskCompletion(envelope), /^Background task completed/);
+	const stopped = formatTaskCompletion({ ...envelope, result: { kind: "cancelled", cause: "user" } }, task);
+	assert.match(stopped, /stopped/);
+	assert.match(stopped, /Stop reason: user/);
+	assert.doesNotMatch(stopped, /completed|Result excerpt/);
+});
+
+test("completion cards shade their full width with chat-card padding in both themes", () => {
+	for (const mode of ["dark", "light"] as const) {
+		initTheme(mode);
+		for (const status of ["completed", "failed", "cancelled"] as const) {
+			const notice = { title: `Reviewer ${status}`, preview: "A useful result", status, taskId: "task-card" };
+			for (const expanded of [false, true]) {
+				const card = new TaskCompletionMessage(notice, expanded);
+				for (const width of [1, 2, 24, 48, 100]) {
+					const rows = card.render(width);
+					assert.ok(rows.every((line) => visibleWidth(line) === width));
+					assert.equal(rows[0], theme.bg("customMessageBg", " ".repeat(width)));
+					assert.equal(rows.at(-1), rows[0]);
+					const background = rows[0].match(/\x1b\[[0-9;]+m/)?.[0];
+					assert.ok(background);
+					assert.ok(
+						rows.every((line) => line.includes(background)),
+						"all card rows carry the background",
+					);
+					if (width >= 48) {
+						assert.match(stripVTControlCharacters(rows[1]), /^ [✓✗] Reviewer/);
+						assert.match(rows.map(stripVTControlCharacters).join("\n"), /A useful result/);
+					}
+				}
+			}
+		}
+	}
+});

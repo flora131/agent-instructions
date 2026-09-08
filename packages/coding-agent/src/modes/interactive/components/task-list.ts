@@ -1,7 +1,7 @@
 import { type Component, truncateToWidth } from "@earendil-works/pi-tui";
 import type { TaskRecord } from "../../../core/tasks/contracts.js";
 import { theme } from "../theme/theme.js";
-import { TaskRow, taskLabel, taskTitle } from "./task-row.js";
+import { TaskRow, taskLabel, taskState, taskTitle } from "./task-row.js";
 
 /** Complete projection; viewport owners, not this list, decide how much to mount. */
 export class TaskList implements Component {
@@ -34,15 +34,37 @@ export function renderTaskFooter(tasks: readonly TaskRecord[], width: number): s
 			(task.execution.kind === "running" || task.execution.kind === "queued"),
 	);
 	const attention = tasks.filter((task) => task.attention.kind !== "none");
-	if (!background.length && !attention.length) return [];
+	if (!tasks.length) return [];
 	const parts: string[] = [];
 	if (attention.length) parts.push(`${attention.length} need attention`);
 	const agents = background.filter((task) => task.kind === "agent" && task.execution.kind === "running").length;
 	const shells = background.filter((task) => task.kind === "command" && task.execution.kind === "running").length;
 	const queued = background.filter((task) => task.execution.kind === "queued").length;
-	if (agents) parts.push(`${agents} agents running`);
-	if (shells) parts.push(`${shells} shells running`);
+	if (agents && shells) parts.push(`${agents + shells} background tasks running`);
+	else if (agents) parts.push(`${agents} ${agents === 1 ? "local agent" : "local agents"} running`);
+	else if (shells) parts.push(`${shells} ${shells === 1 ? "shell" : "shells"} running`);
 	if (queued) parts.push(`${queued} queued`);
+	const cancelling = tasks.filter((task) => task.execution.kind === "cancelling").length;
+	if (cancelling) parts.push(`${cancelling} stopping`);
+	const settled = tasks.filter((task) => task.execution.kind === "settled");
+	const failed = settled.filter((task) => taskState(task) === "failed").length;
+	// Failures must survive truncation even while other background work is active.
+	if (failed) parts.unshift(`${failed} failed`);
+	if (!parts.length) parts.push(settled.length ? `${settled.length} finished` : `${tasks.length} active`);
 	const route = " · /tasks";
-	return [theme.fg("dim", truncateToWidth(`Tasks  ${parts.join(" · ")}`, Math.max(1, width - route.length)) + route)];
+	return [
+		theme.fg(
+			failed
+				? "error"
+				: attention.length || cancelling
+					? "warning"
+					: settled.length === tasks.length
+						? "success"
+						: "accent",
+			truncateToWidth(
+				truncateToWidth(`Tasks  ${parts.join(" · ")}`, Math.max(1, width - route.length)) + route,
+				width,
+			),
+		),
+	];
 }

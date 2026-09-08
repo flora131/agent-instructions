@@ -254,7 +254,7 @@ export class FooterComponent implements Component {
 				),
 			);
 		}
-		lines.unshift(...renderTaskFooter(getOwnerTaskStore(this.session)?.tasks ?? [], width));
+		lines.push(...renderTaskFooter(getOwnerTaskStore(this.session)?.backgroundTasks ?? [], width));
 		return lines;
 	}
 }

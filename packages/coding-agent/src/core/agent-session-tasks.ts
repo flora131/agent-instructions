@@ -1,7 +1,14 @@
 import type { AgentSessionInternalSurface as AgentSession } from "./agent-session-methods.ts";
 import { AgentTaskHost } from "./tasks/agent-adapter.js";
-import { TASK_COMPLETION_MESSAGE_TYPE, TaskCompletionOutbox } from "./tasks/completion.js";
+import { COMMAND_DETAIL_TAIL_BYTES, taskOutputText } from "./tasks/command-output.js";
+import {
+	formatTaskCompletion,
+	TASK_COMPLETION_MESSAGE_TYPE,
+	TaskCompletionOutbox,
+	taskCompletionNotice,
+} from "./tasks/completion.js";
 import { bindOwnerTaskStore, OwnerTaskStore } from "./tasks/owner-store.js";
+import { taskTranscriptSource } from "./tasks/supervisor.js";
 import { WorkflowStageAdmissionBoundary } from "./workflow-stage-admission.ts";
 
 export function getAgentTaskHost(this: AgentSession): AgentTaskHost {
@@ -14,15 +21,65 @@ export function getAgentTaskHost(this: AgentSession): AgentTaskHost {
 		this.sessionManager,
 		() => !this._disposed && admission.isOpen(),
 		async (envelope) => {
+			// Settlement can precede the UI projection's next drain. Read the owner
+			// snapshot, not the display store, when attaching completion context.
+			const host = this._agentTaskHost;
+			const watched = host?.watchOwnerTasks();
+			const task = watched?.ok
+				? watched.value.snapshot.tasks.find(
+						(item) => item.ref.taskId === envelope.taskId && item.ref.ownerId === envelope.ownerId,
+					)
+				: undefined;
+			if (watched?.ok) watched.value.dispose();
+			// Foreground shell results already return through their tool call. Do not
+			// create a second model turn or background card for that same execution.
+			if (task?.kind === "command" && !task.wasBackground) return;
+			const lease = task ? host?.resolveTask(envelope.taskId) : undefined;
+			const source = lease?.ok ? taskTranscriptSource(lease.value) : undefined;
+			const response = source?.ok
+				? source.value.session
+						.getEntries()
+						.slice()
+						.reverse()
+						.find(
+							(entry) =>
+								entry.type === "message" &&
+								entry.message.role === "assistant" &&
+								entry.message.content.some((block) => block.type === "text" && block.text.trim()),
+						)
+				: undefined;
+			let output =
+				response?.type === "message" && response.message.role === "assistant"
+					? response.message.content
+							.filter((block) => block.type === "text")
+							.map((block) => block.text)
+							.join("\n")
+					: undefined;
+			if (task?.kind === "command" && lease?.ok && host) {
+				try {
+					const bytes = BigInt(task.output.byteCount);
+					const start = bytes > BigInt(COMMAND_DETAIL_TAIL_BYTES) ? bytes - BigInt(COMMAND_DETAIL_TAIL_BYTES) : 0n;
+					const page = await host.ownerBinding.supervisor.readTaskOutput(lease.value, {
+						start: String(start),
+						maximumBytes: COMMAND_DETAIL_TAIL_BYTES,
+					});
+					output = page.ok
+						? `${start > 0n ? "[Earlier output omitted]\n" : ""}${taskOutputText(page.value)}`
+						: "Output unavailable";
+				} catch {
+					// Missing retained output must not suppress a terminal notification.
+					output = "Output unavailable";
+				}
+			}
 			await admission.admit(
 				envelope.completionId,
 				() =>
 					this.sendCustomMessage(
 						{
 							customType: TASK_COMPLETION_MESSAGE_TYPE,
-							content: JSON.stringify(envelope),
-							details: envelope,
-							display: false,
+							content: formatTaskCompletion(envelope, task, output),
+							details: { ...envelope, notification: taskCompletionNotice(envelope, task, output) },
+							display: true,
 						},
 						{ triggerTurn: true, persistWhenStreaming: true, stageAdmissionKey: envelope.completionId },
 					),
