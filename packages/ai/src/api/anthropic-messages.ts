@@ -1704,6 +1704,7 @@ function shouldUseFineGrainedToolStreamingBeta(model: Model<"anthropic-messages"
 }
 
 type ToolSchemaObject = {
+	type?: string | string[];
 	properties?: Record<string, unknown>;
 	required?: string[];
 	anyOf?: ToolSchemaObject[];
@@ -1714,7 +1715,18 @@ function projectObjectUnionForAnthropic(
 ): { properties: Record<string, unknown>; required: string[] } | undefined {
 	if (schema.properties !== undefined || !Array.isArray(schema.anyOf) || schema.anyOf.length === 0) return undefined;
 	const branches = schema.anyOf;
-	if (!branches.every((branch) => branch.properties !== undefined)) return undefined;
+	if (
+		!branches.every(
+			(branch) =>
+				(branch.type === undefined ||
+					branch.type === "object" ||
+					(Array.isArray(branch.type) &&
+						branch.type.length > 0 &&
+						branch.type.every((type) => type === "object"))) &&
+				branch.properties !== undefined,
+		)
+	)
+		return undefined;
 
 	const variantsByKey = new Map<string, unknown[]>();
 	for (const branch of branches) {
@@ -1731,11 +1743,12 @@ function projectObjectUnionForAnthropic(
 		}
 	}
 
-	const properties: Record<string, unknown> = {};
-	for (const [key, variants] of variantsByKey) {
-		const first = variants[0];
-		if (first !== undefined) properties[key] = variants.length === 1 ? first : { anyOf: variants };
-	}
+	const properties: Record<string, unknown> = Object.fromEntries(
+		[...variantsByKey].flatMap(([key, variants]) => {
+			const first = variants[0];
+			return first === undefined ? [] : [[key, variants.length === 1 ? first : { anyOf: variants }]];
+		}),
+	);
 
 	return {
 		properties,
