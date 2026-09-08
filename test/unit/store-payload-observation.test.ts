@@ -291,6 +291,35 @@ describe("payload-bounded store observation", () => {
 		assert.equal(Object.isFrozen(snapshot.runs[0]!.stages[0]!), true);
 	});
 
+	// Regression: https://github.com/bastani-inc/atomic/issues/2936
+	test("keeps execution-owned structured stage output out of the frozen graph projection", () => {
+		const store = createStore();
+		const structured = { summaryMarkdown: "setup summary", artifacts: [{ path: "report.md" }] };
+		store.recordRunStart({
+			id: "run-structured",
+			name: "structured",
+			inputs: {},
+			status: "running",
+			stages: [
+				{
+					id: "setup-stage",
+					name: "setup-stage",
+					status: "completed",
+					parentIds: [],
+					toolEvents: [],
+					structured,
+				},
+			],
+			startedAt: Date.now(),
+		});
+
+		const graph = store.graphSnapshot();
+		assert.equal(graph.runs[0]?.stages[0]?.structured, undefined);
+		assert.equal(Object.isFrozen(structured), false);
+		assert.equal(Object.isFrozen(structured.artifacts[0]), false);
+		assert.deepEqual(store.snapshot().runs[0]?.stages[0]?.structured, structured);
+	});
+
 	test("isolates invalidation and snapshot subscribers from listener failures", () => {
 		const store = createStore();
 		const calls: string[] = [];

@@ -34,6 +34,33 @@ describe("resolveInputs", () => {
 		const result = resolveInputs({ prompt: Type.String() }, { prompt: "hello" });
 		assert.equal(result.prompt, "hello");
 	});
+
+	// Regression: https://github.com/bastani-inc/atomic/issues/2936
+	test("applies nested defaults to a resolver-owned copy of a frozen input", () => {
+		const setup = Object.freeze({
+			summaryMarkdown: "saved setup",
+			artifacts: Object.freeze([Object.freeze({ path: "report.md" })]),
+		});
+
+		const resolved = resolveInputs(
+			{
+				setup: Type.Object({
+					summaryMarkdown: Type.String(),
+					mode: Type.String({ default: "plan" }),
+					artifacts: Type.Array(Type.Object({ path: Type.String(), kind: Type.String({ default: "file" }) })),
+				}),
+			},
+			{ setup },
+		);
+
+		assert.deepEqual(resolved.setup, {
+			summaryMarkdown: "saved setup",
+			mode: "plan",
+			artifacts: [{ path: "report.md", kind: "file" }],
+		});
+		assert.notStrictEqual(resolved.setup, setup);
+		assert.deepEqual(setup, { summaryMarkdown: "saved setup", artifacts: [{ path: "report.md" }] });
+	});
 });
 
 // ---------------------------------------------------------------------------
