@@ -278,10 +278,14 @@ export function createExtensionRuntime(opts: ExtensionRuntimeOpts = {}): Extensi
 		const isBudgetResumable =
 			source.result?.status === "budget_exceeded" && source.budgetState?.systemOwnedStop === true;
 		const isActiveBlockedResumable =
-			(source.endedAt === undefined || isBudgetResumable) &&
+			(source.endedAt === undefined || source.status === "blocked" || isBudgetResumable) &&
 			source.resumable === true &&
 			source.failureRecoverability === "recoverable";
-		if (!isTerminalFailedResumable && !isActiveBlockedResumable) {
+		if (
+			source.exitReason === "quit" ||
+			source.status === "killed" ||
+			(!isTerminalFailedResumable && !isActiveBlockedResumable)
+		) {
 			return { ok: false, reason: "not_resumable", message: `run ${sourceRunId} is not a resumable workflow run` };
 		}
 		const def = registry.get(source.name);

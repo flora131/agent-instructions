@@ -42,7 +42,8 @@ export function workflowRunHasPausedState(run: Pick<RunSnapshot, "status" | "exi
  * snapshot metadata still says resumable.
  */
 export function isWorkflowRunResumable(candidate: WorkflowRunResumeCandidate): boolean {
-	if (candidate.hasDurableCheckpoint === false || candidate.artifactsIntact === false) return false;
+	if (candidate.status === "killed" || candidate.hasDurableCheckpoint === false || candidate.artifactsIntact === false)
+		return false;
 	if (candidate.hasPausedState === true || candidate.status === "paused" || candidate.exitReason === "quit") {
 		return candidate.resumable !== false;
 	}
@@ -50,7 +51,9 @@ export function isWorkflowRunResumable(candidate: WorkflowRunResumeCandidate): b
 		(candidate.status === "failed" && candidate.endedAt !== undefined && candidate.resumable !== false) ||
 		(candidate.resumable === true &&
 			candidate.failureRecoverability === "recoverable" &&
-			(candidate.endedAt === undefined || candidate.budgetSystemOwnedStop === true))
+			(candidate.endedAt === undefined ||
+				candidate.status === "blocked" ||
+				candidate.budgetSystemOwnedStop === true))
 	);
 }
 
