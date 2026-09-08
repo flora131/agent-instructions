@@ -61,6 +61,8 @@ export interface ChatSessionHostOpts<TExtraEntry extends ChatTranscriptEntryLike
 	commands?: ChatSessionHostCommands;
 	requestRender?: () => void;
 	getAgentSession?: () => AgentSession | undefined;
+	/** Custom hosts may retain live task rows; interactive stage chat uses footer-only status. */
+	taskRowsInChat?: boolean;
 	isStreaming?: () => boolean;
 	isPaused?: () => boolean;
 	isDisabled?: () => boolean;

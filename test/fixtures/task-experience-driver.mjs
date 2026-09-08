@@ -30,7 +30,17 @@ async function wait(directory, nonce, barrier, commandId, after = -1, live = () 
  }
  throw new Error(`Deadline waiting for ${barrier}(${commandId})`);
 }
-function identityAlive(identity) { try { const stat = readFileSync(`/proc/${identity.pid}/stat`, "utf8"); return stat.slice(stat.lastIndexOf(")") + 2).split(" ")[19] === identity.birth; } catch { return false; } }
+function identityAlive(identity) {
+	try {
+		process.kill(identity.pid, 0);
+		if (identity.birth === undefined) return true;
+		if (process.platform !== "linux") return true;
+		const stat = readFileSync(`/proc/${identity.pid}/stat`, "utf8");
+		return stat.slice(stat.lastIndexOf(")") + 2).split(" ")[19] === identity.birth;
+	} catch {
+		return false;
+	}
+}
 if (positionals[0] === "wait") {
  assert.ok(values.dir && values["run-id"] && values.barrier && values["command-id"]);
  console.log(JSON.stringify(await wait(values.dir, values["run-id"], values.barrier, values["command-id"], Number(values["after-revision"]))));

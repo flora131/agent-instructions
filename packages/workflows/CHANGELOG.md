@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - `/tasks` in an attached stage chat opens the shared owner-bound inspector without entering model context, including during interrupt settlement. Task focus exits before the ordinary stage Escape action, and mounted human-input prompts retain input priority ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Stage chat now shows compact background-agent and shell counts below the composer instead of persistent task rows. Shared `/tasks` views retain background results, and completion notifications use shaded cards with readable outcomes and previews in the owning stage chat.
 
 ### Fixed
 
@@ -22,6 +23,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Skill autocomplete reuses the attached stage session without writing durable checkpoints per keystroke. Concurrent lazy discovery requests share one attachment.
 - Same-name prompt/tool nodes no longer cause valid duplicate agent matches to be refused as non-agents. Live `ask` retains ambiguity diagnostics and name-based `send` retains sticky agent delivery ([#2895](https://github.com/bastani-inc/atomic/pull/2895)).
 - Keep a bound task footer visible beside mounted stage questions within the existing viewport budget, and apply the host's expansion setting consistently to task rows.
+- Restored `/tasks` to stage slash suggestions and removed filled backgrounds from skill suggestions, including selected rows. Task status now follows MCP, retaining failed counts and `/tasks` without collision with the graph-return shortcut on narrow terminals.
+- Stage pause keeps owned background agents and shells running. Closing the stage generation cancels that owner's remaining work without stopping sibling stages.
 - Preserve an ordinary stage's complete output artifact when a follow-up clarification arrives before completion. Completed answers from the same prompt generation remain ordered supplements, including executor continuations and close-time delivery, without copying earlier history or tool progress. Accepted answers survive context compaction and model fallback during a continuation; failed attempts cannot discard an earlier successful report. Tree navigation cannot import historical answers, and generation close stops capture of later retained-session chat. Completed artifact receipts stay stable under repeated finalization; structured output keeps its existing capture contract.
 - Discard provisional artifact answers from each failed same-model retry, preserving earlier accepted reports and only publishing the successful retry's answers.
 - Durable tool callbacks now wait for agent tasks they admit to reach terminal results before checkpointing. Yielded observations are replaced with terminal observations without changing the cancellation-before-persistence or commit-wins fences ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).

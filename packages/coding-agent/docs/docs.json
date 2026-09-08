@@ -25,6 +25,7 @@
           "settings",
           "keybindings",
           "sessions",
+          "background-tasks",
           "compaction"
         ]
       },

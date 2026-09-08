@@ -5,6 +5,8 @@
 ### Added
 
 - Editable workflow stage chats now discover source-qualified skills from their own session catalog and expand `/skill:` submissions once through stage admission, preserving Enter/Ctrl+F delivery and literal human-input answers. Skill diagnostics remain in the stage chat; blocked, archived, and replayed stages stay read-only.
+- Added a searchable `/agents` catalog with source grouping and agent configuration details.
+- Added per-call `bash.wait` selection for immediate background or foreground-first observation with an optional millisecond budget. Omitted waits keep owner-configured automatic backgrounding, and execution timeouts remain independent. Unsupported background requests fail before launching a command.
 - Added the SDK-only owner-bound task foundation: opaque host/task/wait capabilities, one execution per admitted attempt, observation-only yields, independent cleanup acknowledgement, and snapshot-reconciled subscriptions. Existing CLI, workflow and subagent runners are unchanged; output storage and real-runner integration remain later work ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added trusted command start/input/output doors and an owner-aware bash/PTY execution seam. Commands remain alive after the 10000 ms foreground observation budget and are reaped with their owner; stdin distinguishes empty bytes from EOF and refuses backpressure before admission ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added a narrow trusted-host agent task adapter with per-launch runner factories, owner-scoped observation and cancellation, and workflow generation ownership that survives fallback session replacement. Real subagent producers and completion delivery remain unintegrated ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
@@ -17,10 +19,19 @@
 ### Changed
 
 - `/tasks` in an attached stage chat is now a local inspection command, never a model message, including while an Escape interruption settles. Hosts without a task inspector report that it is unavailable.
+- Task lists and subagent detail views now use grouped counts, semantic status styling, pinned status/metrics/actions, recent tool activity, bounded response and shell-output previews, and narrow-terminal layouts. Finished tasks remain discoverable from the status footer; background bash receipts distinguish observation time from execution completion.
 
 ### Fixed
 
 - Discarded stale command detail results and read errors after task selection, focus, or inspector lifetime changes, preventing another task's output from appearing in the current view ([#2908](https://github.com/bastani-inc/atomic/pull/2908)).
+- Connected isolated interactive sessions to the engine's compact background-task indicator below the prompt box and command-opened `/tasks` inspector instead of opening an empty host-local task owner. Added `/tasks` autocomplete and live subagent activity, tool/token counts, and response previews inside task details.
+- Connected top-level POSIX model bash executions to their task owner so long-running shells appear in task inspection after their observation yields. Preserved cleared session environment variables in the supervised shell path; native Windows and child-agent bash retain their existing execution path.
+- Replaced raw JSON task-completion content with readable names, outcomes, errors, and available response excerpts. Background completions now show a visible notification in main and owning workflow-stage chat, using the existing persisted delivery identity rather than relying on a model reply.
+- Connected native shell settlement to completion delivery using retained receipts and snapshot reconciliation. Background shell cards show bounded output and exit status; foreground-only shells do not trigger duplicate notifications or model turns. Initial bash observation now designates the host so yielded commands update background counts.
+- Preserved pending transcript navigation and historical pages across background updates, and honored configured task keys before fallback navigation and stop shortcuts.
+- Restricted `/tasks` and below-prompt counts to background work and its retained results. Workflow-stage chat now uses the same footer-only status and completion notifications as main chat. Transcript inspection has a separate bounded viewport with position and paging controls instead of nested chat boxes.
+- Kept active and failed task status below MCP and above workflow background cards, including isolated sessions regardless of widget arrival order. Workflow-stage `/tasks` now appears in slash suggestions; selected skill suggestions use main-chat-style terminal-default backgrounds and accent text. Failed counts and `/tasks` remain visible at narrow widths.
+- Pausing main or workflow-stage chat keeps background agents and shells running with the same identities. Closing a stage generation cancels only that owner's remaining work.
 - Remounted active task rows after session transcript replacement and cleared prior-session task rows and footer state before a replacement owner store binds ([#2907](https://github.com/bastani-inc/atomic/pull/2907)).
 - Honored owner command wait budgets and `until-settled` in supervised bash/PTY execution, disclosed retained output gaps, and bounded output pages to 1 MiB. Supervised file-spool writes now share a hard disk cap rather than overshooting between polls ([#2905](https://github.com/bastani-inc/atomic/pull/2905)).
 - Stopped task subscription event delivery when a reconciliation callback disposes observation, including events retained by the active drain ([#2902](https://github.com/bastani-inc/atomic/pull/2902)).

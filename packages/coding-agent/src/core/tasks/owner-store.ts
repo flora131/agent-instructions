@@ -22,6 +22,11 @@ export type TaskAnchor = {
 };
 export type TaskActivity = { cursor: Cursor; report: ActivityReport };
 
+function isBackground(observation: TaskRecord["observation"] | undefined): boolean {
+	// Admission starts unobserved; that placeholder is not a background launch.
+	return observation?.kind === "background" && observation.reason !== "not-observed";
+}
+
 /** A view subscription owns neither the owner nor its executions. */
 export class OwnerTaskStore {
 	private subscription?: TaskSubscription;
@@ -30,6 +35,7 @@ export class OwnerTaskStore {
 	private activity = new Map<TaskId, TaskActivity[]>();
 	private activityCursors = new Map<TaskId, bigint>();
 	private omittedActivity = new Set<TaskId>();
+	private backgroundIds = new Set<TaskId>();
 	readonly anchors = new Map<TaskId, TaskAnchor>();
 	private current?: OwnerSnapshot;
 	readonly supervisor: TaskSupervisor;
@@ -47,6 +53,12 @@ export class OwnerTaskStore {
 	}
 	get tasks(): TaskRecord[] {
 		return [...this.records.values()];
+	}
+	/** Background membership survives foreground waits and terminal observation cleanup. */
+	get backgroundTasks(): TaskRecord[] {
+		return this.tasks.filter(
+			(task) => task.wasBackground || isBackground(task.observation) || this.backgroundIds.has(task.ref.taskId),
+		);
 	}
 	/** Resolve only within the owner that authorized this store. */
 	resolveTask(id: TaskId): Result<TaskLease, WaitError> {
@@ -93,6 +105,8 @@ export class OwnerTaskStore {
 		this.current = snapshot;
 		for (const task of snapshot.tasks) {
 			const previous = this.records.get(task.ref.taskId);
+			if (isBackground(task.observation) || isBackground(previous?.observation))
+				this.backgroundIds.add(task.ref.taskId);
 			// Native settlement is immutable, even when recovering a view from a snapshot.
 			this.records.set(
 				task.ref.taskId,
@@ -120,6 +134,10 @@ export class OwnerTaskStore {
 		}
 	}
 	private retainActivity(event: NativeEvent): void {
+		if (event.payload.kind === "host-observation-changed" && isBackground(event.payload.observation)) {
+			this.backgroundIds.add(event.payload.ref.taskId);
+			this.notify();
+		}
 		if (event.payload.kind !== "task-activity") return;
 		const id = event.payload.ref.taskId;
 		const sequence = BigInt(event.cursor.sequence);

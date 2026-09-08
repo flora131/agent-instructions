@@ -62,6 +62,7 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 
 	private readonly state: ChatSessionHostState<TExtraEntry>;
 	private taskStore?: OwnerTaskStore;
+	private readonly taskRowsInChat: boolean;
 	private unsubscribeTasks?: () => void;
 	private taskSession?: object;
 	private unsubscribeTaskBinding?: () => void;
@@ -71,6 +72,7 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 		// `/tasks` stays a local action owned by the host's `commands.handleSlashCommand`
 		// (see submitChatSession). Hosts that mount the inspector call `openTasks` from
 		// that callback; the host must not intercept it ahead of the owner.
+		this.taskRowsInChat = opts.taskRowsInChat ?? true;
 		this.state = new ChatSessionHostState(opts, {
 			renderEntry: (state, entry) => renderChatSessionEntry(state, entry),
 			transcriptCacheKey: (state, entry, index) => transcriptCacheKey(state, entry, index),
@@ -100,18 +102,24 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 		this.taskInspector = new TaskInspector(
 			this.taskStore,
 			() => this.state.requestRender?.(),
-			() => {
-				this.taskInspector?.dispose();
-				this.taskInspector = undefined;
-				this.state.requestRender?.();
-			},
+			() => this.closeTasks(),
 		);
 		this.taskInspector.open(id as TaskId | undefined);
 		this.state.requestRender?.();
 		return true;
 	}
+	get hasTaskInspector(): boolean {
+		return this.taskInspector !== undefined;
+	}
+	closeTasks(): void {
+		this.taskInspector?.dispose();
+		this.taskInspector = undefined;
+		this.state.requestRender?.();
+	}
 	handleTaskInput(data: string): boolean {
-		return this.taskInspector?.handleInput(data) ?? false;
+		if (!this.taskInspector) return false;
+		this.taskInspector.handleInput(data);
+		return true;
 	}
 	appendMessages(messages: readonly AgentSnapshotMessage[]): void {
 		this.state.liveChat.appendMessages(messages);
@@ -165,6 +173,7 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 		}
 		const store = session ? getOwnerTaskStore(session) : undefined;
 		if (store === this.taskStore) return;
+		this.closeTasks();
 		this.unsubscribeTasks?.();
 		this.taskStore = store;
 		this.unsubscribeTasks = undefined;
@@ -173,7 +182,7 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 		this.state.requestRender?.();
 		if (!store) return;
 		const update = () => {
-			this.state.liveChat.upsertTasks(store.tasks, store);
+			if (this.taskRowsInChat) this.state.liveChat.upsertTasks(store.tasks, store);
 			this.state.transcriptComponent.invalidate();
 			this.state.requestRender?.();
 		};
@@ -216,6 +225,7 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	}
 
 	invalidate(): void {
+		this.taskInspector?.invalidate();
 		this.state.transcriptComponent.invalidate();
 		this.state.bodyViewport.invalidate();
 		this.state.editor?.invalidate();
@@ -275,11 +285,11 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	}
 
 	renderTaskFooter(width: number): string[] {
-		return renderTaskFooter(this.taskStore?.tasks ?? [], width);
+		return renderTaskFooter(this.taskStore?.backgroundTasks ?? [], width);
 	}
 	renderFooter(width: number): string[] {
 		const footer = renderChatSessionFooter(this.state, width);
-		return footer.length ? footer : renderTaskFooter(this.taskStore?.tasks ?? [], width);
+		return footer.length ? footer : renderTaskFooter(this.taskStore?.backgroundTasks ?? [], width);
 	}
 
 	handleScrollInput(data: string): boolean {

@@ -46,7 +46,7 @@ export function bgFn(hex: string): (text: string) => string {
 }
 
 export function editorThemeFromGraphTheme(t: GraphTheme): EditorTheme {
-	const selected = (text: string): string => hexBg(t.backgroundPanel) + hexToAnsi(t.text) + text + RESET;
+	const selected = (text: string): string => hexToAnsi(t.accent) + text + RESET;
 	const normal = (text: string): string => hexToAnsi(t.text) + text + RESET;
 	return {
 		borderColor: (text: string) => hexToAnsi(t.border) + text + RESET,

@@ -22,8 +22,15 @@ const runId = values["run-id"];
 const chat = values.chat;
 if (!directory || !runId || (chat !== "main" && chat !== "workflow")) throw new Error("Provide --chat main|workflow --evidence-dir <fresh-dir> --run-id <nonce>");
 mkdirSync(directory, { recursive: false });
-const processStat = readFileSync(`/proc/${process.pid}/stat`, "utf8");
-writeFileSync(join(directory, "fixture-process.json"), JSON.stringify({ pid: process.pid, birth: processStat.slice(processStat.lastIndexOf(")") + 2).split(" ")[19] }));
+function processBirth(pid: number): string | undefined {
+	if (process.platform !== "linux") return undefined;
+	const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+	return stat.slice(stat.lastIndexOf(")") + 2).split(" ")[19];
+}
+writeFileSync(
+	join(directory, "fixture-process.json"),
+	JSON.stringify({ pid: process.pid, ...(processBirth(process.pid) === undefined ? {} : { birth: processBirth(process.pid) }) }),
+);
 initTheme("dark", false);
 const keys = new KeybindingsManager(); setKeybindings(keys);
 const workflow = chat === "workflow" ? await createStageSkillFixture() : undefined;
@@ -54,11 +61,19 @@ let afterYield = Promise.withResolvers<void>();
 let activity = Promise.withResolvers<void>();
 let child: Awaited<ReturnType<typeof createHarness>> | undefined;
 let shell: TaskLease | undefined;
-let identities: { parent: { pid: number; birth: string }; grandchild: { pid: number; birth: string } } | undefined;
+let identities: { parent: { pid: number; birth?: string }; grandchild: { pid: number; birth?: string } } | undefined;
 function value<T, E>(result: Result<T, E>): T { if (!result.ok) throw new Error(JSON.stringify(result.error)); return result.value; }
 function barrier(name: string, evidence: object) { appendFileSync(join(directory!, "barriers.jsonl"), `${JSON.stringify({ runId, barrier: name, commandId, revision: String(revision), cursor: store?.cursor, ...(taskId ? { taskId } : {}), evidence })}\n`); }
 async function until(predicate: () => boolean, label: string): Promise<void> { const deadline = Date.now() + 30_000; while (!predicate()) { if (Date.now() > deadline) throw new Error(`Deadline: ${label}`); store?.drain(); watched.drain(); await poll(10); } }
-function alive(identity: { pid: number; birth: string }): boolean { try { const stat = readFileSync(`/proc/${identity.pid}/stat`, "utf8"); return stat.slice(stat.lastIndexOf(")") + 2).split(" ")[19] === identity.birth; } catch { return false; } }
+function alive(identity: { pid: number; birth?: string }): boolean {
+	try {
+		process.kill(identity.pid, 0);
+		if (identity.birth === undefined) return true;
+		return processBirth(identity.pid) === identity.birth;
+	} catch {
+		return false;
+	}
+}
 class EvidenceTui extends TuiAltScreen {
 	protected override doRender(): void {
 		super.doRender(); if (!mounted || stopping || commandBusy) return; revision++;

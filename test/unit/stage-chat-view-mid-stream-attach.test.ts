@@ -17,7 +17,9 @@
  */
 
 import { bindOwnerTaskStore } from "@bastani/atomic";
-import { describe, test } from "vitest";
+import { getKeybindings, setKeybindings } from "@earendil-works/pi-tui";
+import { describe, test, vi } from "vitest";
+import { KeybindingsManager } from "../../packages/coding-agent/src/core/keybindings.js";
 import { taskFixture, taskValue } from "../helpers/task-projection.js";
 import {
 	type AgentSession,
@@ -31,6 +33,7 @@ import {
 	StageChatView,
 	setupRun,
 	stripAnsi,
+	submitStageChatText,
 } from "./stage-chat-view-helpers.js";
 
 /** A live session holding one in-flight assistant message, as pi reports it. */
@@ -128,6 +131,8 @@ describe("StageChatView attached mid-stream", () => {
 
 // RFC #2884: disposing a pane removes neither its task nor its terminal fence.
 test("stage task snapshot reattaches beyond launch-tool replay", async () => {
+	const previousKeys = getKeybindings();
+	setKeybindings(new KeybindingsManager());
 	const fixture = taskFixture();
 	const session = fakeFooterAgentSession();
 	bindOwnerTaskStore(session, fixture.store);
@@ -135,7 +140,8 @@ test("stage task snapshot reattaches beyond launch-tool replay", async () => {
 	let view = mountStageChat(handle);
 	try {
 		await fixture.start("survives pane detach");
-		assert.match(stripAnsi(view.render(80).join("\n")), /survives pane detach/);
+		assert.match(stripAnsi(view.render(80).join("\n")), /Tasks {2}1 local agent running/);
+		assert.doesNotMatch(stripAnsi(view.render(80).join("\n")), /survives pane detach/);
 		view.dispose();
 		fixture.store.dispose();
 		taskValue(
@@ -146,12 +152,22 @@ test("stage task snapshot reattaches beyond launch-tool replay", async () => {
 		);
 		taskValue(fixture.store.connect());
 		view = mountStageChat(handle);
-		assert.match(stripAnsi(view.render(80).join("\n")), /updated while detached/);
+		assert.match(stripAnsi(view.render(80).join("\n")), /Tasks {2}1 local agent running/);
+		submitStageChatText(view, "/tasks");
+		await vi.waitFor(() => assert.match(stripAnsi(view.render(80).join("\n")), /survives pane detach/));
+		view.handleInput("\r");
+		await vi.waitFor(() => assert.match(stripAnsi(view.render(80).join("\n")), /updated while detached/));
 		await fixture.settle();
-		assert.equal((stripAnsi(view.render(80).join("\n")).match(/worker: survives pane detach/g) ?? []).length, 1);
-		assert.match(stripAnsi(view.render(80).join("\n")), /completed/);
+		assert.match(stripAnsi(view.render(80).join("\n")), /completed/i);
+		view.handleInput("\x1b");
+		assert.equal(
+			(stripAnsi(view.render(80).join("\n")).match(/survives pane detach/g) ?? []).length,
+			1,
+			stripAnsi(view.render(80).join("\n")),
+		);
 		assert.deepEqual(handle.pendingToolExecutionEvents?.(), []);
 	} finally {
+		setKeybindings(previousKeys);
 		view.dispose();
 		await fixture.dispose();
 	}

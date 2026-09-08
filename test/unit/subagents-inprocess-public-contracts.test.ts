@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionContext } from "@bastani/atomic";
 import { afterEach, beforeEach, test } from "vitest";
+import { AgentTaskHost } from "../../packages/coding-agent/src/core/tasks/agent-adapter.js";
+import type { OperationId, TaskResult } from "../../packages/coding-agent/src/core/tasks/contracts.js";
 import { createGitEnvironment } from "../../packages/coding-agent/src/utils/git-env.js";
 import type { AgentConfig } from "../../packages/subagents/src/agents/agent-types.js";
 import { runSync } from "../../packages/subagents/src/runs/foreground/execution.js";
@@ -312,5 +314,47 @@ test("public interrupt accepts both bare run ids and canonical child paths", asy
 		const terminal = await running;
 		assert.match(text(terminal), /Run ended after interrupt/);
 		gate.resolve();
+	}
+});
+
+test("management status, wait and interrupt resolve the launch task ID without starting another child", async () => {
+	const cwd = makeRoot();
+	const { execute } = executor(cwd, new TestEvents());
+	const host = new AgentTaskHost({ scope: { kind: "session", sessionId: "management-owner" }, authorizeLaunch() {} });
+	const ctx = { ...context(cwd), getAgentTaskHost: () => host };
+	try {
+		const started = await host.startAgentTask(
+			{ kind: "agent", agent: "qa-echo", task: "Pending review" },
+			"management-fixture" as OperationId,
+			(hooks) => {
+				const result = new Promise<TaskResult>((resolve) =>
+					hooks.signal.addEventListener("abort", () => resolve({ kind: "cancelled", cause: "user" }), {
+						once: true,
+					}),
+				);
+				return { result, cleanup: result.then(() => ({ kind: "reaped" as const })) };
+			},
+		);
+		assert.ok(started.ok);
+		await host.observeAgentLaunch(started.value.taskId);
+		const call = (action: "status" | "wait" | "interrupt") =>
+			execute.execute(
+				`management-${action}`,
+				{ action, id: started.value.taskId, budgetMs: 1 },
+				new AbortController().signal,
+				undefined,
+				ctx,
+			);
+		const status = await call("status");
+		assert.equal(status.details?.taskRecords?.[0].execution.kind, "running");
+		const waited = await call("wait");
+		assert.equal(waited.details?.taskResponse?.kind, "admitted");
+		await call("interrupt");
+		await host.waitForTask(started.value.taskId);
+		const stopped = await call("status");
+		assert.equal(stopped.details?.taskRecords?.[0].execution.kind, "settled");
+		assert.equal(stopped.details?.taskRecords?.length, 1);
+	} finally {
+		await host.close("session-close");
 	}
 });

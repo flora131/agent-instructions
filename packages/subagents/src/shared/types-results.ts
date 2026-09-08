@@ -217,6 +217,8 @@ export interface Details {
 	taskResponse?:
 		| import("../../../coding-agent/src/core/tasks/contracts.js").ModelSingleResponse
 		| import("../../../coding-agent/src/core/tasks/contracts.js").ModelParallelResponse;
+	taskRecords?: import("../../../coding-agent/src/core/tasks/contracts.js").TaskRecord[];
+	taskError?: string;
 	mode: SubagentRunMode | "management";
 	runId?: string;
 	context?: "fresh" | "fork";

@@ -207,9 +207,11 @@ Avoid duplicate output paths in parallel tasks. Concurrent children should not w
 Concurrent writers conflict. `code-simplifier` and `debugger` change files. Do not run two writers in parallel against the same worktree unless you isolate them with `worktree: true`.
 
 
-### Foreground execution and fresh follow-ups
+### Foreground, background, and automatic yielding
 
-All subagent execution runs in the foreground and returns its result to the parent call. Parallel tasks may still run concurrently within one foreground invocation, and forked context still creates branched child sessions.
+Choose the observation mode for each authorized task. No extra user confirmation is needed merely to choose foreground or background. In owner-bound main and workflow-stage sessions, omitted `wait` or `wait: { kind: "background" }` returns after admission. Use `wait: { kind: "foreground", budgetMs: 30000 }` when the result is needed next. If the observation budget expires, the same child keeps running in the background; do not relaunch it. This applies to single and parallel calls.
+
+Use `subagent({ action: "wait", id: taskId, budgetMs: 1000 })` to observe an existing task, `status` to inspect its state, or `interrupt` to stop it. A yielded receipt is not a terminal result. Background counts stay below the prompt; `/tasks` opens inspection only on command. A shaded completion notification reaches the owning chat without requiring a model reply. A later wait does not extend the owner's lifetime.
 
 Completed, interrupted, and parent-question children are terminal for continuation. Do not address a prior child or sibling set by run ID. Start follow-up work with the normal launch form and an explicit handoff:
 
@@ -408,9 +410,9 @@ If a prompt-template extension is installed, additional user prompt templates ca
 
 ## Best Practices
 
-### Choose foreground intentionally
+### Choose observation intentionally
 
-Use foreground runs for every delegated call so the result gates the parent's next action. Do not duplicate a delegated job while waiting.
+Use background observation for independent work and foreground-first observation when the next action depends on the result. If foreground observation yields, wait for the existing task's actual completion before consuming its result. Do not duplicate delegated work or mistake a launch receipt for a finished report. The owner's usual agent observation budget is 30 seconds, independent of execution lifetime.
 
 ### Keep writes single-threaded by default
 
@@ -451,12 +453,12 @@ Use `/name` so intercom targeting stays stable.
 
 ### Locate, analyze, fix
 
-Use explicit follow-up calls when each result should guide the next task:
+When each result guides the next task, wait for its terminal completion before starting the dependent step:
 
 ```typescript
-const context = await subagent({ agent: "codebase-locator", task: "Map the auth files and tests relevant to: ..." });
-const analysis = await subagent({ agent: "codebase-analyzer", task: "Trace current behavior of the mapped files. Use the returned context: ..." });
-await subagent({ agent: "debugger", task: "Reproduce the failure and patch the root cause. Use the returned analysis: ..." });
+subagent({ agent: "codebase-locator", task: "Map the relevant auth files.", wait: { kind: "foreground" } })
+// If yielded, observe the returned task ID or await its completion notice.
+// Only then give the result to codebase-analyzer, and later to debugger.
 ```
 
 ### Clarify → Discover → Implement → Review (self-orchestrated workflow)
@@ -474,7 +476,7 @@ clarify when needed → validation contract → optional bounded discovery → o
 
 The validation contract defines completion before code is written: expected behavior, checks, commands or user flows to exercise, and evidence the writer should return. Keep it lightweight for small tasks, but make it explicit enough that reviewers and validators are checking the intended outcome rather than the writer’s own assumptions. Subagent runs do not carry a structured `acceptance` field, infer acceptance policies, inject acceptance-report prompts, or run acceptance gates; put any evidence requirements directly in the task text. Do not set removed acceptance config fields on `subagent()` calls, parallel task items, or agent frontmatter; move those requirements into the assigned task text instead.
 
-The first writer implements the approved change. The parent waits for its foreground handoff before review, and does not make parallel edits to the same worktree. Treat the writer handoff as the transition into review, not as final completion, unless the user explicitly asked for writer-only work, review-only output, or to stop after implementation. Specialist reviewers inspect the resulting diff from fresh context when warranted. The final fix writer applies synthesized fixes, then the parent looks over the final diff before completing. Ask only needed questions before a non-interactive launch.
+The first writer implements the approved change. The parent waits for its terminal handoff before review, even if the foreground observation has yielded, and does not make parallel edits to the same files. Treat the handoff as the transition into review unless the user requested writer-only work. Reviewers inspect the resulting diff from fresh context. The fix writer applies accepted findings, then the parent checks the final diff. Ask only needed scope questions before a non-interactive launch.
 
 For complex or risky changes, increase review and validation fanout when user intent or correctness risk materially warrants it rather than automatically trusting one reviewer. Use distinct angles such as correctness/regressions (`codebase-analyzer`), failure-mode hunt (`debugger` inspect-only), pattern fit (`codebase-pattern-finder`), prior-decision conformance (`codebase-research-*`), and external-spec conformance (`codebase-online-researcher`). When reviewers find non-trivial issues or the fix writer touches many lines, consider another focused review round before final validation.
 
@@ -528,7 +530,7 @@ subagent({
 
 When implementation review is part of the requested shape, do not treat the first review as the final step: synthesize findings against user scope and the validation contract, then launch one writer for accepted fixes when implementation is authorized.
 
-When a writer completes, treat its handoff as an intermediate state when review is part of the requested shape. The next parent action is bounded review, then synthesis, then a fix writer if reviewers found fixes worth doing now. Keep these calls in the foreground so each handoff is available before the next action.
+When a writer completes, treat its handoff as an intermediate state when review is part of the requested shape. The next action is review, then synthesis and a fix writer if needed. Foreground-first observation is convenient, but a yield requires waiting for the original task's terminal handoff before the next dependent action.
 
 When the user explicitly asks to keep reviewing until the work is clean, repeat writer → fresh-specialist-reviewers → synthesized-fix-writer cycles until reviewers find no blockers or fixes worth doing now, remaining feedback is optional or intentionally deferred, an unapproved product/scope/architecture decision needs the user, or the max review-round cap is reached. Default to 3 review rounds unless the user sets a different cap.
 
