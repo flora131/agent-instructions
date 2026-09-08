@@ -18,6 +18,7 @@ import { arg, fakeHerdr } from "./helpers/herdr.js";
 import { createFauxStreamFn, createHarnessWithExtensions, fauxModel } from "./test-harness.js";
 import { createTestExtensionsResult, createTestResourceLoader } from "./utilities.js";
 
+// Regression coverage for Herdr ownership fixes in PR #2925 (reporter RFC #2891).
 // A supplied resource loader can expose the same loaded extension to multiple runners.
 // Eligibility at session_start must not grant a child's later shutdown parent authority.
 test("shared reporter ignores child shutdown and keeps reporting for its parent", async () => {
