@@ -144,7 +144,6 @@ export function createWorkflowStageFactory(input: {
 						...(replaySource.sessionFile !== undefined ? { sessionFile: replaySource.sessionFile } : {}),
 						...(replaySource.model !== undefined ? { model: replaySource.model } : {}),
 						...(replaySource.thinkingLevel !== undefined ? { thinkingLevel: replaySource.thinkingLevel } : {}),
-						...(replaySource.fastMode !== undefined ? { fastMode: replaySource.fastMode } : {}),
 						replayedFromStageId: replaySource.id,
 						replayed: true,
 					}
@@ -175,10 +174,6 @@ export function createWorkflowStageFactory(input: {
 			if (meta.model !== undefined) stageSnapshot.model = meta.model;
 			if (meta.thinkingLevel !== undefined) stageSnapshot.thinkingLevel = meta.thinkingLevel;
 			else delete stageSnapshot.thinkingLevel;
-			if (meta.fastMode !== undefined) {
-				if (meta.fastMode) stageSnapshot.fastMode = true;
-				else delete stageSnapshot.fastMode;
-			}
 			if (meta.attemptedModels !== undefined) stageSnapshot.attemptedModels = meta.attemptedModels;
 			if (meta.modelAttempts !== undefined) stageSnapshot.modelAttempts = meta.modelAttempts;
 			if (meta.warnings !== undefined) {

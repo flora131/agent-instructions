@@ -557,12 +557,12 @@ describe("renderNodeCard — metadata line", () => {
 	});
 
 	test("shows the fast tier on the model row, not the deps row", () => {
-		const lines = renderNodeCard(makeStage({ status: "completed", model: "openai/gpt-5.1-codex", fastMode: true }), {
+		const lines = renderNodeCard(makeStage({ status: "completed", model: "openai/gpt-5.1-codex-fast" }), {
 			theme,
 		});
 
-		// Model row: provider stripped, fast marker appended (footer parity).
-		assert.match(stripAnsi(lines[3]!), /gpt-5\.1-codex fast/);
+		// #1859: canonical model identity stays on the model row, not the deps row.
+		assert.match(stripAnsi(lines[3]!), /gpt-5\.1-codex-fast/);
 		assert.doesNotMatch(stripAnsi(lines[3]!), /openai\//);
 		// Deps row is now just the dependency text — the fast marker moved up.
 		assert.match(stripAnsi(lines[4]!), /root/);
@@ -570,14 +570,12 @@ describe("renderNodeCard — metadata line", () => {
 	});
 
 	test("keeps the full fast marker and truncates a long model name instead of the marker", () => {
-		// A long configured Codex model + fast overflows the ~22-cell card. The
-		// marker is load-bearing, so the model name is truncated, never ` fast`.
+		// #1859: truncate the model name, never its canonical -fast suffix.
 		const lines = renderNodeCard(
 			makeStage({
 				status: "running",
 				startedAt: Date.now() - 500,
-				model: "openai-codex/gpt-5.3-codex-spark",
-				fastMode: true,
+				model: "openai-codex/gpt-5.3-codex-spark-fast",
 			}),
 			{ theme },
 		);
@@ -604,19 +602,27 @@ describe("renderNodeCard — metadata line", () => {
 		}
 	});
 
+	// #1859: terminal-cell truncation must preserve canonical fast identity and thinking.
+	test("keeps full suffixes on wide-character model names", () => {
+		const lines = renderNodeCard(makeStage({ model: "fixture/長いモデル長いモデル-fast", thinkingLevel: "high" }), {
+			theme,
+		});
+		for (const line of lines) assert.equal(visibleWidth(line), NODE_W);
+		assert.match(stripAnsi(lines[3]!), /…-fast · high/);
+	});
+
 	test("keeps both the thinking level and the fast marker on overflow, truncating the model", () => {
 		const lines = renderNodeCard(
 			makeStage({
 				status: "running",
 				startedAt: Date.now() - 500,
-				model: "openai/gpt-5.1-codex",
+				model: "openai/gpt-5.1-codex-fast",
 				thinkingLevel: "high",
-				fastMode: true,
 			}),
 			{ theme },
 		);
 		const modelRow = stripAnsi(lines[3]!).replaceAll("│", "").trim();
-		assert.ok(modelRow.endsWith("· high fast"), modelRow);
+		assert.ok(modelRow.endsWith("-fast · high"), modelRow);
 		assert.match(modelRow, /…/);
 	});
 });

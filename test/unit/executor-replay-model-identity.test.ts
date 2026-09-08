@@ -3,7 +3,7 @@
  *
  * `/workflow resume` rebuilds a completed stage's card from the replay source
  * snapshot rather than from a live session, so the graph node card renders
- * whatever `StageSnapshot.model` / `.thinkingLevel` / `.fastMode` the replay
+ * whatever `StageSnapshot.model` / `.thinkingLevel` the replay
  * initialization copies across. When those fields are dropped the card falls
  * back to "—" even though the durable checkpoint still holds the model.
  *
@@ -14,7 +14,7 @@
 import { describe } from "vitest";
 import { assert, createStore, run, Type, test, workflow } from "./executor-shared.js";
 
-const MODEL = "anthropic/claude-opus-4.8";
+const MODEL = "openai-codex/gpt-5.1-codex-fast";
 
 /** Runs a two-stage workflow whose second stage fails, returning the resumable source run. */
 async function failedSourceRun() {
@@ -78,6 +78,7 @@ async function resumeAndGetReplayedStage(
 }
 
 describe("replayed stages retain model identity", () => {
+	// #1859: current fast model IDs replay verbatim without resurrecting fastMode.
 	test("resume restores model, thinking level, and fast tier onto the replayed stage", async () => {
 		const { def, store, source } = await failedSourceRun();
 
@@ -85,7 +86,7 @@ describe("replayed stages retain model identity", () => {
 		const withIdentity = {
 			...source,
 			stages: source.stages.map((stage) =>
-				stage.name === "first" ? { ...stage, model: MODEL, thinkingLevel: "high", fastMode: true } : stage,
+				stage.name === "first" ? { ...stage, model: MODEL, thinkingLevel: "high" } : stage,
 			),
 		};
 
@@ -93,9 +94,10 @@ describe("replayed stages retain model identity", () => {
 
 		assert.equal(replayed.model, MODEL);
 		assert.equal(replayed.thinkingLevel, "high");
-		assert.equal(replayed.fastMode, true);
+		assert.equal("fastMode" in replayed, false);
 	});
 
+	// #1859: old checkpoints must not gain a requested or inferred identity.
 	test("a source stage without model identity replays without inventing one", async () => {
 		const { def, store, source } = await failedSourceRun();
 
@@ -103,6 +105,6 @@ describe("replayed stages retain model identity", () => {
 
 		assert.equal(replayed.model, undefined);
 		assert.equal(replayed.thinkingLevel, undefined);
-		assert.equal(replayed.fastMode, undefined);
+		assert.equal("fastMode" in replayed, false);
 	});
 });

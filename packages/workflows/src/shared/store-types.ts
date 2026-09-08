@@ -435,8 +435,6 @@ export interface StageSnapshot {
 	 * this field was persisted.
 	 */
 	thinkingLevel?: string;
-	/** True when Codex fast mode applied to this workflow stage. */
-	fastMode?: boolean;
 	/** Ordered model ids attempted by fallback orchestration. */
 	attemptedModels?: readonly string[];
 	/** Per-model fallback attempt outcomes. */

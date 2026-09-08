@@ -116,14 +116,34 @@ describe("current DBOS stage topology", () => {
 			...stage("wf-stage-thinking"),
 			model: "anthropic/claude-opus-4.8",
 			thinkingLevel: "high",
-			fastMode: true,
 		};
 		const envelope = encodeCheckpoint(checkpoint);
 		const decoded = decodeToCheckpoint(checkpoint.workflowId, checkpoint.checkpointId, envelope);
 		assert.ok(decoded?.kind === "stage");
 		assert.equal(decoded.model, "anthropic/claude-opus-4.8");
 		assert.equal(decoded.thinkingLevel, "high");
-		assert.equal(decoded.fastMode, true);
+		assert.equal("fastMode" in decoded, false);
+	});
+
+	// #1859: legacy optional metadata and removed fastMode retain current-main policy.
+	test("accepts absent identity and ignores the removed fastMode field", () => {
+		const checkpoint = stage("wf-legacy-identity");
+		const envelope = { ...encodeCheckpoint(checkpoint), fastMode: "legacy-ignored" };
+		const decoded = decodeToCheckpoint(checkpoint.workflowId, checkpoint.checkpointId, envelope);
+		assert.ok(decoded?.kind === "stage");
+		assert.equal(decoded.model, undefined);
+		assert.equal(decoded.thinkingLevel, undefined);
+		assert.equal("fastMode" in decoded, false);
+		assert.equal("fastMode" in encodeCheckpoint(decoded), false);
+	});
+
+	// #1859: reject malformed thinking metadata without restricting legacy strings.
+	test("rejects non-string thinking metadata", () => {
+		const checkpoint = stage("wf-invalid-thinking");
+		for (const thinkingLevel of [null, false, 0, [], {}]) {
+			const envelope = { ...encodeCheckpoint(checkpoint), thinkingLevel };
+			assert.equal(decodeToCheckpoint(checkpoint.workflowId, checkpoint.checkpointId, envelope), undefined);
+		}
 	});
 
 	test("rejects a marked current stage envelope with missing topology", () => {
