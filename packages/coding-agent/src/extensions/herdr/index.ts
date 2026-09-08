@@ -41,6 +41,20 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 		let openPromptCount = 0;
 		let availability: "ready" | "unavailable" | "recovering" = "unavailable";
 		const roots = new Map<string, WorkflowRootActivity>();
+		const acknowledgedBlocks = new Map<string, WorkflowRootActivity>();
+		const updateRoot = (root: WorkflowRootActivity) => {
+			const acknowledged = acknowledgedBlocks.get(root.rootRunId);
+			if (
+				acknowledged &&
+				(root.state !== acknowledged.state ||
+					root.reason !== acknowledged.reason ||
+					root.actionableBlockCount !== acknowledged.actionableBlockCount ||
+					root.activeExecutionCount !== acknowledged.activeExecutionCount ||
+					root.needsAttention !== acknowledged.needsAttention)
+			)
+				acknowledgedBlocks.delete(root.rootRunId);
+			roots.set(root.rootRunId, root);
+		};
 		const seenDiagnostics = new Set<string>();
 		let generation = 0;
 		const diagnostic = (value: HerdrDiagnostic) => {
@@ -57,7 +71,7 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 				agentRunning,
 				tasksRunning: tasksRunning(),
 				openPromptCount,
-				roots: [...roots.values()],
+				roots: [...roots.values()].filter((root) => !acknowledgedBlocks.has(root.rootRunId)),
 				availability,
 			});
 			if (activity) reportPaneActivity(owner, activity);
@@ -88,6 +102,7 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 			taskStore = undefined;
 			openPromptCount = 0;
 			roots.clear();
+			acknowledgedBlocks.clear();
 			availability = "unavailable";
 			const claimed = await claimPaneReporting(
 				environment,
@@ -119,13 +134,41 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 				if (frame.kind === "snapshot") {
 					availability = frame.availability;
 					roots.clear();
-					if (frame.availability === "ready") for (const root of frame.roots) roots.set(root.rootRunId, root);
-				} else if (frame.kind === "changed") roots.set(frame.root.rootRunId, frame.root);
-				else roots.delete(frame.rootRunId);
+					if (frame.availability === "ready") {
+						for (const root of frame.roots) updateRoot(root);
+						for (const id of acknowledgedBlocks.keys()) if (!roots.has(id)) acknowledgedBlocks.delete(id);
+					}
+				} else if (frame.kind === "changed") updateRoot(frame.root);
+				else {
+					roots.delete(frame.rootRunId);
+					acknowledgedBlocks.delete(frame.rootRunId);
+				}
 				report();
 			});
 		};
 		pi.on("session_start", (_event, ctx) => publishExtensionContextEffect(ctx, () => start(ctx)));
+		pi.on("input", (event, ctx) => {
+			if (!ownsBinding(ctx) || event.source !== "interactive") return;
+			let changed = false;
+			for (const root of roots.values()) {
+				if (root.state === "blocked" && !acknowledgedBlocks.has(root.rootRunId)) {
+					acknowledgedBlocks.set(root.rootRunId, { ...root });
+					changed = true;
+				}
+			}
+			if (changed) report();
+		});
+		pi.on("workflow_lifecycle", (event, ctx) => {
+			if (!ownsBinding(ctx) || event.delivery !== "live") return;
+			const target = event.target;
+			const newBlock =
+				target.kind === "prompt"
+					? target.status === "opened"
+					: (target.kind === "run" || target.kind === "stage") &&
+						(target.status === "blocked" || target.status === "awaiting_input") &&
+						target.previousStatus !== target.status;
+			if (newBlock && acknowledgedBlocks.delete(event.rootRunId)) report();
+		});
 		pi.on("agent_start", (_event, ctx) => {
 			if (!ownsBinding(ctx)) return;
 			agentRunning = true;

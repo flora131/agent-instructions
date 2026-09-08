@@ -34,6 +34,7 @@
 
 ### Fixed
 
+- Fixed Herdr turning red again after every response for an already-observed workflow block. Interactive messages now acknowledge existing pane attention without resuming workflows; new blocks and open approval prompts still report blocked.
 - Prevented internal-URL shell expansion from turning quoted paths into executable syntax. Expansion now rejects commands containing quotes, substitutions, escapes, heredocs or other non-plain syntax; bare URLs remain safely quoted, and commands without resolved URLs are unchanged.
 - Fixed Herdr reporting idle while standalone subagents or background shell tasks are running. The parent reporter now observes owner-scoped task activity and reattaches on reload, retaining working status until all tasks settle without granting children pane ownership.
 - Open subagent transcripts now refresh from live session events, including streaming text and partial/final tool results. Shell transcript reads coalesce pending state updates instead of requiring the view to be reopened.
