@@ -1,6 +1,6 @@
 import type { Provider } from "@bastani/pi-ai";
 import type { KeyId } from "@earendil-works/pi-tui";
-import { canonicalEventBusFor, type EventBus, registerCanonicalEventBus } from "../event-bus.ts";
+import { canonicalEventBusFor, type EventBus, registerCanonicalEventBus } from "../event-bus.js";
 import type { ExecOptions } from "../exec.ts";
 import { execCommand } from "../exec.ts";
 import {

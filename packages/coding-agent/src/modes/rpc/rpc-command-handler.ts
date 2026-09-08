@@ -1,5 +1,5 @@
 import type { KeyId } from "@earendil-works/pi-tui";
-import type { AgentSession } from "../../core/agent-session.ts";
+import type { AgentSession } from "../../core/agent-session.js";
 import type { AgentSessionRuntime } from "../../core/agent-session-runtime.ts";
 import { runCallback } from "../../core/callback-activity.ts";
 import type { ExtensionUIContext } from "../../core/extensions/index.js";

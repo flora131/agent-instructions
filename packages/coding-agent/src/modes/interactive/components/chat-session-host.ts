@@ -1,5 +1,5 @@
 import type { Component, Focusable } from "@earendil-works/pi-tui";
-import type { AgentSessionEvent, CompactionReason } from "../../../core/agent-session.ts";
+import type { AgentSessionEvent, CompactionReason } from "../../../core/agent-session.js";
 import { repairOrphanToolResults } from "../../../core/messages.ts";
 import { SessionManager } from "../../../core/session-manager.ts";
 import type { TaskId } from "../../../core/tasks/contracts.js";
@@ -44,7 +44,7 @@ import type {
 	ChatSessionHostOpts,
 	ChatSessionSubmitMode,
 } from "./chat-session-host-types.ts";
-import type { ChatTranscriptEntryLike } from "./chat-transcript.ts";
+import type { ChatTranscriptEntryLike } from "./chat-transcript.js";
 import { TaskInspector } from "./task-inspector.js";
 import { renderTaskFooter } from "./task-list.js";
 

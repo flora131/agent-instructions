@@ -21,7 +21,7 @@ import {
 import type { ChatSessionHostState } from "./chat-session-host-state.ts";
 import type { ChatSessionSubmitMode } from "./chat-session-host-types.ts";
 import { errorMessage, parseBashInput, userMessageSignature } from "./chat-session-host-utils.ts";
-import type { ChatTranscriptEntryLike } from "./chat-transcript.ts";
+import type { ChatTranscriptEntryLike } from "./chat-transcript.js";
 
 function supportsQueuedMessagePause(
 	session: AgentSessionQueuePauseControl | undefined,

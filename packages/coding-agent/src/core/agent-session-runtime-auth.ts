@@ -1,5 +1,5 @@
 import { ModelsError } from "@bastani/pi-ai";
-import type { AgentSession } from "./agent-session.ts";
+import type { AgentSession } from "./agent-session.js";
 import { CredentialSynchronizationError } from "./model-runtime.js";
 import {
 	type AtomicOAuthLoginCallbacks,

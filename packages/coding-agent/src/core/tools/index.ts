@@ -12,7 +12,7 @@ export {
 	createBashToolDefinition,
 	createLocalBashOperations,
 	type ShellToolPresentation,
-} from "./bash.ts";
+} from "./bash.js";
 export {
 	createEditTool,
 	createEditToolDefinition,
@@ -105,7 +105,7 @@ import type { TSchema } from "typebox";
 import { isPowerShellAvailable } from "../../utils/shell.ts";
 import type { ToolDefinition } from "../extensions/types.ts";
 import { createAskUserQuestionToolDefinition } from "./ask-user-question/index.ts";
-import { type BashToolOptions, createBashTool, createBashToolDefinition } from "./bash.ts";
+import { type BashToolOptions, createBashTool, createBashToolDefinition } from "./bash.js";
 import { createEditTool, createEditToolDefinition, type EditToolOptions } from "./edit.ts";
 import { createFindTool, createFindToolDefinition, type FindToolOptions } from "./find.ts";
 import { createHashlineSnapshotStore, type HashlineSnapshotStore } from "./hashline.ts";

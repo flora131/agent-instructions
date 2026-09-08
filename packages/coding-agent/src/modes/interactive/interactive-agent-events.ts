@@ -1,5 +1,5 @@
 import { CACHE_TTL_MS, detectCacheMiss } from "../../core/cache-stats.ts";
-import { IsolatedInteractiveRuntime } from "../interactive-engine/isolated-runtime.ts";
+import { IsolatedInteractiveRuntime } from "../interactive-engine/isolated-runtime.js";
 import { RemoteToolExecutionComponent } from "../interactive-engine/remote-renderer.ts";
 import type { JsonAgentSessionEvent } from "../json-event.ts";
 import { AtomicWorkingLoader } from "./components/atomic-working-status.ts";

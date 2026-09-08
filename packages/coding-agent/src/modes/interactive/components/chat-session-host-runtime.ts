@@ -3,7 +3,7 @@ import type { ChatSessionHostState } from "./chat-session-host-state.ts";
 import { finalizeTerminalWorkflowToolEntries } from "./chat-session-host-terminal-cleanup.ts";
 import type { ChatSessionSubmitMode } from "./chat-session-host-types.ts";
 import { ANIMATION_FRAME_MS, STREAMING_RENDER_THROTTLE_MS } from "./chat-session-host-utils.ts";
-import type { ChatTranscriptEntryLike } from "./chat-transcript.ts";
+import type { ChatTranscriptEntryLike } from "./chat-transcript.js";
 
 export function isChatSessionStreaming<TExtraEntry extends ChatTranscriptEntryLike>(
 	state: ChatSessionHostState<TExtraEntry>,

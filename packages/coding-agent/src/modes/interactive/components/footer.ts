@@ -1,6 +1,6 @@
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { type Component, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import type { AgentSession } from "../../../core/agent-session.ts";
+import type { AgentSession } from "../../../core/agent-session.js";
 import { areExperimentalFeaturesEnabled } from "../../../core/experimental.ts";
 import type { ReadonlyFooterDataProvider } from "../../../core/footer-data-provider.ts";
 import { getOwnerTaskStore } from "../../../core/tasks/owner-store.js";

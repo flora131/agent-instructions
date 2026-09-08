@@ -27,7 +27,7 @@ import {
   type UiResourceContent,
   type UiSessionMessages,
   type UiStreamSummary,
-} from "./types.ts";
+} from "./types.js";
 
 const ABANDONED_GRACE_MS = 60_000;
 const WATCHDOG_INTERVAL_MS = 5_000;

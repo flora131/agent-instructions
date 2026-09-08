@@ -5,7 +5,7 @@ import { setTimeout as poll } from "node:timers/promises";
 import { parseArgs } from "node:util";
 import { ChatSessionHost, CustomEditor, SessionManager, initTheme } from "@bastani/atomic";
 import { fauxAssistantMessage, fauxToolCall } from "@bastani/pi-ai/compat";
-import { ProcessTerminal, setKeybindings, TuiAltScreen } from "@earendil-works/pi-tui";
+import { Key, matchesKey, ProcessTerminal, setKeybindings, TuiAltScreen } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { createHarness } from "../../packages/coding-agent/test/suite/harness.js";
 import { KeybindingsManager } from "../../packages/coding-agent/src/core/keybindings.js";
@@ -13,7 +13,7 @@ import type { NativeEvent, OperationId, Result, TaskId } from "../../packages/co
 import { getOwnerTaskStore } from "../../packages/coding-agent/src/core/tasks/owner-store.js";
 import type { FakeRunnerContext, TaskLease } from "../../packages/coding-agent/src/core/tasks/supervisor.js";
 import { plainStyle, editorTheme } from "../unit/chat-session-host-working-lifecycle-fixture.js";
-import { createStageSkillFixture } from "./stage-chat-skill-session.js";
+import { createStageSkillFixture, submitStageSkillText } from "./stage-chat-skill-session.js";
 
 // RFC #2884: real host input, native lifecycle and persisted SessionManager evidence.
 const { values } = parseArgs({ options: { chat: { type: "string" }, "evidence-dir": { type: "string" }, "run-id": { type: "string" } }, strict: true });
@@ -51,6 +51,7 @@ let mounted = false;
 let commandBusy = false;
 let stopping = false;
 let expanded = false;
+let inspecting = false;
 let renderedLines: string[] = [];
 let genuineMessages = 0;
 let task: TaskLease | undefined;
@@ -79,21 +80,32 @@ class EvidenceTui extends TuiAltScreen {
 		super.doRender(); if (!mounted || stopping || commandBusy) return; revision++;
 		const current = revision; const id = commandId; const cursor = store?.cursor;
 		const diagnostics = stage?._taskDiagnostics ?? { taskIds: mainHost.entries().flatMap((entry) => entry.kind === "task" ? [entry.task.ref.taskId] : []), emptyCompletionComponents: mainHost.entries().filter((entry) => entry.kind === "custom" && entry.message.customType === "task-completion").length };
-		const evidence = { ...diagnostics, toolsExpanded: expanded, anchorCount: diagnostics.taskIds.filter((id) => id === taskId).length, columns: this.terminal.columns, rows: this.terminal.rows, renderedLines: [...renderedLines] };
+		// The legacy diagnostic names count chat rows, not owner tasks or empty renders.
+		const evidence = { taskIds: store!.backgroundTasks.map((task) => task.ref.taskId), completionCount: diagnostics.emptyCompletionComponents, toolsExpanded: expanded, anchorCount: diagnostics.taskIds.filter((id) => id === taskId).length, columns: this.terminal.columns, rows: this.terminal.rows, renderedLines: [...renderedLines] };
 		process.stdout.write("", () => { appendFileSync(join(directory!, "barriers.jsonl"), `${JSON.stringify({ runId, barrier: "rendered", commandId: id, revision: String(current), cursor, taskId, evidence })}\n`); });
 	}
 }
 const tui = new EvidenceTui(new ProcessTerminal());
-const mainHost = new ChatSessionHost({ style: plainStyle, editorTheme, tui, keybindings: keys, getAgentSession: () => session, requestRender: () => tui.requestRender(), getChatRenderSettings: () => ({ toolOutputExpanded: expanded }), commands: { handleSlashCommand: async (text) => { if (text.startsWith("/fixture ")) { await command(text); return true; } return false; } } });
+const mainHost = new ChatSessionHost({ taskRowsInChat: false, style: plainStyle, editorTheme, tui, keybindings: keys, getAgentSession: () => session, requestRender: () => tui.requestRender(), getChatRenderSettings: () => ({ toolOutputExpanded: expanded }), commands: { handleSlashCommand: async (text) => { if (text.startsWith("/fixture ")) { await command(text); return true; } return false; } } });
 const unsubscribeSession = session.subscribe((event) => mainHost.applyAgentEvent(event));
 const stage = workflow?.mount({ piTui: tui, piKeybindings: keys, piEditorFactory: (ui, theme, bindings) => new CustomEditor(ui, theme, bindings as KeybindingsManager), requestRender: () => tui.requestRender(), getToolsExpanded: () => expanded, setToolsExpanded: (value) => { expanded = value; } });
 const composer = new CustomEditor(tui, editorTheme, keys);
 composer.onSubmit = (text) => { composer.setText(""); void command(text).catch(fail); };
 const component = {
 	focused: true, invalidate() { mainHost.invalidate(); stage?.invalidate(); },
-	render(width: number) { const body = stage ? stage.render(width) : [...mainHost.renderBody(width, Math.max(1, tui.terminal.rows - 5)), ...mainHost.renderFooter(width)]; renderedLines = [...body.slice(0, Math.max(1, tui.terminal.rows - 4)), ...composer.render(width)]; return renderedLines; },
+	render(width: number) {
+		// StageChatView owns the full frame, including its below-prompt task footer.
+		if (stage) renderedLines = stage.render(width);
+		else { const body = [...mainHost.renderBody(width, Math.max(1, tui.terminal.rows - 5)), ...mainHost.renderFooter(width)]; renderedLines = [...body.slice(0, Math.max(1, tui.terminal.rows - 4)), ...composer.render(width)]; }
+		return renderedLines;
+	},
 	handleInput(data: string) {
-		if (data === "\x03") { void stop().catch(fail); return; }
+		if (matchesKey(data, Key.ctrl("c"))) { void stop().catch(fail); return; }
+		if (inspecting) {
+			if (stage) stage.handleInput(data); else mainHost.handleTaskInput(data);
+			if (matchesKey(data, Key.escape)) { inspecting = false; commandId = "inspection-closed"; }
+			tui.requestRender(); return;
+		}
 		if (keys.matches(data, "app.tools.expand")) { commandId = "expand"; expanded = !expanded; mainHost.invalidate(); stage?.invalidate(); }
 		else if (!mainHost.handleTaskInput(data)) composer.handleInput(data);
 		tui.requestRender();
@@ -114,7 +126,7 @@ async function startAgent(kind: string): Promise<void> {
 	barrier("intercom-live", { alias: "t17", attemptId: context?.ref.attemptId, startCount: nativeEvents.filter((event) => event.payload.kind === "task-started" && event.taskId === taskId).length, genuineMessageCount: genuineMessages, observation: value(observed), transport: "deterministic local message admission adapter", execution: store!.tasks.find((item) => item.ref.taskId === taskId)?.execution.kind, yieldCursor, activityCursor: store!.cursor });
 }
 async function command(text: string): Promise<void> {
-	if (text === "/tasks" || text.startsWith("/tasks ")) { mainHost.openTasks(text.slice(6).trim() || undefined); tui.requestRender(); return; }
+	if (text === "/tasks" || text.startsWith("/tasks ")) { commandId = "inspect"; inspecting = true; if (stage) submitStageSkillText(stage, text); else mainHost.openTasks(text.slice(6).trim() || undefined); tui.requestRender(); return; }
 	const parts = text.split(/\s+/); const idIndex = parts.indexOf("--command-id"); commandId = idIndex >= 0 ? parts[idIndex + 1] : `manual-${revision}`; const action = parts[1];
 	commandBusy = true;
 	if (["intercom", "foreground", "explicit", "timed"].includes(action)) await startAgent(action);
@@ -127,7 +139,9 @@ async function command(text: string): Promise<void> {
 		session.sessionManager.flush(); const file = session.sessionManager.getSessionFile(); assert.ok(file);
 		const entries = SessionManager.open(file).getEntries().filter((entry) => entry.type === "custom_message" && entry.customType === "task-completion"); assert.equal(entries.length, 1);
 		assert.equal(entries[0].type, "custom_message");
-		barrier("model-persisted", { count: entries.length, display: entries[0].display, completionId: event.payload.completionId });
+		const persisted = entries[0].details as { completionId: string; taskId: string };
+		assert.equal(persisted.completionId, event.payload.completionId); assert.equal(persisted.taskId, taskId);
+		barrier("model-persisted", { count: entries.length, display: entries[0].display, completionId: persisted.completionId });
 	}
 	else if (action === "shell") {
 		const path = join(directory!, "identities.json");
@@ -150,7 +164,18 @@ async function command(text: string): Promise<void> {
 	else throw new Error(`Unsupported fixture command: ${text}`);
 	store!.drain(); watched.drain(); mainHost.refreshTaskStore(); commandBusy = false; tui.requestRender();
 }
-async function stop(): Promise<void> { if (stopping) return; stopping = true; completion.resolve(); afterYield.resolve(); value(await host.close(chat === "workflow" ? "stage-close" : "session-close")); unsubscribeSession(); watched.dispose(); mainHost.dispose(); stage?.dispose(); tui.stop(); child?.cleanup(); if (workflow) await workflow.cleanup(); else main?.cleanup(); barrier("stopped", { disposed: true, identities }); }
+async function stop(): Promise<void> {
+	if (stopping) return;
+	stopping = true;
+	completion.resolve(); afterYield.resolve();
+	const receipt = value(await host.close(chat === "workflow" ? "stage-close" : "session-close"));
+	// Owner-close completion delivery may still be reconciling a model turn.
+	session.pauseQueuedMessages();
+	await session.abort();
+	unsubscribeSession(); watched.dispose(); mainHost.dispose(); stage?.dispose(); tui.stop(); child?.cleanup();
+	if (workflow) await workflow.cleanup(); else main?.cleanup();
+	barrier("stopped", { disposed: true, identities, receipt });
+}
 function fail(error: Error) { appendFileSync(join(directory!, "failure.log"), `${error.stack}\n`); void stop().finally(() => { process.exitCode = 1; }); }
 tui.addChild(component); tui.setFocus(component); mounted = true; tui.start(); barrier("ready", { host: chat, ownerId: store.snapshot?.ownerId });
 process.stdout.on("resize", () => { commandId = "resize"; tui.requestRender(); });

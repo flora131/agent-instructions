@@ -1,10 +1,10 @@
-import type { ExtensionUIContext, HostSessionPickerRow } from "../../core/extensions/index.ts";
+import type { ExtensionUIContext, HostSessionPickerRow } from "../../core/extensions/index.js";
 import {
 	type HostSessionPickerMount,
 	mountHostSessionPicker,
 	sessionInfoFromPickerRow,
 } from "../interactive/components/host-session-picker.ts";
-import type { IsolatedInteractiveRuntime } from "./isolated-runtime.ts";
+import type { IsolatedInteractiveRuntime } from "./isolated-runtime.js";
 import type { InteractiveEngineMessage } from "./protocol.ts";
 
 /**

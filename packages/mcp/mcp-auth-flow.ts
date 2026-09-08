@@ -23,7 +23,7 @@ import {
   type StoredTokens,
 } from "./mcp-auth.js"
 import { McpSessionCleanupBarrier } from "./session-cleanup-barrier.js"
-import type { ServerEntry } from "./types.ts"
+import type { ServerEntry } from "./types.js"
 
 export type AuthStatus = "authenticated" | "expired" | "not_authenticated"
 

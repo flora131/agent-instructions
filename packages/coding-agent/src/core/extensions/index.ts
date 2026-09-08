@@ -4,7 +4,7 @@
 
 export type { ConstrainedSamplingConfig } from "@bastani/pi-ai/compat";
 export type { AtomicProviderCompat } from "../model-capabilities.ts";
-export type { SlashCommandInfo, SlashCommandSource } from "../slash-commands.ts";
+export type { SlashCommandInfo, SlashCommandSource } from "../slash-commands.js";
 export type { SourceInfo } from "../source-info.ts";
 export type { WorkflowResourceProvider, WorkflowResourceProviderInput } from "./loader.ts";
 export {

@@ -131,20 +131,26 @@ describe("built-in tool system prompt contributions", () => {
 		expect(definition.promptSnippet).toContain("Ask all user questions through this tool");
 	});
 
-	test("documents a schema-valid scoped approval with an explicit decline option", () => {
-		const docs = readTextSync(join(dirname(fileURLToPath(import.meta.url)), "../docs/tools.md"), "utf8");
-		const section = docs.split("## `ask_user_question`")[1]?.split("## Persisted tool output")[0] ?? "";
-		const example = section.match(/```json\n([\s\S]*?)\n```/)?.[1];
-		expect(example).toBeDefined();
-		const params = Value.Parse(QuestionParamsSchema, JSON.parse(example ?? "null"));
-		expect(validateQuestionnaire(params)).toEqual({ ok: true });
-		expect(params.questions[0]?.question).toContain(
-			"same seven PRs in dependency order without changing repository protections",
-		);
-		expect(params.questions[0]?.options.map((option) => option.label)).toEqual(["Proceed", "Do not proceed"]);
-		expect(section).toContain("identify the target PRs");
-		expect(section).toContain("A cancelled or unanswered question is not approval");
-	});
+	test.each(["LF", "CRLF"])(
+		"documents a schema-valid scoped approval with an explicit decline option (%s)",
+		(lineEnding) => {
+			const docs = readTextSync(join(dirname(fileURLToPath(import.meta.url)), "../docs/tools.md"), "utf8").replace(
+				/\r?\n/g,
+				lineEnding === "CRLF" ? "\r\n" : "\n",
+			);
+			const section = docs.split("## `ask_user_question`")[1]?.split("## Persisted tool output")[0] ?? "";
+			const example = section.match(/```json\r?\n([\s\S]*?)\r?\n```/)?.[1];
+			expect(example).toBeDefined();
+			const params = Value.Parse(QuestionParamsSchema, JSON.parse(example ?? "null"));
+			expect(validateQuestionnaire(params)).toEqual({ ok: true });
+			expect(params.questions[0]?.question).toContain(
+				"same seven PRs in dependency order without changing repository protections",
+			);
+			expect(params.questions[0]?.options.map((option) => option.label)).toEqual(["Proceed", "Do not proceed"]);
+			expect(section).toContain("identify the target PRs");
+			expect(section).toContain("A cancelled or unanswered question is not approval");
+		},
+	);
 
 	test("keeps ask_user_question machine-config guidance overriding the contribution", () => {
 		askUserQuestionConfig.guidance = {

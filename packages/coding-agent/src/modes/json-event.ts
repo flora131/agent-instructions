@@ -1,5 +1,5 @@
 import type { Usage } from "@bastani/pi-ai";
-import type { AgentSessionEvent } from "../core/agent-session.ts";
+import type { AgentSessionEvent } from "../core/agent-session.js";
 
 type WithoutPartial<T> = T extends { partial: unknown } ? Omit<T, "partial"> : T;
 type ToJsonAssistantMessageEvent<T> = T extends { type: "toolcall_start"; partial: unknown }

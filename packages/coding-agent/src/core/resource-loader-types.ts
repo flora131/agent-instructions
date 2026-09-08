@@ -1,6 +1,6 @@
 import type { Theme } from "../modes/interactive/theme/theme.js";
 import type { ResourceDiagnostic } from "./diagnostics.ts";
-import type { EventBus } from "./event-bus.ts";
+import type { EventBus } from "./event-bus.js";
 import type { InlineExtension, LoadExtensionsResult } from "./extensions/types.ts";
 import type { PathMetadata, ResolvedResource } from "./package-manager.ts";
 import type { PromptTemplate } from "./prompt-templates.ts";

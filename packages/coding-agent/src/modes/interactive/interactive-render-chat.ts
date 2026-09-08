@@ -5,7 +5,7 @@ import { VERBATIM_COMPACTION_PREFIX } from "../../core/messages.ts";
 import type { CustomEntry } from "../../core/session-manager.ts";
 import { buildContextEntries, type SessionEntry, sessionEntryToContextMessages } from "../../core/session-manager.ts";
 import { yieldToEventLoop } from "../../utils/event-loop.ts";
-import { IsolatedInteractiveRuntime } from "../interactive-engine/isolated-runtime.ts";
+import { IsolatedInteractiveRuntime } from "../interactive-engine/isolated-runtime.js";
 import { RemoteCustomMessageComponent, RemoteToolExecutionComponent } from "../interactive-engine/remote-renderer.ts";
 import { CustomEntryComponent } from "./components/custom-entry.ts";
 import { createMermaidMarkdownTransformer } from "./components/mermaid.ts";

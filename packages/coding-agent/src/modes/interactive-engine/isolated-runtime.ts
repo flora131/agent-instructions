@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { type Api, clampThinkingLevel, type Model } from "@bastani/pi-ai/compat";
-import type { AgentSession, CompactionReason } from "../../core/agent-session.ts";
+import type { AgentSession, CompactionReason } from "../../core/agent-session.js";
 import { AgentSessionRuntime, type CreateAgentSessionRuntimeFactory } from "../../core/agent-session-runtime.ts";
 import type { ModelMutationOptions, PromptOptions } from "../../core/agent-session-types.ts";
 import type { ResourceOverlap } from "../../core/diagnostics.ts";

@@ -34,6 +34,10 @@ test("a replacement session waits for the retired initializer and its cleanup be
 		writeFileSync(join(fixtureDir, "config.ts"), `export function loadMcpConfig() { return { mcpServers: {} }; }\n`);
 		writeFileSync(join(fixtureDir, "utils.ts"), `export function getConfigPathFromArgv() { return undefined; }\n`);
 		writeFileSync(join(fixtureDir, "tool-result-renderer.ts"), `export function renderMcpToolResult() {}\n`);
+		writeFileSync(
+			join(fixtureDir, "tool-call-renderer.ts"),
+			`export function renderMcpToolCall() {}\nexport function renderMcpDirectToolCall() {}\n`,
+		);
 		writeFileSync(join(fixtureDir, "metadata-cache.ts"), `export function loadMetadataCache() { return null; }\n`);
 		writeFileSync(
 			join(fixtureDir, "direct-tools.ts"),

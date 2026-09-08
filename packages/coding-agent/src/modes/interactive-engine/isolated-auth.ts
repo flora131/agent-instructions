@@ -1,4 +1,4 @@
-import type { AgentSession } from "../../core/agent-session.ts";
+import type { AgentSession } from "../../core/agent-session.js";
 import { type AtomicOAuthLoginCallbacks, normalizeOAuthLoginError } from "../../core/oauth-login.ts";
 import type { RpcClient } from "../rpc/rpc-client.ts";
 import { loginRpcOAuthProvider } from "../rpc/rpc-oauth-client.ts";

@@ -2,7 +2,7 @@ import type { AssistantMessage, ToolResultMessage } from "@bastani/pi-ai/compat"
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { type Component, Container, type MarkdownTheme, Text, type TUI } from "@earendil-works/pi-tui";
 import type { TSchema } from "typebox";
-import { parseSkillBlock } from "../../../core/agent-session.ts";
+import { parseSkillBlock } from "../../../core/agent-session.js";
 import type { MarkdownTransformer, MessageRenderer, ToolDefinition } from "../../../core/extensions/types.ts";
 import {
 	type BashExecutionMessage,

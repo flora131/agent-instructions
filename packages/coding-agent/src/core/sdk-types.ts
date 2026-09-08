@@ -1,13 +1,13 @@
 import type { Api, Model } from "@bastani/pi-ai/compat";
 import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
-import type { AgentSession } from "./agent-session.ts";
+import type { AgentSession } from "./agent-session.js";
 import type {
 	LoadExtensionsResult,
 	OrchestrationContext,
 	SessionStartEvent,
 	SubagentChildPolicy,
 	ToolDefinition,
-} from "./extensions/index.ts";
+} from "./extensions/index.js";
 import type { ModelFallbackReason } from "./model-resolver-types.ts";
 import type { ModelRuntime } from "./model-runtime.js";
 import type { ResourceLoader } from "./resource-loader.ts";
