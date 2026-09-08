@@ -12,7 +12,6 @@ import {
 import {
 	type AgentProgress,
 	type ArtifactPaths,
-	type ForegroundParentAskHandoff,
 	isWorkflowStageOrchestrationContext,
 	resolveTopLevelParallelConcurrency,
 	resolveTopLevelParallelMaxTasks,
@@ -29,9 +28,7 @@ import { recordRun } from "../shared/run-history.js";
 import { resolveSingleOutputPath, validateFileOnlyOutputMode } from "../shared/single-output.js";
 import { cleanupWorktrees, type WorktreeSetup } from "../shared/worktree.js";
 import { createDetachedCleanupBarrier } from "./detached-cleanup-barrier.js";
-import { formatParentAskHandoffOutput } from "./parent-ask-output.js";
 import { runForegroundParallelTasks } from "./subagent-executor-parallel-task.js";
-import { markParentAskHandoff } from "./subagent-executor-parent-ask-projection.js";
 import {
 	createForegroundControlNotifier,
 	maybeBuildForegroundIntercomReceipt,
@@ -148,7 +145,6 @@ export async function runParallelPath(
 		cleanupWorktrees(worktreeSetup);
 	});
 	if (errorResult) return errorResult;
-	let parentAsk: ForegroundParentAskHandoff | undefined;
 
 	try {
 		const duplicateOutputError = findDuplicateParallelOutputPath({
@@ -198,9 +194,6 @@ export async function runParallelPath(
 					detachedCleanup.recover(index);
 				}
 			},
-			onParentAskHandoff: (handoff) => {
-				if (!parentAsk) parentAsk = handoff;
-			},
 			tasks,
 			taskTexts,
 			agents,
@@ -240,7 +233,7 @@ export async function runParallelPath(
 			worktreeSetup: worktreeSetup as WorktreeSetup | undefined,
 			runtime: deps.runtime,
 		});
-		if (ctx.getAgentTaskHost && !parentAsk) {
+		if (ctx.getAgentTaskHost) {
 			const response: import("../../../../coding-agent/src/core/tasks/contracts.js").ModelParallelResponse = {
 				kind: "parallel",
 				slots: results.map((result, ordinal) => ({
@@ -276,20 +269,10 @@ export async function runParallelPath(
 			mode: "parallel",
 			runId,
 			results,
-			parentAskYielded: parentAsk !== undefined,
+			parentAskYielded: false,
 			progress: params.includeProgress ? allProgress : undefined,
 			artifacts: allArtifactPaths.length ? { dir: artifactsDir, files: allArtifactPaths } : undefined,
 		});
-		if (parentAsk) {
-			const worktreeSuffix = buildParallelWorktreeSuffix(worktreeSetup, artifactsDir, tasks as TaskParam[]);
-			const handoffText = formatParentAskHandoffOutput(parentAsk);
-			const yieldedResult: SubagentToolResult = {
-				content: [{ type: "text", text: worktreeSuffix ? `${handoffText}\n\n${worktreeSuffix}` : handoffText }],
-				details,
-			};
-			markParentAskHandoff(yieldedResult, parentAsk);
-			return yieldedResult;
-		}
 		if (
 			interrupted &&
 			!results.some(
@@ -316,7 +299,7 @@ export async function runParallelPath(
 				content: [
 					{
 						type: "text",
-						text: `Parallel run detached for intercom coordination (${detached.agent}). Reply to the supervisor request first. After the child exits, launch fresh follow-up work if needed.`,
+						text: `Parallel observation yielded for intercom coordination (${detached.agent}). The original children continue; reply to any pending ask without relaunching them.`,
 					},
 				],
 				details,

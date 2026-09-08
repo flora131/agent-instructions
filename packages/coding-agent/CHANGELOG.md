@@ -60,6 +60,7 @@
 - Filled theme backgrounds now survive nested and truncation resets, keeping long task-completion titles, previews, and expand hints shaded through the last column.
 - Owner-bound task notifications now order queued same-child Intercom messages before completion through the delivery outbox. Failed delivery keeps the terminal intent retryable without changing the execution outcome, replaying successful earlier messages, or relaunching the task.
 - Fixed `/workflow connect` falsely marking Herdr blocked, including after hiding the graph. Custom UI supports `purpose: "navigation"` without suppressing genuine approval events.
+- Parallel subagent communication now preserves active and queued siblings while only a blocking requester waits for its correlated reply. Foreground observation yielding no longer discards queued work or changes execution concurrency; cancellation and owner cleanup remain explicit.
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

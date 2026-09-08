@@ -226,11 +226,11 @@ The child can use one dedicated coordination tool:
 
 - `contact_supervisor`: the child contacts the parent/supervisor session that delegated the task. Use `reason: "need_decision"` for a blocking decision, `reason: "interview_request"` for structured questions, and `reason: "progress_update"` for a short non-blocking update when a discovery changes the plan. Do not ask for clarification when the only conflict is review-only/no-edit versus progress-writing or artifact-writing instructions; no-edit wins.
 
-Child-side routine completion handoffs are still not expected. With the Intercom bridge active, a blocking decision or interview from the exact foreground child ends at the source before broker send or reply-waiter admission. The parent `subagent` call returns the verbatim question, ordered attachments with duplicates preserved, agent identity, terminal run ID, and a dynamic `[TASK_CONTEXT]` handoff. `intercom.ask` does the same only when its resolved target is the launching parent. The parent answers by launching a fresh child with a new run identity and the supervisor answer in its task.
+Child-side routine completion handoffs are still not expected. In parallel runs, blocking `contact_supervisor` decisions/interviews and parent-targeted `intercom.ask` wait only in the requesting child. The supervisor replies through Intercom to the exact question; the same child continues with its original context and run identity. Sends and progress updates return without a reply.
 
-For parallel runs, the claim interrupts every active sibling and prevents queued work from starting or requesting authorization. The sibling set, sessions, and worktrees are not retained for continuation. Any follow-up starts fresh SINGLE or PARALLEL children explicitly. `intercom.send`, progress updates, and asks to siblings or other peers retain the exact-child probe/commit detach and ordinary Intercom delivery paths.
+An exact-child probe/commit handshake may release parallel foreground observations, including queued slots, so the parent can respond. It does not end any execution or spend a running concurrency slot. Active siblings keep working, queued siblings start once capacity becomes available, and worktrees remain until their owners finish. Do not relaunch children to answer an ask. Targeted interruption, explicit batch cancellation, and owner closure remain separate controls.
 
-With the Intercom bridge active, the parent may load and connect its Intercom runtime before initial child execution to issue the exact child's broker capability. The child connection remains tool-driven. A claimed `contact_supervisor` decision or interview still yields before child send or reply-waiter admission; `intercom.ask` connects the child to resolve both targets.
+Single-child launches retain their existing terminal parent-ask handoff: the exact live child ends before broker send or waiter admission and the parent receives the verbatim question, ordered attachments, identity, and `[TASK_CONTEXT]` for a fresh child. The bridge still obtains each child's capability during admission; the child connects only when it uses Intercom.
 
 Parent-side Atomic sends grouped completion results through Intercom: one grouped message per foreground parent `subagent` run and one per detached child completion while its owning session remains live. When a workflow stage completes, Atomic cancels its still-running detached children and suppresses their late findings and completion notifications instead of forwarding them to the parent/main chat. Intercom-confirmed delivery returns a compact receipt with artifact/session paths; without that confirmation, the normal full output is preserved. Grouped messages include child Intercom targets and full child summaries.
 
@@ -558,7 +558,7 @@ subagent({ action: "status", id: "<run-id>" })
 subagent({ action: "interrupt", id: "<run-id>" })
 ```
 
-Completed, interrupted, and parent-question children are terminal for continuation. A prior run ID cannot revive a child or parallel sibling set. Start a fresh subagent call with an explicit context handoff for follow-up work. Parent cancellation of a still-running foreground child uses that same interrupted/abort state: receipts, Intercom summaries, and progress present it as cancelled rather than failed, persisted metadata keeps interrupted/abort, pre-cancel fallback metadata is preserved, and bounded partial findings are recovered from `progress.md` or earlier assistant text when they exist.
+Completed, interrupted, and single-child terminal-handoff children cannot be revived by a prior run ID; follow-up work requires a fresh launch with explicit context. A parallel child waiting for a reply is not terminal and continues in its original execution. Explicit cancellation of a still-running child uses the interrupted/abort state: receipts and progress present it as cancelled rather than failed, persisted metadata keeps the abort cause, and bounded partial findings remain available.
 
 ## Worktree isolation
 
@@ -582,7 +582,7 @@ Requirements:
 - the main repository's Husky or populated `.git/hooks` directory is shared through `core.hooksPath`
 - gitignored files matched by `.worktreeinclude` are copied into the worktree
 
-After a worktree parallel step reaches any terminal result, per-agent diff stats are appended to the output and full patch files are written to artifacts. A parent-directed ask terminally ends the active set, captures its staged and unstaged changes in the same handoff result, and then cleans up every worktree and `worktree-*` branch after a brief Git lock-release wait. The same cleanup runs after post-creation setup failures.
+After a worktree parallel step reaches a terminal result, per-agent diff stats are appended to the output and full patch files are written to artifacts. Intercom observation yielding keeps live and queued children's worktrees intact. Cleanup removes worktrees and `worktree-*` branches only after their executions finish, following the existing brief Git lock-release wait. The same cleanup runs after post-creation setup failures.
 
 ## Configuration
 
