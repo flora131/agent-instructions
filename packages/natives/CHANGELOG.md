@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.19-alpha.2] - 2026-09-08
+
 ### Added
 
 - Added replay-safe model and reasoning activity reports and retained model and thinking fields on task snapshots, including settled tasks.
