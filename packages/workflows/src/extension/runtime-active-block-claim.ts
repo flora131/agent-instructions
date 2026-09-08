@@ -85,6 +85,12 @@ export function finalizeResumedActiveBlockedSourceRun(
 	continuationRunId: string,
 ): void {
 	if (claim.mismatchSettled || claim.killedByClaim) return;
+	if (source.status === "blocked" && claim.store.runs().find((run) => run.id === source.id) === source) {
+		// Terminal blocks cannot be overwritten by recordRunEnd. After admission,
+		// restore this exact recoverable source onto the active-block rail first;
+		// the durable source remains untouched and unrelated terminal wins stay final.
+		restoreActiveBlockedSource(source, claim);
+	}
 	const error = source.error ?? source.failureMessage ?? `workflow resumed in new run ${continuationRunId}`;
 	claim.killedByClaim = claim.store.recordRunEnd(
 		source.id,
@@ -95,10 +101,22 @@ export function finalizeResumedActiveBlockedSourceRun(
 	);
 }
 
-function canRestoreActiveBlockedSource(live: RunSnapshot | undefined, claim: ActiveBlockedResumeClaim): boolean {
+function canRestoreActiveBlockedSource(
+	live: RunSnapshot | undefined,
+	claim: ActiveBlockedResumeClaim,
+	source: RunSnapshot,
+): boolean {
 	if (live === undefined) return true;
 	if (live.status === "killed" && live.failureDisposition === "terminal_killed") {
 		return claim.killedByClaim && !claim.terminalEndAttempted;
+	}
+	if (
+		live === source &&
+		live.status === "blocked" &&
+		live.resumable === true &&
+		live.failureRecoverability === "recoverable"
+	) {
+		return true;
 	}
 	if (live.endedAt === undefined && live.resumable === true && live.failureDisposition === "active_blocked") {
 		return true;
@@ -108,7 +126,7 @@ function canRestoreActiveBlockedSource(live: RunSnapshot | undefined, claim: Act
 
 function restoreActiveBlockedSource(source: RunSnapshot, claim: ActiveBlockedResumeClaim): void {
 	const live = claim.store.runs().find((candidate) => candidate.id === source.id);
-	if (!canRestoreActiveBlockedSource(live, claim)) return;
+	if (!canRestoreActiveBlockedSource(live, claim, source)) return;
 	claim.store.restoreActiveBlockedRun(source, source.error ?? source.failureMessage ?? "workflow is blocked", {
 		failureRecoverability: "recoverable",
 		failureDisposition: "active_blocked",

@@ -24,12 +24,15 @@ The reporter uses `agent_start`, `agent_settled`, `ui_prompt_start`, `ui_prompt_
 | Agent executing without an open approval prompt | `working` | `executing` | None unless a workflow needs attention |
 | Workflow execution, automatic continuation, retry, or stop-drain | `working` | Workflow's `executing`, `automatic_continuation`, `retrying`, or `stopping` | `Workflow needs attention` when a root is blocked or needs attention |
 | Approval prompt is the only remaining work, including an agent parked on that prompt | `blocked` | `awaiting_input` | `Waiting for approval` |
-| Blocked workflow with no independent execution or foreground prompt | `blocked` | Workflow's `awaiting_input` or `manual_intervention` | `Workflow needs attention` |
+| Workflow waiting for input, an active intervention, or budget approval, with no independent execution | `blocked` | Workflow's `awaiting_input` or `manual_intervention` | `Workflow needs attention` |
 | All observed workflows paused, no agent or prompt work | `idle` | `paused` | None |
 | Settled agent, no prompt, ready workflow source with no work | `idle` | `quiescent` | None |
+| Failed or blocked workflow whose executor has finished, with no pending prompt or budget approval | `idle` | `quiescent` | `Workflow needs attention` |
 | Workflow source `unavailable` or `recovering`, no known contribution | No new report | Unknown | None |
 
 Independent workflow execution keeps the pane working even after the parent agent settles or while another contribution waits for approval. Reasons are internal reducer values, not extra CLI fields. Missing workflow knowledge is never treated as an empty ready snapshot, so an unavailable provider can leave the last reported state unchanged until a ready snapshot arrives.
+
+A failed review or cleanup can leave a workflow outcome marked `blocked` after execution ends. That outcome remains inspectable and retains `needsAttention`, but does not by itself keep the pane red. A pending decision or exhausted budget still reports `blocked`; independent execution still reports `working`. Reporting `idle` neither acknowledges the failure nor resumes it. The parent session retains pane ownership until it exits, so a child stopping does not call `release-agent` for the parent.
 
 Opening or closing the host-owned `/tasks` inspector is navigation and does not emit an approval span or change Herdr activity. Genuine extension approval prompts still report `blocked`. This follows [Herdr's custom-agent contract](https://herdr.dev/docs/integrations/#integrate-your-own-agent), which defines `blocked` as needing a user decision. [Prime Agent's reporter](https://github.com/PrimeIntellect-ai/prime-agent/blob/main/packages/coding-agent/src/core/extensions/builtin/herdr-agent-state.ts) likewise observes explicit block notifications. Atomic retains its settled-event and workflow aggregation instead of copying Prime's retry grace timers.
 

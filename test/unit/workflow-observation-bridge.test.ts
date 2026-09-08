@@ -317,8 +317,8 @@ for (const shape of ["repeated quit after drain", "hydrated run without an execu
 	});
 }
 
-// #2891: failed workflows remain actionable without notification delivery.
-test("live workflow failure is blocked for manual intervention", async () => {
+// #2891: settled failures retain attention without inventing a pending user decision.
+test("settled workflow failure is idle with attention", async () => {
 	const store = createStore();
 	const hub = new WorkflowActivityHub();
 	const observation = createWorkflowObservation(store, hub.registerWorkflowActivityPublisher(), "owner");
@@ -337,8 +337,10 @@ test("live workflow failure is blocked for manual intervention", async () => {
 	);
 	const frame = hub.getSnapshotFrame();
 	assert.ok(frame.availability === "ready");
-	assert.equal(frame.roots[0]?.state, "blocked");
-	assert.equal(frame.roots[0]?.reason, "manual_intervention");
+	assert.equal(frame.roots[0]?.state, "idle");
+	assert.equal(frame.roots[0]?.reason, "quiescent");
+	assert.equal(frame.roots[0]?.needsAttention, true);
+	assert.equal(frame.roots[0]?.actionableBlockCount, 0);
 	observation.dispose();
 });
 

@@ -71,6 +71,9 @@
 - Matched main and workflow-stage `/tasks` compact pickers, retaining model, reasoning, session cwd/branch, and MCP context even while the owner streams. Task navigation no longer produces a false main-chat input notice; genuine pending prompts keep their routing and clear the notice when answered or the graph is hidden.
 - Fixed concurrent inline approvals hiding one another when completed or canceled out of order. The surviving prompt or task picker stays visible and regains input after leaving the workflow graph, in both local and isolated interactive modes. Canceled isolated approvals no longer leave a dead loading component behind.
 - Released alternate-folder Git branch watchers, polling and retry timers when their last chat footer closes or changes folders, while preserving concurrent main/stage updates and ignoring stale refreshes after replacement ([#2926](https://github.com/bastani-inc/atomic/pull/2926)).
+- Finished workflow failures now let Herdr return to idle while retaining attention and the failed outcome. Pending decisions, budget approvals, and live execution keep their existing states.
+- Fixed resume requests for ended recoverable workflow blocks falling through to a snapshot-only response. Non-resumable targets and unchanged blocked snapshots no longer report success.
+- Fixed macOS background-command cleanup failing immediately when a terminated process group temporarily contains an unreaped zombie. Cleanup remains bounded and still requires confirmed group disappearance.
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

@@ -67,6 +67,7 @@ function projectRoot(
 	let activeExecutionCount = 0;
 	let humanWaits = 0;
 	let manualWaits = 0;
+	let settledFailure = false;
 	let retrying = false;
 	let runnable = false;
 	let paused = false;
@@ -88,8 +89,12 @@ function projectRoot(
 				run.blockedAt !== undefined ||
 				run.failureDisposition === "active_blocked") &&
 			!ownership.acknowledgedFailureRunIds.has(run.id)
-		)
-			manualWaits++;
+		) {
+			// A finished failure is an outcome to inspect, not an open user decision.
+			// Budget stops still require approval even after their executor settles.
+			if (run.endedAt !== undefined && run.budgetState?.systemOwnedStop !== true) settledFailure = true;
+			else manualWaits++;
+		}
 		const statuses = new Map([...run.stages, ...(run.toolNodes ?? [])].map((node) => [node.id, node.status]));
 		for (const stage of run.stages) {
 			if (run.status === "running" && stage.status === "paused") paused = true;
@@ -158,7 +163,7 @@ function projectRoot(
 		reason,
 		activeExecutionCount,
 		actionableBlockCount,
-		needsAttention: actionableBlockCount > 0,
+		needsAttention: actionableBlockCount > 0 || settledFailure,
 	};
 }
 
