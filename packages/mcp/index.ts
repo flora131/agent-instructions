@@ -1,6 +1,6 @@
 import { isStaleExtensionContextError, type AgentToolUpdateCallback, type ExtensionAPI, type ExtensionContext, type SubagentChildPolicy, type ToolInfo } from "@bastani/atomic";
 import type { McpExtensionState } from "./state.js";
-import type { McpConfig } from "./types.ts";
+import type { McpConfig } from "./types.js";
 import type { MetadataCache } from "./metadata-cache.js";
 import type { ProxyToolResult } from "./proxy-types.js";
 import { waitForCaller } from "./caller-wait.js";

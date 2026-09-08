@@ -2,9 +2,9 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir } from "../../config.js";
 import { resolvePath } from "../../utils/paths.ts";
-import type { EventBus } from "../event-bus.ts";
+import type { EventBus } from "../event-bus.js";
 import { readPiManifestFile } from "../package-manager-manifest.ts";
-import { loadExtensions } from "./loader-core.ts";
+import { loadExtensions } from "./loader-core.js";
 import type { LoadExtensionsResult } from "./types.ts";
 
 function isExtensionFile(name: string): boolean {

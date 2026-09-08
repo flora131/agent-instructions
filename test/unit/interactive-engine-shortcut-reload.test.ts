@@ -41,9 +41,10 @@ class InteractiveModeDriver {
 	private stderr = "";
 
 	constructor(args: string[], env: Record<string, string>) {
-		const baseEnv: Record<string, string | undefined> = { ...process.env };
-		for (const key of Object.keys(baseEnv)) {
-			if (key.startsWith("ATOMIC_INTERACTIVE_ENGINE_")) delete baseEnv[key];
+		// The CLI child must not inherit this test runner's or Atomic owner's session.
+		const baseEnv: Record<string, string | undefined> = { HOME: env.ATOMIC_CODING_AGENT_DIR };
+		for (const key of ["PATH", "SystemRoot", "WINDIR", "TEMP", "TMP", "TMPDIR", "TERM"]) {
+			baseEnv[key] = process.env[key];
 		}
 		this.process = spawnProcess(
 			[bunExecutable(), join(moduleDir(import.meta.url), "fixtures", "default-main-interactive-host.ts"), ...args],
@@ -443,18 +444,13 @@ serialTest(
 			await driver.waitFor(
 				(report) => report.type === "heartbeat" && report.editorText === "restart with new shortcuts",
 			);
-			driver.send({ type: "input", data: "\r" });
-			while (!existsSync(toolPidFile)) await sleep(10);
 			const interruptReadyIndex = driver.reports.length;
-			await driver.waitForNext(
-				interruptReadyIndex,
-				(report) => report.type === "heartbeat" && report.streaming === true,
-				ENGINE_REPORT_TIMEOUT_MS,
-				"host streaming interrupt readiness",
-			);
+			driver.send({ type: "input", data: "\r" });
 			// Escape only requests a cooperative abort now; the explicit Ctrl+C escape
 			// hatch is what replaces a wedged generation. Wait for THIS tool's stall to
 			// cross the watchdog's unresponsive threshold, not an earlier startup stall.
+			// The RPC streaming snapshot can lag until the blocking callback returns;
+			// waiting for it would miss the live termination window on a fast host.
 			await driver.waitForNext(
 				interruptReadyIndex,
 				(report) =>
@@ -464,6 +460,7 @@ serialTest(
 				ENGINE_REPORT_TIMEOUT_MS,
 				"engine unresponsive watchdog diagnostic",
 			);
+			assert.equal(Number(readFileSync(toolPidFile, "utf8")), initial.enginePid);
 			const terminateIndex = driver.reports.length;
 			driver.send({ type: "input", data: "\x03" });
 			const recovering = await driver.waitForNext(

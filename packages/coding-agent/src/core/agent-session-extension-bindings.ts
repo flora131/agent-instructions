@@ -3,14 +3,14 @@ import { resetApiProviders } from "@bastani/pi-ai/compat";
 import type { AgentSessionInternalSurface as AgentSession } from "./agent-session-methods.ts";
 import { recoverProtectedStreamingCustomMessages } from "./agent-session-persistent-custom-messages.ts";
 import type { AgentSessionReloadOptions, ExtensionBindings } from "./agent-session-types.ts";
-import { ExtensionRunner } from "./extensions/index.ts";
+import { ExtensionRunner } from "./extensions/index.js";
 import { emitSessionShutdownEvent } from "./extensions/runner.ts";
 import { ModelRegistry } from "./model-registry.ts";
 import type { ExtensionProviderTransaction, ModelRuntime } from "./model-runtime.js";
 import type { PathMetadata } from "./package-manager.ts";
 import type { ResourceExtensionPaths, ResourceLoader } from "./resource-loader.ts";
 import { getSkillCatalog } from "./skill-catalog.ts";
-import type { SlashCommandInfo } from "./slash-commands.ts";
+import type { SlashCommandInfo } from "./slash-commands.js";
 
 class ExtensionPublicationGate {
 	readonly resourceLoader: ResourceLoader;

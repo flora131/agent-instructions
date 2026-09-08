@@ -13,7 +13,7 @@ import { markLifecycleTiming } from "../../core/lifecycle-timings.ts";
  */
 
 import { setKeybindings } from "@earendil-works/pi-tui";
-import type { AgentSession } from "../../core/agent-session.ts";
+import type { AgentSession } from "../../core/agent-session.js";
 import type { AgentSessionRuntime } from "../../core/agent-session-runtime.ts";
 import { KeybindingsManager } from "../../core/keybindings.ts";
 import { flushRawStdout, takeOverStdout, writeRawStdout } from "../../core/output-guard.ts";

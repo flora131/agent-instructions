@@ -3,7 +3,7 @@ import type { AgentSessionInternalSurface as AgentSession } from "./agent-sessio
 import type { BashResult } from "./bash-executor.ts";
 import { executeBashWithOperations } from "./bash-executor.ts";
 import type { BashExecutionMessage } from "./messages.ts";
-import { type BashOperations, type BashOutputChannel, createLocalBashOperations } from "./tools/bash.ts";
+import { type BashOperations, type BashOutputChannel, createLocalBashOperations } from "./tools/bash.js";
 import { applyBashSessionEnvironment, snapshotBashSessionEnvironment } from "./tools/bash-session-environment.ts";
 import { resolveSessionTempDirPath } from "./tools/session-temp-dir.ts";
 

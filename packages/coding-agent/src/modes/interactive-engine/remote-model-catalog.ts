@@ -1,6 +1,6 @@
 import type { ModelsRefreshResult } from "@bastani/pi-ai";
 import type { Api, Model } from "@bastani/pi-ai/compat";
-import type { AgentSession } from "../../core/agent-session.ts";
+import type { AgentSession } from "../../core/agent-session.js";
 import { INTERACTIVE_MODEL_REFRESH_TIMEOUT_MS } from "../../core/model-refresh-timeout.ts";
 import type { RpcClient } from "../rpc/rpc-client.ts";
 import type { RpcModelCatalog } from "../rpc/rpc-types.ts";

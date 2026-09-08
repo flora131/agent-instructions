@@ -9,7 +9,7 @@ import {
 import type { ChatSessionHostState } from "./chat-session-host-state.ts";
 import type { ChatSessionHostOpts, ChatSessionSubmitMode } from "./chat-session-host-types.ts";
 import { matchesKey } from "./chat-session-host-utils.ts";
-import type { ChatTranscriptEntryLike } from "./chat-transcript.ts";
+import type { ChatTranscriptEntryLike } from "./chat-transcript.js";
 import { CustomEditor } from "./custom-editor.ts";
 
 export interface ChatSessionEditorCallbacks {

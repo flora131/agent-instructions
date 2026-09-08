@@ -15,7 +15,7 @@ import {
 	type BashToolOptions,
 	createBashToolDefinition,
 	type ShellToolPresentation,
-} from "./bash.ts";
+} from "./bash.js";
 import { wrapToolDefinition } from "./tool-definition-wrapper.ts";
 
 const POWERSHELL_PRESENTATION: ShellToolPresentation = {

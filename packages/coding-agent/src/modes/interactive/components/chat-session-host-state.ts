@@ -1,5 +1,5 @@
 import type { Component, EditorComponent, MarkdownTheme, TUI } from "@earendil-works/pi-tui";
-import type { AgentSession } from "../../../core/agent-session.ts";
+import type { AgentSession } from "../../../core/agent-session.js";
 import type { ReadonlyFooterDataProvider } from "../../../core/footer-data-provider.ts";
 import { LiveChatEntriesController } from "./chat-message-renderer.ts";
 import type {
@@ -12,7 +12,7 @@ import {
 	ChatTranscriptComponent,
 	type ChatTranscriptEntryLike,
 	ScrollableComponentViewport,
-} from "./chat-transcript.ts";
+} from "./chat-transcript.js";
 
 export interface ChatSessionHostStateCallbacks<TExtraEntry extends ChatTranscriptEntryLike> {
 	renderEntry: (state: ChatSessionHostState<TExtraEntry>, entry: ChatSessionHostEntry<TExtraEntry>) => Component;

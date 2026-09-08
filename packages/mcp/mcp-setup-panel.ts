@@ -1,6 +1,6 @@
 import { matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { CONFIG_DIR_NAME } from "@bastani/atomic";
-import type { ImportKind } from "./types.ts";
+import type { ImportKind } from "./types.js";
 import type { ConfigWritePreview, McpDiscoverySummary } from "./config.ts";
 import type { McpOnboardingState } from "./onboarding-state.ts";
 interface SetupTheme { border: string; title: string; selected: string; hint: string; success: string; warning: string; muted: string; }

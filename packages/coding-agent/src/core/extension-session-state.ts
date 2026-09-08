@@ -1,4 +1,4 @@
-import { canonicalEventBusFor } from "./event-bus.ts";
+import { canonicalEventBusFor } from "./event-bus.js";
 
 /**
  * Process-global store for session state, shared by duplicate host-module

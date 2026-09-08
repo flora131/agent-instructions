@@ -4,6 +4,11 @@ This package is a Bastani fork of `@earendil-works/pi-ai`. Upstream history at t
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed Anthropic Messages tool requests advertising root object-union parameter schemas without fields by projecting their branch fields into Anthropic-compatible object schemas ([#2190](https://github.com/bastani-inc/atomic/pull/2190) by [@elefthei](https://github.com/elefthei)).
+- Fixed Anthropic object-union tool projection dropping own property names such as `__proto__` and incorrectly projecting explicitly nonobject branches with `properties` metadata; authored schemas and runtime validation remain unchanged ([#2190](https://github.com/bastani-inc/atomic/pull/2190), [#2189](https://github.com/bastani-inc/atomic/issues/2189)).
+
 ## [0.9.18] - 2026-09-05
 
 Cumulative release of the `0.9.18-alpha.5` through `0.9.18-alpha.7` prereleases. Per-change details remain in the unchanged prerelease sections below.
@@ -92,8 +97,6 @@ Cumulative release of the `0.9.18-alpha.5` through `0.9.18-alpha.7` prereleases.
 - Fixed OpenAI Codex SSE parsing to process terminal events that are not followed by a blank line ([#9047](https://github.com/earendil-works/pi/issues/9047)).
 - Fixed the Qwen Token Plan Individual catalog to include Qwen3.8 Flash ([#9021](https://github.com/earendil-works/pi/issues/9021)).
 - Fixed assistant-message frames dropping `providerThinkingLevel` from the start snapshot ([upstream `0fdec07b`](https://github.com/earendil-works/pi/commit/0fdec07ba397)).
-- Fixed Anthropic Messages tool requests advertising root object-union parameter schemas without fields by projecting their branch fields into Anthropic-compatible object schemas ([#2190](https://github.com/bastani-inc/atomic/pull/2190) by [@elefthei](https://github.com/elefthei)).
-- Fixed Anthropic object-union tool projection dropping own property names such as `__proto__` and incorrectly projecting explicitly nonobject branches with `properties` metadata; authored schemas and runtime validation remain unchanged ([#2190](https://github.com/bastani-inc/atomic/pull/2190), [#2189](https://github.com/bastani-inc/atomic/issues/2189)).
 
 ## [0.9.18-alpha.5] - 2026-09-01
 

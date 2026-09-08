@@ -1,6 +1,6 @@
 import type { ExtensionAPI, ExtensionContext } from "@bastani/atomic";
 import type { McpExtensionState } from "./state.js";
-import type { McpAuthResult, McpConfig, ServerEntry, McpPanelCallbacks, McpPanelResult, ImportKind } from "./types.ts";
+import type { McpAuthResult, McpConfig, ServerEntry, McpPanelCallbacks, McpPanelResult, ImportKind } from "./types.js";
 import {
   ensureCompatibilityImports,
   getMcpDiscoverySummary,

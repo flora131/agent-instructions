@@ -323,7 +323,10 @@ test("blocked and archived stage composers cannot submit a skill and tasks remai
 	try {
 		const view = fixture.mount();
 		submitStageSkillText(view, "/tasks");
-		await vi.waitFor(() => assert.match(view.render(120).map(stripVTControlCharacters).join("\n"), /unavailable/i));
+		await vi.waitFor(() =>
+			assert.match(view.render(120).map(stripVTControlCharacters).join("\n"), /Background tasks/),
+		);
+		view.handleInput("\x1b");
 		assert.equal(fixture.userTexts().length, 1);
 		view.dispose();
 		const snapshot = fixture.store.runs()[0]!.stages[0]!;
@@ -344,7 +347,7 @@ test("blocked and archived stage composers cannot submit a skill and tasks remai
 	}
 });
 
-test("Escape-settling stage task inspection never resumes or admits list/detail commands", async () => {
+async function inspectTasksDuringPause(failureBeforeSettlement?: Error): Promise<void> {
 	const harness = await createHarness({ settings: { retry: { enabled: false } } });
 	const started = Promise.withResolvers<void>();
 	const aborted = Promise.withResolvers<void>();
@@ -416,12 +419,14 @@ test("Escape-settling stage task inspection never resumes or admits list/detail 
 			submitStageSkillText(view, command);
 			await vi.waitFor(() => {
 				assert.equal(editor?.getText(), "");
-				assert.equal(view?._statusMessage, "Task inspection is unavailable in this host.");
+				assert.match(view!.render(120).map(stripVTControlCharacters).join("\n"), /Background tasks/);
 			});
+			view.handleInput("\x1b");
 			assert.deepEqual(getUserTexts(harness), before);
 			assert.deepEqual(harness.session.getSteeringMessages(), []);
 			assert.deepEqual(harness.session.getFollowUpMessages(), []);
 		}
+		if (failureBeforeSettlement) throw failureBeforeSettlement;
 		releaseAbort.resolve();
 		await vi.waitFor(() => assert.equal(handle.status, "paused"));
 		assert.equal(harness.session.queuedMessagesPaused, true);
@@ -429,12 +434,22 @@ test("Escape-settling stage task inspection never resumes or admits list/detail 
 		assert.equal(store.runs()[0]!.status, "paused");
 	} finally {
 		releaseAbort.resolve();
+		await harness.session.abort();
 		view?.dispose();
 		abort.abort();
 		await running;
 		registry.clear();
 		harness.cleanup();
 	}
+}
+
+test("Escape-settling stage task inspection never resumes or admits list/detail commands", async () => {
+	await inspectTasksDuringPause();
+});
+
+test("stage inspection assertion failure drains the interrupted turn before workflow teardown", async () => {
+	const failure = new Error("fixture assertion before pause settlement");
+	await assert.rejects(inspectTasksDuringPause(failure), (error) => error === failure);
 });
 
 test("replay refuses skill-bearing user delivery without creating a session", async () => {

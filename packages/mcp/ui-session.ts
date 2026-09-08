@@ -10,7 +10,7 @@ import {
   type UiMessageParams,
   type UiModelContextParams,
   type UiStreamMode,
-} from "./types.ts";
+} from "./types.js";
 import { logger } from "./logger.ts";
 import { startUiServer, type UiServerHandle } from "./ui-server.ts";
 import { isGlimpseAvailable, openGlimpseWindow } from "./glimpse-ui.js";

@@ -228,6 +228,8 @@ const proseNames = new Set([
 	"tsgo",
 	"write",
 	"edit",
+	// PR #2920 names the question tool in prompt guidance, not a package-root export.
+	"ask_user_question",
 	// Terminal UI copy, not a symbol: the interactive working-status label.
 	"Working",
 ]);

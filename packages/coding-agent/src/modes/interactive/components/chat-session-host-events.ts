@@ -1,4 +1,4 @@
-import type { AgentSession, AgentSessionEvent } from "../../../core/agent-session.ts";
+import type { AgentSession, AgentSessionEvent } from "../../../core/agent-session.js";
 import type { CompactionReason } from "../../../core/agent-session-types.ts";
 import {
 	type CompactionRung,
@@ -27,7 +27,7 @@ import {
 	isUserMessageLike,
 	userMessageSignature,
 } from "./chat-session-host-utils.ts";
-import type { ChatTranscriptEntryLike } from "./chat-transcript.ts";
+import type { ChatTranscriptEntryLike } from "./chat-transcript.js";
 
 export type { CompactionReason } from "../../../core/agent-session-types.ts";
 
