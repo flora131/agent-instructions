@@ -181,6 +181,13 @@ describe("renderStatusList — populated", () => {
 			stages: [makeStage("ask", "ask", "awaiting_input")],
 		});
 		child.parentRunId = root.id;
+		// #2700: nested attribution requires the runtime's reciprocal live boundary.
+		child.parentStageId = "child-boundary";
+		root.stages.push(
+			makeStage("child-boundary", "child", "running", {
+				workflowChildRun: { alias: "child", workflow: child.name, runId: child.id },
+			}),
+		);
 		const out = renderStatusList([root], { theme, width: 100, allRuns: [root, child], showDetailHint: false });
 		const plain = stripAnsi(out);
 		const idLine = plain.split("\n").find((line) => line.includes(root.id));

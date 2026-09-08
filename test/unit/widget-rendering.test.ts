@@ -1388,8 +1388,10 @@ describe("renderWidgetLines — awaiting-input affordances", () => {
 
 		const roomy = buildThemedWidgetLines(makeSnap([run]), undefined, 120, run.startedAt + 5_000).map(stripAnsi);
 		for (const line of roomy) assert.equal(visibleWidth(line), 120);
-		const exactPendingTarget = `${runId}:r`;
+		// #2700: preserve current main's root-anchored Intercom target on HIL cards.
+		const exactPendingTarget = `workflow:${runId}/r`;
 		assert.match(roomy.join("\n"), new RegExp(exactPendingTarget));
+		assert.doesNotMatch(roomy.join("\n"), new RegExp(`workflow:${runId}/…`));
 		assert.doesNotMatch(roomy.join("\n"), new RegExp(`${runId}:…`));
 	});
 
