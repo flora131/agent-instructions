@@ -62,6 +62,7 @@ export interface WorkflowLifecycleRegistrationDeps {
 	runtimeState: WorkflowExtensionRuntimeState;
 	storeWidgetRef: { current: (() => void) | null };
 	intercomControlRef: { current: (() => void) | null };
+	disposeObservation?: () => void;
 }
 
 export function registerWorkflowLifecycleHandlers(pi: ExtensionAPI, deps: WorkflowLifecycleRegistrationDeps): void {
@@ -170,5 +171,6 @@ export function registerWorkflowLifecycleHandlers(pi: ExtensionAPI, deps: Workfl
 		runtimeState.setNotificationsActive(false);
 		if (reason === "quit") await shutdownDbosQuietly();
 		else await flushDbosQuietly();
+		deps.disposeObservation?.();
 	});
 }

@@ -9,6 +9,8 @@ Atomic uses JSON settings files with project settings overriding global settings
 
 Edit directly or use `/settings` for common options. Choosing a model or thinking level with `/model`, `/thinking`, or their cycling shortcuts automatically saves it as the startup default. Thinking choices also update the active model's saved thinking level. `/scoped-models` saves cycle-list changes automatically. SDK calls, session restoration, and automatic fallbacks do not overwrite these defaults unless persistence is explicitly requested. Atomic also reads legacy `~/.pi/agent/settings.json` and `.pi/settings.json` as compatibility fallbacks, with `.atomic` paths taking precedence.
 
+Saving an Atomic setting applies only the changed fields to the corresponding `.atomic` file; it does not copy untouched fallback fields out of `.pi`. To intentionally override an inherited array such as `packages`, set it in `.atomic`, including an explicit empty array (`"packages": []`) when the inherited list should be disabled.
+
 ## Project Trust
 
 On interactive startup, Atomic asks before trusting a project folder that contains trust-gated project inputs and has no saved decision for the folder or a parent folder in `~/.atomic/agent/trust.json`. Trusting a project allows Atomic to load project-local `.atomic/settings.json` and `.atomic` resources, legacy `.pi/settings.json` and `.pi` resources, project-local context files, install missing project packages, and execute project extensions.
@@ -28,6 +30,14 @@ If a bare directory starts without trust-gated inputs, Atomic may run the intera
 Settings and trust JSON files may start with a UTF-8 BOM, as commonly written by older Windows tools; Atomic strips that leading marker before parsing.
 
 ## All Settings
+
+### Herdr
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `herdr.enabled` | boolean | `true` | Enable the built-in reporter in an eligible Herdr pane. Set to `false`, then reload or restart to opt out. Requires `mode: "tui"`, a UI, and the Herdr environment variables. Child sessions and other modes never claim. |
+
+See [Herdr](/herdr) for state aggregation, reporter conflicts, privacy, and Herdr 0.8.2 limitations.
 
 ### Model & Thinking
 

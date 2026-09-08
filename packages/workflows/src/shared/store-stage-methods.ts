@@ -10,6 +10,7 @@ import type { StageControlMetadata, Store } from "./store-public-types.js";
 import { nextExecutionOrder } from "./store-tool-node-methods.js";
 import type { StageInputRequest, StageNotice, StageSnapshot, ToolEvent, WorkflowChildRunRef } from "./store-types.js";
 import { accumulatePausedDurationMs, nextControlTimestamp } from "./timing.js";
+import { workflowActivityNodeKey } from "./workflow-activity.js";
 
 type StageStoreMethods = Pick<
 	Store,
@@ -40,6 +41,9 @@ export function createStageStoreMethods(context: StoreContext): StageStoreMethod
 			if (!run.stages.some((s) => s.id === stage.id)) {
 				run.stages.push(stage);
 			}
+			if (stage.status === "running" && context.observation.liveRunIds.has(runId)) {
+				context.observation.executingStageIds.add(workflowActivityNodeKey(runId, stage.id));
+			}
 			context.bumpAndNotify();
 		},
 
@@ -48,12 +52,16 @@ export function createStageStoreMethods(context: StoreContext): StageStoreMethod
 			if (!run) return false;
 			const stage = context.findStage(run, stageId);
 			if (!stage) return false;
+			// The child contributes its own execution; its boundary is not an independent worker.
+			const released = context.observation.executingStageIds.delete(workflowActivityNodeKey(runId, stageId));
 			if (
 				stage.workflowChildRun?.runId === ref.runId &&
 				stage.workflowChildRun.alias === ref.alias &&
 				stage.workflowChildRun.workflow === ref.workflow
-			)
+			) {
+				if (released) context.bumpAndNotify();
 				return false;
+			}
 			stage.workflowChildRun = { ...ref };
 			context.bumpAndNotify();
 			return true;
@@ -89,6 +97,7 @@ export function createStageStoreMethods(context: StoreContext): StageStoreMethod
 			if (!run) return;
 			const existing = context.findStage(run, stage.id);
 			if (!existing) return;
+			context.observation.executingStageIds.delete(workflowActivityNodeKey(runId, stage.id));
 			existing.status = stage.status;
 			existing.endedAt = stage.endedAt;
 			if (existing.endedAt !== undefined && existing.pausedAt !== undefined) {
@@ -285,6 +294,7 @@ export function createStageStoreMethods(context: StoreContext): StageStoreMethod
 				context.bumpAndNotify();
 				return false;
 			}
+			context.observation.executingStageIds.delete(workflowActivityNodeKey(runId, stageId));
 			stage.status = "paused";
 			stage.pausedAt = nextControlTimestamp(pausedAt, stage.resumedAt);
 			stage.resumedAt = undefined;
@@ -313,6 +323,8 @@ export function createStageStoreMethods(context: StoreContext): StageStoreMethod
 				return false;
 			}
 			const resumedTs = nextControlTimestamp(resumedAt, stage.pausedAt);
+			if (context.observation.liveRunIds.has(runId))
+				context.observation.executingStageIds.add(workflowActivityNodeKey(runId, stageId));
 			stage.status = "running";
 			if (stage.startedAt !== undefined) {
 				stage.pausedDurationMs = accumulatePausedDurationMs(stage.pausedDurationMs, stage.pausedAt, resumedTs);

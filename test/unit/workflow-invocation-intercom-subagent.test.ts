@@ -64,6 +64,7 @@ function stageContext(
 		getContextUsage: () => undefined,
 		compact: () => {},
 		getSystemPrompt: () => "",
+		observeWorkflowActivity: () => ({ dispose() {} }),
 	} satisfies ExtensionContext;
 }
 

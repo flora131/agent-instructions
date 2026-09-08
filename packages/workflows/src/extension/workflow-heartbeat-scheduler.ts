@@ -2,6 +2,7 @@ import type { SessionEntry } from "../shared/persistence-restore.js";
 import { effectiveRunStatus } from "../shared/returned-run-status.js";
 import { isTopLevelWorkflowRun } from "../shared/run-visibility.js";
 import type { Store } from "../shared/store.js";
+import { workflowObservationRuntime } from "../shared/store-factory.js";
 import { isTerminalRunStatus } from "../shared/store-internal.js";
 import { readGraphStoreSnapshot, subscribeStoreInvalidation } from "../shared/store-observation.js";
 import type { RunSnapshot, StoreSnapshot } from "../shared/store-types.js";
@@ -545,6 +546,7 @@ export function installWorkflowHeartbeatScheduler(
 		const identity: WorkflowHeartbeatIdentity = { runId: payload.runId, scheduledAt: payload.scheduledAt };
 		state.pending.set(payload.runId, identity);
 		state.lastEnqueuedAt.set(payload.runId, payload.scheduledAt);
+		workflowObservationRuntime(options.store).heartbeat(payload.runId, payload.scheduledAt, payload.intervalMinutes);
 		delivery.deliver(payload);
 		return { kind: "enqueued", identity };
 	};

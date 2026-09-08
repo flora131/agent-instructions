@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Type } from "typebox";
 import { afterEach, describe, test, vi } from "vitest";
+import { WorkflowActivityHub } from "../../packages/coding-agent/src/core/extensions/workflow-activity-hub.js";
 import { workflow } from "../../packages/workflows/src/authoring/workflow.js";
 import { InMemoryDurableBackend } from "../../packages/workflows/src/durable/backend.js";
 import { setDurableBackend } from "../../packages/workflows/src/durable/factory.js";
@@ -20,6 +21,7 @@ import {
 } from "../../packages/workflows/src/engine/run-liveness.js";
 import { createToolControlRegistry } from "../../packages/workflows/src/engine/run-tool-control-registry.js";
 import { createExtensionRuntime } from "../../packages/workflows/src/extension/runtime.js";
+import { createWorkflowObservation } from "../../packages/workflows/src/extension/workflow-observation.js";
 import { summarizeRunSnapshot } from "../../packages/workflows/src/extension/workflow-status-summary.js";
 import { createJobTracker } from "../../packages/workflows/src/runs/background/job-tracker.js";
 import { quitRun } from "../../packages/workflows/src/runs/background/quit.js";
@@ -1227,44 +1229,61 @@ describe("ctx.task tail liveness", () => {
 		assert.equal(prompts, 0);
 	});
 
+	// #2912: checkpoint suspension must report the requested interrupt, not its quit implementation.
 	test("quit and interrupt terminate a root awaiting a never-settling task-result checkpoint", async () => {
 		const backend = new DelayedTaskCheckpointBackend();
 		setDurableBackend(backend);
 		const store = createStore();
-		const registry = createStageControlRegistry();
-		const toolControls = createToolControlRegistry();
-		const pending = run(
-			taskThenTool,
-			{},
-			{
+		const hub = new WorkflowActivityHub();
+		const actions: string[] = [];
+		hub.bindDispatcher(async (event) => {
+			if (event.type === "workflow_lifecycle" && event.target.kind === "run" && event.target.action)
+				actions.push(event.target.action);
+		});
+		const observation = createWorkflowObservation(store, hub.registerWorkflowActivityPublisher(), "owner");
+		try {
+			const registry = createStageControlRegistry();
+			const toolControls = createToolControlRegistry();
+			const pending = run(
+				taskThenTool,
+				{},
+				{
+					store,
+					durableBackend: backend,
+					stageControlRegistry: registry,
+					toolControlRegistry: toolControls,
+					adapters: { prompt: { prompt: async () => "review done" } },
+				},
+			);
+			const deadline = Date.now() + 2_000;
+			let runId = "";
+			while (Date.now() < deadline) {
+				runId = store.runs().find((candidate) => candidate.name === taskThenTool.name)?.id ?? "";
+				if (
+					runId !== "" &&
+					toolControls.active(runId).some((handle) => handle.nodeId.startsWith("task-checkpoint:"))
+				)
+					break;
+				await new Promise((resolve) => setTimeout(resolve, 5));
+			}
+			assert.ok(runId.length > 0);
+			assert.equal(registry.run(runId).stages().length, 0);
+			const interrupted = await interruptRun(runId, {
 				store,
-				durableBackend: backend,
 				stageControlRegistry: registry,
 				toolControlRegistry: toolControls,
-				adapters: { prompt: { prompt: async () => "review done" } },
-			},
-		);
-		const deadline = Date.now() + 2_000;
-		let runId = "";
-		while (Date.now() < deadline) {
-			runId = store.runs().find((candidate) => candidate.name === taskThenTool.name)?.id ?? "";
-			if (runId !== "" && toolControls.active(runId).some((handle) => handle.nodeId.startsWith("task-checkpoint:")))
-				break;
-			await new Promise((resolve) => setTimeout(resolve, 5));
+			});
+			assert.equal(interrupted.ok, true);
+			const finished = await pending;
+			assert.equal(finished.status, "paused");
+			assert.equal(store.runs().find((candidate) => candidate.id === runId)?.status, "paused");
+			assert.equal(store.runs().find((candidate) => candidate.id === runId)?.exitReason, "quit");
+			assert.equal(backend.getWorkflow(runId)?.status, "paused");
+			await new Promise<void>((resolve) => setImmediate(resolve));
+			assert.deepEqual(actions, ["interrupt"]);
+		} finally {
+			observation.dispose();
 		}
-		assert.ok(runId.length > 0);
-		assert.equal(registry.run(runId).stages().length, 0);
-		const interrupted = await interruptRun(runId, {
-			store,
-			stageControlRegistry: registry,
-			toolControlRegistry: toolControls,
-		});
-		assert.equal(interrupted.ok, true);
-		const finished = await pending;
-		assert.equal(finished.status, "paused");
-		assert.equal(store.runs().find((candidate) => candidate.id === runId)?.status, "paused");
-		assert.equal(store.runs().find((candidate) => candidate.id === runId)?.exitReason, "quit");
-		assert.equal(backend.getWorkflow(runId)?.status, "paused");
 	});
 
 	test("a caught task-tail quit still pauses instead of completing", async () => {

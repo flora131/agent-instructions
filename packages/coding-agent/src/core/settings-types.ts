@@ -137,6 +137,7 @@ export interface Settings {
 	workflows?: string[]; // Array of local workflow file paths or directories
 	enableSkillCommands?: boolean; // default: true - register skills as /skill:name commands
 	terminal?: TerminalSettings;
+	herdr?: { enabled?: boolean }; // default: true, only inside an interactive Herdr pane
 	images?: ImageSettings;
 	enabledModels?: string[]; // Model patterns for cycling (same format as --models CLI flag)
 	defaultTools?: string[]; // Initial built-in tool selection; extension and SDK custom tools stay enabled
@@ -169,6 +170,14 @@ export type SettingsFieldOrigin = "primary" | "legacy";
 
 export interface SettingsStorage {
 	withLock(scope: SettingsScope, fn: (current: string | undefined) => string | undefined): void;
+	/**
+	 * Optional write-specific lock whose callback receives the current primary
+	 * document rather than a layered effective view. Storage implementations
+	 * without a distinct primary document can omit this method; layered storage
+	 * implementations must provide it to keep fallback fields out of the primary
+	 * document.
+	 */
+	withPrimaryWriteLock?(scope: SettingsScope, fn: (currentPrimary: string | undefined) => string | undefined): void;
 	getFieldOrigin?(scope: SettingsScope, field: keyof Settings): SettingsFieldOrigin | undefined;
 }
 
