@@ -26,6 +26,9 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 	return (pi) => {
 		if (!captureHerdrEnvironment(options.env ?? process.env)) return;
 		let owner: PaneOwner | undefined;
+		// Supplied loaders can share handler closures across runners. Only the first
+		// eligible session may drive this reporter, including while its claim awaits retirement.
+		let boundSessionManager: ExtensionContext["sessionManager"] | undefined;
 		let lease: { dispose(): void } | undefined;
 		let agentRunning = false;
 		let openPromptCount = 0;
@@ -51,6 +54,7 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 			if (activity) reportPaneActivity(owner, activity);
 		};
 		pi.on("session_start", async (_event, ctx) => {
+			if (boundSessionManager && ctx.sessionManager !== boundSessionManager) return;
 			const environment = captureHerdrEnvironment(options.env ?? process.env);
 			if (!environment || ctx.mode !== "tui" || !ctx.hasUI || ctx.subagentPolicy || ctx.orchestrationContext) return;
 			if (!(options.enabled ?? enabled)(ctx)) return;
@@ -61,6 +65,7 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 				diagnostic({ kind: "unsupported", owner: conflict });
 				return;
 			}
+			boundSessionManager = ctx.sessionManager;
 			const current = ++generation;
 			lease?.dispose();
 			lease = undefined;
@@ -89,23 +94,28 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 				report();
 			});
 		});
-		pi.on("agent_start", () => {
+		pi.on("agent_start", (_event, ctx) => {
+			if (ctx.sessionManager !== boundSessionManager) return;
 			agentRunning = true;
 			report();
 		});
-		pi.on("agent_settled", () => {
+		pi.on("agent_settled", (_event, ctx) => {
+			if (ctx.sessionManager !== boundSessionManager) return;
 			agentRunning = false;
 			report();
 		});
-		pi.on("ui_prompt_start", () => {
+		pi.on("ui_prompt_start", (_event, ctx) => {
+			if (ctx.sessionManager !== boundSessionManager) return;
 			openPromptCount++;
 			report();
 		});
-		pi.on("ui_prompt_end", () => {
+		pi.on("ui_prompt_end", (_event, ctx) => {
+			if (ctx.sessionManager !== boundSessionManager) return;
 			openPromptCount = Math.max(0, openPromptCount - 1);
 			report();
 		});
-		pi.on("session_shutdown", async () => {
+		pi.on("session_shutdown", async (_event, ctx) => {
+			if (ctx.sessionManager !== boundSessionManager) return;
 			generation++;
 			lease?.dispose();
 			lease = undefined;
