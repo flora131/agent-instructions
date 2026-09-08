@@ -33,6 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Durable tool callbacks now wait for agent tasks they admit to reach terminal results before checkpointing. Yielded observations are replaced with terminal observations without changing the cancellation-before-persistence or commit-wins fences ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Workflow graph canvas and node interiors now use the terminal's background like main and stage chat, instead of painting a fixed dark palette. Themed chrome and focused title tabs remain unchanged.
 - Graph chrome and `/workflow connect` picker rows retain solid background fill across truncated names, filters, and hints. Truncated stage and child-workflow labels keep their focused tab's background, text color, and weight through the ellipsis. Skill, command, and file autocomplete retain terminal-default backgrounds, including selected rows.
+- Classified the workflow graph and run picker as navigation so `/workflow connect` no longer creates a false Herdr approval wait. Actual workflow input waits remain reported.
 
 ## [0.9.19-alpha.1] - 2026-09-06
 
