@@ -156,6 +156,7 @@ export class ExtensionRunner {
 	private shortcutDiagnostics: ResourceDiagnostic[] = [];
 	private commandDiagnostics: ResourceDiagnostic[] = [];
 	private staleMessage: string | undefined;
+	private readonly contextOwner = {};
 	private uiPromptBinding = 0;
 	private activeUIPrompt:
 		| { depth: number; reason: "ui_prompt" | "project_trust"; kind: UIPromptKind; title: string | undefined }
@@ -517,7 +518,7 @@ export class ExtensionRunner {
 	}
 
 	createContext(): ExtensionContext {
-		return createExtensionContext(this.createContextSource());
+		return createExtensionContext(this.createContextSource(), this.contextOwner);
 	}
 
 	createCommandContext(): ExtensionCommandContext {

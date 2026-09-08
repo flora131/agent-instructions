@@ -487,7 +487,18 @@ export async function reload(this: AgentSession, options?: AgentSessionReloadOpt
 	this._extensionProviderIds = new Set(publication.providerIds);
 	extensionsResult.runtime.extensionProviderIds = new Set(publication.providerIds);
 	this.refreshCurrentModelFromRegistry();
-	this._buildRuntime({ activeToolNames, flagValues: previousFlagValues, includeAllExtensionTools: true });
+	// Keep the runner that received session_start: its resource leases belong to it,
+	// not to a third runner recreated at commit without a matching start event.
+	this._extensionRunner = candidateRunner;
+	if (this._extensionRunnerRef) this._extensionRunnerRef.current = candidateRunner;
+	this._bindExtensionCore(candidateRunner);
+	this._applyExtensionBindings(candidateRunner);
+	this._buildRuntime({
+		activeToolNames,
+		flagValues: previousFlagValues,
+		includeAllExtensionTools: true,
+		preserveRunner: true,
+	});
 	if (reason === "reload") await emitSessionShutdownEvent(oldRunner, { type: "session_shutdown", reason: "reload" });
 	oldRunner.invalidate();
 	await publication.release();

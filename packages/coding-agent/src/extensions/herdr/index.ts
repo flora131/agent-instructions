@@ -1,3 +1,4 @@
+import { getExtensionContextOwner } from "../../core/extensions/runner-context.ts";
 import type { ExtensionAPI, ExtensionContext, ExtensionFactory } from "../../core/extensions/types.ts";
 import type { WorkflowRootActivity } from "../../core/extensions/workflow-events.js";
 import { SettingsManager } from "../../core/settings-manager.ts";
@@ -26,9 +27,12 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 	return (pi) => {
 		if (!captureHerdrEnvironment(options.env ?? process.env)) return;
 		let owner: PaneOwner | undefined;
-		// Supplied loaders can share handler closures across runners. Bind the eligible
-		// session through its active/pending claim, until its own shutdown admits a successor.
+		// Supplied loaders can share closures across sessions and overlapping reload runners.
 		let boundSessionManager: ExtensionContext["sessionManager"] | undefined;
+		let boundRunner: object | undefined;
+		const retiredRunners = new WeakSet<object>();
+		const ownsBinding = (ctx: ExtensionContext) =>
+			boundSessionManager !== undefined && getExtensionContextOwner(ctx) === boundRunner;
 		let lease: { dispose(): void } | undefined;
 		let agentRunning = false;
 		let openPromptCount = 0;
@@ -54,6 +58,8 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 			if (activity) reportPaneActivity(owner, activity);
 		};
 		pi.on("session_start", async (_event, ctx) => {
+			const runner = getExtensionContextOwner(ctx);
+			if (retiredRunners.has(runner)) return;
 			if (boundSessionManager && ctx.sessionManager !== boundSessionManager) return;
 			const environment = captureHerdrEnvironment(options.env ?? process.env);
 			if (!environment || ctx.mode !== "tui" || !ctx.hasUI || ctx.subagentPolicy || ctx.orchestrationContext) return;
@@ -65,6 +71,8 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 				diagnostic({ kind: "unsupported", owner: conflict });
 				return;
 			}
+			if (boundRunner && boundRunner !== runner) retiredRunners.add(boundRunner);
+			boundRunner = runner;
 			boundSessionManager = ctx.sessionManager;
 			const current = ++generation;
 			lease?.dispose();
@@ -95,27 +103,29 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 			});
 		});
 		pi.on("agent_start", (_event, ctx) => {
-			if (ctx.sessionManager !== boundSessionManager) return;
+			if (!ownsBinding(ctx)) return;
 			agentRunning = true;
 			report();
 		});
 		pi.on("agent_settled", (_event, ctx) => {
-			if (ctx.sessionManager !== boundSessionManager) return;
+			if (!ownsBinding(ctx)) return;
 			agentRunning = false;
 			report();
 		});
 		pi.on("ui_prompt_start", (_event, ctx) => {
-			if (ctx.sessionManager !== boundSessionManager) return;
+			if (!ownsBinding(ctx)) return;
 			openPromptCount++;
 			report();
 		});
 		pi.on("ui_prompt_end", (_event, ctx) => {
-			if (ctx.sessionManager !== boundSessionManager) return;
+			if (!ownsBinding(ctx)) return;
 			openPromptCount = Math.max(0, openPromptCount - 1);
 			report();
 		});
-		pi.on("session_shutdown", async (_event, ctx) => {
-			if (ctx.sessionManager !== boundSessionManager) return;
+		pi.on("session_shutdown", async (event, ctx) => {
+			if (!ownsBinding(ctx)) return;
+			// A non-quit stop may restart this runner, unless a successor supersedes it first.
+			if (event.reason === "quit") retiredRunners.add(boundRunner!);
 			generation++;
 			lease?.dispose();
 			lease = undefined;
