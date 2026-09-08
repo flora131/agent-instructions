@@ -14,7 +14,7 @@ import type { Message, SessionInfo } from "../../packages/intercom/types.js";
 import { runSync } from "../../packages/subagents/src/runs/foreground/execution.js";
 import { createSubagentExecutor } from "../../packages/subagents/src/runs/foreground/subagent-executor.js";
 import type { RunSyncOptions, SingleResult } from "../../packages/subagents/src/shared/types.js";
-import { makeTempDirectory, removeTempDirectory } from "../helpers/runtime.js";
+import { makeTempDirectory, removeTempDirectory, spawnSyncCollect } from "../helpers/runtime.js";
 
 type Tool = {
 	execute(
@@ -30,8 +30,31 @@ type Tool = {
 };
 type Inbound = Parameters<NonNullable<IntercomExtensionTestOverrides["captureInboundHandler"]>>[0];
 
-function fixture(wait: WaitPolicy | undefined, owned = true) {
+function fixture(wait: WaitPolicy | undefined, owned = true, resources: { worktree?: boolean; stage?: boolean } = {}) {
 	const cwd = makeTempDirectory("parallel-communication-");
+	const git = (...args: string[]) => {
+		const result = spawnSyncCollect(["git", "-C", cwd, ...args]);
+		assert.equal(result.exitCode, 0, Buffer.from(result.stderr).toString());
+		return Buffer.from(result.stdout).toString();
+	};
+	if (resources.worktree) {
+		git("init", "-q");
+		// This empty fixture repository is unrelated to the implementation checkout.
+		git(
+			"-c",
+			"commit.gpgsign=false",
+			"-c",
+			"core.hooksPath=/dev/null",
+			"-c",
+			"user.name=Test Fixture",
+			"-c",
+			"user.email=fixture@example.test",
+			"commit",
+			"--allow-empty",
+			"-qm",
+			"fixture",
+		);
+	}
 	const emitter = new EventEmitter();
 	const listenersReady = Promise.withResolvers<void>();
 	const events = {
@@ -53,7 +76,12 @@ function fixture(wait: WaitPolicy | undefined, owned = true) {
 	const lifecycle = new Map<string, Array<(event: object, ctx: object) => void | Promise<void>>>();
 	let inbound!: Inbound;
 	let idle = false;
-	const host = new AgentTaskHost({ scope: { kind: "session", sessionId: cwd }, authorizeLaunch() {} });
+	const host = new AgentTaskHost({
+		scope: resources.stage
+			? { kind: "workflow-stage", sessionId: cwd, runId: cwd, stageId: "worker", stageAttemptId: "attempt-1" }
+			: { kind: "session", sessionId: cwd },
+		authorizeLaunch() {},
+	});
 	const ctx = {
 		cwd,
 		hasUI: true,
@@ -149,6 +177,7 @@ function fixture(wait: WaitPolicy | undefined, owned = true) {
 				tasks: [0, 1, 2].map((index) => ({ agent: "worker", task: `task-${index}` })),
 				concurrency: 2,
 				artifacts: false,
+				...(resources.worktree ? { worktree: true } : {}),
 				...(wait ? { wait } : {}),
 			},
 			batchSignal.signal,
@@ -255,6 +284,7 @@ function fixture(wait: WaitPolicy | undefined, owned = true) {
 		};
 	}
 	return {
+		git,
 		start,
 		starts,
 		effects,
@@ -572,3 +602,87 @@ test("foreground admission does not execute a queued child cancelled before capa
 		await current.close();
 	}
 });
+
+for (const wait of [undefined, { kind: "background" }, { kind: "foreground", budgetMs: 10000 }] as const) {
+	for (const stop of ["queued", "session-close", "stage-close"] as const) {
+		test(`parallel ${wait?.kind ?? "default"} ${stop} releases yielded worktrees without starting cancelled children`, async () => {
+			const current = fixture(wait, true, { worktree: true, stage: stop === "stage-close" });
+			const originalWorktrees = current.git("worktree", "list", "--porcelain");
+			const originalBranches = current.git("branch", "--format=%(refname)");
+			try {
+				await current.start();
+				const child = current.childTool("intercom");
+				assert.equal((await child.execute({ action: "send", to: "parent-id", message: "yield" })).isError, false);
+				const response = (await current.launch).details?.taskResponse;
+				assert.equal(response?.kind, "parallel");
+				if (response?.kind !== "parallel") assert.fail("parallel observation required");
+				assert.equal(response.slots.length, 3);
+				assert.ok(
+					response.slots.every(
+						({ outcome }) => outcome.kind === "admitted" && outcome.observation.kind === "yielded",
+					),
+				);
+				const worktrees = current.git("worktree", "list", "--porcelain");
+				assert.equal(worktrees.split("\n").filter((line) => line.startsWith("worktree ")).length, 4);
+				const queued = current.snapshot()[2]!;
+				assert.equal(queued.execution.kind, "queued");
+				if (stop === "queued") {
+					assert.notEqual((await current.interrupt(queued.ref.taskId)).isError, true);
+					assert.equal(
+						current.git("worktree", "list", "--porcelain"),
+						worktrees,
+						"live siblings still own their worktrees",
+					);
+					await current.finish(0);
+					assert.equal(
+						current.git("worktree", "list", "--porcelain"),
+						worktrees,
+						"last live sibling prevents batch cleanup",
+					);
+					assert.equal(current.optionsByIndex.get(1)!.signal?.aborted, false);
+					await current.finish(1);
+					await vi.waitFor(() =>
+						assert.ok(
+							current
+								.snapshot()
+								.every((task) => task.execution.kind === "settled" && task.cleanup.kind === "reaped"),
+						),
+					);
+					assert.deepEqual(current.effects, [0, 1]);
+				} else {
+					const closed = await current.host.close(stop);
+					assert.ok(closed.ok);
+					assert.equal(closed.value.tasks.length, 3);
+					assert.ok(
+						closed.value.tasks.every(
+							(task) =>
+								task.execution.kind === "settled" &&
+								task.execution.result.kind === "cancelled" &&
+								task.cleanup.kind === "reaped",
+						),
+					);
+					assert.deepEqual(current.effects, []);
+				}
+				assert.deepEqual(
+					current.starts,
+					[0, 1],
+					"cancelled queued child must never execute, even after capacity opens",
+				);
+				await vi.waitFor(() =>
+					assert.equal(
+						current.git("worktree", "list", "--porcelain"),
+						originalWorktrees,
+						"all clean child worktrees must be removed",
+					),
+				);
+				assert.equal(
+					current.git("branch", "--format=%(refname)"),
+					originalBranches,
+					"child branches must be removed too",
+				);
+			} finally {
+				await current.close();
+			}
+		});
+	}
+}

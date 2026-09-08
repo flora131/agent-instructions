@@ -299,10 +299,11 @@ export async function runForegroundParallelTasks(input: ForegroundParallelRunInp
 				options: runOptions,
 				wait: input.wait,
 				runtime: input.runtime,
-				schedule,
+				// Dispatch also settles when native cancellation skips a queued runner.
+				// Recover only after dispatch drains, never when its observation yields.
+				schedule: (dispatch) => schedule(() => dispatch().finally(() => input.onTaskTerminal?.(index))),
 				onTerminal: (child) => {
 					terminalChild = child;
-					input.onTaskTerminal?.(index);
 				},
 			});
 			if (terminalChild) return { ...terminalChild, taskResponse: response };
