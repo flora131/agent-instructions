@@ -87,6 +87,12 @@ The bundled `/skill:show-me` from [HumanLayer](https://github.com/humanlayer/ski
 
 The bundled `/skill:qlty` runs code-quality verification through the [qlty](https://qlty.sh) CLI, which drives 70+ linters, auto-formatters, and security scanners across 40+ languages: `qlty check` for linting, `qlty fmt` for auto-formatting, `qlty metrics` for complexity, lines, and cohesion, and `qlty smells` for duplication, deep nesting, and overly complex code. It triggers on requests for verifiers or high code quality and prefers one CLI over ad-hoc per-tool linter invocations. The skill directs the agent to [docs.qlty.sh/llms.txt](https://docs.qlty.sh/llms.txt) as the authoritative documentation index, tells it to enable the qlty plugins and linter extensions that fit the codebase before checking, and ships source-attributed reference excerpts beside `SKILL.md`. The CLI is not bundled; install it with `curl https://qlty.sh | bash` (macOS and Linux) or `powershell -c "iwr https://qlty.sh | iex"` (Windows), and keep `~/.qlty/bin` on `PATH`. Note that `qlty init` writes `.qlty/qlty.toml` into the repository. Offline, `qlty metrics` and `qlty smells` still work (built-in static analysis); `qlty check` and `qlty fmt` download plugins and runtimes on first use per repository and need network then.
 
+### Built-in computer-use and automation guidance
+
+For desktop computer use, or CUA, use PyAutoGUI for mouse, keyboard and screenshots. For browser automation, load `/skill:playwright-cli`. For terminal automation/testing, prefer `/skill:herdr` on macOS, Linux and Windows. Install Herdr if missing when network access and permissions permit; fall back to `/skill:tmux` or native Windows psmux when installation or use is not possible. Preserve the upstream skill's explicit-request and managed-pane requirements. These are separate interfaces, not interchangeable command names. See [verification and desktop safety](/workflows/verification) for installation, permissions, dedicated sessions and input cleanup.
+
+The bundled herdr skill is copied from [herdr v0.9.0](https://github.com/herdrdev/herdr/blob/v0.9.0/skills/herdr/SKILL.md) and lives beside tmux in `packages/subagents/skills/herdr/SKILL.md`. It requires an explicit Herdr mention or request and `HERDR_ENV=1`; it stops outside a Herdr-managed pane. It discovers the installed CLI, uses returned pane IDs and distinguishes command submission from completion. The skill does not install Herdr or authorize control of unrelated panes.
+
 ## Skill Commands
 
 Skills register as `/skill:name` commands:

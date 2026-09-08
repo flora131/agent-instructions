@@ -19,6 +19,12 @@ The table below is a snapshot of the [DeepSWE](https://deepswe.datacurve.ai/) le
 
 Artificial Analysis was reviewed separately on **2026-09-08** against its **September 7 Intelligence Index v4.3** revision. The DeepSWE table remains the September 3 snapshot and was not revalidated in this refresh; the earlier September 5 browser check confirmed its update date and Gemini 3.8 Flash row, not every configuration.
 
+## Answering model-choice questions
+
+For any task-specific model recommendation, not just workflow authoring, read the [task-type picker](/models/evals#pick-by-task-type) and its per-benchmark charts, then consult [Artificial Analysis](https://artificialanalysis.ai/) for the relevant live evaluation and methodology. Recommend a task-fit candidate and explain the cost or latency tradeoff. Cite the benchmark version, retrieval date and exact model/effort configuration. An aggregate leaderboard winner is not a winner on every task.
+
+If live results cannot be retrieved, use the dated docs snapshot and say it was not refreshed. Check the configured catalog before suggesting an exact provider/model ID or effort level; catalog presence does not prove live access. Keep benchmark measurement settings separate from production effort recommendations.
+
 ## Benchmark levels are measurement settings
 
 The thinking level in brackets in the chart is the **measurement configuration used for that benchmark result**, not a universal workflow default. A score measured at `max` does not mean every stage using that model should use `max`; benchmark model identity and production thinking effort are separate choices. When authoring a workflow, choose effort from the stage role and cost of being wrong, then check the returned `availableThinkingLevels` for the configured catalog model.

@@ -256,6 +256,66 @@ Sol's additional efforts were read from its [xhigh](https://artificialanalysis.a
 | DeepSeek V4 Pro 0813 (max) | 41% | 18% | 11% | 49% | 5% | 80% |
 | DeepSeek V4 Flash 0731 (max) | 39% | 17% | 11% | 40% | 8% | 80% |
 
+### Benchmark charts
+
+These charts use the dated tables above, not a new live retrieval. The first seven use the same selected configurations in the same order for comparison across benchmarks. Fable 5.1 retains its measured default fallback. Normalized Elo is not a pass rate. The following charts cover the remaining Intelligence Index components, including separate accuracy and non-hallucination views for AA-Omniscience.
+
+```mermaid
+xychart-beta
+    title "GDPval-AA v2, normalized Elo, September 8, 2026 read"
+    x-axis ["fable-5.1 max", "astra max", "opus-5 max", "sol max", "luna max", "glm-5.3-flash", "g3.8-flash high"]
+    y-axis "normalized Elo (%)" 0 --> 100
+    bar [63, 54, 62, 56, 49, 58, 48]
+```
+
+```mermaid
+xychart-beta
+    title "AutomationBench-AA, September 8, 2026 read"
+    x-axis ["fable-5.1 max", "astra max", "opus-5 max", "sol max", "luna max", "glm-5.3-flash", "g3.8-flash high"]
+    y-axis "score (%)" 0 --> 100
+    bar [59, 68, 57, 60, 50, 60, 60]
+```
+
+```mermaid
+xychart-beta
+    title "SciCode, September 8, 2026 read"
+    x-axis ["fable-5.1 max", "astra max", "opus-5 max", "sol max", "luna max", "glm-5.3-flash", "g3.8-flash high"]
+    y-axis "score (%)" 0 --> 100
+    bar [63, 56, 56, 57, 54, 52, 57]
+```
+
+```mermaid
+xychart-beta
+    title "Humanity's Last Exam, September 8, 2026 read"
+    x-axis ["fable-5.1 max", "astra max", "opus-5 max", "sol max", "luna max", "glm-5.3-flash", "g3.8-flash high"]
+    y-axis "score (%)" 0 --> 100
+    bar [59, 55, 55, 49, 39, 40, 48]
+```
+
+```mermaid
+xychart-beta
+    title "CritPt, September 8, 2026 read"
+    x-axis ["fable-5.1 max", "astra max", "opus-5 max", "sol max", "luna max", "glm-5.3-flash", "g3.8-flash high"]
+    y-axis "score (%)" 0 --> 100
+    bar [30, 32, 29, 32, 21, 15, 18]
+```
+
+```mermaid
+xychart-beta
+    title "AA-Omniscience accuracy, September 8, 2026 read"
+    x-axis ["fable-5.1 max", "astra max", "opus-5 max", "sol max", "luna max", "glm-5.3-flash", "g3.8-flash high"]
+    y-axis "accuracy (%)" 0 --> 100
+    bar [67, 63, 61, 59, 43, 28, 55]
+```
+
+```mermaid
+xychart-beta
+    title "AA-LCR v1.1, September 8, 2026 read"
+    x-axis ["fable-5.1 max", "astra max", "opus-5 max", "sol max", "luna max", "glm-5.3-flash", "g3.8-flash high"]
+    y-axis "score (%)" 0 --> 100
+    bar [85, 81, 79, 84, 84, 80, 81]
+```
+
 ```mermaid
 %%{init: {"xyChart": {"width": 1100, "height": 360}}}%%
 xychart-beta
