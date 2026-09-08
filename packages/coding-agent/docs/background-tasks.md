@@ -15,7 +15,7 @@ Tasks  2 local agents running · 1 queued · /tasks
 
 It summarizes only active background agents and shells, including queued work, stopping tasks, and tasks needing attention. Completed, failed, and stopped tasks leave the footer immediately; when no background work is active, the indicator disappears. Results and failure details remain in completion cards and `/tasks`, so an old failure cannot keep the live indicator red. Running tasks do not expire merely because they are quiet.
 
-Run `/tasks` to open the background-only list. The command also appears in workflow-stage slash suggestions, including when skill commands are disabled. Foreground-only commands do not appear. Work that ran in the background stays available after completion or a later foreground wait. Updates never open the list automatically. Closing the inspector does not stop the tasks.
+Run `/tasks` to open a compact inline picker in the editor slot, like `/workflow connect`, with the conversation still visible above it. Detail, transcript, input, and cancellation-confirmation pages use the full screen. Escape returns to the picker with the selected task preserved, then to chat. The command also appears in workflow-stage slash suggestions, including when skill commands are disabled. Foreground-only commands do not appear. Work that ran in the background stays available after completion or a later foreground wait. Updates never open the list automatically. Closing the inspector does not stop the tasks.
 
 Opening `/tasks` is navigation, not an approval request. It does not mark the agent blocked in Herdr. The inspector stays open until you close it, even when its tasks finish; task history is not deleted when the compact indicator disappears.
 
@@ -121,7 +121,11 @@ Configured task bindings take precedence over the default Left, page, and `x` sh
 
 The list groups **Agents** and **Shells**, with counts and status symbols. Detail views pin identity, state, available metrics, and the selected action while their body scrolls. Missing metrics are omitted rather than displayed as zero. Recorded zero values remain visible.
 
+Agent rows and completion cards show the resolved model and reasoning setting, for example `openai-codex/gpt-6-astra · thinking medium`. These settings update on fallback and remain after completion. Foreground results retain the same metadata. Missing settings are not inferred from token counts; early launch receipts may not yet have a resolved model.
+
 Agent details include recent retained tool activity, the prompt, a latest-response preview, and error or attention information. Transcript inspection uses a dedicated scrolling view with a pinned title, line position, and controls, rather than nesting full chat components inside a detail box. It renders retained messages and tool results without hidden reasoning or inline images. Earlier pages do not jump back to the latest page when background activity arrives.
+
+An open live transcript updates directly from the child's session events, including streaming assistant text and partial/final tool results. Shell output refreshes on task state updates, including updates received during an earlier output read. You do not need to leave and reopen the transcript. Reading earlier retained pages keeps your position while the live tail continues updating.
 
 Shell details show the command, available exit information, and a bounded output tail. The preview shows up to ten wrapped lines from the retained 8 KiB tail. Output gaps and omitted earlier content are labelled. An empty output stream says **No output available**. Shell transcript inspection exposes the retained tail, not an invented agent conversation or an unlimited log viewer.
 

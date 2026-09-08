@@ -3,6 +3,7 @@ import { Box, type Component, truncateToWidth, wrapTextWithAnsi } from "@earendi
 import type { TaskCompletionNotice } from "../../../core/tasks/completion.js";
 import { theme } from "../theme/theme.js";
 import { keyHintIfBound } from "./keybinding-hints.js";
+import { taskModelText } from "./task-row.js";
 
 export function completionNoticeFromDetails(details: unknown): TaskCompletionNotice | undefined {
 	if (!details || typeof details !== "object" || !("notification" in details)) return undefined;
@@ -19,7 +20,14 @@ export function completionNoticeFromDetails(details: unknown): TaskCompletionNot
 	)
 		return undefined;
 	if (notice.status !== "completed" && notice.status !== "failed" && notice.status !== "cancelled") return undefined;
-	return { title: notice.title, preview: notice.preview, taskId: notice.taskId, status: notice.status };
+	return {
+		title: notice.title,
+		preview: notice.preview,
+		taskId: notice.taskId,
+		status: notice.status,
+		...("model" in notice && typeof notice.model === "string" ? { model: notice.model } : {}),
+		...("thinking" in notice && typeof notice.thinking === "string" ? { thinking: notice.thinking } : {}),
+	};
 }
 
 /** Same persisted completion message in main and workflow chats; no model reply required. */
@@ -50,6 +58,15 @@ export class TaskCompletionMessage implements Component {
 		const expand = !this.expanded && preview.length > limit ? keyHintIfBound("app.tools.expand", "Expand") : "";
 		return [
 			theme.fg(color, theme.bold(`${icon} ${clean(this.notice.title).replace(/\n/g, " ")}`)),
+			...(this.notice.model !== undefined || this.notice.thinking !== undefined
+				? wrapTextWithAnsi(
+						theme.fg(
+							"dim",
+							taskModelText({ kind: "agent", model: this.notice.model, thinking: this.notice.thinking }),
+						),
+						Math.max(1, width),
+					)
+				: []),
 			...(this.notice.preview ? preview.slice(0, limit).map((line) => theme.fg("muted", `  ${line}`)) : []),
 			theme.fg(
 				"dim",

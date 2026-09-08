@@ -21,6 +21,14 @@ export async function readTaskTranscript(
 	task: TaskLease,
 	cursor?: string,
 ): Promise<Result<TaskTranscriptPage, Failure<TranscriptError>>> {
+	return readTaskTranscriptSnapshot(task, cursor);
+}
+
+/** Synchronous history read lets an in-process viewer subscribe without an await gap. */
+export function readTaskTranscriptSnapshot(
+	task: TaskLease,
+	cursor?: string,
+): Result<TaskTranscriptPage, Failure<TranscriptError>> {
 	const bound = taskTranscriptSource(task);
 	if (!bound.ok) return bound;
 	const { session, taskId } = bound.value;

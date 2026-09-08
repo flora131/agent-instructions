@@ -1,8 +1,10 @@
 import type { AgentTaskHost, OperationId, WaitPolicy } from "@bastani/atomic";
 import type {
 	Cleanup,
+	ModelParallelResponse,
 	ModelSingleResponse,
 	Result,
+	TaskRecord,
 	TaskResult,
 	WaitOutcome,
 	YieldError,
@@ -13,12 +15,35 @@ import type { RunSyncOptions, SingleResult, SubagentToolResult } from "../../sha
 import { getSingleResultOutput } from "../../shared/utils.js";
 import type { SubagentExecutorRuntimeDeps } from "./subagent-executor-types.js";
 
-export function taskToolResult(response: ModelSingleResponse): SubagentToolResult {
+export function taskToolResult(response: ModelSingleResponse, host?: AgentTaskHost): SubagentToolResult {
 	return {
 		content: [{ type: "text", text: JSON.stringify(response) }],
-		details: { mode: "single", results: [], taskResponse: response },
+		details: {
+			mode: "single",
+			results: [],
+			taskResponse: response,
+			taskRecords: taskResponseRecords(response, host),
+		},
 		...(response.kind === "unstarted" ? { isError: true } : {}),
 	};
+}
+
+/** Snapshot execution metadata for receipt playback, scoped to this response only. */
+export function taskResponseRecords(
+	response: ModelSingleResponse | ModelParallelResponse,
+	host?: AgentTaskHost,
+): TaskRecord[] {
+	const outcomes = response.kind === "parallel" ? response.slots.map((slot) => slot.outcome) : [response];
+	const ids = new Set(
+		outcomes.flatMap((outcome) => (outcome.kind === "admitted" ? [outcome.observation.taskId] : [])),
+	);
+	const watched = host?.watchOwnerTasks();
+	if (!watched?.ok) return [];
+	try {
+		return watched.value.snapshot.tasks.filter((task) => ids.has(task.ref.taskId));
+	} finally {
+		watched.value.dispose();
+	}
 }
 
 /** Bind the real foreground runner once; only its registered observation may yield. */
@@ -57,6 +82,10 @@ export async function runAgentTask(input: {
 								context.bindTranscript({
 									getSessionId: () => session.getSessionId(),
 									getEntries: () => session.getEntries(),
+									...(session.subscribe ? { subscribe: session.subscribe.bind(session) } : {}),
+									...(session.getStreamingMessage
+										? { getStreamingMessage: session.getStreamingMessage.bind(session) }
+										: {}),
 									...(input.options.intercomSessionName
 										? {
 												completionSource: {
@@ -81,6 +110,11 @@ export async function runAgentTask(input: {
 							},
 						},
 					});
+					if (child.model !== undefined || child.thinking !== undefined)
+						context.reportActivity({
+							reportId: "terminal-model",
+							change: { kind: "model", model: child.model, thinking: child.thinking },
+						});
 					input.onTerminal?.(child);
 					const text = input.outputText?.(child) ?? getSingleResultOutput(child);
 					const bytes = Buffer.from(text);

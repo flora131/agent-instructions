@@ -278,6 +278,8 @@ impl Actor {
 					intent.command.first_nonblank_line().unwrap_or_else(|| intent.command.clone())
 				}),
 			agent_name: None,
+			model: None,
+			thinking: None,
 			execution: Execution::Queued {},
 			observation: HostObservation::Background { reason: "not-observed".into() },
 			was_background: None,

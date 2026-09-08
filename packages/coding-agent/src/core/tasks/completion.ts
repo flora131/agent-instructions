@@ -17,11 +17,13 @@ export type TaskCompletionNotice = {
 	preview: string;
 	status: "completed" | "failed" | "cancelled";
 	taskId: string;
+	model?: string;
+	thinking?: string;
 };
 
 export function taskCompletionNotice(
 	envelope: TaskCompletionEnvelope,
-	task?: Pick<TaskRecord, "kind" | "title" | "agentName">,
+	task?: Pick<TaskRecord, "kind" | "title" | "agentName" | "model" | "thinking">,
 	output?: string,
 ): TaskCompletionNotice {
 	const exitCode =
@@ -35,6 +37,8 @@ export function taskCompletionNotice(
 			.slice(0, 8000),
 		status: taskOutcomeStatus(envelope.result, task?.kind),
 		taskId: envelope.taskId,
+		...(task?.kind === "agent" && task.model !== undefined ? { model: task.model } : {}),
+		...(task?.kind === "agent" && task.thinking !== undefined ? { thinking: task.thinking } : {}),
 	};
 }
 

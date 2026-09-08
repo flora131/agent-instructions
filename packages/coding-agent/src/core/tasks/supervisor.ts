@@ -1,6 +1,8 @@
 import { AsyncResource } from "node:async_hooks";
 import type * as native from "@bastani/atomic-natives";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { createModuleRequire } from "../../utils/module-require.ts";
+import type { AgentSessionEvent } from "../agent-session.js";
 import type { SessionManager } from "../session-manager.ts";
 import { COMMAND_FOREGROUND_BUDGET_MS } from "./command-output.js";
 import type { TaskCompletionSource } from "./completion-ordering.js";
@@ -8,6 +10,9 @@ import type * as C from "./contracts.js";
 
 export type TaskTranscriptSource = Pick<SessionManager, "getSessionId" | "getEntries"> & {
 	readonly completionSource?: TaskCompletionSource;
+	/** Viewer-only subscription; updates never publish task lifecycle events. */
+	subscribe?(listener: (event: AgentSessionEvent) => void): () => void;
+	getStreamingMessage?(): AgentMessage | undefined;
 };
 
 export const DEFAULT_AGENT_WAIT_BUDGET_MS = 30000;
@@ -212,6 +217,8 @@ function record(value: native.TaskRecord): C.TaskRecord {
 		kind: value.kind,
 		title: value.title,
 		...(value.agentName === undefined ? {} : { agentName: value.agentName }),
+		...(value.model === undefined ? {} : { model: value.model }),
+		...(value.thinking === undefined ? {} : { thinking: value.thinking }),
 		execution: execution(value.execution),
 		observation: observation(value.observation),
 		...(value.wasBackground === undefined ? {} : { wasBackground: value.wasBackground }),
@@ -367,6 +374,10 @@ function applyEvent(current: C.OwnerSnapshot, value: C.NativeEvent): C.OwnerSnap
 				case "action":
 					task.currentAction = { tool: activity.tool, text: activity.text };
 					if (task.attention.kind === "no-recent-activity") task.attention = { kind: "none" };
+					break;
+				case "model":
+					task.model = activity.model;
+					task.thinking = activity.thinking;
 					break;
 				case "metrics":
 					task.metrics = {

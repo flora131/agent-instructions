@@ -191,11 +191,14 @@ async function mountMainInspector(isolated: boolean) {
 }
 
 for (const isolated of [false, true]) {
-	test(`${isolated ? "isolated engine" : "in-process"} /tasks covers the host, owns keys, and escapes without cancelling`, async () => {
+	test(`${isolated ? "isolated engine" : "in-process"} /tasks opens inline, drills down fullscreen, and escapes without cancelling`, async () => {
 		const previousKeys = getKeybindings();
 		const host = await mountMainInspector(isolated);
 		try {
-			assert.equal(host.tui.hasOverlay(), true, "/tasks must mount an overlay, not an inline selector");
+			assert.equal(host.tui.hasOverlay(), false, "/tasks opens in the editor slot like /workflow connect");
+			const picker = await host.paint();
+			assert.ok(picker.length <= 12 && picker.length < host.terminal.rows);
+			assert.match(stripVTControlCharacters(picker.join("\n")), /Background tasks/);
 			const assertFrame = async () => {
 				const frame = await host.paint();
 				assert.equal(frame.length, host.terminal.rows);
@@ -203,7 +206,9 @@ for (const isolated of [false, true]) {
 				assert.doesNotMatch(stripVTControlCharacters(frame.join("\n")), /MAIN-CHAT/);
 				return stripVTControlCharacters(frame.join("\n"));
 			};
-			await assertFrame();
+			await host.input("\x05"); // configured inspect opens fullscreen detail
+			assert.equal(host.tui.hasOverlay(), true);
+			assert.match(await assertFrame(), /Inspect transcript/);
 			const scrollTop = host.scroll.scrollTop;
 			assert.ok(scrollTop > 0, "fixture must have scrollable main chat history");
 			const assertKeysOwned = async () => {
@@ -231,9 +236,6 @@ for (const isolated of [false, true]) {
 				}
 			};
 			await assertKeysOwned();
-			await host.input("\x05"); // configured inspect, not hardcoded Enter
-			assert.match(await assertFrame(), /Inspect transcript/);
-			await assertKeysOwned();
 			// Restore the first detail action after the arrow-key checks.
 			await host.input("\x1b");
 			await host.input("\x05");
@@ -254,7 +256,9 @@ for (const isolated of [false, true]) {
 			await host.input("\x1b");
 			assert.match(await assertFrame(), /Inspect transcript/);
 			await host.input("\x1b");
-			assert.match(await assertFrame(), /Background tasks/);
+			assert.equal(host.tui.hasOverlay(), false);
+			assert.match(stripVTControlCharacters((await host.paint()).join("\n")), /Background tasks/);
+			assert.ok((await host.paint()).length <= 12);
 			await host.input("\x1b");
 			await host.completion;
 			assert.equal(host.tui.hasOverlay(), false);

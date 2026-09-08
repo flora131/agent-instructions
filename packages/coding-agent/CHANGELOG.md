@@ -20,12 +20,15 @@
 
 ### Changed
 
+- `/tasks` now opens as a compact inline picker like `/workflow connect`, with fullscreen detail, transcript, input, and confirmation pages. Returning from detail preserves selection.
+- Foreground and background subagent rows, task lists, and completion cards now display resolved model and reasoning settings, retaining them after completion.
 - `/tasks` in an attached stage chat is now a local inspection command, never a model message, including while an Escape interruption settles. Hosts without a task inspector report that it is unavailable.
 - Task lists and subagent detail views now use grouped counts, semantic status styling, pinned status/metrics/actions, recent tool activity, bounded response and shell-output previews, and narrow-terminal layouts. Finished tasks remain discoverable through `/tasks`; background bash receipts distinguish observation time from execution completion.
 - Default guidance now routes all user questions, including confirmations and approvals, through `ask_user_question` or an equivalent available question tool rather than prose-only prompts. Sessions without a usable question tool continue autonomously using best judgment.
 
 ### Fixed
 
+- Open subagent transcripts now refresh from live session events, including streaming text and partial/final tool results. Shell transcript reads coalesce pending state updates instead of requiring the view to be reopened.
 - Discarded stale command detail results and read errors after task selection, focus, or inspector lifetime changes, preventing another task's output from appearing in the current view ([#2908](https://github.com/bastani-inc/atomic/pull/2908)).
 - Connected isolated interactive sessions to the engine's compact background-task indicator below the prompt box and command-opened `/tasks` inspector instead of opening an empty host-local task owner. Added `/tasks` autocomplete and live subagent activity, tool/token counts, and response previews inside task details.
 - Connected top-level POSIX model bash executions to their task owner so long-running shells appear in task inspection after their observation yields. Preserved cleared session environment variables in the supervised shell path; native Windows and child-agent bash retain their existing execution path.

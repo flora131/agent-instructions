@@ -820,7 +820,7 @@ test("Node and Bun preserve UTF-16 code units across S1 records and replay", () 
 		assert.equal(result.exitCode, 0, `${runtime}\n${result.stdout}\n${result.stderr}`);
 		assert.match(
 			result.stdout.toString(),
-			/UTF16 PRESERVED 9 strings 45 variant reports 387 conflicts 27 facade launches/,
+			/UTF16 PRESERVED 9 strings 54 variant reports 405 conflicts 27 facade launches/,
 		);
 	}
 });

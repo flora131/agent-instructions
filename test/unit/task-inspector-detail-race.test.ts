@@ -144,7 +144,8 @@ test("store updates do not replace a pending shell transcript with a detail refr
 	const read = vi
 		.spyOn(supervisor, "readTaskOutput")
 		.mockResolvedValueOnce(output)
-		.mockReturnValueOnce(pending.promise);
+		.mockReturnValueOnce(pending.promise)
+		.mockResolvedValue(output);
 	const inspector = new TaskInspector(
 		store,
 		() => {},
@@ -159,6 +160,7 @@ test("store updates do not replace a pending shell transcript with a detail refr
 		pending.resolve(output);
 		await settle();
 		assert.match(text(inspector), /Retained shell output/);
+		assert.equal(read.mock.calls.length, 3, "pending state updates trigger one follow-up transcript read");
 		assert.doesNotMatch(text(inspector), /› Inspect transcript/);
 	} finally {
 		inspector.dispose();

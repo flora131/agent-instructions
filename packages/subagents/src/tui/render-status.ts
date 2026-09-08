@@ -1,5 +1,6 @@
 import { keyHintIfBound } from "@bastani/atomic";
 import { type Component, stripTerminalSequences, Text, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { formatModelThinking } from "../shared/formatters.js";
 import type { SubagentStatusGroup } from "../shared/types.js";
 import type { Theme } from "./render-layout.js";
 
@@ -28,9 +29,12 @@ function childStatusLines(
 		? name
 		: displayText(truncateToWidth(name, Math.max(1, width - visibleWidth(style.label) - 5), "…"));
 	const heading = `${theme.fg(style.color, style.glyph)} ${theme.fg("toolTitle", theme.bold(label))}${theme.fg("dim", " · ")}${theme.fg(style.color, style.label)}`;
-	if (!expanded) return [heading];
+	const model = formatModelThinking(child.model, child.thinking);
+	const metadata = model ? [theme.fg("dim", `  ${displayText(model)}`)] : [];
+	if (!expanded) return [heading, ...metadata];
 	return [
 		heading,
+		...metadata,
 		theme.fg("dim", `  Path: ${displayText(child.path)}`),
 		theme.fg("dim", `  Parent: ${displayText(child.parentPath)} · Depth: ${child.depth}`),
 		theme.fg("dim", `  Task: ${displayText(child.taskName)}`),

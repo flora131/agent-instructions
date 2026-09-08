@@ -133,6 +133,7 @@ export declare class WaitLease {
 
 export type ActivityChange =
   | { kind: 'action', tool: string, text: string }
+  | { kind: 'model', model?: string, thinking?: string }
   | { kind: 'metrics', elapsedMs?: number, toolCount?: number, tokenCount?: number }
   | { kind: 'output', offset: string, bytesBase64: string }
   | { kind: 'attention-set', attention: Attention }
@@ -800,6 +801,8 @@ export interface TaskRecord {
   kind: string
   title: string
   agentName?: string
+  model?: string
+  thinking?: string
   execution: Execution
   observation: HostObservation
   /** True after a designated observation yields; retained after settlement and snapshot resets. */

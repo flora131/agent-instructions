@@ -5,6 +5,10 @@ export { type AdmittedAgentTask, collectAgentTasks } from "./core/tasks/executio
 export { bindOwnerTaskStore, getOwnerTaskStore, OwnerTaskStore } from "./core/tasks/owner-store.js";
 export { renderTaskFooter, TaskList, taskListSections } from "./modes/interactive/components/task-list.js";
 export { TaskRow } from "./modes/interactive/components/task-row.js";
+export {
+	applyAssistantMessageDelta,
+	beginStreamingAssistantMessage,
+} from "./modes/interactive/streaming-assistant-message.ts";
 // Core session management
 
 export { type Args, parseArgs } from "./cli/args.ts";

@@ -44,6 +44,7 @@ import {
 	findDuplicateParallelOutputPath,
 	resolveParallelTaskCwd,
 } from "./subagent-executor-worktree.js";
+import { taskResponseRecords } from "./task-execution.js";
 
 export async function runParallelPath(
 	data: ExecutionContextData,
@@ -251,7 +252,12 @@ export async function runParallelPath(
 			);
 			return {
 				content: [{ type: "text", text: JSON.stringify(response) }],
-				details: { mode: "parallel", results: [], taskResponse: response },
+				details: {
+					mode: "parallel",
+					results: [],
+					taskResponse: response,
+					taskRecords: taskResponseRecords(response, ctx.getAgentTaskHost()),
+				},
 			};
 		}
 		for (let i = 0; i < results.length; i++) {

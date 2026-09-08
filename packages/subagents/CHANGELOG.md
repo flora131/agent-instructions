@@ -16,6 +16,7 @@
 
 ### Changed
 
+- Owner-bound task reports and foreground/background result receipts now retain resolved model and reasoning settings across fallback and completion. Live transcript viewers subscribe to session events without publishing high-frequency task-status updates.
 - Session-bound launches now return task observations immediately by default. Independent parallel launches admit queued slots under their concurrency limit; explicit foreground groups retain Intercom yielding. Owner-scoped `action:"wait"` observes the same child; terminal completion uses a nonvisual persisted envelope ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Subagent tool results now summarize launch observations and agent discovery instead of displaying raw task receipts or full catalog dumps by default. Parallel receipts show numbered sibling rows and errors; expanded results retain task identities. Owner-task progress includes recorded elapsed time, tool/token counts, and concise current-tool arguments.
 - In-process status cards now show compact, theme-aware agent rows with state symbols instead of repeated run IDs and raw residency text. Expanding reveals all children and diagnostic metadata; narrow terminals preserve readable status labels.

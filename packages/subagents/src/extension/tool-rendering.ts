@@ -3,6 +3,7 @@ import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import { type Component, Container, Text, truncateToWidth } from "@earendil-works/pi-tui";
 import { getBurstDisplay } from "../runs/foreground/subagent-executor-burst-display.js";
 import type { SubagentParamsLike } from "../runs/foreground/subagent-executor-types.js";
+import { formatModelThinking } from "../shared/formatters.js";
 import type { Details } from "../shared/types.js";
 import { renderLiveSubagentResult } from "../tui/render.js";
 
@@ -59,11 +60,19 @@ export function renderSubagentToolResult(
 	result = burst?.result ?? result;
 	if (result.details?.taskError)
 		return new Text(theme.fg("error", `✗ ${displayText(result.details.taskError)}`), 0, 0);
-	if (result.details?.taskRecords) {
+	if (result.details?.taskRecords && !result.details.taskResponse) {
 		const lines = result.details.taskRecords.flatMap((task) => {
 			const state = task.execution.kind === "settled" ? task.execution.result.kind : task.execution.kind;
 			return [
 				theme.bold(`${displayText(task.agentName ?? "bash")} · ${state}`),
+				...(task.kind === "agent"
+					? [
+							theme.fg(
+								"dim",
+								displayText(formatModelThinking(task.model, task.thinking) || "model / thinking unavailable"),
+							),
+						]
+					: []),
 				theme.fg("muted", displayText(task.title)),
 				...(options.expanded ? [theme.fg("dim", task.ref.taskId)] : []),
 				...(task.execution.kind === "settled" && task.execution.result.kind === "failed"
@@ -124,6 +133,11 @@ export function renderSubagentToolResult(
 			const identity = labels[index];
 			const name = outcomes.length > 1 ? `${index + 1}. ${identity ? displayText(identity.agent) : "Agent"} · ` : "";
 			const summary = theme.fg(color, `${icon} ${name}${state}`);
+			const task = result.details?.taskRecords?.find((task) => task.ref.taskId === observation.taskId);
+			const model = theme.fg(
+				"dim",
+				`\n   ${displayText(formatModelThinking(task?.model, task?.thinking) || "model / thinking unavailable")}`,
+			);
 			const metadata = options.expanded
 				? theme.fg("dim", `\n   ${observation.taskId}${identity?.task ? ` · ${displayText(identity.task)}` : ""}`)
 				: "";
@@ -131,7 +145,7 @@ export function renderSubagentToolResult(
 				observation.kind === "settled" && observation.result.kind === "failed"
 					? `\n   ${theme.fg("error", displayText(observation.result.message))}`
 					: "";
-			return summary + metadata + error;
+			return summary + model + metadata + error;
 		});
 		const heading = outcomes.length > 1 ? [theme.bold(`${outcomes.length} agent tasks`)] : [];
 		return new Text(

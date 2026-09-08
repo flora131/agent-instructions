@@ -5,6 +5,8 @@ import {
 	type AgentSession,
 	type AgentSessionEvent,
 	type AgentSessionEventListener,
+	applyAssistantMessageDelta,
+	beginStreamingAssistantMessage,
 	type CreateAgentSessionOptions,
 	createAgentSession,
 	DefaultResourceLoader,
@@ -24,7 +26,7 @@ import {
 	type TerminationCause as NativeTerminationCause,
 	SubagentControl,
 } from "@bastani/atomic-natives";
-import type { Api, Model } from "@bastani/pi-ai/compat";
+import type { Api, AssistantMessage, Model } from "@bastani/pi-ai/compat";
 import type { Cleanup } from "../../../../coding-agent/src/core/tasks/contracts.js";
 import type { AgentConfig } from "../../agents/agent-types.js";
 import {
@@ -967,6 +969,15 @@ export class SubagentControlRuntime {
 				await created.session.extensionRunner.emit({ type: "session_start", reason: "startup" });
 			}
 			session = created.session;
+			const transcriptSession = session;
+			// Snapshot at the public session-event boundary, never ahead of its queued events.
+			let observedStreamingMessage: AssistantMessage | undefined;
+			taskHooks?.bindTranscript?.({
+				getSessionId: () => sessionManager.getSessionId(),
+				getEntries: () => sessionManager.getEntries(),
+				subscribe: (listener) => transcriptSession.subscribe(listener),
+				getStreamingMessage: () => observedStreamingMessage,
+			});
 			const initialModelId = modelIdForSession(session) ?? candidateModelId;
 			effectiveModelId = initialModelId;
 			effectiveThinking =
@@ -1010,8 +1021,20 @@ export class SubagentControlRuntime {
 				onProgress?.({ ...progressState, recentTools: [...progressState.recentTools] });
 			};
 			let activitySequence = 0;
+			const reportModel = () =>
+				taskHooks?.reportActivity({
+					reportId: `${activityPrefix}:model-${++activitySequence}`,
+					change: { kind: "model", model: effectiveModelId, thinking: effectiveThinking },
+				});
+			reportModel();
 			unsubscribe = session.subscribe((event) => {
 				writeEvent(admitted.spec.artifactJsonlPath, event);
+				if (event.type === "message_start" && event.message.role === "assistant")
+					observedStreamingMessage = beginStreamingAssistantMessage(event.message);
+				else if (event.type === "message_update" && observedStreamingMessage)
+					applyAssistantMessageDelta(observedStreamingMessage, event.assistantMessageEvent);
+				else if (event.type === "message_end" && event.message.role === "assistant")
+					observedStreamingMessage = undefined;
 				const emission = progressEmissionFor(event.type);
 				if (event.type === "tool_execution_start") {
 					taskHooks?.reportActivity({
@@ -1053,10 +1076,13 @@ export class SubagentControlRuntime {
 					effectiveModelId = event.to;
 					progressState.model = event.to;
 					onModelChange?.(effectiveModelId, effectiveThinking);
+					reportModel();
+					emitProgress(true);
 				} else if (event.type === "thinking_level_changed") {
 					effectiveThinking = event.level;
 					progressState.thinking = effectiveThinking;
 					onModelChange?.(effectiveModelId, effectiveThinking);
+					reportModel();
 					emitProgress(true);
 				}
 			});

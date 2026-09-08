@@ -19,11 +19,13 @@ function changes(raw: string): C.ActivityReport["change"][] {
 		{ kind: "attention-set", attention: { kind: "input-needed", requestId: raw, prompt: raw, route: { sessionId: raw, promptId: raw, stageAttemptId: raw } } },
 		{ kind: "attention-set", attention: { kind: "no-recent-activity", lastActivityAt: raw } },
 		{ kind: "attention-clear", requestId: raw },
+		{ kind: "model", model: raw, thinking: raw },
 	];
 }
 function mutations(change: C.ActivityReport["change"], raw: string): C.ActivityReport["change"][] {
 	switch (change.kind) {
 		case "action": return [{ ...change, tool: raw }, { ...change, text: raw }];
+		case "model": return [{ ...change, model: raw }, { ...change, thinking: raw }];
 		case "output": return [{ ...change, offset: raw }, { ...change, bytesBase64: raw }];
 		case "attention-clear": return [{ ...change, requestId: raw }];
 		case "attention-set": {
@@ -134,6 +136,7 @@ for (const raw of strings) {
 			if (event.kind === "task-activity") assert.deepEqual(event.activity, report);
 			const record = snapshot();
 			if (change.kind === "action") assert.deepEqual(record.currentAction, { tool: raw, text: raw });
+			if (change.kind === "model") { assert.equal(record.model, raw); assert.equal(record.thinking, raw); }
 			if (change.kind === "attention-set") assert.deepEqual(record.attention, change.attention);
 		}
 		// Different code-unit report IDs neither collide nor become terminal identity.

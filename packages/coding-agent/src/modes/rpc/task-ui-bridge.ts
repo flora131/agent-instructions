@@ -87,46 +87,71 @@ export async function showTaskInspector(
 	store: OwnerTaskStore,
 	taskId?: string,
 ): Promise<void> {
-	let inspector: TaskInspector | undefined;
+	let requestRender = () => {};
+	let finishView = () => {};
+	let closed = false;
+	let fullscreen = false;
+	const inspector = new TaskInspector(
+		store,
+		() => {
+			if (inspector.fullscreen !== fullscreen) finishView();
+			else requestRender();
+		},
+		() => {
+			closed = true;
+			finishView();
+		},
+	);
+	inspector.open(taskId as TaskId | undefined);
 	try {
-		await ui.custom<void>(
-			(tui, _theme, _keys, done) => {
-				inspector = new TaskInspector(
-					store,
-					() => tui.requestRender(),
-					() => done(),
-				);
-				inspector.open(taskId as TaskId | undefined);
-				return {
-					invalidate: () => inspector?.invalidate(),
-					render: (width: number) => {
-						const height = Math.max(1, tui.terminal.rows);
-						const lines = inspector?.renderViewport(width, height) ?? [];
-						// Overlay maxHeight is only a cap. Pad short views so no parent
-						// chat or prompt cells remain visible beneath the inspector.
-						return Array.from({ length: height }, (_, row) => {
-							const line = truncateToWidth(lines[row] ?? "", width);
-							return line + " ".repeat(Math.max(0, width - visibleWidth(line)));
-						});
-					},
-					handleInput: (data: string) => {
-						// Local overlays receive safety keys directly. The isolated host
-						// dismisses this remote view through its ordinary Ctrl+C route.
-						if (isPhysicalCtrlC(data)) done();
-						else inspector?.handleInput(data);
-						// A declined key is replayed into the main transcript by the host.
-						// The fullscreen inspector owns even keys its current view ignores.
-						return true;
-					},
-				};
-			},
-			{
-				overlay: true,
-				deferInlineCustomUiFocus: true,
-				handlesInternalUiAction: true,
-				overlayOptions: { anchor: "center", width: "100%", maxHeight: "100%", margin: 0 },
-			},
-		);
+		while (!closed) {
+			fullscreen = inspector.fullscreen;
+			await ui.custom<void>(
+				(tui, _theme, _keys, done) => {
+					requestRender = () => tui.requestRender();
+					finishView = () => done();
+					return {
+						invalidate: () => inspector.invalidate(),
+						render: (width: number) => {
+							const height = Math.max(1, tui.terminal.rows);
+							if (!fullscreen) return inspector.renderPicker(width, height);
+							const lines = inspector.renderViewport(width, height);
+							// Fullscreen detail pages cover all parent chat and prompt cells.
+							return Array.from({ length: height }, (_, row) => {
+								const line = truncateToWidth(lines[row] ?? "", width);
+								return line + " ".repeat(Math.max(0, width - visibleWidth(line)));
+							});
+						},
+						handleInput: (data: string) => {
+							if (isPhysicalCtrlC(data)) {
+								closed = true;
+								done();
+							} else inspector.handleInput(data);
+							return true;
+						},
+					};
+				},
+				{
+					overlay: fullscreen,
+					purpose: "navigation",
+					handlesCtrlC: true,
+					deferInlineCustomUiFocus: true,
+					handlesInternalUiAction: true,
+					...(fullscreen
+						? {
+								overlayOptions: {
+									anchor: "center" as const,
+									width: "100%" as const,
+									maxHeight: "100%" as const,
+									margin: 0,
+								},
+							}
+						: {}),
+				},
+			);
+			// Host dismissal without a navigation transition must not reopen the view.
+			if (inspector.fullscreen === fullscreen) closed = true;
+		}
 	} finally {
 		inspector?.dispose();
 	}
