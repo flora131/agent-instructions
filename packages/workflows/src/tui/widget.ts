@@ -559,7 +559,7 @@ export function buildThemedWidgetLines(
 		const affordance = pendingInputAffordance(run, snap.runs);
 		const indicator = runIndicatorStatus(run, snap.runs);
 		const runLines =
-			indicator === "awaiting_input" && affordance !== undefined
+			!isQuitRun(run) && indicator === "awaiting_input" && affordance !== undefined
 				? awaitingRunLines(
 						run,
 						now,

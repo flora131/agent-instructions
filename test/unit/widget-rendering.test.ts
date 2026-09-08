@@ -322,6 +322,28 @@ describe("renderWidgetLines — standard form", () => {
 		assert.doesNotMatch(stripAnsi(lines[0]!), /needs attention/);
 		assert.ok(stripAnsi(lines[0]!).includes("1 quit"), "quit count remains visible");
 	});
+	test("quitting a pending input removes answer actions while preserving its resumable descriptor", () => {
+		// Regression #2700: a real ctx.ui.input retains its descriptor after /workflow quit.
+		const now = 10_000;
+		const store = createStore();
+		const runId = "quit-stage-prompt";
+		const stage = makeStage("input-stage", "input", "running");
+		store.recordRunStart(makeRun(runId, "resume-me", "running", [stage], now - 1_000));
+		store.recordStagePendingPrompt(runId, stage.id, {
+			id: "retained-prompt",
+			kind: "input",
+			message: "Which synthetic constellation?",
+			createdAt: now - 100,
+		});
+		assert.match(buildThemedWidgetLines(store.snapshot(), NULL_PI_THEME, 120, now).join("\n"), /F2 answer/);
+		assert.equal(store.recordStagePaused(runId, stage.id), true);
+		assert.equal(store.recordRunPaused(runId, now, { exitReason: "quit", resumable: true }), true);
+
+		const output = buildThemedWidgetLines(store.snapshot(), NULL_PI_THEME, 120, now).map(stripAnsi).join("\n");
+		assert.match(output, /quit · resumable via \/workflow resume/);
+		assert.doesNotMatch(output, /Which synthetic constellation\?|F2 answer|\/workflow connect/);
+		assert.equal(store.snapshot().runs[0]!.stages[0]!.pendingPrompt?.id, "retained-prompt");
+	});
 	test("quit card expires from the widget after the recent window while status stays resumable", () => {
 		const originalNow = Date.now;
 		let now = 1_000_000;
