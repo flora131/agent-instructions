@@ -363,3 +363,46 @@ test.runIf(process.platform !== "win32")(
 		}
 	},
 );
+
+test("a persisted Intercom prelude cannot suppress a missing terminal notification on restore", async () => {
+	const manager = SessionManager.inMemory();
+	const completionId = "terminal-after-persisted-prelude";
+	manager.appendCustomEntry("task-completion-intent", {
+		completionId,
+		ownerId: "historical-owner",
+		taskId: "historical-task",
+		terminalSequence: 7,
+		result: { kind: "cancelled", cause: "user" },
+		display: false,
+	});
+	manager.appendCustomMessageEntry(
+		"intercom_message",
+		"Earlier child finding",
+		true,
+		{},
+		undefined,
+		undefined,
+		"intercom:earlier-finding",
+	);
+	const deliveries: string[] = [];
+	const session = {
+		sessionManager: manager,
+		async sendCustomMessage(_message: object, options: { stageAdmissionKey: string }) {
+			deliveries.push(options.stageAdmissionKey);
+		},
+	} as unknown as ThisParameterType<typeof getAgentTaskHost>;
+	const host = getAgentTaskHost.call(session);
+	try {
+		await vi.waitFor(() => assert.deepEqual(deliveries, [completionId]));
+		await session._taskCompletionOutbox!.flush();
+		assert.equal(session._taskCompletionOutbox!.pending.length, 0);
+		assert.equal(
+			manager
+				.getEntries()
+				.filter((entry) => entry.type === "custom_message" && entry.customType === "intercom_message").length,
+			1,
+		);
+	} finally {
+		await host.close("session-close");
+	}
+});

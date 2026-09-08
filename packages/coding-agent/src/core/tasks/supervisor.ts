@@ -3,9 +3,12 @@ import type * as native from "@bastani/atomic-natives";
 import { createModuleRequire } from "../../utils/module-require.ts";
 import type { SessionManager } from "../session-manager.ts";
 import { COMMAND_FOREGROUND_BUDGET_MS } from "./command-output.js";
+import type { TaskCompletionSource } from "./completion-ordering.js";
 import type * as C from "./contracts.js";
 
-export type TaskTranscriptSource = Pick<SessionManager, "getSessionId" | "getEntries">;
+export type TaskTranscriptSource = Pick<SessionManager, "getSessionId" | "getEntries"> & {
+	readonly completionSource?: TaskCompletionSource;
+};
 
 export const DEFAULT_AGENT_WAIT_BUDGET_MS = 30000;
 /** These objects are live authority, not DTOs, restart tokens or model arguments. */

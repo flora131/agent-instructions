@@ -1,6 +1,7 @@
 import type { ExtensionAPI } from "@bastani/atomic";
 import type { InboundMessageEntry } from "./intercom-utils.js";
 import type { IntercomContext } from "./reply-tracker.js";
+import type { Message } from "./types.js";
 
 export type IncomingMessageDelivery = "trigger" | "followUp" | "prelude";
 export type IncomingMessageSender = (
@@ -49,6 +50,19 @@ export function framePreStartPendingStageMessage(entry: InboundMessageEntry): In
 		...entry,
 		bodyText: `**Messages received before you started**\n\nSent: ${framePendingStageTimestamp(entry.message.timestamp)}\n\n${entry.bodyText}`,
 	};
+}
+
+export function isDeliveryFeedback(message: Message): boolean {
+  return Boolean(message.replyTo) && message.replyError !== undefined;
+}
+
+/** Delivery feedback describes a past send, not the recipient's current activity. */
+export function frameDeliveryFeedback(entry: InboundMessageEntry): InboundMessageEntry {
+  return {
+    ...entry,
+    replyCommand: undefined,
+    bodyText: `**Intercom delivery failed**\n\nSent: ${framePendingStageTimestamp(entry.message.timestamp)}\n\n${entry.bodyText}`,
+  };
 }
 
 export function buildIncomingCustomMessage(entry: InboundMessageEntry) {
