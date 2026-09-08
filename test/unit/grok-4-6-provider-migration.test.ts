@@ -7,6 +7,12 @@ import { moduleDir } from "../helpers/runtime.js";
 
 const root = resolve(moduleDir(import.meta.url), "../..");
 const shippedModelSources = ["packages/workflows/builtin", "packages/subagents/agents"];
+// PR #2927 intentionally gives only these locator/pattern roles medium Grok thinking.
+const mediumGrokSources = new Set(
+	["codebase-locator.md", "codebase-pattern-finder.md", "codebase-research-locator.md"].map((name) =>
+		join(root, "packages/subagents/agents", name),
+	),
+);
 
 function recursivelyListFiles(directory: string): string[] {
 	return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -32,19 +38,23 @@ test("builtin workflow and subagent sources contain no stale Grok 4.5 references
 test("builtin xAI and OpenRouter Grok fallbacks use Grok 4.6", () => {
 	for (const filePath of shippedSourceFiles()) {
 		const source = readFileSync(filePath, "utf8");
+		const thinking = mediumGrokSources.has(filePath) ? "medium" : "xhigh";
 		const references = source.match(/(?:xai|openrouter\/x-ai|github-copilot)\/grok-[^"'\s,]+/gu) ?? [];
 		const directReferences = references.filter((reference) => reference.startsWith("xai/"));
 		const openRouterReferences = references.filter((reference) => reference.startsWith("openrouter/"));
 		const copilotReferences = references.filter((reference) => reference.startsWith("github-copilot/"));
 
-		for (const reference of directReferences) assert.equal(reference, "xai/grok-4.6:xhigh", filePath);
-		for (const reference of openRouterReferences) assert.equal(reference, "openrouter/x-ai/grok-4.6", filePath);
-		for (const reference of copilotReferences) assert.equal(reference, "github-copilot/grok-4.6:xhigh", filePath);
+		for (const reference of directReferences) assert.equal(reference, `xai/grok-4.6:${thinking}`, filePath);
+		for (const reference of openRouterReferences)
+			assert.equal(reference, `openrouter/x-ai/grok-4.6:${thinking}`, filePath);
+		for (const reference of copilotReferences)
+			assert.equal(reference, `github-copilot/grok-4.6:${thinking}`, filePath);
 
 		const xaiMatches = [...source.matchAll(/xai\/grok-[^"'\s,]+/gu)];
 		for (const match of xaiMatches) {
 			const after = source.slice((match.index ?? 0) + match[0].length);
-			assert.match(after, /^["']?,\s*(?:\n\s*)?["']?github-copilot\/grok-4\.6:xhigh/, filePath);
+			const adjacent = /^["']?,\s*["']?(github-copilot\/grok-[^"'\s,]+)/u.exec(after);
+			assert.equal(adjacent?.[1], `github-copilot/grok-4.6:${thinking}`, filePath);
 		}
 	}
 
