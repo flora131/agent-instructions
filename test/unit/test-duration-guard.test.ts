@@ -290,6 +290,58 @@ test("the real sequential workflow reload declaration keeps its explicit timeout
 	assert.deepEqual(scored.failures, []);
 });
 
+test("real edited-flow CLI cases keep their structural budgets without lending them to other tests", () => {
+	const file = "test/integration/workflow-tool-node-quit-cli.test.ts";
+	const titles = [
+		"built Node runtime refuses return after changed flow omits the interrupted tool",
+		"built Node runtime refuses completed after changed flow omits the interrupted tool",
+	];
+	// Windows run 34249560629: both cases passed, but their curried declarations
+	// hid the existing 240s budget from the guard, which falsely used 30s.
+	const durations = [22_625.2187, 24_011.3266];
+	const scored = evaluateDurations(
+		report([
+			{ file, tests: titles.map((title, index) => ({ title, status: "passed", duration: durations[index] })) },
+		]),
+		30_000,
+		root,
+	);
+	assert.equal(scored.samples.length, 2);
+	for (const [index, title] of titles.entries()) {
+		const sample = scored.samples.find((entry) => entry.name === title);
+		assert.equal(sample?.timeoutMs, 240_000);
+		assert.equal(sample?.explicit, true);
+		assert.equal(sample?.ratio, durations[index]! / 240_000);
+	}
+	assert.deepEqual(scored.warnings, []);
+	assert.deepEqual(scored.failures, []);
+
+	const unbudgeted = evaluateDurations(
+		report([
+			{
+				file,
+				tests: [
+					{ title: "the driver and the fixture agree on the state file name", status: "passed", duration: 24_000 },
+					{ scopes: ["unrelated scope"], title: titles[0]!, status: "passed", duration: 24_000 },
+				],
+			},
+			{
+				file: "test/unit/grok-4-6-provider-migration.test.ts",
+				tests: titles.map((title) => ({ title, status: "passed", duration: 24_000 })),
+			},
+		]),
+		30_000,
+		root,
+	);
+	assert.equal(unbudgeted.samples.length, 4);
+	for (const sample of unbudgeted.samples) {
+		assert.equal(sample.timeoutMs, 30_000);
+		assert.equal(sample.explicit, false);
+		assert.equal(sample.ratio, 0.8);
+	}
+	assert.deepEqual(unbudgeted.failures, unbudgeted.samples);
+});
+
 test("unsupported wrappers and lookalike members do not donate timeout budgets", () => {
 	const source = [
 		"test.each([1])(",

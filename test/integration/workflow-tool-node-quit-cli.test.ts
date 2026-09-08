@@ -566,21 +566,30 @@ test(
 );
 
 // PR #2864 discussion_r3939119993: use the built CLI and reload an actually edited definition.
-test.each(["return", "completed"] as const)(
-	"built Node runtime refuses %s after changed flow omits the interrupted tool",
-	async (omission) => {
-		const observed = await runScenario("interrupt", omission);
-		assert.equal(
-			observed.afterResume.status,
-			"failed",
-			observed.afterResume.error ?? "omitted frontier cannot succeed",
-		);
-		assert.match(observed.afterResume.error ?? "", /pending frontier was not consumed/);
-		assert.ok(observed.afterResume.error?.includes(toolNode(observed.afterQuit, "hang-tool").id));
-		assert.equal(observed.finalState.siblingExecutions, 1);
-		assert.equal(observed.finalState.hangExecutions, 1);
-		assert.equal(toolNode(observed.afterResume, "sibling-tool").replayed, true);
-		assert.equal(observed.afterResume.result, undefined);
+async function assertOmittedInterruptedTool(omission: "return" | "completed"): Promise<void> {
+	const observed = await runScenario("interrupt", omission);
+	assert.equal(observed.afterResume.status, "failed", observed.afterResume.error ?? "omitted frontier cannot succeed");
+	assert.match(observed.afterResume.error ?? "", /pending frontier was not consumed/);
+	assert.ok(observed.afterResume.error?.includes(toolNode(observed.afterQuit, "hang-tool").id));
+	assert.equal(observed.finalState.siblingExecutions, 1);
+	assert.equal(observed.finalState.hangExecutions, 1);
+	assert.equal(toolNode(observed.afterResume, "sibling-tool").replayed, true);
+	assert.equal(observed.afterResume.result, undefined);
+}
+
+// Literal declarations let the duration guard attribute each existing structural budget.
+test(
+	"built Node runtime refuses return after changed flow omits the interrupted tool",
+	async () => {
+		await assertOmittedInterruptedTool("return");
+	},
+	REAL_CLI_SCENARIO_TIMEOUT_MS,
+);
+
+test(
+	"built Node runtime refuses completed after changed flow omits the interrupted tool",
+	async () => {
+		await assertOmittedInterruptedTool("completed");
 	},
 	REAL_CLI_SCENARIO_TIMEOUT_MS,
 );
