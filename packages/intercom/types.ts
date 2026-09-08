@@ -79,7 +79,7 @@ export interface Message {
   timestamp: number;
   replyTo?: string;
   expectsReply?: boolean;
-  /** Actionable remote failure for a correlated ask reply. */
+  /** Correlated delivery refusal: settles a waiting ask, otherwise surfaces as send feedback. */
   replyError?: string;
   source?: {
     subagentRunId: string;

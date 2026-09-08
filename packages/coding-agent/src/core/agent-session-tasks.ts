@@ -1,4 +1,5 @@
 import type { AgentSessionInternalSurface as AgentSession } from "./agent-session-methods.ts";
+import { getExtensionRuntimeEventBus } from "./extensions/loader-core.js";
 import { AgentTaskHost } from "./tasks/agent-adapter.js";
 import { COMMAND_DETAIL_TAIL_BYTES, taskOutputText } from "./tasks/command-output.js";
 import {
@@ -7,6 +8,7 @@ import {
 	TaskCompletionOutbox,
 	taskCompletionNotice,
 } from "./tasks/completion.js";
+import { flushTaskCompletionMessages } from "./tasks/completion-ordering.js";
 import { bindOwnerTaskStore, OwnerTaskStore } from "./tasks/owner-store.js";
 import { taskTranscriptSource } from "./tasks/supervisor.js";
 import { WorkflowStageAdmissionBoundary } from "./workflow-stage-admission.ts";
@@ -70,6 +72,14 @@ export function getAgentTaskHost(this: AgentSession): AgentTaskHost {
 					// Missing retained output must not suppress a terminal notification.
 					output = "Output unavailable";
 				}
+			}
+			const completionSource = source?.ok ? source.value.session.completionSource : undefined;
+			if (completionSource) {
+				await flushTaskCompletionMessages(
+					getExtensionRuntimeEventBus(this._resourceLoader.getExtensions().runtime),
+					completionSource,
+					envelope.completionId,
+				);
 			}
 			await admission.admit(
 				envelope.completionId,

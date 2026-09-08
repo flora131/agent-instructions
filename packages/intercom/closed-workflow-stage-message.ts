@@ -1,5 +1,6 @@
 import type { IntercomClient } from "./broker/client.js";
 import type { InboundMessageAdmission } from "./inbound-message-admission.js";
+import { isDeliveryFeedback } from "./incoming-message-delivery.js";
 import type { InboundMessageEntry } from "./intercom-utils.js";
 import { routeIncomingReply } from "./reply-routing.js";
 import type { ReplyTracker } from "./reply-tracker.js";
@@ -27,7 +28,7 @@ export function routeClosedWorkflowStageMessage(
   const sourceRunId = entry.message.source?.subagentRunId;
   if (sourceRunId !== undefined && ownsSubagentRun(sourceRunId)) return;
 
-  if (entry.message.expectsReply !== true) {
+  if (entry.message.expectsReply !== true && !isDeliveryFeedback(entry.message)) {
     void retryStableDelivery({ deliver, isCurrent }).catch(() => {});
     return;
   }
@@ -35,6 +36,13 @@ export function routeClosedWorkflowStageMessage(
   if (admitted.kind !== "reserved") return;
   if (routeIncomingReply(waiter, entry.from, entry.message)) {
     admission.commit(admitted.reservation);
+    return;
+  }
+  if (isDeliveryFeedback(entry.message)) {
+    void retryStableDelivery({ deliver, isCurrent }).then(
+      () => { admission.commit(admitted.reservation); },
+      (error) => { admission.release(admitted.reservation, error instanceof Error ? error : new Error(String(error))); },
+    );
     return;
   }
   const replyContext = tracker.recordIncomingMessage(entry.from, entry.message);

@@ -57,6 +57,7 @@
 - Settled tasks now leave the compact footer immediately while remaining inspectable in `/tasks` and completion cards, so retained failures do not keep the live indicator red.
 - Opening `/tasks` in isolated mode no longer emits an approval prompt or incorrectly changes Herdr to blocked. Genuine approval reporting remains unchanged.
 - Filled theme backgrounds now survive nested and truncation resets, keeping long task-completion titles, previews, and expand hints shaded through the last column.
+- Owner-bound task notifications now order queued same-child Intercom messages before completion through the delivery outbox. Failed delivery keeps the terminal intent retryable without changing the execution outcome, replaying successful earlier messages, or relaunching the task.
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

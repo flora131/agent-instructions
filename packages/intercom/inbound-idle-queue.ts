@@ -2,6 +2,7 @@ import type { InboundMessageEntry } from "./intercom-utils.js";
 
 export interface InboundIdleClaim {
   entries: InboundMessageEntry[];
+  isCurrent(): boolean;
   rollbackFrom(index: number): void;
 }
 
@@ -12,6 +13,7 @@ export interface InboundIdleClaim {
  */
 export class InboundIdleQueue {
   private entries: InboundMessageEntry[] = [];
+  private generation = 0;
 
   get size(): number {
     return this.entries.length;
@@ -40,6 +42,7 @@ export class InboundIdleQueue {
 
   claimOrdinarySourceTargets(runId: string, sourceSessionTargets: readonly string[], terminalAt = Number.POSITIVE_INFINITY): InboundIdleClaim {
     const targets = new Set(sourceSessionTargets);
+    const generation = this.generation;
     const original = this.entries;
     const legacyIdsByName = new Map<string, Set<string>>();
     for (const entry of original) {
@@ -64,8 +67,9 @@ export class InboundIdleQueue {
     let settled = false;
     return {
       entries: selected,
+      isCurrent: () => generation === this.generation,
       rollbackFrom: (index) => {
-        if (settled) return;
+        if (settled || generation !== this.generation) return;
         settled = true;
         const undelivered = new Set(selected.slice(index));
         const laterEntries = this.entries.filter((entry) => !originalSet.has(entry));
@@ -77,6 +81,7 @@ export class InboundIdleQueue {
   }
 
   clear(): void {
+    this.generation++;
     this.entries = [];
   }
 }

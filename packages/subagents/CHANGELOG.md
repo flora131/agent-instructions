@@ -10,6 +10,7 @@
 
 - Already-admitted in-process task callers now yield each active foreground sibling's observation on an exact Intercom group commit without ending or replacing the original executions ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Status and interrupt now accept owner-bound task IDs returned by launches, and wait results use readable observation summaries. Corrected foreground-only claims in orchestrator guidance, the bundled delegation and terminal skills, and the README. Agents can choose foreground-first or background observation; automatic yielding preserves the original execution.
+- Bound task transcript sources now retain the trusted run and actual Intercom target so queued child messages are delivered before owner-bound completion notices, without guessing from task or SDK session IDs.
 
 ### Changed
 
