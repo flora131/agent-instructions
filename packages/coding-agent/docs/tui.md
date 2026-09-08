@@ -909,7 +909,22 @@ ctx.ui.setFooter(undefined); // restore default
 
 `ctx.ui.getFooterDataProvider()` exposes the same read-only provider to embedded extension UIs. In isolated interactive mode Atomic maintains the provider inside the engine session, mirrors every `setStatus()` update into it, and uses the session cwd with the same cached Git-branch watcher, so synchronous renderers can read current status and branch data without an RPC round trip or per-render Git process.
 
-For a workflow-stage session with a different cwd, call `footerData.getGitBranch(stageCwd)`. The provider caches and watches that branch separately, notifies the same branch-change listeners, and disposes those watchers with the parent provider. Omitting the argument retains the provider's own cwd.
+For a workflow-stage session with a different cwd, subscribe with that cwd to retain its branch watcher, and read the live branch during each render using the same raw cwd string:
+
+```typescript
+// stageCwd is fixed for this viewer's lifetime.
+ctx.ui.setFooter((tui, theme, footerData) => ({
+  invalidate() {},
+  render(width: number): string[] {
+    return [`${ctx.model?.id} (${footerData.getGitBranch(stageCwd) || "no git"})`];
+  },
+  dispose: footerData.onBranchChange(() => tui.requestRender(), stageCwd),
+}));
+```
+
+The returned unsubscribe function belongs to the viewer: call it on disposal or before replacing the viewer's cwd, then subscribe for the new cwd. Embedded UIs using `ctx.ui.getFooterDataProvider()` must likewise release their own subscription. Active viewers using the same raw cwd share the cached provider and watcher; the last unsubscribe releases that alternate-cwd resource. Do not call the parent provider's `dispose()` from an individual viewer.
+
+An unleased `getGitBranch(stageCwd)` lookup is transient: it does not retain an alternate-cwd cache or watcher, so an unscoped callback alone does not enable stage-branch updates. Scoped subscriptions retain resources, but notifications still reach the same branch-change listeners; they are not filtered by cwd. Omitting the cwd argument retains the provider's own cwd behavior shown in the default recipe above.
 
 Token stats available via `ctx.sessionManager.getBranch()` and `ctx.model`.
 
