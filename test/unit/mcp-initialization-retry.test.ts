@@ -2,12 +2,18 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AgentToolResult, ExtensionAPI, ExtensionContext } from "@bastani/atomic";
+import { stripVTControlCharacters } from "node:util";
+import type { AgentToolResult, ExtensionAPI, ExtensionContext, ToolDefinition } from "@bastani/atomic";
+import type { TUI } from "@earendil-works/pi-tui";
+import { Type } from "typebox";
 import { afterEach, beforeEach, test } from "vitest";
+import { ToolExecutionComponent } from "../../packages/coding-agent/src/modes/interactive/components/tool-execution.js";
+import { initTheme } from "../../packages/coding-agent/src/modes/interactive/theme/theme.js";
 import mcpAdapter from "../../packages/mcp/index.js";
 
 interface RegisteredTool {
 	readonly name: string;
+	readonly renderCall?: ToolDefinition["renderCall"];
 	execute(
 		toolCallId: string,
 		params: Record<string, unknown>,
@@ -90,6 +96,24 @@ test("failed background MCP initialization retries once for concurrent same-gene
 
 		const proxy = tools.find((tool) => tool.name === "mcp");
 		assert.ok(proxy, "fallback MCP proxy should be registered");
+		initTheme("dark");
+		assert.ok(proxy.renderCall, "gateway must render its call before receiving a result");
+		const pending = new ToolExecutionComponent(
+			"mcp",
+			"pending",
+			{ server: "github", tool: "create_issue" },
+			{ showImages: false },
+			{ ...proxy, label: "MCP", description: "", parameters: Type.Object({}) } as ToolDefinition,
+			{ requestRender() {} } as TUI,
+			tempDir,
+		);
+		assert.match(stripVTControlCharacters(pending.render(80).join("\n")), /MCP github/);
+		pending.updateArgs({ server: "github", tool: "create_issue", args: '{"title":"private"}' });
+		pending.updateResult({ content: [{ type: "text", text: "done" }], details: {}, isError: false }, false);
+		const completed = stripVTControlCharacters(pending.render(80).join("\n"));
+		assert.match(completed, /MCP github/);
+		assert.doesNotMatch(completed, /private/);
+		assert.equal(getFlagCalls, 1, "rendering must not retry initialization or connect");
 
 		const signal = new AbortController().signal;
 		const [first, second] = await Promise.all([

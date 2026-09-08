@@ -13,9 +13,11 @@ In main chat and live workflow-stage chat, a compact indicator appears **below t
 Tasks  2 local agents running · 1 queued · /tasks
 ```
 
-It summarizes local agents, shells, mixed background tasks, queued work, stopping tasks, and tasks needing attention. Failed counts come first so they remain visible even alongside active work on narrow terminals; when no work is active, a finished-task count keeps completed results discoverable. Task descriptions and activity logs belong inside the inspector, not in a permanent panel above your prompt.
+It summarizes only active background agents and shells, including queued work, stopping tasks, and tasks needing attention. Completed, failed, and stopped tasks leave the footer immediately; when no background work is active, the indicator disappears. Results and failure details remain in completion cards and `/tasks`, so an old failure cannot keep the live indicator red. Running tasks do not expire merely because they are quiet.
 
 Run `/tasks` to open the background-only list. The command also appears in workflow-stage slash suggestions, including when skill commands are disabled. Foreground-only commands do not appear. Work that ran in the background stays available after completion or a later foreground wait. Updates never open the list automatically. Closing the inspector does not stop the tasks.
+
+Opening `/tasks` is navigation, not an approval request. It does not mark the agent blocked in Herdr. The inspector stays open until you close it, even when its tasks finish; task history is not deleted when the compact indicator disappears.
 
 ## Choose how long to wait
 
@@ -99,6 +101,8 @@ Completion creates a shaded notification card in the owning chat without dependi
 The parent model also receives the result context. The internal receipt stays in structured message details, rather than becoming raw JSON in chat. The same persisted completion identity handles delivery retries without relaunching the child. Workflow completions remain in their owning stage chat, not the main conversation.
 
 Restored completions may have only an outcome and task identity if the original live task or transcript is unavailable. Atomic does not invent missing output. Excerpts are bounded; inspect retained history for more detail.
+
+Long titles and previews are truncated or wrapped within the card width. Its background covers the ellipsis, expand hint, and trailing padding on every row.
 
 ## Inspect tasks
 

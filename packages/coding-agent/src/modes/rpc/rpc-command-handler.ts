@@ -2,6 +2,7 @@ import type { KeyId } from "@earendil-works/pi-tui";
 import type { AgentSession } from "../../core/agent-session.ts";
 import type { AgentSessionRuntime } from "../../core/agent-session-runtime.ts";
 import { runCallback } from "../../core/callback-activity.ts";
+import type { ExtensionUIContext } from "../../core/extensions/index.js";
 import { KeybindingsManager } from "../../core/keybindings.ts";
 import { getSkillCatalog } from "../../core/skill-catalog.ts";
 import { RpcBashRequestOwners } from "./rpc-bash-request-owners.ts";
@@ -27,6 +28,7 @@ interface RpcCommandHandlerOptions {
 	rebindSession: () => Promise<void>;
 	output: RpcOutput;
 	keybindings?: KeybindingsManager;
+	taskInspectorUi?: Pick<ExtensionUIContext, "custom">;
 	reloadCoordinator?: KeybindingsReloadCoordinator<AgentSession>;
 	inputForm?: ProviderLoginInput;
 	pendingExtensionRequests?: RpcPendingExtensionRequests;
@@ -65,6 +67,7 @@ export function createRpcCommandHandler({
 	rebindSession,
 	output,
 	keybindings,
+	taskInspectorUi,
 	reloadCoordinator,
 	inputForm,
 	pendingExtensionRequests,
@@ -94,9 +97,9 @@ export function createRpcCommandHandler({
 		const session = getSession();
 		switch (command.type) {
 			case "open_task_inspector": {
-				if (!keybindings)
+				if (!keybindings || !taskInspectorUi)
 					return createRpcErrorResponse(id, command.type, "Task inspection requires an interactive host");
-				void showEngineTaskInspector(session, command.taskId).catch((error: Error) =>
+				void showEngineTaskInspector(session, taskInspectorUi, command.taskId).catch((error: Error) =>
 					session.extensionRunner.getUIContext().notify(error.message, "error"),
 				);
 				return createRpcSuccessResponse(id, command.type);

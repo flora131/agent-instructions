@@ -146,7 +146,10 @@ async function mountMainInspector(isolated: boolean) {
 	}
 	tui.start();
 	tui.renderNow();
-	const open = () => (isolated ? showEngineTaskInspector(session) : Promise.resolve(editor.onSubmit!("/tasks")));
+	const open = () =>
+		isolated
+			? showEngineTaskInspector(session, { custom: service!.custom.bind(service!) })
+			: Promise.resolve(editor.onSubmit!("/tasks"));
 	const completion = open();
 	await flush();
 	async function paint() {

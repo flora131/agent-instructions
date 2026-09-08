@@ -121,26 +121,29 @@ test("short labels distinguish shared ID suffixes and descriptions colliding at 
 	}
 });
 
-test("task footer uses theme accent, success, warning and error rather than dim text", () => {
+test("task footer colors current work and hides settled results without deleting them", () => {
 	for (const mode of ["dark", "light"] as const) {
 		initTheme(mode);
 		const task = taskRecord("footer-theme");
-		const assertColor = (color: "accent" | "success" | "warning" | "error") => {
+		const assertColor = (color: "accent" | "warning") => {
 			const rows = renderTaskFooter([task], 80);
 			assert.equal(rows[0], theme.fg(color, plain(rows)));
 			assert.notEqual(rows[0], theme.fg("dim", plain(rows)));
 		};
 		assertColor("accent");
 		task.execution = { kind: "settled", result: { kind: "completed", output: task.output } };
-		assertColor("success");
+		assert.deepEqual(renderTaskFooter([task], 80), []);
 		task.execution = { kind: "settled", result: { kind: "failed", code: "Test", message: "Failure" } };
-		assertColor("error");
+		assert.deepEqual(renderTaskFooter([task], 80), []);
+		assert.match(plain(new TaskRow(task).render(80)), /failed/);
+		task.execution = { kind: "settled", result: { kind: "cancelled", cause: "user" } };
+		assert.deepEqual(renderTaskFooter([task], 80), []);
 		task.execution = { kind: "cancelling", cause: "user" };
 		assertColor("warning");
 	}
 });
 
-test("task footer uses counted local-agent, shell and mixed background-task labels without hiding failures", () => {
+test("task footer summarizes only active background tasks, not retained failures", () => {
 	const agent = taskRecord("agent");
 	const shell = { ...taskRecord("shell"), kind: "command" as const };
 	assert.equal(plain(renderTaskFooter([agent], 100)), "Tasks  1 local agent running · /tasks");
@@ -150,5 +153,8 @@ test("task footer uses counted local-agent, shell and mixed background-task labe
 	assert.equal(plain(renderTaskFooter([agent, shell], 100)), "Tasks  2 background tasks running · /tasks");
 	const failure = taskRecord("failure");
 	failure.execution = { kind: "settled", result: { kind: "failed", code: "fixture", message: "Failed" } };
-	assert.match(plain(renderTaskFooter([agent, shell, failure], 40)), /1 failed.*\/tasks/);
+	const rows = renderTaskFooter([agent, shell, failure], 60);
+	assert.equal(plain(rows), "Tasks  2 background tasks running · /tasks");
+	assert.equal(rows[0], theme.fg("accent", plain(rows)));
+	assert.deepEqual(renderTaskFooter([failure], 60), []);
 });

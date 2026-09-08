@@ -160,7 +160,7 @@ test("both chats retain the same task through tool end, agent end, background ac
 		assertParity();
 		expanded = true;
 		assertParity();
-		assert.match(main.renderFooter(80).join("\n"), /Tasks {2}1 finished/);
+		assert.doesNotMatch(main.renderFooter(80).join("\n"), /Tasks {2}/);
 		const completedEnvelope: TaskCompletionEnvelope = {
 			...envelope,
 			terminalSequence: fixture.store.cursor!.sequence,

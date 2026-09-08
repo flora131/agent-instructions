@@ -342,6 +342,8 @@ Prefer `.mcp.json` for project-local shared MCP config. Use `.pi/mcp.json` only 
 | Connect | `mcp({ connect: "server-name" })` |
 | UI messages | `mcp({ action: "ui-messages" })` |
 
+MCP call headers show the server name while pending, without waiting for a result. Direct tools use their registered server; gateway calls use an explicit target or an unambiguous match in available metadata or configured prefixes. Unknown or ambiguous targets keep the operation/tool name without guessing a server. Rendering never connects to a server.
+
 MCP proxy and direct-tool results render compactly by default: long text shows the first three lines plus a `ctrl+o Expand` hint, while the full result remains available when expanded and is still returned unchanged to the model.
 
 Search includes both MCP tools and Pi tools (from extensions). Pi tools appear first with `[pi tool]` prefix. Space-separated words are OR'd.

@@ -24,7 +24,7 @@ import {
 } from "../unit/stage-chat-view-helpers.js";
 
 test.each(["main", "stage", "engine-workflow-first", "engine-tasks-first"] as const)(
-	"%s composed chat keeps active and retained failed tasks below MCP and above the workflow widget when present",
+	"%s composed chat keeps active tasks below MCP and removes stale terminal counts",
 	async (surface) => {
 		const tasks = taskFixture();
 		const emptyTasks = taskFixture();
@@ -119,19 +119,21 @@ test.each(["main", "stage", "engine-workflow-first", "engine-tasks-first"] as co
 				tasks.store.drain();
 				assert.equal(tasks.store.tasks[0]?.execution.kind, "settled");
 			});
-			assertOrder(/1 failed.*1 local agent running/);
+			assertOrder(/1 local agent running/);
+			assert.doesNotMatch(render(), /1 failed/);
 			if (stage) {
 				const narrow = stripVTControlCharacters(stage.render(40).join("\n"));
-				assert.match(narrow, /Tasks {2}1 failed.*\/tasks/);
+				assert.match(narrow, /Tasks {2}1 local agent running.*\/tasks/);
 				assert.match(narrow, /ctrl\+x (?:return to )?graph/);
 			}
 			await tasks.settle(1);
-			assertOrder(/1 failed/);
+			assert.doesNotMatch(render(), /Tasks {2}/);
+			assert.equal(tasks.store.backgroundTasks.length, 2, "terminal history remains inspectable");
 			if (main) {
 				removeWidget();
 				main.context.setExtensionWidget("workflow.run", undefined);
 			}
-			assertOrder(/1 failed/, false);
+			assert.doesNotMatch(render(), /Tasks {2}/);
 			bindOwnerTaskStore(session, emptyTasks.store);
 			assert.match(render(), /MCP /);
 			assert.doesNotMatch(render(), /Tasks {2}|BACKGROUND/);

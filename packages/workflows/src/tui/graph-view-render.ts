@@ -1,5 +1,5 @@
 import type { RunSnapshot } from "../shared/store-types.js";
-import { hexBg, hexToAnsi, RESET } from "./color-utils.js";
+import { fillBackground, hexBg, hexToAnsi, RESET } from "./color-utils.js";
 import { GraphViewGraphRenderer } from "./graph-view-graph-render.js";
 import { GRAPH_HEADER_ROWS, GraphViewLayout, graphLayoutNaturalHeight } from "./graph-view-layout.js";
 import { toolExpandKey } from "./graph-view-render-helpers.js";
@@ -249,7 +249,7 @@ export abstract class GraphViewRenderer extends GraphViewGraphRenderer {
 			`${chromeBg} ${RESET}${top}${chromeBg}${" ".repeat(6 + fillerVisible)}${" ".repeat(2)}${RESET}`,
 			`${chromeBg} ${RESET}${mid}${chromeBg}  ${muted}idle${RESET}${filler}${" ".repeat(2)}${RESET}`,
 			`${chromeBg} ${RESET}${bot}${chromeBg}${" ".repeat(6 + fillerVisible)}${" ".repeat(2)}${RESET}`,
-		];
+		].map((line) => fillBackground(line, width, chromeBg));
 	}
 
 	private _renderBody(width: number, top: number, rows: number, _contentRows: number): string[] {

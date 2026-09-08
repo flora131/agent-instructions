@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { CustomEditor } from "@bastani/atomic";
 import { setKeybindings } from "@earendil-works/pi-tui";
@@ -9,12 +10,22 @@ import { createSessionSkillAutocompleteProvider } from "../../packages/coding-ag
 import { getEditorTheme, initTheme, theme } from "../../packages/coding-agent/src/modes/interactive/theme/theme.js";
 import { deriveGraphThemeFromPiTheme } from "../../packages/workflows/src/tui/graph-theme.js";
 import { createStageSkillFixture } from "../fixtures/stage-chat-skill-session.js";
+import { writeFileEnsuringDir } from "../helpers/runtime.js";
 import { makeTestTui } from "../support/fake-tui.js";
 
-test.each(["dark", "light", "catppuccin-mocha"])(
-	"%s stage skill suggestions keep main-chat default backgrounds and selected accent",
-	async (name) => {
+test.each(
+	["dark", "light", "catppuccin-mocha"].flatMap((name) => [
+		{ name, query: "/skill:fi", match: /stage-(?:project|user) fixture/, count: 3 },
+		{ name, query: "/tas", match: /tasks/, count: 1 },
+		{ name, query: "./autocomplete-fixture", match: /autocomplete-fixture/, count: 2 },
+	]),
+)(
+	"$name stage $query suggestions keep main-chat default backgrounds and selected accent",
+	async ({ name, query, match, count }) => {
 		const fixture = await createStageSkillFixture();
+		for (const file of ["autocomplete-fixture-a.txt", "autocomplete-fixture-b.txt"]) {
+			await writeFileEnsuringDir(join(fixture.stage.session.sessionManager.getCwd(), file), "fixture");
+		}
 		initTheme(name, false);
 		const keys = new KeybindingsManager();
 		setKeybindings(keys);
@@ -29,19 +40,27 @@ test.each(["dark", "light", "catppuccin-mocha"])(
 			main.focused = true;
 			view.render(width);
 			main.render(width);
-			for (const character of "/skill:fi") {
+			for (const character of query) {
 				main.handleInput(character);
 				view.handleInput(character);
+			}
+			if (query.startsWith("./")) {
+				main.handleInput("\t");
+				view.handleInput("\t");
 			}
 			const suggestions = (lines: string[]) =>
 				lines.filter(
 					(line) =>
-						stripVTControlCharacters(line).includes("stage-project fixture") ||
-						stripVTControlCharacters(line).includes("stage-user fixture"),
+						match.test(stripVTControlCharacters(line)) &&
+						!stripVTControlCharacters(line).trimStart().startsWith("❯"),
 				);
 			await vi.waitFor(() => {
-				assert.equal(suggestions(main.render(width)).length, 3);
-				assert.equal(suggestions(view.render(width)).length, 3);
+				assert.equal(
+					suggestions(main.render(width)).length,
+					count,
+					main.render(width).map(stripVTControlCharacters).join("\n"),
+				);
+				assert.equal(suggestions(view.render(width)).length, count);
 			});
 			for (let selection = 0; selection < 2; selection++) {
 				const mainRows = suggestions(main.render(width));

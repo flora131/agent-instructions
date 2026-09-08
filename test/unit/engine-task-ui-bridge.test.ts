@@ -63,7 +63,9 @@ test("engine task widget follows the real lazy owner through activity, settlemen
 		);
 		assert.ok(renders > 0);
 		await fixture.settle();
-		assert.match(stripVTControlCharacters(mounted.render(80).join("\n")), /1 finished.*\/tasks/);
+		assert.equal(currentWidget(), undefined, "settled tasks must unmount the compact widget");
+		assert.equal(fixture.store.backgroundTasks.length, 1, "history remains available in /tasks");
+		assert.deepEqual(mounted.render(80), []);
 		dispose();
 		await fixture.start("Should not mount after disposal");
 		assert.equal(widget, undefined);
@@ -92,7 +94,7 @@ test("engine task inspector requests an opaque fullscreen overlay using live hos
 	let completion: Promise<void> | undefined;
 	try {
 		await fixture.start("Fullscreen background review");
-		completion = showEngineTaskInspector(session);
+		completion = showEngineTaskInspector(session, { custom: service.custom.bind(service) });
 		await new Promise<void>((resolve) => setImmediate(resolve));
 		const open = messages.find((message) => message.type === "engine_custom_open");
 		assert.ok(open && open.type === "engine_custom_open");
