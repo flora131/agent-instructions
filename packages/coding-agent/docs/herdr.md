@@ -19,6 +19,8 @@ The reporter captures these values on activation, not at module import. It runs 
 
 The reporter uses `agent_start`, `agent_settled`, `ui_prompt_start`, `ui_prompt_end`, the owning session's task subscription, and its `observeWorkflowActivity` stream. It does not infer execution from screen text or use `agent_end` as the idle boundary.
 
+Quiet work is still work: waiting for a provider response, tool completion, retry backoff, or another automatic continuation does not become `idle` because output stops. Repeated output-cap continuations remain part of the same owning prompt until the entire chain finishes. Reporting is lifecycle-driven, with no inactivity-to-idle timer or heartbeat requirement.
+
 | Contribution | Reported state | Internal reason | Message |
 |---|---|---|---|
 | Agent executing without an open approval prompt | `working` | `executing` | None unless a workflow needs attention |
@@ -37,9 +39,11 @@ Standalone subagents and background shell tasks also keep the pane working after
 
 A failed review or cleanup can leave a workflow outcome marked `blocked` after execution ends. That outcome remains inspectable and retains `needsAttention`, but does not by itself keep the pane red. A pending decision or exhausted budget still reports `blocked`; independent execution still reports `working`. Reporting `idle` neither acknowledges the failure nor resumes it. The parent session retains pane ownership until it exits, so a child stopping does not call `release-agent` for the parent.
 
-Opening or closing the host-owned `/tasks` inspector is navigation and does not emit an approval span or change Herdr activity. Genuine extension approval prompts still report `blocked`. This follows [Herdr's custom-agent contract](https://herdr.dev/docs/integrations/#integrate-your-own-agent), which defines `blocked` as needing a user decision. [Prime Agent's reporter](https://github.com/PrimeIntellect-ai/prime-agent/blob/main/packages/coding-agent/src/core/extensions/builtin/herdr-agent-state.ts) likewise observes explicit block notifications. Atomic retains its settled-event and workflow aggregation instead of copying Prime's retry grace timers.
+Opening or closing the host-owned `/tasks` inspector or the `/agents` catalog is navigation and does not emit an approval span or change Herdr activity. Genuine extension approval prompts still report `blocked`. This follows [Herdr's custom-agent contract](https://herdr.dev/docs/integrations/#integrate-your-own-agent), which defines `blocked` as needing a user decision. [Prime Agent's reporter](https://github.com/PrimeIntellect-ai/prime-agent/blob/main/packages/coding-agent/src/core/extensions/builtin/herdr-agent-state.ts) likewise observes explicit block notifications. Atomic retains its settled-event and workflow aggregation instead of copying Prime's retry grace timers.
 
 `/workflow connect` and its run picker are also navigation. Opening, hiding, reopening, or closing the graph does not create an approval wait. Real workflow input waits and extension approvals still contribute their normal state, including while the graph is hidden.
+
+Prompt notifications reach each observer without waiting for earlier observers to finish. A slow observer cannot delay Herdr's start until after the matching end and leave a false `blocked` state after the user has answered. Notification work never delays prompt display or answers.
 
 ## Opt out
 
@@ -93,7 +97,7 @@ The reporter is tested against Herdr **0.8.2 (protocol 20)**; that is the minimu
 Additional limits on this release:
 
 - Reporting is event-driven. This integration adds no reconnect polling or crash-cleanup guarantee.
-- Host-owned trust prompts are not covered by the extension prompt events. See [#2873](https://github.com/bastani-inc/atomic/issues/2873).
+- Interactive project-trust decisions also use the prompt lifecycle, including startup/resume and `/trust`; silent saved-policy decisions do not create a block.
 
 The full activity path, from a real workflow run through the host observation stream to the `herdr` CLI invocations, is covered by an integration test against a fake `herdr` executable that records argv. It checks the ordered `working → blocked → working → idle` reports and strictly increasing `--seq` values for a tool-only execution followed by a human-input prompt. The state table it exercises is in [Workflow activity for extensions](/workflows/operations#workflow-activity-for-extensions).
 

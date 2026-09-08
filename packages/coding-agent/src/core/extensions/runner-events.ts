@@ -105,6 +105,7 @@ export async function runGenericHandlers<TEvent extends RunnerEmitEvent>(
 	isCurrent?: () => boolean,
 ): Promise<RunnerEmitResult<TEvent>> {
 	let result: SessionBeforeEventResult | undefined;
+	const promptNotifications: Promise<void>[] = [];
 
 	for (const ext of extensions) {
 		const handlers = ext.handlers.get(event.type);
@@ -114,11 +115,23 @@ export async function runGenericHandlers<TEvent extends RunnerEmitEvent>(
 			// Workflow publishers can retire while a previous handler awaits.
 			if (isCurrent && !isCurrent()) return result as RunnerEmitResult<TEvent>;
 			try {
-				const handlerResult = await runCallback(
+				const invocation = runCallback(
 					{ kind: "extension.hook", name: event.type, sourcePath: ext.path },
 					// Activity reporting may yield again before invoking the callback.
 					() => (!isCurrent || isCurrent() ? handler(event, ctx) : undefined),
 				);
+				if (event.type === "ui_prompt_start" || event.type === "ui_prompt_end") {
+					// These notifications dispatch independently. Awaiting one observer here
+					// lets an end overtake its start at every later observer, leaving a false block.
+					promptNotifications.push(
+						invocation.then(
+							() => {},
+							(error) => emitCaughtError(emitError, ext.path, event.type, error),
+						),
+					);
+					continue;
+				}
+				const handlerResult = await invocation;
 				if (isSessionBeforeEvent(event) && handlerResult) {
 					result = handlerResult as SessionBeforeEventResult;
 					if (result.cancel) return result as RunnerEmitResult<TEvent>;
@@ -129,6 +142,7 @@ export async function runGenericHandlers<TEvent extends RunnerEmitEvent>(
 		}
 	}
 
+	if (promptNotifications.length > 0) await Promise.all(promptNotifications);
 	return result as RunnerEmitResult<TEvent>;
 }
 

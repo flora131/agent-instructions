@@ -87,6 +87,8 @@
 - Radius login now prefers the discovered balanced model and falls back to the account's first available model after catalog refresh.
 - Direct steering and follow-up calls now run extension input handlers before queue admission, preserving transformed text/images and RPC input-source attribution while consuming handled inputs.
 - Fixed subagents stopped with `x` in `/tasks` failing to notify the parent chat. Running and queued cancellations now deliver their confirmed terminal receipt once, without requiring a final child response, duplicating completion notices, or overwriting an outcome that already settled.
+- Fixed premature Herdr idle reports between repeated output-cap continuations by keeping the original prompt active until the complete continuation chain settles, including quiet provider waits. No heartbeat or inactivity timer is required.
+- Fixed false Herdr blocked status after an answered prompt when an earlier notification observer is slow, and while browsing the read-only `/agents` catalog. Genuine user decisions still report blocked.
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

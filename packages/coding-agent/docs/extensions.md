@@ -633,7 +633,7 @@ Inside `before_agent_start`, `event.systemPrompt` and `ctx.getSystemPrompt()` bo
 
 #### agent_start / agent_end / agent_settled
 
-`agent_start` begins a low-level run. `agent_end` fires when that run ends, but Atomic may still retry, compact and retry, or deliver queued follow-ups. Use `agent_settled` when a status integration needs to know Atomic has no automatic continuation left.
+`agent_start` begins a low-level run. `agent_end` fires when that run ends, but Atomic may still retry, compact and retry, or deliver queued follow-ups. Use `agent_settled` when a status integration needs to know Atomic has no automatic continuation left, including a chain of repeated output-cap continuations. Silence during a provider request or between these runs is not settlement.
 
 ```typescript
 pi.on("agent_start", async (_event, ctx) => {});
@@ -659,7 +659,7 @@ Interactive resume trust dialogs use the outgoing session's live extension conte
 
 Atomic coalesces nested or overlapping prompts, including mixed reasons, into one shared outer span. The end event retains the original outer prompt's reason, kind, and title and fires after every prompt in the span settles, including rejected promises and synchronous failures. Cancelling or disposing the `/trust` selector ends its wait. Rebinding the host UI context closes an active span before a prompt from the new context can begin. Notifications are not replayed to a replacement engine if the engine exits while a host selector is open.
 
-At session replacement, Atomic waits up to 1,000 ms for a snapshot of pending prompt notification deliveries before shutdown. Prompt display and answers never await observers, and start and end dispatch independently. If an observer hangs, Atomic warns and continues replacement; its context is not guaranteed to remain valid after that finite boundary.
+At session replacement, Atomic waits up to 1,000 ms for a snapshot of pending prompt notification deliveries before shutdown. Prompt display and answers never await observers. Start and end dispatch independently, invoking each observer in notification order without awaiting other observers; an earlier slow observer cannot make later subscribers receive an end before its start. An observer's own asynchronous start and end work can overlap, so update lifecycle state before awaiting unrelated work. If an observer hangs, Atomic warns and continues replacement; its context is not guaranteed to remain valid after that finite boundary.
 
 Handlers run best-effort from the microtask queue. Atomic does not await them before opening or closing the prompt, so notifications do not block the UI.
 
