@@ -37,6 +37,8 @@ If the task finishes during observation, the call returns its terminal result in
 
 Shell `budgetMs` accepts finite non-negative milliseconds; zero means no observation delay. It is only valid for foreground observation. A trusted SDK host can override the usual budgets or select `tasks.wait.kind: "until-settled"`; omitted foreground budgets then wait until settlement. Explicit per-call budgets still take precedence.
 
+Native observation timers run independently of JavaScript. A zero-budget wait can already be backgrounded by the time a caller reads the next task snapshot, even before JavaScript awaits the result. Synchronous wait registration does not guarantee a visible foreground interval. The elapsed result still identifies the same wait and task; execution continues.
+
 ## Background subagents
 
 Ask Atomic to delegate a bounded task:

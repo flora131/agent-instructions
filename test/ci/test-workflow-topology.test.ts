@@ -112,20 +112,23 @@ test("every work job the gate names exists and is otherwise independent", async 
 	}
 });
 
-/** Ceil the sampled maximum plus 50% headroom; measurements and censoring caveats live in docs/ci.md. */
+/** Measured headroom, including a full Windows integration retry; evidence lives in docs/ci.md. */
 test("each split job retains its measured timeout hang detector", async () => {
 	const workflow = await readText(testPath);
 	const blocks = await jobs();
 	// Runs 33997174167 / 33997819241, except Windows release-archive recalibrated for PR #2887:
 	// Run 34035777039, job 101493452122, was timeout-censored at 244s; run 34037177374 succeeded in 149s.
 	const caps: Record<string, [number, number]> = {
-		// Linux unit tests: run 34147316169, job 101822029919, was timeout-censored at 618s while its bounded
-		// flake retry re-ran the whole suite; the formula yields 16, bounded by the 14-minute hang detector.
-		"unit-tests": [Math.min(14, Math.ceil((618 * 1.5) / 60)), Math.ceil((526 * 1.5) / 60)],
+		// Run 34270757695: Linux job 102211457492 / Windows job 102211457215 were
+		// timeout-censored at 869s / 870s, including bounded retries and teardown.
+		"unit-tests": [Math.ceil((869 * 1.5) / 60), Math.ceil((870 * 1.5) / 60)],
 		// RFC #2884, run 34142104101: Linux job 101806128732 took 145s;
-		// Windows job 101806127937 was timeout-censored at 305s during its retry.
-		"integration-tests": [Math.ceil((145 * 1.5) / 60), Math.ceil((305 * 1.5) / 60)],
-		"agent-suite": [Math.ceil((226 * 1.5) / 60), Math.ceil((331 * 1.5) / 60)],
+		// PR #2934, run 34275410217 / job 102227085985: 147s setup, 186.92s first
+		// attempt, 7s teardown. Reserve two complete attempts, then add 50% headroom.
+		"integration-tests": [Math.ceil((145 * 1.5) / 60), Math.ceil(((147 + 2 * 186.92 + 7) * 1.5) / 60)],
+		// Run 34270757695: jobs 102211457418 / 102211457032 reached 382s / 552s. Test steps
+		// passed without retry, but both jobs still exceeded their 6/9-minute caps.
+		"agent-suite": [Math.ceil((382 * 1.5) / 60), Math.ceil((552 * 1.5) / 60)],
 		"release-archive": [Math.ceil((80 * 1.5) / 60), Math.ceil((244 * 1.5) / 60)],
 	};
 	for (const [job, [linux, windows]] of Object.entries(caps)) {
@@ -152,7 +155,7 @@ test("each split job retains its measured timeout hang detector", async () => {
 	// than GitHub's six-hour default. The bound is the largest cap the current
 	// measurements justify, so raising one further has to come with new numbers.
 	for (const [, value] of workflow.matchAll(/^\s+timeout_minutes: (\d+)$/gmu)) {
-		assert.ok(Number(value) <= 14, `cap ${value} is too loose to detect a hang`);
+		assert.ok(Number(value) <= 22, `cap ${value} is too loose to detect a hang`);
 	}
 });
 
