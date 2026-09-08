@@ -1,54 +1,37 @@
 import assert from "node:assert/strict";
-import { test } from "vitest";
-import type { AgentConfig } from "../../packages/subagents/src/agents/agent-types.js";
+import { test, vi } from "vitest";
 import { runForegroundParallelTasks } from "../../packages/subagents/src/runs/foreground/subagent-executor-parallel-task.js";
-import type {
-	ForegroundParentAskHandoff,
-	ParentAskHandoffRequest,
-	SingleResult,
-} from "../../packages/subagents/src/shared/types.js";
+import type { RunSyncOptions, SingleResult } from "../../packages/subagents/src/shared/types.js";
 
-function agentConfig(): AgentConfig {
+type Input = Parameters<typeof runForegroundParallelTasks>[0];
+function result(index: number, detached = false): SingleResult {
 	return {
-		name: "fake-worker",
-		description: "Fake worker",
-		source: "project",
-		filePath: "fake-worker.md",
-		systemPrompt: "Work.",
-		systemPromptMode: "replace",
-		inheritProjectContext: false,
-		inheritSkills: false,
-		model: "provider-a/stalled",
-		fallbackModels: ["provider-b/working"],
-	};
-}
-
-function result(index: number): SingleResult {
-	return {
-		agent: "fake-worker",
+		agent: "worker",
 		task: `task-${index}`,
-		status: "continued",
-		path: `child-${index}`,
-		envelope: "Child detached for intercom coordination.",
-		detached: true,
+		status: detached ? "continued" : "ok",
+		...(detached ? { detached: true } : {}),
 		messages: [],
 		usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 0 },
 	};
 }
-
-test("one parallel child's supervisor detach releases every active foreground sibling", async () => {
-	const started: number[] = [];
-	const settled: number[] = [];
-	const output = await runForegroundParallelTasks({
-		tasks: [
-			{ agent: "fake-worker", task: "ask supervisor" },
-			{ agent: "fake-worker", task: "remain active" },
-			{ agent: "fake-worker", task: "remain queued" },
+function input(runSync: Input["runtime"]["runSync"]): Input {
+	return {
+		tasks: [0, 1, 2].map((index) => ({ agent: "worker", task: `task-${index}` })),
+		taskTexts: ["task-0", "task-1", "task-2"],
+		agents: [
+			{
+				name: "worker",
+				description: "worker",
+				source: "project",
+				filePath: "worker.md",
+				systemPrompt: "Work",
+				systemPromptMode: "replace",
+				inheritProjectContext: false,
+				inheritSkills: false,
+			},
 		],
-		taskTexts: ["ask supervisor", "remain active", "remain queued"],
-		agents: [agentConfig()],
-		ctx: { cwd: process.cwd() } as Parameters<typeof runForegroundParallelTasks>[0]["ctx"],
-		intercomEvents: {} as Parameters<typeof runForegroundParallelTasks>[0]["intercomEvents"],
+		ctx: { cwd: process.cwd() } as Input["ctx"],
+		intercomEvents: {} as Input["intercomEvents"],
 		signal: new AbortController().signal,
 		runId: "parallel-detach",
 		sessionDirForIndex: () => undefined,
@@ -68,11 +51,13 @@ test("one parallel child's supervisor detach releases every active foreground si
 		knownModelProviders: [],
 		resolveCandidateModel: () => undefined,
 		modelOverrides: [undefined, undefined, undefined],
-		behaviors: [
-			{ output: false, outputMode: "inline", reads: false, progress: false, skills: false },
-			{ output: false, outputMode: "inline", reads: false, progress: false, skills: false },
-			{ output: false, outputMode: "inline", reads: false, progress: false, skills: false },
-		],
+		behaviors: [0, 1, 2].map(() => ({
+			output: false,
+			outputMode: "inline",
+			reads: false,
+			progress: false,
+			skills: false,
+		})),
 		firstProgressIndex: -1,
 		controlConfig: {
 			enabled: false,
@@ -85,258 +70,99 @@ test("one parallel child's supervisor detach releases every active foreground si
 		concurrencyLimit: 2,
 		liveResults: [],
 		liveProgress: [],
-		runtime: {
-			async runSync(_cwd, _agents, _agentName, _task, options) {
-				const index = options.index ?? -1;
-				started.push(index);
-				if (index === 0) {
-					await Promise.resolve();
-					options.onIntercomDetachCommit?.();
-				} else {
-					await new Promise<void>((resolve) => {
-						options.intercomDetachSignal?.addEventListener("abort", () => resolve(), { once: true });
-						if (options.intercomDetachSignal?.aborted) resolve();
-					});
-				}
-				settled.push(index);
-				return result(index);
-			},
-		},
-	});
+		runtime: { runSync },
+	};
+}
 
-	assert.deepEqual(started, [0, 1]);
-	assert.deepEqual(settled.toSorted(), [0, 1]);
-	assert.equal(output.length, 3);
-	assert.ok(output.slice(0, 2).every((entry) => entry.detached));
-	assert.equal(output[2]?.status, "skipped");
-	assert.match(output[2]?.error ?? "", /Skipped after foreground group detached/);
-});
-
-test("one parallel parent ask ends active siblings and withholds queued work", async () => {
+test("parallel detach releases observations but retains execution slots until detached exits", async () => {
 	const started: number[] = [];
-	const siblingStarted = Promise.withResolvers<void>();
-	let handoff: ForegroundParentAskHandoff | undefined;
-	const output = await runForegroundParallelTasks({
-		tasks: [
-			{ agent: "fake-worker", task: "ask parent" },
-			{ agent: "fake-worker", task: "remain active" },
-			{ agent: "fake-worker", task: "remain queued" },
-		],
-		taskTexts: ["ask parent", "remain active", "remain queued"],
-		agents: [agentConfig()],
-		ctx: { cwd: process.cwd() } as Parameters<typeof runForegroundParallelTasks>[0]["ctx"],
-		intercomEvents: {} as Parameters<typeof runForegroundParallelTasks>[0]["intercomEvents"],
-		signal: new AbortController().signal,
-		runId: "parallel-parent-ask",
-		sessionDirForIndex: () => undefined,
-		sessionFileForIndex: () => undefined,
-		shareEnabled: false,
-		artifactConfig: {
-			enabled: false,
-			includeInput: false,
-			includeOutput: false,
-			includeJsonl: false,
-			includeMetadata: false,
-			cleanupDays: 0,
-		},
-		artifactsDir: process.cwd(),
-		paramsCwd: process.cwd(),
-		availableModels: [],
-		knownModelProviders: [],
-		resolveCandidateModel: () => undefined,
-		modelOverrides: [undefined, undefined, undefined],
-		behaviors: [
-			{ output: false, outputMode: "inline", reads: false, progress: false, skills: false },
-			{ output: false, outputMode: "inline", reads: false, progress: false, skills: false },
-			{ output: false, outputMode: "inline", reads: false, progress: false, skills: false },
-		],
-		firstProgressIndex: -1,
-		controlConfig: {
-			enabled: false,
-			needsAttentionAfterMs: 1,
-			activeNoticeAfterMs: 1,
-			failedToolAttemptsBeforeAttention: 1,
-			notifyOn: [],
-			notifyChannels: [],
-		},
-		concurrencyLimit: 2,
-		liveResults: [],
-		liveProgress: [],
-		onParentAskHandoff: (value) => {
-			handoff = value;
-		},
-		runtime: {
-			async runSync(_cwd, _agents, _agentName, _task, options) {
-				const index = options.index ?? -1;
-				started.push(index);
-				if (index === 1) siblingStarted.resolve();
-				if (index === 0) {
-					await siblingStarted.promise;
-					const request: ParentAskHandoffRequest = {
-						runId: "parallel-parent-ask",
-						index: 0,
-						agent: "fake-worker",
-						childIntercomTarget: "child-0",
-						orchestratorTarget: "parent",
-						kind: "decision",
-						question: "Pick one",
-						claimed: true,
-					};
-					options.onParentAskHandoff?.(request);
-				}
-				await new Promise<void>((resolve) => {
-					options.interruptSignal?.addEventListener("abort", () => resolve(), { once: true });
-					if (options.interruptSignal?.aborted) resolve();
-				});
-				return {
-					agent: "fake-worker",
-					task: `task-${index}`,
-					status: "interrupted",
-					interrupted: true,
-					path: `child-${index}`,
-					sessionFile: `session-${index}.jsonl`,
-					messages: [],
-					usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 0 },
-				};
-			},
-		},
-	});
-
+	const exits = new Map<number, RunSyncOptions["onDetachedExit"]>();
+	const execution = runForegroundParallelTasks(
+		input(async (_cwd, _agents, _agent, _task, options) => {
+			const index = options.index!;
+			started.push(index);
+			exits.set(index, options.onDetachedExit);
+			if (index === 0) {
+				await Promise.resolve();
+				options.onIntercomDetachCommit?.();
+			} else if (!options.intercomDetachSignal?.aborted)
+				await new Promise<void>((resolve) =>
+					options.intercomDetachSignal?.addEventListener("abort", () => resolve(), { once: true }),
+				);
+			return result(index, true);
+		}),
+	);
+	const output = await execution;
 	assert.deepEqual(started, [0, 1]);
-	assert.deepEqual(handoff?.releasedChildIndices, [0, 1]);
-	assert.equal(handoff?.askingChildIndex, 0);
-	assert.deepEqual(handoff?.unlaunchedChildIndices, [2]);
-	assert.ok(output.slice(0, 2).every((entry) => entry.interrupted));
-	assert.equal(output[2]?.status, "skipped");
-	assert.match(output[2]?.error ?? "", /Skipped after parent ask handoff/);
+	assert.equal(output.length, 3);
+	assert.ok(output.every((child) => child.detached && child.status === "continued"));
+	exits.get(1)?.(result(1));
+	await vi.waitFor(() => assert.deepEqual(started, [0, 1, 2]));
+	exits.get(0)?.(result(0));
+	exits.get(2)?.(result(2));
 });
 
-test("parallel authorization is exact and a child still waiting after a parent ask never starts", async () => {
-	const requestedChildren: string[] = [];
-	const authorizationGates = new Map<
+test("parallel children cannot install the single-child terminal parent handoff", async () => {
+	const optionsSeen: RunSyncOptions[] = [];
+	const output = await runForegroundParallelTasks(
+		input(async (_cwd, _agents, _agent, _task, options) => {
+			optionsSeen.push(options);
+			assert.equal(options.onParentAskHandoff, undefined);
+			assert.equal(options.interruptSignal?.aborted, false);
+			return result(options.index!);
+		}),
+	);
+	assert.deepEqual(
+		optionsSeen.map((options) => options.index),
+		[0, 1, 2],
+	);
+	assert.ok(output.every((child) => child.status === "ok"));
+});
+
+test("an authorization still pending at peer detach retains its exact child and launches once", async () => {
+	const gates = new Map<
 		string,
 		ReturnType<typeof Promise.withResolvers<{ capability: string; supervisorSessionId: string; childName: string }>>
 	>();
-	const twoRequests = Promise.withResolvers<void>();
-	const firstStarted = Promise.withResolvers<void>();
-	const started: number[] = [];
-	let handoff: ForegroundParentAskHandoff | undefined;
-	const execution = runForegroundParallelTasks({
-		tasks: [
-			{ agent: "fake-worker", task: "ask parent" },
-			{ agent: "fake-worker", task: "wait for authorization" },
-			{ agent: "fake-worker", task: "remain queued" },
-		],
-		taskTexts: ["ask parent", "wait for authorization", "remain queued"],
-		agents: [agentConfig()],
-		ctx: { cwd: process.cwd() } as Parameters<typeof runForegroundParallelTasks>[0]["ctx"],
-		intercomEvents: {
-			emit(channel: string, payload: unknown) {
-				if (channel !== "subagent:supervisor-authorization") return;
-				const request = payload as {
-					childName: string;
-					completion?: Promise<{ capability: string; supervisorSessionId: string; childName: string }>;
-				};
-				requestedChildren.push(request.childName);
-				const gate = Promise.withResolvers<{
-					capability: string;
-					supervisorSessionId: string;
-					childName: string;
-				}>();
-				authorizationGates.set(request.childName, gate);
-				request.completion = gate.promise;
-				if (requestedChildren.length === 2) twoRequests.resolve();
-			},
-		} as Parameters<typeof runForegroundParallelTasks>[0]["intercomEvents"],
-		signal: new AbortController().signal,
-		runId: "parallel-authorization",
-		sessionDirForIndex: () => undefined,
-		sessionFileForIndex: () => undefined,
-		shareEnabled: false,
-		artifactConfig: {
-			enabled: false,
-			includeInput: false,
-			includeOutput: false,
-			includeJsonl: false,
-			includeMetadata: false,
-			cleanupDays: 0,
-		},
-		artifactsDir: process.cwd(),
-		paramsCwd: process.cwd(),
-		availableModels: [],
-		knownModelProviders: [],
-		resolveCandidateModel: () => undefined,
-		modelOverrides: [undefined, undefined, undefined],
-		behaviors: [
-			{ output: false, outputMode: "inline", reads: false, progress: false, skills: false },
-			{ output: false, outputMode: "inline", reads: false, progress: false, skills: false },
-			{ output: false, outputMode: "inline", reads: false, progress: false, skills: false },
-		],
-		firstProgressIndex: -1,
-		controlConfig: {
-			enabled: false,
-			needsAttentionAfterMs: 1,
-			activeNoticeAfterMs: 1,
-			failedToolAttemptsBeforeAttention: 1,
-			notifyOn: [],
-			notifyChannels: [],
-		},
-		childIntercomTarget: (_agent, index) => `child-${index}`,
-		concurrencyLimit: 2,
-		liveResults: [],
-		liveProgress: [],
-		onParentAskHandoff: (value) => {
-			handoff = value;
-		},
-		runtime: {
-			async runSync(_cwd, _agents, _agentName, _task, options) {
-				const index = options.index ?? -1;
-				started.push(index);
-				if (index === 0) firstStarted.resolve();
-				assert.equal(options.supervisorAuthorization?.childName, `child-${index}`);
-				assert.equal(options.supervisorAuthorization?.capability, `cap-child-${index}`);
-				const request: ParentAskHandoffRequest = {
-					runId: "parallel-authorization",
-					index,
-					agent: "fake-worker",
-					childIntercomTarget: `child-${index}`,
-					orchestratorTarget: "parent",
-					kind: "decision",
-					question: "Pick one",
-					claimed: true,
-				};
-				options.onParentAskHandoff?.(request);
-				return {
-					agent: "fake-worker",
-					task: `task-${index}`,
-					status: "interrupted",
-					interrupted: true,
-					messages: [],
-					usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 0 },
-				};
-			},
-		},
+	const starts: string[] = [];
+	const first = Promise.withResolvers<void>();
+	const config = input(async (_cwd, _agents, _agent, _task, options) => {
+		const name = `child-${options.index}`;
+		starts.push(name);
+		assert.equal(options.supervisorAuthorization?.childName, name);
+		assert.equal(options.supervisorAuthorization?.capability, `cap-${name}`);
+		if (options.index === 0) {
+			options.onIntercomDetachCommit?.();
+			first.resolve();
+		}
+		return result(options.index!);
 	});
-
-	await twoRequests.promise;
-	assert.deepEqual(requestedChildren, ["child-0", "child-1"]);
-	authorizationGates.get("child-0")?.resolve({
-		capability: "cap-child-0",
-		supervisorSessionId: "parent-id",
-		childName: "child-0",
-	});
-	await firstStarted.promise;
-	authorizationGates.get("child-1")?.resolve({
-		capability: "cap-child-1",
-		supervisorSessionId: "parent-id",
-		childName: "child-1",
-	});
-	const output = await execution;
-
-	assert.deepEqual(started, [0]);
-	assert.deepEqual(handoff?.releasedChildIndices, [0]);
-	assert.deepEqual(requestedChildren, ["child-0", "child-1"]);
-	assert.equal(output[0]?.status, "interrupted");
-	assert.equal(output[1]?.status, "skipped");
-	assert.equal(output[2]?.status, "skipped");
+	config.childIntercomTarget = (_agent, index) => `child-${index}`;
+	config.intercomEvents = {
+		on() {
+			return () => {};
+		},
+		emit(channel, payload) {
+			if (channel !== "subagent:supervisor-authorization") return;
+			const request = payload as {
+				childName: string;
+				completion?: Promise<{ capability: string; supervisorSessionId: string; childName: string }>;
+			};
+			const gate = Promise.withResolvers<{ capability: string; supervisorSessionId: string; childName: string }>();
+			gates.set(request.childName, gate);
+			request.completion = gate.promise;
+		},
+	};
+	const execution = runForegroundParallelTasks(config);
+	await vi.waitFor(() => assert.equal(gates.size, 3));
+	assert.deepEqual(starts, [], "admission cannot bypass any child's pending authorization");
+	const release = (name: string) =>
+		gates.get(name)!.resolve({ capability: `cap-${name}`, supervisorSessionId: "parent", childName: name });
+	release("child-0");
+	await first.promise;
+	assert.deepEqual(starts, ["child-0"], "peer coordination cannot release another child's authorization gate");
+	release("child-1");
+	release("child-2");
+	await execution;
+	await vi.waitFor(() => assert.deepEqual(starts, ["child-0", "child-1", "child-2"]));
 });

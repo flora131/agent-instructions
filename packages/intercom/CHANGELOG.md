@@ -15,6 +15,7 @@ All notable changes to the `pi-intercom` extension will be documented in this fi
 - `send`, `ask`, and `reply` now retry recoverable disconnects inside one tool invocation, preserving delivery identity and reply correlation for up to three retries. Cancellation stops retries, unresolved outcomes warn against automatic resending, and client retry state is released on exit. Broker deduplication and durable acceptance safeguards remain unchanged.
 - Busy non-interactive recipients now return correlated delivery errors instead of a stale "still working" auto-reply. Unclaimed refusals bypass the parent's idle queue as timestamped delivery feedback without starting another turn; waiting asks retain exact error correlation.
 - Owner-bound subagent task completion now participates in same-child message ordering, preserving unrelated queued messages and retrying failed delivery without repeating task execution.
+- Parallel child-to-parent requests now use correlated replies instead of terminal fresh-child handoffs, preserving accepted empty parent questions, omitted decision notes, and ordered attachments. Sends and progress updates remain nonblocking; single-child claimed handoffs are unchanged.
 
 ## [0.9.18] - 2026-09-05
 

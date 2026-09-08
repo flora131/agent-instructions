@@ -300,7 +300,7 @@ test("forked SINGLE handoff keeps the original unusual task verbatim instead of 
 	}
 });
 
-test("PARALLEL parent ask terminates the active set and never launches queued siblings", async () => {
+test("PARALLEL declines terminal parent handoff and completes every original child", async () => {
 	const root = mkdtempSync(join(tmpdir(), "atomic-parallel-parent-handoff-"));
 	const events = new TestEvents();
 	const childState = state();
@@ -314,7 +314,7 @@ test("PARALLEL parent ask terminates the active set and never launches queued si
 			options.set(index, runOptions);
 			return runSync(cwd, agents, agentName, task, {
 				...runOptions,
-				testSession: { output: `must not complete ${index}`, promptGate: gate.promise, abortResolvesPrompt: true },
+				testSession: { output: `completed ${index}`, promptGate: gate.promise, abortResolvesPrompt: true },
 			});
 		},
 	};
@@ -336,7 +336,6 @@ test("PARALLEL parent ask terminates the active set and never launches queued si
 			undefined,
 			context(root),
 		);
-		await events.listenerReady.promise;
 		for (let attempt = 0; attempt < 200 && options.size < 2; attempt++) await sleep(1);
 		const asker = options.get(0);
 		assert.ok(asker?.intercomSessionName && asker.orchestratorIntercomTarget);
@@ -351,18 +350,22 @@ test("PARALLEL parent ask terminates the active set and never launches queued si
 			claimed: false,
 		};
 		events.emit(PARENT_ASK_HANDOFF_REQUEST_EVENT, request);
+		assert.equal(request.claimed, false);
+		assert.equal(options.get(0)?.interruptSignal?.aborted, false);
+		assert.equal(options.get(1)?.interruptSignal?.aborted, false);
+		gate.resolve();
 		const yielded = await initial;
-		assert.equal(request.taskContext, "asking child");
-		assert.equal(yielded.details.parentAskYielded, true);
-		assert.ok(yielded.details.results.slice(0, 2).every((result) => result.interrupted));
-		assert.equal(yielded.details.results[2]?.status, "skipped");
+		assert.equal(yielded.details.parentAskYielded, false);
+		assert.ok(yielded.details.results.every((result) => result.status === "ok"));
 		assert.deepEqual(
 			calls.map(({ index }) => index),
-			[0, 1],
+			[0, 1, 2],
 		);
 		assert.equal(Object.hasOwn(childState, "foregroundRuns"), false);
-		assert.match(text(yielded), /Parallel choice\?/);
-		assert.doesNotMatch(text(yielded), /active sibling|queued sibling|resume/i);
+		assert.match(text(yielded), /completed 0/);
+		assert.match(text(yielded), /completed 1/);
+		assert.match(text(yielded), /completed 2/);
+		assert.doesNotMatch(text(yielded), /fresh subagent|TASK_CONTEXT/i);
 	} finally {
 		gate.resolve();
 		clearSubagentControls();
@@ -370,7 +373,7 @@ test("PARALLEL parent ask terminates the active set and never launches queued si
 	}
 });
 
-test("PARALLEL parent handoff captures dirty worktree diffs and cleans every worktree", async () => {
+test("PARALLEL retains dirty worktrees through parent coordination and cleans them after all children finish", async () => {
 	const root = mkdtempSync(join(tmpdir(), "atomic-parent-handoff-worktrees-"));
 	const events = new TestEvents();
 	const childState = state();
@@ -384,7 +387,7 @@ test("PARALLEL parent handoff captures dirty worktree diffs and cleans every wor
 			writeFileSync(join(runOptions.cwd, `dirty-${index}.txt`), `dirty child ${index}\n`);
 			return runSync(cwd, agents, agentName, task, {
 				...runOptions,
-				testSession: { output: "must not complete", promptGate: gate.promise, abortResolvesPrompt: true },
+				testSession: { output: "completed", promptGate: gate.promise, abortResolvesPrompt: true },
 			});
 		},
 	};
@@ -440,13 +443,17 @@ test("PARALLEL parent handoff captures dirty worktree diffs and cleans every wor
 			claimed: false,
 		};
 		events.emit(PARENT_ASK_HANDOFF_REQUEST_EVENT, request);
+		assert.equal(request.claimed, false);
+		for (const worktreePath of worktreePaths) assert.ok(worktreePath && existsSync(worktreePath));
+		gate.resolve();
 		const handedOff = await execution;
 
-		assert.equal(handedOff.details.parentAskYielded, true);
+		assert.equal(handedOff.details.parentAskYielded, false);
 		assert.match(text(handedOff), /=== Worktree Changes ===/);
 		assert.match(text(handedOff), /dirty-0\.txt/);
 		assert.match(text(handedOff), /dirty-1\.txt/);
-		assert.equal(optionsByIndex.has(2), false);
+		assert.equal(optionsByIndex.has(2), true);
+		assert.match(text(handedOff), /dirty-2\.txt/);
 		for (const worktreePath of worktreePaths) assert.ok(worktreePath && !existsSync(worktreePath));
 		assert.equal(git(root, ["branch", "--list", "worktree-*"]), "");
 	} finally {

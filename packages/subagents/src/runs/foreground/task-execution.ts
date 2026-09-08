@@ -119,13 +119,23 @@ export async function runAgentTask(input: {
 		input.schedule,
 	);
 	if (!started.ok) return { kind: "unstarted", reason: { kind: "rejected", error: started.error } };
+	// A queued execution has no runSync listener yet. Release its observation too,
+	// without spending a concurrency slot or cancelling its owner-bound execution.
+	const yieldForIntercom = () => {
+		if (yieldWait) yieldWait("intercom-coordination");
+		else pendingYield = true;
+	};
+	input.options.intercomDetachSignal?.addEventListener("abort", yieldForIntercom, { once: true });
+	if (input.options.intercomDetachSignal?.aborted) yieldForIntercom();
 	const observation = input.host.observeAgentLaunch(started.value.taskId, input.wait, (yieldRegistered) => {
 		yieldWait = yieldRegistered;
 		if (pendingYield) yieldRegistered("intercom-coordination");
 		registered.resolve();
 	});
 	registered.resolve();
-	const observed = await observation;
+	const observed = await observation.finally(() =>
+		input.options.intercomDetachSignal?.removeEventListener("abort", yieldForIntercom),
+	);
 	if (!observed.ok) throw new Error(`${observed.error.code}: ${observed.error.message}`);
 	return { kind: "admitted", observation: observed.value };
 }

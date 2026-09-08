@@ -33,7 +33,7 @@ const DEFAULT_INTERCOM_BRIDGE_TEMPLATE = `The inherited thread is reference-only
 
 Use contact_supervisor first. It resolves the supervisor session "{orchestratorTarget}" and run metadata automatically.
 - Need a decision, blocked, approval, or product/API/scope ambiguity: contact_supervisor({ reason: "need_decision", message: "<question>" })
-- A claimed decision or interview ends this child. Do not wait for or expect a reply in this run; the supervisor receives a dynamic [TASK_CONTEXT] handoff and may launch a fresh subagent with a new run identity and the answer.
+- In parallel runs, blocking requests wait here and the supervisor's correlated reply lets this same child continue; siblings keep running. Do not request a replacement launch. A single-child claimed decision/interview instead ends with a dynamic [TASK_CONTEXT] fresh-child handoff; follow the actual tool result.
 - Do not ask for clarification when the only conflict is review-only/no-edit versus progress-writing or artifact-writing instructions. Review-only/no-edit wins; leave files unchanged and mention the conflict in your final result only if it matters.
 - Meaningful progress or unexpected discoveries that change the plan: contact_supervisor({ reason: "progress_update", message: "UPDATE: <summary>" })
 - Generic intercom is lower-level plumbing/fallback only: intercom({ action: "ask", to: "{orchestratorTarget}", message: "<question>" })

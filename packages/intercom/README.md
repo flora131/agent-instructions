@@ -250,21 +250,21 @@ This workflow uses Atomic's in-process subagent admission. When the runtime admi
 
 `contact_supervisor` is registered from the typed admission record. The record binds the supervisor target, canonical child identity, child index, session name, and broker-issued capability to the child session; these values are not inherited from environment variables. If the parent does not grant supervisor coordination, the session falls back to the regular `intercom` tool.
 
-Parent-targeted decisions, interviews, and `intercom.ask` make the current child terminal for continuation. The parent receives the original question, ordered attachments, agent identity, and a dynamic `[TASK_CONTEXT]` handoff for a fresh child with a new run identity. Ordinary Intercom detach for sends, progress updates, and non-parent asks remains separate.
+Parallel blocking requests wait only in their requesting child and continue that same execution after the supervisor's correlated Intercom reply. Active and queued siblings retain their identities and execution capacity. A single-child claimed parent request instead retains the terminal `[TASK_CONTEXT]` handoff for a fresh child.
 
 ### Three Reasons
 
 | Reason | Behavior | Use When |
 |--------|----------|----------|
-| `need_decision` | In a claimed foreground run, ends the child and returns a fresh-child handoff; otherwise uses the normal ask fallback | The subagent is blocked, uncertain, needs approval, or faces a product/API/scope decision |
-| `interview_request` | In a claimed foreground run, ends the child and returns structured questions in a fresh-child handoff | The subagent needs multiple machine-readable answers from the supervisor in one exchange |
+| `need_decision` | In parallel, waits for a correlated reply in the same child; a single-child claimed request retains its fresh-child handoff | The subagent is blocked, uncertain, needs approval, or faces a product/API/scope decision |
+| `interview_request` | In parallel, waits for structured answers in the same child; a single-child claimed request retains its fresh-child handoff | The subagent needs multiple machine-readable answers from the supervisor in one exchange |
 | `progress_update` | Fire-and-forget update to the supervisor | Meaningful progress or unexpected discoveries that change the plan |
 
 Do not use `contact_supervisor` for routine completion handoffs. Return the final subagent result normally.
 
 Cross-group delivery uses a dedicated broker protocol. Ordinary raw `send` frames always remain group-isolated and are rejected if they include a forged `channel: "supervisor"` marker. A child can cross groups only after its broker-issued capability has bound its registered socket to the exact supervisor. The broker adds the `supervisor` channel marker to validated inbound traffic so parent relays can distinguish it. Replies cross back only when `replyTo` matches a recorded supervisor message in the exact reverse direction; fabricated thread IDs do not bypass isolation.
 
-During a foreground subagent run, parent-targeted decisions, interviews, and asks are claimed before broker delivery or reply-waiter admission. The current child ends and its parent tool call receives the fresh-start handoff. Parallel claims interrupt active siblings, prevent queued tasks from launching, and retain no sibling set for later bare-run-ID continuation. Sends, progress updates, and asks to other peers retain the exact-child probe/commit detach path and ordinary Intercom delivery behavior.
+Parallel asks, decisions, interviews, sends, and progress updates use ordinary Intercom delivery. The exact-child probe/commit handshake may release foreground observations so the parent can reply; it never cancels the batch or discards queued siblings. Only blocking requests wait for a reply. Targeted cancellation and owner/batch cleanup remain separate. Single-child claimed parent asks retain their source-side terminal fresh-start handoff.
 
 ### Example: Blocked Subagent Asks for Guidance
 
@@ -273,7 +273,8 @@ contact_supervisor({
   reason: "need_decision",
   message: "The auth service returns 403 instead of 401 for expired tokens. Should I treat 403 as a re-auth trigger or a hard failure?"
 })
-// → Parent receives a [TASK_CONTEXT] handoff and launches a fresh child with the answer.
+// → In parallel, the supervisor replies through Intercom and this child continues.
+// → A single-child claimed request instead returns a [TASK_CONTEXT] handoff.
 ```
 
 ### Example: Structured Supervisor Interview
@@ -290,7 +291,7 @@ contact_supervisor({
     ]
   }
 })
-// → Parent includes the structured supervisor answer in a fresh child's task.
+// → In parallel, the structured Intercom reply returns to this child's tool call.
 ```
 
 ### Example: Progress Update
