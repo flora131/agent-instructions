@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import type { FSWatcher, Stats, WatchFileOptions, WatchListener } from "node:fs";
-import { mkdtempSync, realpathSync, rmSync, unwatchFile } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync, symlinkSync, unwatchFile } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test, vi } from "vitest";
 import { FooterDataProvider } from "../../packages/coding-agent/src/core/footer-data-provider.js";
 import { FooterComponent } from "../../packages/coding-agent/src/modes/interactive/components/footer.js";
+import * as fsWatch from "../../packages/coding-agent/src/utils/fs-watch.js";
 import { writeFileEnsuringDir } from "../helpers/runtime.js";
 import {
 	createStore,
@@ -62,7 +63,12 @@ afterEach(() => {
 	vi.useRealTimers();
 });
 
-const live = (cwd: string) => observed.filter((record) => record.path === join(cwd, ".git") && !record.closed);
+// Native Windows watchers canonicalize aliases and short temp paths before opening.
+const liveAt = (path: string) => {
+	const canonical = realpathSync.native(path);
+	return observed.filter((record) => !record.closed && realpathSync.native(record.path) === canonical);
+};
+const live = (cwd: string) => liveAt(join(cwd, ".git"));
 
 // PR #2926: keep simultaneous viewers live, but release the final viewer's cwd.
 test("footer disposal and cwd replacement release only unused branch watchers", async () => {
@@ -297,7 +303,7 @@ test("last release tears down reftable polling and watcher retries", async () =>
 	try {
 		assert.equal(polling.has(tables), true);
 		assert.equal(observed.filter((record) => !record.closed).length, 3);
-		const lateError = observed.find((record) => record.path === tables)!.watcher.listeners("error")[0];
+		const lateError = liveAt(tables)[0].watcher.listeners("error")[0];
 		release();
 		assert.equal(polling.size, 0);
 		assert.ok(observed.every((record) => record.closed));
@@ -357,6 +363,45 @@ test("last release removes polling after synchronous tables.list watch failure",
 		release();
 		provider.dispose();
 		for (const path of polling) unwatchFile(path);
+		rmSync(directory, { recursive: true, force: true });
+	}
+});
+
+// PR #2926: Windows opens canonical paths even when the viewer cwd uses an alias.
+test("canonical native watch paths retain alias-cwd leases until the last release", async () => {
+	const directory = mkdtempSync(join(tmpdir(), "canonical-footer-lifetime-"));
+	const target = join(directory, "stage");
+	const cwd = join(directory, "alias");
+	await writeFileEnsuringDir(join(target, ".git/HEAD"), "ref: refs/heads/stage\n");
+	await writeFileEnsuringDir(join(target, ".git/reftable/tables.list"), "0\n");
+	symlinkSync(target, cwd, "junction");
+	const watch = fsWatch.watchWithErrorHandler;
+	const canonicalWatch = vi
+		.spyOn(fsWatch, "watchWithErrorHandler")
+		.mockImplementation((path, listener, onError) => watch(path, listener, onError, { platform: "win32" }));
+	const provider = new FooterDataProvider(directory);
+	const first = provider.onBranchChange(() => {}, cwd);
+	const second = provider.onBranchChange(() => {}, cwd);
+	try {
+		provider.startGitWatcher();
+		assert.equal(provider.getGitBranch(cwd), "stage");
+		assert.equal(observed.length, 3, "real native watchers cover HEAD, reftable and tables.list");
+		assert.notEqual(observed[0].path, join(cwd, ".git"), "the OS receives the canonical target, not the alias");
+		assert.equal(live(cwd).length, 1, "canonical watcher lookup finds the aliased viewer's resource");
+		assert.equal(liveAt(join(cwd, ".git/reftable/tables.list")).length, 1);
+		first();
+		assert.equal(live(cwd).length, 1, "the sibling retains its real native watcher");
+		assert.equal(polling.size, 1);
+		second();
+		assert.equal(live(cwd).length, 0);
+		assert.equal(liveAt(join(cwd, ".git/reftable/tables.list")).length, 0);
+		assert.ok(observed.every((record) => record.closed));
+		assert.equal(polling.size, 0);
+	} finally {
+		first();
+		second();
+		provider.dispose();
+		canonicalWatch.mockRestore();
 		rmSync(directory, { recursive: true, force: true });
 	}
 });
