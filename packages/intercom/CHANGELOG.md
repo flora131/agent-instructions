@@ -4,6 +4,8 @@ All notable changes to the `pi-intercom` extension will be documented in this fi
 
 ## [Unreleased]
 
+## [0.9.19-alpha.2] - 2026-09-08
+
 ### Breaking Changes
 
 - Removed the model-facing `retryToken` parameter and result field. Callers must stop carrying tokens between calls; Intercom now owns bounded reconnect retries. Each new call remains a distinct operation, including identical messages.
