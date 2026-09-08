@@ -74,6 +74,10 @@ export type CommandIntent = {
 	description?: string;
 	cwd?: string;
 	env?: Record<string, string>;
+	/** Explicit executable and prefix arguments; command is appended as one argument. */
+	shell?: { program: string; args: string[] };
+	/** False replaces the inherited environment with env; omission preserves inheritance. */
+	inheritEnv?: boolean;
 	terminal: { kind: "pipe" } | { kind: "pty"; columns: number; rows: number };
 	executionTimeoutMs?: number;
 	parentTaskId?: TaskId;

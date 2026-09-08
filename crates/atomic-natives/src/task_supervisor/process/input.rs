@@ -147,6 +147,11 @@ impl Actor {
 		if !matches!(command.intent.terminal, CommandTerminal::Pty { .. }) {
 			return Err(fail("OutputUnavailable"));
 		}
+		#[cfg(windows)]
+		super::windows_pty::dimensions(columns, rows).map_err(|error| TaskFailure {
+			code: "OutputUnavailable".into(),
+			message: error.to_string(),
+		})?;
 		*command.resize.lock().unwrap() = Some((columns, rows));
 		Ok(())
 	}

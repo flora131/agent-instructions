@@ -23,6 +23,10 @@ impl JsString {
 	pub(crate) fn process_text(&self) -> String {
 		String::from_utf16_lossy(&self.0)
 	}
+	#[cfg(windows)]
+	pub(crate) fn process_wide(&self) -> &[u16] {
+		&self.0
+	}
 	pub(super) fn is_empty(&self) -> bool {
 		self.0.is_empty()
 	}

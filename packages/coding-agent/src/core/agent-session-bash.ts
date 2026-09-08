@@ -5,6 +5,7 @@ import { executeBashWithOperations } from "./bash-executor.ts";
 import type { BashExecutionMessage } from "./messages.ts";
 import { type BashOperations, type BashOutputChannel, createLocalBashOperations } from "./tools/bash.js";
 import { applyBashSessionEnvironment, snapshotBashSessionEnvironment } from "./tools/bash-session-environment.ts";
+import { createLocalPowerShellOperations } from "./tools/powershell.ts";
 import { resolveSessionTempDirPath } from "./tools/session-temp-dir.ts";
 
 export async function executeBash(
@@ -34,7 +35,10 @@ export async function executeBash(
 		const result = await executeBashWithOperations(
 			resolvedCommand,
 			this.sessionManager.getCwd(),
-			options?.operations ?? createLocalBashOperations({ shellPath }),
+			options?.operations ??
+				(process.platform === "win32"
+					? createLocalPowerShellOperations()
+					: createLocalBashOperations({ shellPath })),
 			{
 				onChunk: (delta, channel) => {
 					onChunk?.(delta, channel);

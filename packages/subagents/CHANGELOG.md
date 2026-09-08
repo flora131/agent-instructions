@@ -14,6 +14,7 @@
 - Bound task transcript sources now retain the trusted run and actual Intercom target so queued child messages are delivered before owner-bound completion notices, without guessing from task or SDK session IDs.
 - Parallel Intercom asks and supervisor decisions/interviews now wait in the original requester without ending siblings. Foreground coordination releases observations, not execution slots; queued siblings survive and start once capacity is free. Targeted interruption and owner/batch cancellation remain separate.
 - Fixed parallel worktree cleanup after a queued child is cancelled or its session/workflow-stage owner closes. Cleanup now includes never-started children without removing live siblings' worktrees early, for both foreground and background observations.
+- Background launch cards now show the concrete model and known reasoning level already selected at admission, including inherited defaults, before child session startup. Unresolved settings are not guessed, and later session and fallback updates remain authoritative.
 
 ### Changed
 

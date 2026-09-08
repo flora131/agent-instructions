@@ -1,7 +1,8 @@
 import { APP_NAME } from "../../config.js";
-import { waitForChildProcess } from "../../utils/child-process.ts";
+import { createChildProcessEnvironment, waitForChildProcess } from "../../utils/child-process.ts";
 import {
 	getPowerShellConfig,
+	getShellEnv,
 	killProcessTree,
 	trackDetachedChildPid,
 	untrackDetachedChildPid,
@@ -15,7 +16,14 @@ import {
 	type BashToolOptions,
 	createBashToolDefinition,
 	type ShellToolPresentation,
+	validateExplicitTimeoutSeconds,
 } from "./bash.js";
+import {
+	executeNativePty,
+	executeSupervisedCommand,
+	type SupervisedCommandOwner,
+	validateBashWait,
+} from "./bash-pty-native.js";
 import { wrapToolDefinition } from "./tool-definition-wrapper.ts";
 
 const POWERSHELL_PRESENTATION: ShellToolPresentation = {
@@ -33,18 +41,38 @@ export const powershellToolSystemPromptContribution = Object.freeze({
 export type PowerShellOperations = BashOperations;
 export type PowerShellToolDetails = BashToolDetails;
 export type PowerShellToolInput = BashToolInput;
-export interface PowerShellToolOptions extends Pick<BashToolOptions, "exposeSessionEnvironment" | "spawnHook"> {
+export interface PowerShellToolOptions
+	extends Pick<BashToolOptions, "exposeSessionEnvironment" | "spawnHook" | "taskOwner"> {
 	operations?: BashOperations;
 }
-export function createLocalPowerShellOperations(): PowerShellOperations {
+export function createLocalPowerShellOperations(binding?: {
+	taskOwner?: SupervisedCommandOwner;
+}): PowerShellOperations {
 	return {
 		exec: async (command, cwd, options) => {
+			validateBashWait(options.wait, !!binding?.taskOwner);
+			if (options.timeout !== undefined) validateExplicitTimeoutSeconds(options.timeout);
+			if (options.signal?.aborted) throw new Error("aborted");
 			const { shell, args } = getPowerShellConfig();
+			const pty = !!options.pty && process.env.PI_NO_PTY !== "1" && process.env.ATOMIC_NO_PTY !== "1";
+			if (binding?.taskOwner || pty) {
+				// EncodedCommand avoids native argument parsing differences between PowerShell 5 and 7.
+				const encoded = Buffer.from(`${UTF8_OUTPUT_PREFIX}${command}`, "utf16le").toString("base64");
+				const execution = {
+					...options,
+					shellConfig: { shell, args: [...args.slice(0, -1), "-EncodedCommand"] },
+					commandDescription: command,
+					taskOwner: binding?.taskOwner,
+				};
+				return binding?.taskOwner
+					? executeSupervisedCommand(encoded, cwd, execution, pty)
+					: executeNativePty(encoded, cwd, execution);
+			}
 			const { spawn } = await import("node:child_process");
 			if (options.signal?.aborted) throw new Error("aborted");
 			const child = spawn(shell, [...args, `${UTF8_OUTPUT_PREFIX}${command}`], {
 				cwd,
-				env: options.env,
+				env: createChildProcessEnvironment(undefined, options.env ?? getShellEnv()),
 				windowsHide: true,
 			});
 			if (child.pid) trackDetachedChildPid(child.pid);
@@ -83,7 +111,7 @@ export function createPowerShellToolDefinition(cwd: string, options: PowerShellT
 		cwd,
 		{
 			...options,
-			operations: options.operations ?? createLocalPowerShellOperations(),
+			operations: options.operations ?? createLocalPowerShellOperations({ taskOwner: options.taskOwner }),
 		},
 		POWERSHELL_PRESENTATION,
 	);
@@ -91,7 +119,13 @@ export function createPowerShellToolDefinition(cwd: string, options: PowerShellT
 		...definition,
 		name: "powershell",
 		label: "powershell",
-		description: "Execute a PowerShell command in the session workspace.",
+		async execute(...args: Parameters<typeof definition.execute>) {
+			// The internal local adapter is not evidence of a supported owner.
+			validateBashWait(args[1].wait, !!options.operations || !!options.taskOwner);
+			return definition.execute(...args);
+		},
+		description:
+			"Execute a PowerShell command with optional PTY and foreground/background observation. Owner-bound calls automatically yield after 10s by default without stopping execution. Unbound calls wait for completion; background requires a task owner.",
 		promptSnippet: powershellToolSystemPromptContribution.snippet,
 		promptGuidelines:
 			options.exposeSessionEnvironment === false

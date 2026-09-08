@@ -9,6 +9,8 @@
 - Added supervised Unix pipe/PTY commands with process-group cleanup, observation-independent execution deadlines, replay-safe byte-credit stdin, resize and retained output paging. Drained output stays live beyond its cap; background file-spool overflow settles `OutputLimitExceeded` ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added Windows pipe task containment with suspended launch, explicit inherited handles and kill-on-close Job Objects. Assignment failure refuses execution and confirms suspended-process cleanup; failed cleanup retains diagnostic resources. Supervised Windows PTY remains unavailable ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added a read-only `taskSettlement` query for authentic terminal receipts, including cancellation, so hosts can recover completion delivery after journal resets without registering another wait. Task snapshots retain `wasBackground` after a designated wait yields, including after settlement.
+- Added supervised Windows ConPTY commands with suspended launch, Job Object containment before resume, retained output and confirmed cleanup. Containment failure refuses execution without an unsupervised fallback.
+- Added optional `CommandIntent.shell: { program, args }` for direct executable launch with the command as one final argv argument, and `inheritEnv` (default `true`; `false` uses exactly the supplied environment). Both participate in operation replay identity; the default native pipe shell is unchanged.
 
 ### Changed
 

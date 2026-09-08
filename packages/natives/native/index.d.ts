@@ -236,6 +236,9 @@ export interface CommandIntent {
   description?: string
   cwd?: string
   env?: Record<string,string>
+  shell?: CommandShell
+  /** Defaults to true; false makes env the complete child environment. */
+  inheritEnv?: boolean
   terminal: CommandTerminal
   executionTimeoutMs?: number
   parentTaskId?: string
@@ -251,6 +254,12 @@ export interface CommandResourceOptions {
   livePreviewBytes?: number
   foregroundSpillBytes?: number
   background?: boolean
+}
+
+/** Execute this program directly, appending command as one final argument. */
+export interface CommandShell {
+  program: string
+  args: string[]
 }
 
 export type CommandTaskKind =  'command';

@@ -17,6 +17,8 @@
 - Added SDK task transcript references bound by the admitted runner, with task-scoped paging, original message/tool-call identities, and explicit unavailable history. Hidden reasoning is excluded; production subagent runners bind child history for the shared host inspector ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added a shared focused task inspector for owner-store hosts: stable grouped selection, retained transcript rendering, foreground waits, confirmed cancellation, and explicit stdin focus without replacing composer drafts ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added `reason: "project_trust"` to `UIPromptStartEvent` and `UIPromptEndEvent` for the built-in `/trust` selector in both interactive modes, so status integrations can observe the wait. Isolated mode retains paired notifications until the current engine binds, keeping separate completed dialogs distinct without delaying the trust decision. ([#2873](https://github.com/bastani-inc/atomic/issues/2873))
+- Added supervised native Windows ConPTY shell execution with Job Object containment before resume, confirmed cleanup, and no unsupervised spawn fallback.
+- Added optional direct-executable `shell: { program, args }` and `inheritEnv` controls to the command SDK, including operation replay identity.
 
 ### Changed
 
@@ -26,6 +28,8 @@
 - Task lists and subagent detail views now use grouped counts, semantic status styling, pinned status/metrics/actions, recent tool activity, bounded response and shell-output previews, and narrow-terminal layouts. Finished tasks remain discoverable through `/tasks`; background bash receipts distinguish observation time from execution completion.
 - Default guidance now routes all user questions, including confirmations and approvals, through `ask_user_question` or an equivalent available question tool rather than prose-only prompts. Sessions without a usable question tool continue autonomously using best judgment.
 - Model-choice guidance now consults the eval docs and Artificial Analysis benchmark charts. Automation guidance uses PyAutoGUI for desktop CUA, playwright-cli for browsers, and prefers Herdr across macOS, Linux and Windows with installation guidance and tmux/psmux fallback.
+- Native Windows owner-bound `bash` and `powershell` calls now automatically yield after the owner's command observation budget (normally 10 seconds). Explicit per-call budgets override it; execution timeouts and the 30-second explicit foreground subagent default remain separate. PowerShell uses encoded command transport while retaining original command descriptions. Owned legacy Windows WSL `bash.exe` stdin transport remains refused; Atomic inside WSL stays on POSIX/Bash.
+- On native Windows, Suspend opens a PowerShell subshell and restores the same session on exit instead of freezing the process; background tasks continue running.
 
 ### Fixed
 

@@ -95,7 +95,7 @@ export interface BashToolDetails {
 }
 const DEFAULT_TIMEOUT_SECONDS = 300,
 	MAX_TIMEOUT_SECONDS = 3600;
-function validateExplicitTimeoutSeconds(timeout: number): void {
+export function validateExplicitTimeoutSeconds(timeout: number): void {
 	if (!Number.isFinite(timeout) || timeout <= 0 || timeout > MAX_TIMEOUT_SECONDS)
 		throw new Error(
 			`Invalid timeout ${String(timeout)}: timeout must be a finite number greater than 0 and no more than ${MAX_TIMEOUT_SECONDS} seconds`,
@@ -127,7 +127,7 @@ export function createLocalBashOperations(options?: {
 }): BashOperations {
 	return {
 		exec: async (command, cwd, { onData, signal, timeout, wait, env, pty }) => {
-			validateBashWait(wait, !!options?.taskOwner && process.platform !== "win32");
+			validateBashWait(wait, !!options?.taskOwner);
 			if (timeout !== undefined) validateExplicitTimeoutSeconds(timeout);
 			if (pty && process.env.PI_NO_PTY !== "1" && process.env.ATOMIC_NO_PTY !== "1") {
 				try {
@@ -442,10 +442,7 @@ export function createBashToolDefinition(
 		async execute(_toolCallId, bashCommand: BashToolInput, signal?: AbortSignal, onUpdate?, ctx?: ExtensionContext) {
 			const { command } = bashCommand;
 			const timeout = normalizeTimeoutSeconds(bashCommand.timeout);
-			validateBashWait(
-				bashCommand.wait,
-				!!options?.operations || (!!options?.taskOwner && process.platform !== "win32"),
-			);
+			validateBashWait(bashCommand.wait, !!options?.operations || !!options?.taskOwner);
 			const sessionEnvironment = snapshotBashSessionEnvironment(ctx, exposeSessionEnvironment);
 			const resourceCtx = ctx as InternalResourceContext | undefined;
 			const executionCwd = ctx?.cwd || cwd;
