@@ -69,11 +69,20 @@ test("completion cards shade their full width with chat-card padding in both the
 	}
 });
 
-test("long completion titles, wrapped Markdown and expand hints keep every card cell shaded", async () => {
+test.each([
+	{
+		label: "subagent",
+		title: `Subagent codebase-analyzer completed: <keepContext>Read-only, no edits/workflows. ${"界".repeat(80)}`,
+	},
+	{
+		label: "shell",
+		title: "Background shell completed: git status --short; git diff --check && git add packages/coding-agent/CHANGELOG.md packages/workflows/CHANGELOG.md packages/coding-agent/docs/background-tasks.md",
+	},
+])("$label completion titles, wrapped Markdown and expand hints keep every card cell shaded", async ({ title }) => {
 	for (const mode of ["dark", "light"] as const) {
 		initTheme(mode);
 		const notice = {
-			title: "Subagent codebase-analyzer completed: <keepContext>Read-only, no edits/workflows. " + "界".repeat(80),
+			title,
 			preview:
 				"## Analysis: Task UI retention\n\n**Current behavior is persistent retention, not stale-task expiry.** " +
 				"Long result text. ".repeat(50),
