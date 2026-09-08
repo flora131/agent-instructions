@@ -138,10 +138,10 @@ jobs:
             timeout_minutes: 4
           - os: blacksmith-4vcpu-windows-2025
             binary_platform: windows-x64
-            timeout_minutes: 8
+            timeout_minutes: 14
       fail-fast: false
     runs-on: ${{ matrix.os }}
-    # Run 34142104101: 145s Linux / 305s timeout-censored Windows, plus 50%; see docs/ci.md.
+    # Linux: run 34142104101, 145s + 50%. Windows: setup + two attempts + 50%; see docs/ci.md.
     timeout-minutes: ${{ matrix.timeout_minutes }}
     steps:
       - uses: useblacksmith/checkout@6fd481652155169ed4d2f25ebaf97464f685175f # v1.1

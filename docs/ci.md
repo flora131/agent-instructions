@@ -209,7 +209,7 @@ and was excluded rather than treating unfinished durations as measurements.
 Those samples and caps remain unchanged except for unit tests, agent suites,
 Windows release archive and integration tests, recalibrated using the runs below.
 
-For each job/platform, the cap in minutes is
+Except for the retry-inclusive Windows integration cap below, the cap in minutes is
 `ceil(max(run_1_seconds, run_2_seconds) × 1.5 / 60)`. Durations come from
 GitHub's job `completedAt - startedAt`, including setup and teardown but not
 time queued for a runner. Whole-minute rounding provides at least 50% headroom
@@ -220,7 +220,7 @@ over the observed duration, not over an unobserved completion after a timeout.
 | Unit tests | Linux | 869 s (34270757695; timeout-censored, both attempts failed) | 371 s | 22 min |
 | Unit tests | Windows | 870 s (34270757695; timeout-censored during retry) | 511 s | 22 min |
 | Integration tests | Linux | 145 s (34142104101; success) | 118 s | 4 min |
-| Integration tests | Windows | 305 s (34142104101; timeout-censored) | 195 s | 8 min |
+| Integration tests | Windows | 501 s (34275410217; timeout-censored during retry) | 147 s setup + 2 × 186.92 s attempts + 7 s teardown, projected | 14 min |
 | Agent suite | Linux | 382 s (34270757695; job timeout, test step succeeded) | 216 s | 10 min |
 | Agent suite | Windows | 552 s (34270757695; job timeout, test step succeeded) | 327 s | 14 min |
 | Release archive | Linux | 76 s | 80 s | 2 min |
@@ -275,6 +275,35 @@ cold setup and a future full retry are still not guaranteed to fit.
 Required contexts, suite inventory and duplicate executions, default workers,
 bounded retry count, shared per-test budget and duration thresholds are unchanged.
 
+The remaining failure in [run 34275410217, job 102227085985](https://github.com/bastani-inc/atomic/actions/runs/34275410217/job/102227085985)
+at repair head `2894d78b7f3ed2b589892dec3e93928759b2b588` was Windows integration.
+Setup ran from 20:34:01 to 20:36:28 UTC, 147 s. The first attempt took
+186.92 s and recorded 787 passed, one failed and 23 existing skips. Its
+zero-budget task wait had already expired on the native timer thread when the
+test demanded a foreground snapshot. The retry passed that file but was
+cancelled before producing a second JSON report. Job completion at 20:42:22
+includes seven seconds after the cancelled test step ended at 20:42:15.
+The 501 s job duration is censored, not an observed full retry completion.
+
+The regression now checks synchronous WaitId registration through the real
+observation call, including a 50 ms synchronous JS pause while native timers
+continue. It checks elapsed yield, matching wait identity, registry removal,
+background projection and a still-running execution. The peer-facade test uses
+an until-settled wait to inspect foreground designation and then explicitly
+yields it. Neither assertion depends on winning a race against a zero-budget
+native timer. Runtime observation semantics are unchanged.
+
+Windows integration now reserves two complete attempts rather than multiplying
+a cancelled job duration: `ceil((147 + 2 × 186.92 + 7) × 1.5 / 60) = 14` minutes.
+The retry-inclusive estimate is 527.84 s before headroom, already beyond the old
+480 s cap. This is one hosted Windows sample on the Blacksmith 4-vCPU runner,
+with a 70 s native build and no Rust-install retry. The second full attempt is
+a projection at the first attempt's duration, not a measured successful retry.
+The allowance covers setup plus a bounded suite retry at those measured costs;
+it cannot guarantee arbitrary cold-download delays. Linux integration and all
+other caps, required checks, suite parallelism, per-test budgets and duration
+thresholds are unchanged.
+
 For the S1 task supervisor suites in PR #2902, run `34142104101` measured
 [Linux integration job 101806128732](https://github.com/bastani-inc/atomic/actions/runs/34142104101/job/101806128732)
 at 145 s and
@@ -282,8 +311,9 @@ at 145 s and
 at 305 s. The Windows first attempt failed the callback fixture's wake/poll
 ordering assertion; its bounded retry then exceeded the 5-minute job cap.
 That fixture ordering is repaired separately without changing runtime behavior
-or per-test budgets. Applying the same policy gives 4 minutes for Linux and
-8 minutes for Windows. The Windows sample is timeout-censored, like the
+or per-test budgets. That earlier policy gave 4 minutes for Linux and
+8 minutes for Windows, superseded by the retry-inclusive Windows cap above.
+That Windows sample is timeout-censored, like the
 release-archive sample below; it does not establish an uncapped completion time
 or guarantee retry headroom. Both result-gate failures came from this cancelled
 Windows work job, not separate Linux and Windows test assertions.
@@ -316,11 +346,11 @@ duration. That release-archive recalibration left Linux's 2-minute cap, the
 other job caps, the 14-minute hang-detector ceiling, required contexts, smoke
 tests and per-test thresholds unchanged.
 
-These are two-run wall-clock limits, not a guarantee that a full suite retry or
+Except for Windows integration's explicit retry-inclusive allowance above,
+these are two-run wall-clock limits, not a guarantee that a full suite retry or
 a cold-cache toolchain download will fit. Bounded retries remain enabled but
-share the job's remaining time. This replaces the older retry-inclusive and
-cold-setup allowances; recalibrate with fresh evidence if those paths exceed
-the new limits. No test coverage, retry count, or per-test timeout changes.
+share the job's remaining time. Recalibrate with fresh evidence if those paths
+exceed the limits. No test coverage, retry count, or per-test timeout changes.
 
 The unchanged npm policy allows 85 seconds for one stalled request and its two
 retries: `3 × 25 s + 2 × 5 s` maximum backoff. The contract checks that this is
