@@ -26,8 +26,8 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 	return (pi) => {
 		if (!captureHerdrEnvironment(options.env ?? process.env)) return;
 		let owner: PaneOwner | undefined;
-		// Supplied loaders can share handler closures across runners. Only the first
-		// eligible session may drive this reporter, including while its claim awaits retirement.
+		// Supplied loaders can share handler closures across runners. Bind the eligible
+		// session through its active/pending claim, until its own shutdown admits a successor.
 		let boundSessionManager: ExtensionContext["sessionManager"] | undefined;
 		let lease: { dispose(): void } | undefined;
 		let agentRunning = false;
@@ -121,6 +121,9 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 			lease = undefined;
 			const previous = owner;
 			owner = undefined;
+			// Clear before awaiting transport: a successor can bind while retirement drains,
+			// and this shutdown's completion must never clear that newer binding.
+			boundSessionManager = undefined;
 			if (previous) await releasePaneReporting(previous);
 		});
 	};
