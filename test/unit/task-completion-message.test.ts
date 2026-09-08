@@ -9,6 +9,7 @@ import {
 import type { Sequence } from "../../packages/coding-agent/src/core/tasks/contracts.js";
 import { TaskCompletionMessage } from "../../packages/coding-agent/src/modes/interactive/components/task-completion-message.js";
 import { initTheme, theme } from "../../packages/coding-agent/src/modes/interactive/theme/theme.js";
+import { assertBackgroundFill } from "../helpers/background-fill.js";
 import { taskRecord } from "../helpers/task-record.js";
 
 const task = taskRecord("completion");
@@ -63,6 +64,29 @@ test("completion cards shade their full width with chat-card padding in both the
 						assert.match(rows.map(stripVTControlCharacters).join("\n"), /A useful result/);
 					}
 				}
+			}
+		}
+	}
+});
+
+test("long completion titles, wrapped Markdown and expand hints keep every card cell shaded", async () => {
+	for (const mode of ["dark", "light"] as const) {
+		initTheme(mode);
+		const notice = {
+			title: "Subagent codebase-analyzer completed: <keepContext>Read-only, no edits/workflows. " + "界".repeat(80),
+			preview:
+				"## Analysis: Task UI retention\n\n**Current behavior is persistent retention, not stale-task expiry.** " +
+				"Long result text. ".repeat(50),
+			status: "completed" as const,
+			taskId: "long-task-identity".repeat(12),
+		};
+		for (const expanded of [false, true]) {
+			for (const width of [12, 48, 80, 120]) {
+				await assertBackgroundFill(
+					new TaskCompletionMessage(notice, expanded).render(width),
+					width,
+					theme.getBgAnsi("customMessageBg"),
+				);
 			}
 		}
 	}

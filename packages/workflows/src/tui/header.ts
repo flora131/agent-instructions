@@ -20,7 +20,7 @@
  * Returns exactly 3 styled lines, each `width` cells wide.
  */
 import type { RunSnapshot } from "../shared/store-types.js";
-import { BOLD, hexBg, hexToAnsi, RESET } from "./color-utils.js";
+import { BOLD, fillBackground, hexBg, hexToAnsi, RESET } from "./color-utils.js";
 import type { GraphTheme } from "./graph-theme.js";
 import { truncateToWidth, visibleWidth } from "./text-helpers.js";
 
@@ -116,7 +116,7 @@ export function renderCompactBandHeader(opts: CompactBandHeaderOpts): string[] {
 	const line = `${labelStyled}${subtitleStyled}${" ".repeat(filler)}${rightStyled}${chromeBg}${" ".repeat(rightEdgePad)}${RESET}`;
 	const fitted = truncateToWidth(line, width, "", true);
 	const pad = Math.max(0, width - visibleWidth(fitted));
-	return [`${fitted}${chromeBg}${" ".repeat(pad)}${RESET}`];
+	return [fillBackground(`${fitted}${chromeBg}${" ".repeat(pad)}${RESET}`, width, chromeBg)];
 }
 
 export function renderBandHeader(opts: BandHeaderOpts): string[] {
@@ -159,7 +159,7 @@ export function renderBandHeader(opts: BandHeaderOpts): string[] {
 	const fitChromeLine = (line: string): string => {
 		const fitted = truncateToWidth(line, width, "");
 		const pad = Math.max(0, width - visibleWidth(fitted));
-		return `${fitted}${chromeBg}${" ".repeat(pad)}${RESET}`;
+		return fillBackground(`${fitted}${chromeBg}${" ".repeat(pad)}${RESET}`, width, chromeBg);
 	};
 
 	const subtitleBlank = " ".repeat(subtitleW);

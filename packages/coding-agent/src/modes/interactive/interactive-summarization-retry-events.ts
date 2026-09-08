@@ -1,7 +1,7 @@
 import { AtomicWorkingLoader } from "./components/atomic-working-status.ts";
 import type { InteractiveModeBase } from "./interactive-mode-base.ts";
 import type { AgentSessionEvent } from "./interactive-mode-deps.ts";
-import { CountdownTimer, keyText, Loader, theme } from "./interactive-mode-deps.ts";
+import { CountdownTimer, keyText, theme } from "./interactive-mode-deps.ts";
 
 type RetryEvent = Extract<AgentSessionEvent, { type: `summarization_retry_${string}` }>;
 const activeSources = new WeakMap<InteractiveModeBase, "branchSummary" | "compaction">();
@@ -15,9 +15,9 @@ export function handleSummarizationRetryEvent(mode: InteractiveModeBase, event: 
 		mode.retryCountdown?.dispose();
 		const retryMessage = (seconds: number) =>
 			`Retrying summary (${event.attempt}/${event.maxAttempts}) in ${seconds}s...`;
-		mode.retryLoader = new Loader(
+		mode.retryLoader = new AtomicWorkingLoader(
 			mode.ui,
-			(spinner) => theme.fg("warning", spinner),
+			undefined,
 			(text) => theme.fg("muted", text),
 			retryMessage(Math.ceil(event.delayMs / 1000)),
 		);

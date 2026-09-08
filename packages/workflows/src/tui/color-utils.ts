@@ -2,6 +2,7 @@
  * Color interpolation utilities.
  * cross-ref: spec §5.4.1, v0.x packages/atomic-sdk/src/components/color-utils.ts
  */
+import { Text, truncateToWidth } from "@earendil-works/pi-tui";
 
 function parseHex(hex: string): [number, number, number] {
 	const h = hex.replace(/^#/, "");
@@ -41,8 +42,23 @@ export function hexBg(hex: string): string {
 	return `\x1b[48;2;${r};${g};${b}m`;
 }
 
+/** Unpainted canvas, matching main chat and attached stage chat. */
+export const DEFAULT_BG = "\x1b[49m";
+
 export const RESET = "\x1b[0m";
 export const BOLD = "\x1b[1m";
+
+/** Keep a filled row intact across pi-tui truncation and nested style resets. */
+export function fillBackground(text: string, width: number, background: string): string {
+	return (
+		new Text(
+			truncateToWidth(text, width, "…"),
+			0,
+			0,
+			(line) => `${background}${line.replace(/\x1b\[(?:0|49)?m/g, (reset) => reset + background)}${RESET}`,
+		).render(width)[0] ?? ""
+	);
+}
 
 /**
  * Combine a foreground hex + optional background hex into a single
