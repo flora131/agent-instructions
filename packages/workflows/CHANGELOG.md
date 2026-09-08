@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - `/tasks` in an attached stage chat opens the shared owner-bound inspector without entering model context, including during interrupt settlement. Task focus exits before the ordinary stage Escape action, and mounted human-input prompts retain input priority ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Stage chat now shows compact background-agent and shell counts below the composer instead of persistent task rows. Shared `/tasks` views retain background results, and completion notifications use shaded cards with readable outcomes and previews in the owning stage chat.
+- Workflow guidance now uses project CI/test timing history for critical-path scheduling and launch estimates, avoids redundant full-suite runs while preserving required gates, and compares estimated with actual elapsed time. Agent-authored user questions use `ask_user_question` or an equivalent tool when available; sessions without one continue autonomously using best judgment.
 
 ### Fixed
 

@@ -286,16 +286,25 @@ describe("buildSystemPrompt", () => {
 	});
 
 	describe("ask_user_question fallback", () => {
-		test("instructs autonomous continuation when ask_user_question is unavailable", () => {
+		test.each([
+			{ selectedTools: ["read", "bash"] },
+			{ selectedTools: ["read", "ask_question"] },
+			{ selectedTools: ["read", "ask_question", "ask_user_question"], excludedTools: ["ask_user_question"] },
+			{ excludedTools: ["ask_user_question"] },
+		])("uses equivalent question tools or autonomous best judgment: %j", (tools) => {
 			const prompt = buildSystemPrompt({
-				selectedTools: ["read", "bash"],
+				...tools,
 				contextFiles: [],
 				skills: [],
 				cwd: process.cwd(),
 			});
 
-			expect(prompt).toContain("Clarify ambiguous requirements using the ask_user_question tool if available.");
+			expect(prompt).toContain("If an equivalent user-question tool is available, use it for all questions");
+			expect(prompt).toContain("instead of plain text, including confirmations and approvals");
+			expect(prompt).toContain("When no usable question tool or human-input channel exists, do not stall");
 			expect(prompt).toContain("continue fully autonomously on best judgment");
+			expect(prompt).toContain("Tool unavailability alone is not a blocker");
+			expect(prompt).not.toContain("ask_user_question");
 		});
 
 		test("omits the fallback guideline when ask_user_question is selected", () => {
@@ -306,7 +315,7 @@ describe("buildSystemPrompt", () => {
 				cwd: process.cwd(),
 			});
 
-			expect(prompt).not.toContain("Clarify ambiguous requirements");
+			expect(prompt).not.toContain("If an equivalent user-question tool is available");
 		});
 	});
 });

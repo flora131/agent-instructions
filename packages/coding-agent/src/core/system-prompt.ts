@@ -133,11 +133,7 @@ export function buildSystemPrompt(options: BuildSystemPromptOptions): string {
 	const hasPowerShell = tools.includes("powershell");
 	const hasFind = tools.includes("find");
 	const hasLs = tools.includes("ls");
-	const shouldIncludeAskUserFallbackGuidance =
-		selectedTools !== undefined &&
-		tools.length > 0 &&
-		!tools.includes("ask_user_question") &&
-		!explicitlyExcludedTools.has("ask_user_question");
+	const shouldIncludeAskUserFallbackGuidance = tools.length > 0 && !tools.includes("ask_user_question");
 
 	// File exploration guidelines
 	if ((hasBash || hasPowerShell) && !hasFind && !hasLs) {
@@ -151,7 +147,7 @@ export function buildSystemPrompt(options: BuildSystemPromptOptions): string {
 	}
 	if (shouldIncludeAskUserFallbackGuidance) {
 		addGuideline(
-			"Clarify ambiguous requirements using the ask_user_question tool if available. When it is unavailable and no human input channel exists, do not stall on a question: choose the interpretation best supported by the repository and the stated objective — mine git history, commits, PRs, issues, and the user's own comments to infer how they would decide — state the assumption in your response, and continue fully autonomously on best judgment.",
+			"If an equivalent user-question tool is available, use it for all questions to the user instead of plain text, including confirmations and approvals, following its supported schema. When no usable question tool or human-input channel exists, do not stall on a question: choose the interpretation best supported by the repository and the stated objective, state the assumption in your response, and continue fully autonomously on best judgment. Tool unavailability alone is not a blocker. Preserve safety and authorization constraints.",
 		);
 	}
 	if (hasBash || hasPowerShell) {
