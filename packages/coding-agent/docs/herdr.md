@@ -1,6 +1,6 @@
 # Herdr
 
-Atomic includes a built-in Herdr reporter. In an eligible pane it reports agent, extension approval, and observed workflow activity using source `custom:atomic` and agent label `atomic`. No community extension is required.
+Atomic includes a built-in Herdr reporter. In an eligible pane it reports agent, subagent, extension approval, and observed workflow activity using source `custom:atomic` and agent label `atomic`. No community extension is required.
 
 ## Prerequisites and environment
 
@@ -17,11 +17,12 @@ The reporter captures these values on activation, not at module import. It runs 
 
 ## States and reasons
 
-The reporter uses `agent_start`, `agent_settled`, `ui_prompt_start`, `ui_prompt_end`, and the owning session's `observeWorkflowActivity` stream. It does not infer execution from screen text or use `agent_end` as the idle boundary.
+The reporter uses `agent_start`, `agent_settled`, `ui_prompt_start`, `ui_prompt_end`, the owning session's task subscription, and its `observeWorkflowActivity` stream. It does not infer execution from screen text or use `agent_end` as the idle boundary.
 
 | Contribution | Reported state | Internal reason | Message |
 |---|---|---|---|
 | Agent executing without an open approval prompt | `working` | `executing` | None unless a workflow needs attention |
+| Owned subagent or shell task queued, running, or cancelling | `working` | `executing` | None unless a workflow needs attention |
 | Workflow execution, automatic continuation, retry, or stop-drain | `working` | Workflow's `executing`, `automatic_continuation`, `retrying`, or `stopping` | `Workflow needs attention` when a root is blocked or needs attention |
 | Approval prompt is the only remaining work, including an agent parked on that prompt | `blocked` | `awaiting_input` | `Waiting for approval` |
 | Workflow waiting for input, an active intervention, or budget approval, with no independent execution | `blocked` | Workflow's `awaiting_input` or `manual_intervention` | `Workflow needs attention` |
@@ -31,6 +32,8 @@ The reporter uses `agent_start`, `agent_settled`, `ui_prompt_start`, `ui_prompt_
 | Workflow source `unavailable` or `recovering`, no known contribution | No new report | Unknown | None |
 
 Independent workflow execution keeps the pane working even after the parent agent settles or while another contribution waits for approval. Reasons are internal reducer values, not extra CLI fields. Missing workflow knowledge is never treated as an empty ready snapshot, so an unavailable provider can leave the last reported state unchanged until a ready snapshot arrives.
+
+Standalone subagents and background shell tasks also keep the pane working after the parent settles. The reporter reads the owner's task snapshot on activation and follows task events until shutdown. Reload reattaches to existing tasks; one task completing, failing, or being cancelled cannot clear another task's activity. Settled tasks retained in `/tasks` do not count as running. Children never claim the pane or overwrite the parent's session identity.
 
 A failed review or cleanup can leave a workflow outcome marked `blocked` after execution ends. That outcome remains inspectable and retains `needsAttention`, but does not by itself keep the pane red. A pending decision or exhausted budget still reports `blocked`; independent execution still reports `working`. Reporting `idle` neither acknowledges the failure nor resumes it. The parent session retains pane ownership until it exits, so a child stopping does not call `release-agent` for the parent.
 

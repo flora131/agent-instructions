@@ -2,6 +2,7 @@ import { getExtensionContextOwner, publishExtensionContextEffect } from "../../c
 import type { ExtensionAPI, ExtensionContext, ExtensionFactory } from "../../core/extensions/types.ts";
 import type { WorkflowRootActivity } from "../../core/extensions/workflow-events.js";
 import { SettingsManager } from "../../core/settings-manager.ts";
+import { OwnerTaskStore } from "../../core/tasks/owner-store.js";
 import { deriveSessionActivity } from "./activity.js";
 import { captureHerdrEnvironment } from "./environment.js";
 import {
@@ -34,6 +35,8 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 		const ownsBinding = (ctx: ExtensionContext) =>
 			boundSessionManager !== undefined && getExtensionContextOwner(ctx) === boundRunner;
 		let lease: { dispose(): void } | undefined;
+		let taskStore: OwnerTaskStore | undefined;
+		let unsubscribeTasks: (() => void) | undefined;
 		let agentRunning = false;
 		let openPromptCount = 0;
 		let availability: "ready" | "unavailable" | "recovering" = "unavailable";
@@ -47,10 +50,12 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 			if (options.diagnostic) options.diagnostic(value);
 			else console.error(`[Herdr] ${value.kind}${value.owner ? `: deferring to ${value.owner}` : ""}`);
 		};
+		const tasksRunning = () => taskStore?.tasks.some((task) => task.execution.kind !== "settled") ?? false;
 		const report = () => {
 			if (!owner) return;
 			const activity = deriveSessionActivity({
 				agentRunning,
+				tasksRunning: tasksRunning(),
 				openPromptCount,
 				roots: [...roots.values()],
 				availability,
@@ -77,6 +82,10 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 			const current = ++generation;
 			lease?.dispose();
 			lease = undefined;
+			unsubscribeTasks?.();
+			taskStore?.dispose();
+			unsubscribeTasks = undefined;
+			taskStore = undefined;
 			openPromptCount = 0;
 			roots.clear();
 			availability = "unavailable";
@@ -91,6 +100,20 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 			}
 			owner = claimed;
 			agentRunning = !ctx.isIdle();
+			const taskHost = ctx.getAgentTaskHost?.();
+			if (taskHost) {
+				const { supervisor, owner: taskOwner } = taskHost.ownerBinding;
+				taskStore = new OwnerTaskStore(supervisor, taskOwner);
+				taskStore.connect();
+				let running = tasksRunning();
+				unsubscribeTasks = taskStore.subscribe(() => {
+					if (current !== generation) return;
+					const next = tasksRunning();
+					if (next === running) return;
+					running = next;
+					report();
+				});
+			}
 			lease = ctx.observeWorkflowActivity((frame) => {
 				if (current !== generation) return;
 				if (frame.kind === "snapshot") {
@@ -130,6 +153,10 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 			generation++;
 			lease?.dispose();
 			lease = undefined;
+			unsubscribeTasks?.();
+			taskStore?.dispose();
+			unsubscribeTasks = undefined;
+			taskStore = undefined;
 			const previous = owner;
 			owner = undefined;
 			// Clear before awaiting transport: a successor can bind while retirement drains,
