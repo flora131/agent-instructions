@@ -187,6 +187,7 @@ function installFocusHold(ctx: StageChatViewContext): void {
 
 function createChatHost(ctx: StageChatViewContext, opts: StageChatViewOpts): ChatSessionHost<NoticeEntry> {
 	return new ChatSessionHost<NoticeEntry>({
+		taskRowsInChat: false,
 		style: chatHostStyle(ctx),
 		autocompleteProvider: stageSkillAutocomplete(ctx),
 		commands: {
@@ -534,6 +535,8 @@ export function isReadOnlyArchive(
 async function handleSlashCommand(ctx: StageChatViewContext, text: string): Promise<boolean> {
 	const [command, ...rest] = text.trim().split(/\s+/);
 	switch (command) {
+		case "/tasks":
+			return ctx.chatHost.openTasks(rest.join(" ") || undefined);
 		case "/compact": {
 			if (rest.length > 0) return true;
 			const handle = liveHandle(ctx);

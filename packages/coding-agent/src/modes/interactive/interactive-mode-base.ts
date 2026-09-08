@@ -406,7 +406,7 @@ export class InteractiveModeBase {
 	promptTurnWorkingLoaderActive = false;
 
 	// Auto-retry state
-	retryLoader: Loader | undefined = undefined;
+	retryLoader: AtomicWorkingLoader | undefined = undefined;
 	fallbackLoader: Loader | undefined = undefined;
 
 	retryCountdown: CountdownTimer | undefined = undefined;

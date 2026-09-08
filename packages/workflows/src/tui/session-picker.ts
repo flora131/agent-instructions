@@ -25,7 +25,7 @@ import { isTopLevelWorkflowRun } from "../shared/run-visibility.js";
 import type { RunSnapshot, StoreSnapshot } from "../shared/store-types.js";
 import { elapsedRunMs } from "../shared/timing.js";
 import { workflowRunResumeCandidate } from "../shared/workflow-artifacts.js";
-import { BOLD, hexBg, hexToAnsi, RESET } from "./color-utils.js";
+import { BOLD, fillBackground, hexBg, hexToAnsi, RESET } from "./color-utils.js";
 import type { GraphTheme } from "./graph-theme.js";
 import { type IdentifierLine, wrapIdentifierLines } from "./run-identity-rows.js";
 import { fmtDuration, statusColor, statusIcon } from "./status-helpers.js";
@@ -155,13 +155,6 @@ export interface SessionPickerRenderOpts {
 	allRuns?: readonly RunSnapshot[];
 }
 
-/** Pad a visible string (any embedded ANSI is OK; we measure visibly). */
-function padTo(s: string, width: number): string {
-	const vis = visibleWidth(s);
-	if (vis >= width) return s;
-	return s + " ".repeat(width - vis);
-}
-
 const TITLE = "Connect to workflow run";
 
 function renderHeader(width: number, theme: GraphTheme): string {
@@ -233,7 +226,7 @@ function renderSectionRow(label: string, inner: number, theme: GraphTheme): stri
 	const mauve = hexToAnsi(theme.mauve);
 	const muted = hexToAnsi(theme.textMuted);
 	const content = ` ${mauve} ${RESET}${panelBg} ${muted}${BOLD}${label}${RESET}`;
-	return `${border}│${RESET}${panelBg}${padTo(content, inner)}${RESET}${border}│${RESET}`;
+	return `${border}│${RESET}${fillBackground(content, inner, panelBg)}${border}│${RESET}`;
 }
 
 function renderFilterRow(inner: number, theme: GraphTheme, state: SessionPickerState): string {
@@ -251,7 +244,7 @@ function renderFilterRow(inner: number, theme: GraphTheme, state: SessionPickerS
 	const shownValue = truncateToWidth(rawValue, valueBudget, "…");
 	const value = state.query ? `${text}${shownValue}${RESET}${panelBg}` : `${muted}${shownValue}${RESET}${panelBg}`;
 	const content = ` ${mauve} ${RESET}${panelBg} ${label}${RESET}${panelBg}  ${value}${cursor}`;
-	return `${border}│${RESET}${panelBg}${padTo(content, inner)}${RESET}${border}│${RESET}`;
+	return `${border}│${RESET}${fillBackground(content, inner, panelBg)}${border}│${RESET}`;
 }
 
 function fmtElapsed(run: RunSnapshot, now: number): string {
@@ -287,16 +280,17 @@ function renderRunRow(
 	const idRows = wrapIdentifierLines(run.id, inner, ` ${icon} `, "   ");
 	const renderIdRow = ({ prefix, chunk }: IdentifierLine, index: number): string => {
 		if (isSelected) {
-			return `${border}│${RESET}${hexBg(theme.accent)}${hexToAnsi(theme.backgroundElement)}${BOLD}${padTo(
-				`${prefix}${chunk}`,
+			return `${border}│${RESET}${fillBackground(
+				`${hexToAnsi(theme.backgroundElement)}${BOLD}${prefix}${chunk}`,
 				inner,
-			)}${RESET}${border}│${RESET}`;
+				hexBg(theme.accent),
+			)}${border}│${RESET}`;
 		}
 		const content =
 			index === 0
 				? ` ${iconColor}${icon}${RESET}${panelBg} ${dim}${chunk}${RESET}${panelBg}`
 				: `   ${dim}${chunk}${RESET}${panelBg}`;
-		return `${border}│${RESET}${panelBg}${padTo(content, inner)}${border}│${RESET}`;
+		return `${border}│${RESET}${fillBackground(content, inner, panelBg)}${border}│${RESET}`;
 	};
 
 	const elapsed = fmtElapsed(run, now);
@@ -314,15 +308,17 @@ function renderRunRow(
 	const name = truncateToWidth(run.name, nameBudget, "…");
 
 	const nameRow = isSelected
-		? `${border}│${RESET}${hexBg(theme.accent)}${hexToAnsi(theme.backgroundElement)}${BOLD}${padTo(
-				`   ${name}${" ".repeat(Math.max(1, inner - 3 - visibleWidth(name) - visibleWidth(rightVisible)))}${rightVisible}`,
+		? `${border}│${RESET}${fillBackground(
+				`${hexToAnsi(theme.backgroundElement)}${BOLD}   ${name}${" ".repeat(Math.max(1, inner - 3 - visibleWidth(name) - visibleWidth(rightVisible)))}${rightVisible}`,
 				inner,
-			)}${RESET}${border}│${RESET}`
-		: `${border}│${RESET}${panelBg}${padTo(
+				hexBg(theme.accent),
+			)}${border}│${RESET}`
+		: `${border}│${RESET}${fillBackground(
 				`   ${text}${name}${RESET}${panelBg}${" ".repeat(
 					Math.max(1, inner - 3 - visibleWidth(name) - visibleWidth(right)),
 				)}${right}`,
 				inner,
+				panelBg,
 			)}${border}│${RESET}`;
 
 	return [...idRows.map(renderIdRow), nameRow];
@@ -334,7 +330,7 @@ function renderEmptyState(inner: number, theme: GraphTheme): string {
 	const dim = hexToAnsi(theme.dim);
 	const msg = "no workflow runs to show — start one with /workflow <name>";
 	const content = `  ${dim}${msg}${RESET}`;
-	return `${border}│${RESET}${panelBg}${padTo(content, inner)}${RESET}${border}│${RESET}`;
+	return `${border}│${RESET}${fillBackground(content, inner, panelBg)}${border}│${RESET}`;
 }
 
 const VIEWPORT = 5;

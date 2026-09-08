@@ -594,3 +594,40 @@ test("the ask tool receives the production-composed correlated revival failure w
 	assert.equal(result.content[0]?.text, `Failed: ${exact}`);
 	assert.equal(callerWaiter.has(), false);
 });
+
+test("a closed stage routes correlated delivery errors only to their exact waiting ask", async () => {
+	const admission = new InboundMessageAdmission();
+	const tracker = new ReplyTracker();
+	const waiters = new ReplyWaiterRegistry();
+	const expected = waiters.begin(sender.id, "original-send");
+	const unrelated = waiters.begin("other-peer", "other-send");
+	assert.ok(expected.ok && unrelated.ok);
+	let deliveries = 0;
+	const refusal: Message = {
+		id: "refusal",
+		timestamp: 1,
+		replyTo: "original-send",
+		replyError: "recipient busy",
+		content: { text: "recipient busy" },
+	};
+	try {
+		routeClosedWorkflowStageMessage(
+			{ from: sender, message: refusal, bodyText: refusal.content.text },
+			admission,
+			tracker,
+			waiters.pending(),
+			async () => {
+				deliveries++;
+			},
+			() => null,
+			() => true,
+			() => false,
+		);
+		assert.equal(waiters.size(), 1);
+		assert.equal((await expected.wait.promise).replyError, "recipient busy");
+		assert.equal(deliveries, 0, "a matched ask error is not a separate notification");
+		assert.deepEqual(tracker.listPending(), []);
+	} finally {
+		waiters.rejectAll(new Error("test cleanup"));
+	}
+});

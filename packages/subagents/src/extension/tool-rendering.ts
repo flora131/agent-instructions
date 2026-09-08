@@ -1,5 +1,6 @@
+import { keyHintIfBound } from "@bastani/atomic";
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
-import { type Component, Container, Text } from "@earendil-works/pi-tui";
+import { type Component, Container, Text, truncateToWidth } from "@earendil-works/pi-tui";
 import { getBurstDisplay } from "../runs/foreground/subagent-executor-burst-display.js";
 import type { SubagentParamsLike } from "../runs/foreground/subagent-executor-types.js";
 import type { Details } from "../shared/types.js";
@@ -7,6 +8,10 @@ import { renderLiveSubagentResult } from "../tui/render.js";
 
 type Theme = Parameters<typeof renderLiveSubagentResult>[2];
 type RenderContext = Parameters<typeof renderLiveSubagentResult>[3] & { toolCallId: string };
+
+const renderRequests = new WeakMap<object, SubagentParamsLike>();
+const displayText = (text: string) =>
+	text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x1f\x7f-\x9f]/g, " ");
 
 function effectiveParallelTaskCount(tasks: Array<{ count?: unknown }> | undefined): number {
 	if (!tasks || tasks.length === 0) return 0;
@@ -17,12 +22,13 @@ function effectiveParallelTaskCount(tasks: Array<{ count?: unknown }> | undefine
 }
 
 export function renderSubagentToolCall(args: SubagentParamsLike, theme: Theme, context: RenderContext): Component {
+	renderRequests.set(context.state, args);
 	const burst = getBurstDisplay(context.toolCallId);
 	if (burst && !burst.owner) return new Container();
 	if (args.action) {
-		const target = args.agent || "";
+		const target = args.agent || args.id || args.runId || "";
 		return new Text(
-			`${theme.fg("toolTitle", theme.bold("subagent "))}${args.action}${target ? ` ${theme.fg("accent", target)}` : ""}`,
+			`${theme.fg("toolTitle", theme.bold("subagent "))}${args.action}${target ? ` ${theme.fg(args.action === "status" ? "dim" : "accent", displayText(target))}` : ""}`,
 			0,
 			0,
 		);
@@ -32,10 +38,11 @@ export function renderSubagentToolCall(args: SubagentParamsLike, theme: Theme, c
 	}
 	const isParallel = (args.tasks?.length ?? 0) > 0;
 	const parallelCount = effectiveParallelTaskCount(args.tasks as Array<{ count?: unknown }> | undefined);
+	// Truncation adds full ANSI resets even to plain text; remove them before styling so the host background survives.
 	return new Text(
 		isParallel
 			? `${theme.fg("toolTitle", theme.bold("subagent "))}parallel (${parallelCount})`
-			: `${theme.fg("toolTitle", theme.bold("subagent "))}${theme.fg("accent", args.agent || "?")}`,
+			: `${theme.fg("toolTitle", theme.bold("subagent "))}${theme.fg("accent", displayText(args.agent || "?"))}${args.task ? `\n${theme.fg("muted", displayText(truncateToWidth(displayText(args.task), 100)))}` : ""}`,
 		0,
 		0,
 	);
@@ -49,5 +56,112 @@ export function renderSubagentToolResult(
 ): Component {
 	const burst = getBurstDisplay(context.toolCallId);
 	if (burst && !burst.owner) return new Container();
+	result = burst?.result ?? result;
+	if (result.details?.taskError)
+		return new Text(theme.fg("error", `✗ ${displayText(result.details.taskError)}`), 0, 0);
+	if (result.details?.taskRecords) {
+		const lines = result.details.taskRecords.flatMap((task) => {
+			const state = task.execution.kind === "settled" ? task.execution.result.kind : task.execution.kind;
+			return [
+				theme.bold(`${displayText(task.agentName ?? "bash")} · ${state}`),
+				theme.fg("muted", displayText(task.title)),
+				...(options.expanded ? [theme.fg("dim", task.ref.taskId)] : []),
+				...(task.execution.kind === "settled" && task.execution.result.kind === "failed"
+					? [theme.fg("error", displayText(task.execution.result.message))]
+					: []),
+			];
+		});
+		return new Text([...lines, theme.fg("dim", "/tasks to inspect output and manage tasks")].join("\n"), 0, 0);
+	}
+	const response = result.details?.taskResponse;
+	const request = renderRequests.get(context.state);
+	if (response) {
+		const outcomes = response.kind === "parallel" ? response.slots.map((slot) => slot.outcome) : [response];
+		const labels =
+			request && !burst
+				? [
+						...(request.agent ? [{ agent: request.agent, task: request.task ?? "" }] : []),
+						...(request.tasks ?? []).flatMap((task) =>
+							Array.from({ length: Math.min(50, Math.max(1, task.count ?? 1)) }, () => task),
+						),
+					]
+				: [];
+		const lines = outcomes.map((outcome, index) => {
+			if (outcome.kind === "unstarted")
+				return theme.fg(
+					"error",
+					outcome.reason.kind === "rejected"
+						? `✗ ${index + 1}. Not started · ${displayText(outcome.reason.error.message)}`
+						: `○ ${index + 1}. Skipped`,
+				);
+			const observation = outcome.observation;
+			const state =
+				observation.kind === "yielded"
+					? request?.action === "wait"
+						? "Still running in background"
+						: "Launched in background"
+					: observation.result.kind === "completed"
+						? "Completed"
+						: observation.result.kind === "failed"
+							? "Failed"
+							: "Stopped";
+			const icon =
+				observation.kind === "yielded"
+					? "∀"
+					: observation.result.kind === "completed"
+						? "✓"
+						: observation.result.kind === "failed"
+							? "✗"
+							: "○";
+			const color =
+				observation.kind === "yielded"
+					? "accent"
+					: observation.result.kind === "failed"
+						? "error"
+						: observation.result.kind === "completed"
+							? "success"
+							: "warning";
+			const identity = labels[index];
+			const name = outcomes.length > 1 ? `${index + 1}. ${identity ? displayText(identity.agent) : "Agent"} · ` : "";
+			const summary = theme.fg(color, `${icon} ${name}${state}`);
+			const metadata = options.expanded
+				? theme.fg("dim", `\n   ${observation.taskId}${identity?.task ? ` · ${displayText(identity.task)}` : ""}`)
+				: "";
+			const error =
+				observation.kind === "settled" && observation.result.kind === "failed"
+					? `\n   ${theme.fg("error", displayText(observation.result.message))}`
+					: "";
+			return summary + metadata + error;
+		});
+		const heading = outcomes.length > 1 ? [theme.bold(`${outcomes.length} agent tasks`)] : [];
+		return new Text(
+			[
+				...heading,
+				...lines.map((line, index) =>
+					outcomes.length > 1 ? `${index === lines.length - 1 ? "└─" : "├─"} ${line}` : line,
+				),
+				theme.fg("dim", "/tasks to inspect output and manage tasks"),
+			].join("\n"),
+			0,
+			0,
+		);
+	}
+	const text = result.content.find((part) => part.type === "text");
+	if (text?.type === "text" && text.text.startsWith("Executable agents:")) {
+		const count = text.text.split("\n").filter((line) => line.startsWith("- ") && line !== "- (none)").length;
+		return new Text(
+			options.expanded
+				? text.text
+				: `${theme.bold(`${count} available agents`)}\n${theme.fg(
+						"dim",
+						["/agents to browse", keyHintIfBound("app.tools.expand", "Expand")]
+							.filter(Boolean)
+							.map((hint, index) => (index ? `(${hint})` : hint))
+							.join(" · "),
+					)}`,
+			0,
+			0,
+		);
+	}
 	return renderLiveSubagentResult(burst?.result ?? result, options, theme, context);
 }

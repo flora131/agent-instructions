@@ -106,6 +106,8 @@ export interface PiHostCustomUiState {
 export type PiHostCustomUiStateListener = (state: PiHostCustomUiState) => void;
 
 export interface PiCustomOverlayOptions {
+	/** Atomic lifecycle classification; navigation does not request approval. */
+	purpose?: "prompt" | "navigation";
 	/**
 	 * `true` mounts a floating popup; `false` mounts a focused
 	 * full-screen pi-tui pane that takes keyboard focus and renders in

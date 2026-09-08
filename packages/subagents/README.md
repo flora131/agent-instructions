@@ -6,7 +6,7 @@
 
 `@bastani/subagents` lets Atomic delegate work to focused child agents. It is Atomic's bundled adaptation of upstream `pi-subagents`; use it for code review, scouting, implementation, parallel audits, and anything else that benefits from a second or third set of model eyes.
 
-Use subagents selectively for bounded specialist delegation while the parent remains in control: one focused agent or parallel independent tasks. Keep interactive, exploratory, conceptual, and conversation-led work inline. Multiple steps, files, tests, validation, or parallelism alone do not require a workflow. For clearly delegated autonomous jobs that need durable stages, checkpoints, resumability, HIL, gates, retries, or bounded loops, use an appropriate workflow instead. Subagent calls always run in the foreground and return their results to the parent.
+Use subagents selectively for bounded specialist delegation while the parent remains in control: one focused agent or parallel independent tasks. Keep interactive, exploratory, conceptual, and conversation-led work inline. For autonomous jobs that need durable stages, checkpoints, resumability, HIL, gates, retries, or bounded loops, use an appropriate workflow. Owner-bound subagent calls support foreground-first and background observation; omitted `wait` starts in the background.
 
 https://github.com/user-attachments/assets/702554ec-faaf-4635-80aa-fb5d6e292fd1
 
@@ -48,7 +48,7 @@ That is enough to start.
 
 Pi is the parent session. A subagent is a focused child Pi session with its own job.
 
-When you ask for a subagent, Pi starts the child, gives it the task, and brings the result back. Single and parallel runs stream progress in the conversation and return their results before the call completes.
+Atomic starts the child once and gives it the task. Background launches return after admission; foreground-first launches wait until completion or their observation budget expires. On expiry, the same child continues in the background and later delivers its result to the owning session.
 
 Installing the extension does not start an automatic review. It gives Pi a delegation tool. If you want every implementation reviewed, say that in your prompt or put it in your project instructions:
 
@@ -162,13 +162,29 @@ Workflow invocations receive a stable, non-`default` Intercom group automaticall
 
 ## Where running subagents show up
 
-Foreground runs stream progress in the conversation while they run. Parallel calls keep their grouped task shape in progress and results, and status/control actions can inspect or interrupt live foreground children.
+Background agents appear in the compact count below the prompt in main and workflow-stage chat. Run `/tasks` to open the grouped inspector; updates never open it automatically. Parallel receipts identify individual siblings. Completion produces a shaded notification card with outcome and available response preview, without depending on a model reply. `/agents` browses definitions, while `subagent({ action: "list" })` shows the catalog with the configured expand-key hint.
 
 You can ask naturally:
 
 ```text
 Show me the current subagent status.
 ```
+
+### Choose foreground or background
+
+The agent can choose a mode for each authorized call without asking you merely to select an execution mode:
+
+```ts
+subagent({ agent: "codebase-analyzer", task: "Trace authentication.", wait: { kind: "background" } })
+subagent({ agent: "codebase-analyzer", task: "Trace authentication.", wait: { kind: "foreground", budgetMs: 30000 } })
+subagent({ action: "wait", id: taskId, budgetMs: 1000 })
+subagent({ action: "status", id: taskId })
+subagent({ action: "interrupt", id: taskId })
+```
+
+In owner-bound sessions, omitted `wait` means background. Explicit foreground waits use the owner's agent observation budget, normally 30 seconds, unless overridden. Expiry releases the caller, not the execution. Wait or inspect the returned task ID instead of launching a duplicate. Existing SDK callers without an owner retain their original execution path.
+
+See [Background tasks](../coding-agent/docs/background-tasks.md) for shell examples, automatic backgrounding, output retention, keyboard controls, platform limits, and session/workflow lifetimes.
 
 ## Recommended orchestration pattern (scaffolding)
 
@@ -506,8 +522,11 @@ Agent definitions are not loaded into context by default. Management actions let
 |-------|------|---------|-------------|
 | `agent` | string | - | Agent name for single mode, or target for management actions. |
 | `task` | string | - | Task string for single mode. |
-| `action` | string | - | `list`, `get`, `create`, `update`, `delete`, `status`, or `interrupt`. |
+| `action` | string | - | `list`, `get`, `create`, `update`, `delete`, `status`, `wait`, or `interrupt`. |
 | `config` | object/string | - | Agent config for create/update. |
+| `wait` | object | background in owner-bound sessions | `{ kind: "background" }` yields after admission; `{ kind: "foreground", budgetMs?: number }` waits before automatically yielding. |
+| `budgetMs` | number | owner wait policy | Observation budget for `action: "wait"`; not a child execution deadline. |
+| `id` | string | - | Task ID returned by an owner-bound launch for `wait`, `status`, or `interrupt`. |
 | `output` | `string \| false` | agent default | Override single-agent output file. |
 | `outputMode` | `"inline" \| "file-only"` | `inline` | Return saved output inline or as a concise saved-file reference. `file-only` requires an `output` path. |
 | `reads` | `string[] \| false` | - | Single-agent files to read before execution, or `false` to disable. Relative paths resolve against the effective child `cwd`; absolute paths pass through. |
@@ -569,7 +588,7 @@ After a worktree parallel step reaches any terminal result, per-agent diff stats
 
 Atomic subagents read optional JSON config from `~/.atomic/agent/extensions/subagent/config.json` and still check the legacy `~/.pi/agent/extensions/subagent/config.json` path for compatibility.
 
-Subagent configuration controls discovery, parallel limits, session storage, control notices, and intercom delivery. There are no execution-mode toggles; every execution request is foreground.
+Subagent configuration controls discovery, parallel limits, session storage, control notices, and intercom delivery. Foreground/background observation is selected per call through `wait`; it is not a global execution-mode toggle.
 
 ### `parallel`
 
@@ -647,7 +666,7 @@ Metadata records timing, usage, typed status, termination cause, final model, at
 
 Session files are stored under a per-run session directory. With `context: "fork"`, each child starts from the parent’s current leaf through the session manager; this is a real session fork, not an injected summary.
 
-Foreground completions notify the originating session while it remains live. When a workflow stage completes, Atomic cancels the stage's still-running children—including children detached for Intercom coordination—and does not route their late findings or completion notices to the parent/main chat. Unrelated stages' children remain live. The in-process status watch emits live lifecycle updates, and the extension consumes the terminal event to render completion notifications. These notifications use tool blocks with the same background treatment as regular subagent tool blocks: success when the child completed, error when it failed, and pending when it was interrupted. Each block keeps the status glyph, agent name, outcome, duration, result preview, `ctrl+o` expand hint, and session file path.
+Owner-bound completions notify the originating session while its admission boundary remains open. Closing a workflow stage cancels its running children and suppresses late completion delivery; unrelated stages remain live. Visible completion cards use the shared chat background, a status glyph, agent/task title, and bounded response or error preview. The expand hint appears when more preview content is available, and `/tasks` opens retained inspection. Receipt identities persist in session history for retry without duplicate delivery or execution. Integrations without a task owner retain their existing result and Intercom paths.
 
 Foreground runs persist their session and user-facing artifacts beside the parent session:
 
@@ -660,7 +679,7 @@ Foreground runs persist their session and user-facing artifacts beside the paren
   run-history.jsonl
 ```
 
-The Rust registry and status watch power `subagent({ action: "status" })` output. Terminal delivery is an in-memory bounded envelope persisted once with typed `status`, `cause`, and `stats`; there is no `status.json`, `events.jsonl`, PID reconciler, result watcher, or claim pipeline.
+Task-ID status, wait, and interrupt resolve the same owner as launch. Run-ID status uses the existing Rust subagent registry. Owner-bound completion delivery uses persisted intent and acknowledgement records in session history; no second PID registry or execution is created for the UI.
 
 ## Completion and output
 

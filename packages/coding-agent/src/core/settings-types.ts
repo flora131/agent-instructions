@@ -170,6 +170,14 @@ export type SettingsFieldOrigin = "primary" | "legacy";
 
 export interface SettingsStorage {
 	withLock(scope: SettingsScope, fn: (current: string | undefined) => string | undefined): void;
+	/**
+	 * Optional write-specific lock whose callback receives the current primary
+	 * document rather than a layered effective view. Storage implementations
+	 * without a distinct primary document can omit this method; layered storage
+	 * implementations must provide it to keep fallback fields out of the primary
+	 * document.
+	 */
+	withPrimaryWriteLock?(scope: SettingsScope, fn: (currentPrimary: string | undefined) => string | undefined): void;
 	getFieldOrigin?(scope: SettingsScope, field: keyof Settings): SettingsFieldOrigin | undefined;
 }
 

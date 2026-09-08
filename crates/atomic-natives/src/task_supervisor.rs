@@ -336,6 +336,11 @@ impl NapiTaskSupervisor {
 	pub fn task_reference(&self, env: Env, task: &TaskLease) -> DoorValue<NativeTaskRef> {
 		DoorValue(self.check(&env, "UnknownTask").and_then(|()| self.actor.task_ref(task)))
 	}
+	/// Read the retained terminal receipt without registering an observation or replaying execution.
+	#[napi(ts_return_type = "{ok:true,value:SettlementReceipt}|{ok:false,error:TaskFailure}")]
+	pub fn task_settlement(&self, env: Env, task: &TaskLease) -> DoorValue<SettlementReceipt> {
+		DoorValue(self.check(&env, "UnknownTask").and_then(|()| self.actor.task_settlement(task)))
+	}
 	#[napi(ts_return_type = "{ok:true,value:TaskLease}|{ok:false,error:TaskFailure}")]
 	pub fn lookup_task(
 		&self,

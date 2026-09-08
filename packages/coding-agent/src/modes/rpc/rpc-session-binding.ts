@@ -12,6 +12,7 @@ import { toJsonEvent } from "../json-event.ts";
 import { createRpcExtensionUIContext, type RpcPendingExtensionRequests } from "./rpc-extension-ui.ts";
 import type { KeybindingsReloadCoordinator } from "./rpc-keybindings-reload.ts";
 import type { RpcOutput } from "./rpc-responses.ts";
+import { bindEngineTaskWidget } from "./task-ui-bridge.js";
 
 interface RpcSessionBindingOptions {
 	runtimeHost: AgentSessionRuntime;
@@ -30,6 +31,7 @@ export class RpcSessionBinding {
 	private boundRunner: AgentSession["extensionRunner"] | undefined;
 	private unsubscribe?: () => void;
 	private unsubscribeBackpressure?: () => void;
+	private unsubscribeTasks?: () => void;
 	private readonly runtimeHost: AgentSessionRuntime;
 	private readonly output: RpcOutput;
 	private readonly pendingExtensionRequests: RpcPendingExtensionRequests;
@@ -171,6 +173,7 @@ export class RpcSessionBinding {
 			throw error;
 		}
 
+		if (this.customUi) this.unsubscribeTasks = bindEngineTaskWidget(session, session.extensionRunner.getUIContext());
 		this.unsubscribe = session.subscribe((event) => {
 			this.output(toJsonEvent(event));
 		});
@@ -207,6 +210,8 @@ export class RpcSessionBinding {
 		this.boundRunner = undefined;
 		this.unsubscribe?.();
 		this.unsubscribeBackpressure?.();
+		this.unsubscribeTasks?.();
+		this.unsubscribeTasks = undefined;
 		this.footerDataProvider?.dispose();
 		this.unsubscribe = undefined;
 		this.unsubscribeBackpressure = undefined;

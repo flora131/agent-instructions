@@ -69,6 +69,7 @@ export type RpcCommand =
 
 	// State
 	| { id?: string; type: "get_state" }
+	| { id?: string; type: "open_task_inspector"; taskId?: string }
 
 	// Model
 	| { id?: string; type: "set_model"; provider: string; modelId: string; persist?: boolean }
@@ -217,6 +218,7 @@ export type RpcResponse =
 
 	// State
 	| { id?: string; type: "response"; command: "get_state"; success: true; data: RpcSessionState }
+	| { id?: string; type: "response"; command: "open_task_inspector"; success: true }
 
 	// Model
 	| {

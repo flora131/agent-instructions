@@ -16,6 +16,7 @@
  */
 
 import assert from "node:assert/strict";
+import { Terminal } from "@xterm/headless";
 import { describe, test } from "vitest";
 import type { StageSnapshot, StageStatus } from "../../packages/workflows/src/shared/store-types.js";
 import { hexBg, hexToAnsi } from "../../packages/workflows/src/tui/color-utils.js";
@@ -607,4 +608,44 @@ describe("renderNodeCard — duration line", () => {
 			Date.now = originalNow;
 		}
 	});
+});
+
+test("truncated stage and child-workflow labels keep the focused tab filled through the ellipsis", async () => {
+	const name = "very-long-workflow-node-label-".repeat(8);
+	for (const stage of [
+		makeStage({ name }),
+		makeStage({
+			workflowChild: { alias: "child", workflow: name, runId: "child-run", status: "completed", outputs: {} },
+		}),
+	]) {
+		for (const width of [12, 24, 48]) {
+			for (const focused of [false, true]) {
+				const lines = renderNodeCard(stage, { theme, width, focused });
+				assert.match(stripAnsi(lines[0]!), /…/);
+				const terminal = new Terminal({ cols: width, rows: lines.length + 1, allowProposedApi: true });
+				try {
+					await new Promise<void>((resolve) =>
+						terminal.write(
+							`${hexBg(theme.accent)}${hexToAnsi(theme.surface)}X\x1b[0m\r\n${lines.join("\r\n")}`,
+							resolve,
+						),
+					);
+					const reference = terminal.buffer.active.getLine(0)!.getCell(0)!;
+					for (let row = 0; row < lines.length; row++) {
+						for (let column = 0; column < width; column++) {
+							const cell = terminal.buffer.active.getLine(row + 1)!.getCell(column)!;
+							const labelCell = row === 0 && !["╭", "╮", "─"].includes(cell.getChars());
+							if (focused && labelCell) {
+								assert.equal(cell.getBgColor(), reference.getBgColor(), `label column ${column}`);
+								assert.equal(cell.getFgColor(), reference.getFgColor(), `label text column ${column}`);
+								assert.ok(cell.isBold(), `label weight column ${column}`);
+							} else assert.ok(cell.isBgDefault(), `tab must not spill into row ${row}, column ${column}`);
+						}
+					}
+				} finally {
+					terminal.dispose();
+				}
+			}
+		}
+	}
 });

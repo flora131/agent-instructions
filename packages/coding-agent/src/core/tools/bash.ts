@@ -20,6 +20,7 @@ import {
 import type { BashResult } from "../bash-executor.ts";
 import { experimentalToolSamplingProperty } from "../experimental.ts";
 import type { ExtensionContext, ToolDefinition, ToolRenderResultOptions } from "../extensions/types.ts";
+import type { WaitPolicy } from "../tasks/contracts.js";
 import {
 	type BashInterceptorRule,
 	checkBashInterceptionCandidates,
@@ -31,6 +32,7 @@ import {
 	executeSupervisedCommand,
 	type SupervisedCommandOwner,
 	type SupervisedCommandResult,
+	validateBashWait,
 } from "./bash-pty-native.js";
 import { applyBashSessionEnvironment, snapshotBashSessionEnvironment } from "./bash-session-environment.ts";
 import { OutputAccumulator } from "./output-accumulator.ts";
@@ -51,6 +53,23 @@ const bashBaseSchema = Type.Object(
 		command: Type.String({ description: "Shell command to execute." }),
 		env: Type.Optional(envSchema),
 		timeout: Type.Optional(Type.Number({ description: "Timeout in seconds." })),
+		wait: Type.Optional(
+			Type.Unsafe<WaitPolicy>({
+				type: "object",
+				properties: {
+					kind: { type: "string", enum: ["background", "foreground"] },
+					budgetMs: {
+						type: "number",
+						minimum: 0,
+						description: "Foreground observation budget in milliseconds; only valid with foreground.",
+					},
+				},
+				required: ["kind"],
+				additionalProperties: false,
+				description:
+					"Observation policy, independent of execution timeout. Omit for owner-configured automatic yield (default 10s).",
+			}),
+		),
 		cwd: Type.Optional(Type.String({ description: "Working directory for the command." })),
 		pty: Type.Optional(Type.Boolean({ description: "Run with PTY handling." })),
 	},
@@ -61,6 +80,7 @@ export const bashToolSystemPromptContribution = Object.freeze({
 	snippet: "Execute a shell command.",
 	guidelines: Object.freeze([
 		"You can inspect ATOMIC_* or PI_* environment variables for current model and session details.",
+		"Choose foreground or background bash observation as needed without asking the user each time. Background yields after admission; foreground waits for its optional budget then the same command continues in background. Omitted wait uses owner-configured automatic background yield (default 10s). Observation never changes the execution timeout, which stops the command. Background requires a supported task owner; unbound foreground waits until completion regardless of budget.",
 	] as const),
 } as const);
 export type BashToolInput = Static<typeof bashSchema>;
@@ -95,6 +115,7 @@ export interface BashOperations {
 			onData: (data: Buffer, channel?: BashOutputChannel) => void;
 			signal?: AbortSignal;
 			timeout?: number;
+			wait?: WaitPolicy;
 			env?: NodeJS.ProcessEnv;
 			pty?: boolean;
 		},
@@ -105,7 +126,8 @@ export function createLocalBashOperations(options?: {
 	taskOwner?: SupervisedCommandOwner;
 }): BashOperations {
 	return {
-		exec: async (command, cwd, { onData, signal, timeout, env, pty }) => {
+		exec: async (command, cwd, { onData, signal, timeout, wait, env, pty }) => {
+			validateBashWait(wait, !!options?.taskOwner && process.platform !== "win32");
 			if (timeout !== undefined) validateExplicitTimeoutSeconds(timeout);
 			if (pty && process.env.PI_NO_PTY !== "1" && process.env.ATOMIC_NO_PTY !== "1") {
 				try {
@@ -113,6 +135,7 @@ export function createLocalBashOperations(options?: {
 						onData: (data) => onData(data, "stdout"),
 						signal,
 						timeout,
+						wait,
 						env,
 						shellPath: options?.shellPath,
 						taskOwner: options?.taskOwner,
@@ -137,7 +160,7 @@ export function createLocalBashOperations(options?: {
 				return executeSupervisedCommand(
 					command,
 					cwd,
-					{ onData, signal, timeout, env, shellPath: options.shellPath, taskOwner: options.taskOwner },
+					{ onData, signal, timeout, wait, env, shellPath: options.shellPath, taskOwner: options.taskOwner },
 					false,
 				);
 			const commandFromStdin = shellConfig.commandTransport === "stdin";
@@ -310,6 +333,19 @@ function rebuildBashResultRenderComponent(
 	const state = component.state;
 	component.clear();
 	let output = getTextOutput(result, showImages).trim();
+	const observation = result.details?.observation;
+	if (observation?.kind === "yielded") {
+		const receipt = `Command is still running (task ${observation.taskId}).`;
+		if (output.endsWith(receipt)) output = output.slice(0, -receipt.length).trimEnd();
+		component.addChild(new Text(theme.fg("accent", "∀ Continued in background"), 0, 0));
+		component.addChild(
+			new Text(
+				theme.fg("dim", `/tasks to inspect output or stop${options.expanded ? ` · ${observation.taskId}` : ""}`),
+				0,
+				0,
+			),
+		);
+	}
 	const truncation = result.details?.truncation;
 	const fullOutputPath = result.details?.fullOutputPath;
 	if (!options.isPartial && truncation?.truncated && fullOutputPath && output.endsWith("]")) {
@@ -367,7 +403,7 @@ function rebuildBashResultRenderComponent(
 		component.addChild(new Text(`\n${theme.fg("warning", `[${warnings.join(". ")}]`)}`, 0, 0));
 	}
 	if (startedAt !== undefined) {
-		const label = options.isPartial ? "Elapsed" : "Took";
+		const label = options.isPartial ? "Elapsed" : observation?.kind === "yielded" ? "Observed for" : "Took";
 		const endTime = endedAt ?? Date.now();
 		component.addChild(new Text(`\n${theme.fg("muted", `${label} ${formatDuration(endTime - startedAt)}`)}`, 0, 0));
 	}
@@ -396,7 +432,8 @@ export function createBashToolDefinition(
 	return {
 		name: "bash",
 		label: "bash",
-		description: "Execute a shell command in the session workspace, with optional PTY handling.",
+		description:
+			"Execute a shell command with optional PTY handling and foreground/background observation. Choose the observation mode without asking the user; omitted wait auto-yields per owner configuration (default 10s). Observation does not change execution timeout. Background requires a supported task owner; unbound foreground waits until completion.",
 		promptSnippet: bashToolSystemPromptContribution.snippet,
 		...experimentalToolSamplingProperty(),
 		promptGuidelines: exposeSessionEnvironment ? [...bashToolSystemPromptContribution.guidelines] : undefined,
@@ -405,6 +442,10 @@ export function createBashToolDefinition(
 		async execute(_toolCallId, bashCommand: BashToolInput, signal?: AbortSignal, onUpdate?, ctx?: ExtensionContext) {
 			const { command } = bashCommand;
 			const timeout = normalizeTimeoutSeconds(bashCommand.timeout);
+			validateBashWait(
+				bashCommand.wait,
+				!!options?.operations || (!!options?.taskOwner && process.platform !== "win32"),
+			);
 			const sessionEnvironment = snapshotBashSessionEnvironment(ctx, exposeSessionEnvironment);
 			const resourceCtx = ctx as InternalResourceContext | undefined;
 			const executionCwd = ctx?.cwd || cwd;
@@ -572,6 +613,7 @@ export function createBashToolDefinition(
 						onData: handleData,
 						signal,
 						timeout,
+						wait: bashCommand.wait,
 						env: executionContext.env,
 						pty: bashCommand.pty,
 					});

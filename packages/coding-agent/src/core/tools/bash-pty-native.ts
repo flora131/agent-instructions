@@ -2,7 +2,7 @@ import { setTimeout as poll } from "node:timers/promises";
 import { createChildProcessEnvironment } from "../../utils/child-process.ts";
 import { createModuleRequire } from "../../utils/module-require.ts";
 import { getShellConfig, getShellEnv } from "../../utils/shell.ts";
-import type { OperationId, WaitOutcome } from "../tasks/contracts.js";
+import type { OperationId, WaitOutcome, WaitPolicy } from "../tasks/contracts.js";
 import type { OwnerLease, TaskSupervisor } from "../tasks/supervisor.js";
 
 const NATIVE_PACKAGE = "@bastani/atomic-natives";
@@ -78,12 +78,29 @@ export interface SupervisedCommandResult {
 	observation?: WaitOutcome;
 }
 
+export function validateBashWait(wait: WaitPolicy | undefined, ownerSupported = true): void {
+	if (wait === undefined) return;
+	if (
+		!wait ||
+		typeof wait !== "object" ||
+		(wait.kind !== "background" && wait.kind !== "foreground") ||
+		Object.keys(wait).some((key) => key !== "kind" && (wait.kind !== "foreground" || key !== "budgetMs")) ||
+		(wait.kind === "foreground" &&
+			wait.budgetMs !== undefined &&
+			(typeof wait.budgetMs !== "number" || !Number.isFinite(wait.budgetMs) || wait.budgetMs < 0))
+	)
+		throw new Error("Invalid bash wait: expected background or foreground with a finite non-negative budgetMs");
+	if (wait.kind === "background" && !ownerSupported)
+		throw new Error("Background bash observation requires a supported task owner");
+}
+
 export async function executeSupervisedCommand(
 	command: string,
 	cwd: string,
 	options: NativePtyExecOptions,
 	pty: boolean,
 ): Promise<SupervisedCommandResult> {
+	validateBashWait(options.wait, !!options.taskOwner && process.platform !== "win32");
 	if (options.signal?.aborted) throw new Error("aborted");
 	if (process.platform === "win32")
 		throw new Error("ContainmentUnavailable: Windows supervised bash transport is not implemented");
@@ -92,6 +109,17 @@ export async function executeSupervisedCommand(
 	const shell = getShellConfig(options.shellPath);
 	const quote = (text: string) => `'${text.replaceAll("'", "'\\''")}'`;
 	const invocation = [shell.shell, ...shell.args].map(quote).join(" ");
+	const environment = createChildProcessEnvironment(
+		pty ? { TERM: "xterm-256color" } : undefined,
+		options.env ?? getShellEnv(),
+	);
+	// The native command door merges env overrides. Clear omitted inherited shell
+	// variables before invoking the configured shell, without embedding env values
+	// (which may be secrets) into the retained command text.
+	const omitted = Object.keys(process.env).filter(
+		(key) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(key) && environment[key] === undefined,
+	);
+	const clearInherited = omitted.length ? `unset ${omitted.map(quote).join(" ")}; ` : "";
 	const launch =
 		shell.commandTransport === "stdin"
 			? `printf %s ${quote(command)} | ${invocation}`
@@ -100,15 +128,11 @@ export async function executeSupervisedCommand(
 		context.owner,
 		{
 			kind: "command",
-			command: launch,
+			command: clearInherited + launch,
+			description: command,
 			cwd,
 			env: Object.fromEntries(
-				Object.entries(
-					createChildProcessEnvironment(pty ? { TERM: "xterm-256color" } : undefined, {
-						...getShellEnv(),
-						...(options.env ?? {}),
-					}),
-				).filter((entry): entry is [string, string] => entry[1] !== undefined),
+				Object.entries(environment).filter((entry): entry is [string, string] => entry[1] !== undefined),
 			),
 			terminal: pty ? { kind: "pty", columns: options.cols ?? 120, rows: options.rows ?? 40 } : { kind: "pipe" },
 			...(options.timeout === undefined ? {} : { executionTimeoutMs: options.timeout * 1000 }),
@@ -124,7 +148,7 @@ export async function executeSupervisedCommand(
 	if (options.signal?.aborted) abort();
 	let done = false;
 	let offset = "0";
-	const observation = context.supervisor.waitForTask(task).finally(() => {
+	const observation = context.supervisor.initialObservation(task, options.wait).finally(() => {
 		done = true;
 	});
 	const drain = async () => {
@@ -171,6 +195,7 @@ export interface NativePtyExecOptions {
 	onData: (data: Buffer) => void;
 	signal?: AbortSignal;
 	timeout?: number;
+	wait?: WaitPolicy;
 	env?: NodeJS.ProcessEnv;
 	shellPath?: string;
 	cols?: number;
@@ -183,6 +208,7 @@ export async function executeNativePty(
 	cwd: string,
 	options: NativePtyExecOptions,
 ): Promise<SupervisedCommandResult> {
+	validateBashWait(options.wait, !!options.taskOwner && process.platform !== "win32");
 	if (options.taskOwner) return executeSupervisedCommand(command, cwd, options, true);
 	const loaded = loadNativePtyBinding();
 	if (!loaded.ok) throw loaded.error;

@@ -53,7 +53,19 @@ export async function runAgentTask(input: {
 						taskExecution: {
 							signal: context.signal,
 							reportActivity: context.reportActivity,
-							bindTranscript: context.bindTranscript,
+							bindTranscript: (session) =>
+								context.bindTranscript({
+									getSessionId: () => session.getSessionId(),
+									getEntries: () => session.getEntries(),
+									...(input.options.intercomSessionName
+										? {
+												completionSource: {
+													runId: input.options.runId,
+													intercomTarget: input.options.intercomSessionName,
+												},
+											}
+										: {}),
+								}),
 							onExecution: (execution) => {
 								executionBound = true;
 								void execution.cleanup.then(cleaned.resolve, (error) =>

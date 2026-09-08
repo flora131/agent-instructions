@@ -102,6 +102,7 @@ test("openSessionPicker mounts via ctx.ui.custom with overlay:false (inline mode
 	void openSessionPicker(surface as UiSurface, store, theme, "connect");
 
 	assert.equal(calls.length, 1);
+	assert.equal(calls[0]!.options.purpose, "navigation", "connect picker must not request approval");
 	assert.equal(
 		calls[0]!.options.overlay,
 		false,

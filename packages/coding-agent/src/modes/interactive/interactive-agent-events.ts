@@ -448,9 +448,9 @@ InteractiveModeBase.prototype.handleEvent = async function (
 			this.retryCountdown?.dispose();
 			const retryMessage = (seconds: number) =>
 				`Retrying (${event.attempt}/${event.maxAttempts}) in ${seconds}s... (${keyText("app.interrupt")} Cancel)`;
-			this.retryLoader = new Loader(
+			this.retryLoader = new AtomicWorkingLoader(
 				this.ui,
-				(spinner) => theme.fg("warning", spinner),
+				undefined,
 				(text) => theme.fg("muted", text),
 				retryMessage(Math.ceil(event.delayMs / 1000)),
 			);

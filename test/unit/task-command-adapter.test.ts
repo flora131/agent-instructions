@@ -55,6 +55,10 @@ test.runIf(process.platform !== "win32")(
 						false,
 					);
 					assert.equal(waitDoor.mock.lastCall?.[1], expected);
+					assert.ok(
+						waitDoor.mock.lastCall?.[2],
+						"initial shell wait is designated to the host so yielding updates background status",
+					);
 					assert.equal(
 						Buffer.concat(output).toString(),
 						"A\n[Output omitted: bytes 1-4]\nB\n[Output omitted: bytes 5-6]\n",

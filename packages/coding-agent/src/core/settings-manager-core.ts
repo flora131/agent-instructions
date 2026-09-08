@@ -393,9 +393,9 @@ export class SettingsManager {
 		modifiedFields: Set<keyof Settings>,
 		modifiedNestedFields: Map<keyof Settings, Set<string>>,
 	): void {
-		this.storage.withLock(scope, (current) => {
-			const currentFileSettings = current
-				? SettingsManager.migrateSettings(parseJsonFileContent(current) as Record<string, unknown>)
+		const persist = (currentPrimary: string | undefined): string => {
+			const currentFileSettings = currentPrimary
+				? SettingsManager.migrateSettings(parseJsonFileContent(currentPrimary) as Record<string, unknown>)
 				: {};
 			const mergedSettings: Settings = { ...currentFileSettings };
 			for (const field of modifiedFields) {
@@ -415,7 +415,13 @@ export class SettingsManager {
 			}
 
 			return JSON.stringify(mergedSettings, null, 2);
-		});
+		};
+
+		if (this.storage.withPrimaryWriteLock) {
+			this.storage.withPrimaryWriteLock(scope, persist);
+		} else {
+			this.storage.withLock(scope, persist);
+		}
 	}
 
 	private save(): void {

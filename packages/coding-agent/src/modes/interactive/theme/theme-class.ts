@@ -132,7 +132,10 @@ export class Theme {
 	bg(color: ThemeBg, text: string): string {
 		const ansi = this.bgColors.get(color);
 		if (!ansi) throw new Error(`Unknown theme background color: ${color}`);
-		return `${ansi}${text}\x1b[49m`; // Reset only background color
+		// Truncation and nested components may reset SGR inside a filled row.
+		// Restore the enclosing background before ellipses and trailing padding.
+		const filled = text.replace(/\x1b\[(?:0|49)?m/g, (reset) => reset + ansi);
+		return `${ansi}${filled}\x1b[49m`; // Reset only background color
 	}
 
 	bold(text: string): string {

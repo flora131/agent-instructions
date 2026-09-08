@@ -117,6 +117,25 @@ export class FileSettingsStorage implements SettingsStorage {
 			}
 		}
 	}
+
+	withPrimaryWriteLock(scope: SettingsScope, fn: (currentPrimary: string | undefined) => string | undefined): void {
+		const path = scope === "global" ? this.globalSettingsPath : this.projectSettingsPath;
+		const dir = dirname(path);
+		if (!existsSync(dir)) {
+			mkdirSync(dir, { recursive: true });
+		}
+
+		const release = this.acquireLockSyncWithRetry(path);
+		try {
+			const currentPrimary = existsSync(path) ? readFileSync(path, "utf-8") : undefined;
+			const next = fn(currentPrimary);
+			if (next !== undefined) {
+				writeFileSync(path, next, "utf-8");
+			}
+		} finally {
+			release();
+		}
+	}
 }
 
 export class InMemorySettingsStorage implements SettingsStorage {

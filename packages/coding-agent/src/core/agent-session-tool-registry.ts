@@ -5,6 +5,7 @@ import { ExtensionRunner, type ToolDefinition, wrapRegisteredTools } from "./ext
 import { isMandatoryRuntimeTool, isTrustedMandatoryRuntimeTool } from "./mandatory-runtime-tools.ts";
 import { ModelRegistry } from "./model-registry.ts";
 import { createSyntheticSourceInfo } from "./source-info.ts";
+import { createLocalBashOperations } from "./tools/bash.js";
 import { buildMutationRequester } from "./tools/file-mutation-coordinator.ts";
 import { createAllToolDefinitions, getDefaultToolNames } from "./tools/index.ts";
 import { resolveSessionTempDirPath } from "./tools/session-temp-dir.ts";
@@ -158,6 +159,17 @@ export function _buildRuntime(
 				bash: {
 					commandPrefix: shellCommandPrefix,
 					shellPath,
+					...(process.platform !== "win32" && !(this._subagentPolicy?.depth && this._subagentPolicy.depth >= 1)
+						? {
+								operations: {
+									exec: (command, cwd, options) =>
+										createLocalBashOperations({
+											shellPath,
+											taskOwner: this.getAgentTaskHost().ownerBinding,
+										}).exec(command, cwd, options),
+								},
+							}
+						: {}),
 					interceptorEnabled: () => this.settingsManager.getBashInterceptorEnabled(),
 					availableTools: activeBuiltinTools,
 					// Resolved per execution so bash spill files follow the live

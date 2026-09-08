@@ -207,6 +207,7 @@ impl State {
 		{
 			let observation = HostObservation::Background { reason };
 			t.record.observation = observation.clone();
+			t.record.was_background = Some(true);
 			let reference = t.record.reference.clone();
 			self.emit(
 				oi,

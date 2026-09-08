@@ -406,6 +406,8 @@ export function buildGraphOverlayAdapter(
 		};
 
 		const options: PiCustomOverlayOptions = {
+			// Inspecting a run is not an approval wait, even while the pane stays mounted hidden.
+			purpose: "navigation",
 			overlay: true,
 			deferInlineCustomUiFocus: true,
 			// The graph pane, stage chat, prompt cards, and inline form all bind

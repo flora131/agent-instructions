@@ -239,8 +239,8 @@ function bgHex(theme: PiRuntimeTheme, color: string): string | undefined {
  *  - Strata: Pi has no first-class panel stratum but exposes
  *    `customMessageBg` / `toolPendingBg` / `selectedBg` as restrained
  *    surfaces. We map them to `backgroundElement` / `backgroundPanel`
- *    / `selection` and leave `bg` on the Mocha base so the canvas
- *    stays consistent with the rest of the extension's renderers.
+ *    / `selection`. `bg` remains a palette seed for color blending;
+ *    the graph canvas and node interiors use the terminal default.
  *  - Borders: `borderMuted → borderDim`, `border → border`,
  *    `borderAccent → borderActive`. The `dim` Pi token feeds
  *    `GraphTheme.dim`; `muted` feeds `textMuted`.

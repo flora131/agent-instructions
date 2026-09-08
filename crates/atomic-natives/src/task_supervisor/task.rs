@@ -248,6 +248,8 @@ pub struct TaskRecord {
 	pub agent_name: Option<JsString>,
 	pub execution: Execution,
 	pub observation: HostObservation,
+	/// True after a designated observation yields; retained after settlement and snapshot resets.
+	pub was_background: Option<bool>,
 	pub attention: Attention,
 	pub cleanup: Cleanup,
 	pub current_action: Option<CurrentAction>,
@@ -361,6 +363,8 @@ pub(super) struct Task {
 	pub claimed: bool,
 	pub activities: VecDeque<([u8; 32], ReportReceipt)>,
 	pub terminal: Option<(OutcomeReport, SettlementReceipt)>,
+	// Every terminal path retains its authentic journal receipt, including cancellation.
+	pub settlement: Option<SettlementReceipt>,
 	pub cancel_cause: Option<CancelCause>,
 	// Rejected late outcomes supply output evidence, never terminal authority.
 	pub cancellation_output: Option<OutputRef>,
@@ -445,6 +449,7 @@ impl Actor {
 			agent_name: Some(intent.agent.clone()),
 			execution: Execution::Queued {},
 			observation: HostObservation::Background { reason: "not-observed".into() },
+			was_background: None,
 			attention: Attention::None {},
 			cleanup: Cleanup::Active {},
 			current_action: None,
@@ -458,6 +463,7 @@ impl Actor {
 			claimed: false,
 			activities: VecDeque::new(),
 			terminal: None,
+			settlement: None,
 			cancel_cause: None,
 			cancellation_output: None,
 			command: None,
@@ -485,6 +491,11 @@ impl Actor {
 		let s = self.state.lock().unwrap();
 		let (oi, ti) = s.task(self.id, &task.cap, "UnknownTask")?;
 		Ok(s.owners[oi].tasks[ti].record.reference.clone())
+	}
+	pub(super) fn task_settlement(&self, task: &TaskLease) -> Door<SettlementReceipt> {
+		let s = self.state.lock().unwrap();
+		let (oi, ti) = s.task(self.id, &task.cap, "UnknownTask")?;
+		s.owners[oi].tasks[ti].settlement.clone().ok_or_else(|| fail("TaskNotSettled"))
 	}
 	pub(super) fn activity(
 		&self,
@@ -754,6 +765,8 @@ impl State {
 			}
 		}
 		self.finish_close(oi);
-		SettlementReceipt { task_id: reference.task_id, cursor, result, completion_id }
+		let receipt = SettlementReceipt { task_id: reference.task_id, cursor, result, completion_id };
+		self.owners[oi].tasks[ti].settlement = Some(receipt.clone());
+		receipt
 	}
 }

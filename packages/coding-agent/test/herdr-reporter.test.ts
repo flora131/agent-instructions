@@ -63,7 +63,20 @@ test("real runner reports settled, prompt, workflow and recovery transitions wit
 		"herdr",
 	);
 	const runner = new ExtensionRunner([extension], runtime, fake.dir, session, {} as never);
-	runner.setUIContext({ ...noOpUIContext }, "tui");
+	let closeNavigation!: () => void;
+	const navigationClosed = new Promise<void>((resolve) => {
+		closeNavigation = resolve;
+	});
+	runner.setUIContext(
+		{
+			...noOpUIContext,
+			custom: async (factory, options) => {
+				await navigationClosed;
+				return noOpUIContext.custom(factory, options);
+			},
+		},
+		"tui",
+	);
 	const root: WorkflowRootActivity = {
 		rootRunId: "root",
 		ownerSessionId: session.getSessionId(),
@@ -81,6 +94,10 @@ test("real runner reports settled, prompt, workflow and recovery transitions wit
 	}
 	try {
 		await runner.emit({ type: "session_start" });
+		// A retained workflow viewer must not change any of the semantic reports below.
+		const navigation = runner
+			.getUIContext()
+			.custom(() => ({ render: () => [], invalidate: () => {} }), { purpose: "navigation", overlay: true });
 		await runner.emit({ type: "agent_start" });
 		await expectReport("working");
 		await runner.emit({ type: "agent_end", messages: [] });
@@ -119,6 +136,9 @@ test("real runner reports settled, prompt, workflow and recovery transitions wit
 		await expectReport("working");
 		await runner.emit({ type: "agent_settled" });
 		await expectReport("idle");
+		closeNavigation();
+		await navigation;
+		await runner.flushUIPromptNotifications();
 		await runner.emit({ type: "session_shutdown", reason: "quit" });
 		const calls = (await fake.calls()).filter((call) => call.phase === "start");
 		assert.equal(calls.length, completed + 1);
@@ -129,6 +149,7 @@ test("real runner reports settled, prompt, workflow and recovery transitions wit
 		assert.equal(JSON.stringify(calls).includes("secret prompt title and provider error body"), false);
 		assert.ok(calls.every((call) => call.socket === fake.environment.socketPath));
 	} finally {
+		closeNavigation();
 		await runner.emit({ type: "session_shutdown", reason: "quit" });
 		runner.invalidate();
 		await fake.dispose();

@@ -122,3 +122,47 @@ test("inspector reports current read rejection without an unhandled promise", as
 		assert.ok(text(inspector).includes("Command output unavailable"));
 	});
 });
+
+test("store updates do not replace a pending shell transcript with a detail refresh", async () => {
+	initTheme("dark");
+	const previous = getKeybindings();
+	setKeybindings(new KeybindingsManager());
+	const supervisor = new TaskSupervisor();
+	const store = new OwnerTaskStore(supervisor, {} as OwnerLease);
+	vi.spyOn(store, "tasks", "get").mockReturnValue([taskRecord("shell", "command")]);
+	vi.spyOn(store, "resolveTask").mockReturnValue({ ok: true, value: {} as TaskLease });
+	vi.spyOn(supervisor, "taskStdin").mockReturnValue({
+		ok: false,
+		error: { code: "StdinClosed", message: "No input" },
+	});
+	let notify = () => {};
+	vi.spyOn(store, "subscribe").mockImplementation((listener) => {
+		notify = listener;
+		return () => {};
+	});
+	const pending = Promise.withResolvers<OutputResult>();
+	const read = vi
+		.spyOn(supervisor, "readTaskOutput")
+		.mockResolvedValueOnce(output)
+		.mockReturnValueOnce(pending.promise);
+	const inspector = new TaskInspector(
+		store,
+		() => {},
+		() => {},
+	);
+	try {
+		inspector.handleInput("\r");
+		await settle();
+		inspector.handleInput("\r");
+		notify();
+		assert.equal(read.mock.calls.length, 2, "no third detail read while transcript is pending");
+		pending.resolve(output);
+		await settle();
+		assert.match(text(inspector), /Retained shell output/);
+		assert.doesNotMatch(text(inspector), /› Inspect transcript/);
+	} finally {
+		inspector.dispose();
+		vi.restoreAllMocks();
+		setKeybindings(previous);
+	}
+});

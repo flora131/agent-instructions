@@ -67,6 +67,35 @@ A first named workflow launch commits the selected execution shape for the turn.
 
 Choose the cheapest complete graph. Routing cues are not a reason to add decorative stages: avoid duplicated research and review loops. Before launch, state the selected graph, why one broad builtin is sufficient or insufficient, the evidence each major stage produces, and the stop/repair conditions. A simple direct match can be one sentence; a composed graph should briefly name its children and task-specific gates.
 
+### Runtime-aware scheduling and estimates
+
+Treat workflow runtime as a dependency-constrained task-scheduling problem. Optimize elapsed time while preserving the evidence and approval contract, not by deleting gates or minimizing node count.
+
+During the short architecture pass, inspect project scripts and available historical runtimes from comparable CI jobs, test-suite reports, and prior workflow stages. For GitHub projects, recent run/job timings and uploaded test-duration reports can provide evidence. Record the source links or artifact paths, sample size and range, runner/cache differences, and missing data. Do not run the full suite just to collect an estimate or turn timing reconnaissance into a separate research project.
+
+Use a compact schedule alongside the coverage matrix:
+
+```text
+node | prerequisites | duration range and source | shared resources | evidence needed by
+```
+
+- Estimate the critical path, the longest dependency path, rather than adding all parallel node durations. Account for bounded concurrency, runner queues, environment setup, model variability, retries, and resource contention. More parallel jobs can be slower when they compete for the same resources.
+- Put focused tests and necessary build/type/contract checks at each implementation slice. When repeated full-suite runs add no required evidence, run the full suite once on the final candidate instead of after every stage. Preserve mandatory per-slice checks, required CI contexts, approval gates, and repair reruns. Each slice must still pass its own gates before dependent work starts.
+- Start long CI/check waits when their candidate is ready and overlap independent review, documentation, or handoff preparation that neither mutates that candidate nor needs its check results. Use supported concurrency, keep workflow-owned CI launch/wait/result checks in durable `ctx.tool` nodes with finite timeouts and cancellation, and join required results before acceptance, merge, or publication. Background admission is not check completion.
+- Record the checked commit or artifact identity. Later edits invalidate affected results, so rerun those checks for the new candidate. Never reuse a green check from an older commit as proof for a changed head. Do not alter repository protections, required checks, or concurrency limits to shorten the estimate.
+
+Immediately after a successful workflow launch, give the user an estimated wall-clock completion range before ending the turn. Cite the timing sources and distinguish measured checks from estimated model work, queue/repair uncertainty, and human wait time. If history is missing, say so and mark any rough estimate as low-confidence. An estimate is not a `budget` override or a promise.
+
+For example, with hypothetical timings, 6 minutes of implementation followed by independent 12-minute CI and 4-minute read-only review branches, then a 1-minute handoff, has a 19-minute critical path, not a 23-minute sum. Queue delays, repairs, and human approval can extend that. Real launch estimates must cite actual project evidence rather than reuse these illustrative numbers.
+
+Revise the remaining-time estimate at lifecycle updates only when new evidence materially changes the path. Keep the normal heartbeat cadence and end-turn/no-polling rules. At completion, report actual elapsed time against the estimate and identify the main bottleneck to improve the next schedule. These are agent design/reporting instructions, not an automatic scheduler or ETA feature.
+
+### Questions and approvals
+
+When `ask_user_question` or an equivalent question tool is available, all agent-authored questions to the user must use that tool instead of plain text, including clarification, confirmation, and permission to proceed. Prefer `ask_user_question` when available; otherwise follow the equivalent tool's supported schema. In these sessions, do not append a prose-only "Proceed?" to a status update. Ask only for needed decisions, not repeat approval of already-authorized work. See the [question tool guidance and confirmation example](/tools#ask_user_question).
+
+Workflow-authored `ctx.ui` gates remain supported. `workflow answer` relays an actual user response to a pending prompt; it does not grant authority to choose an approval on the user's behalf. Intercom questions are for agents, not a substitute for user approval. If no usable question tool is available, continue autonomously using best judgment and record evidence-backed assumptions. Tool unavailability alone is not a blocker. Preserve safety, authorization, explicit approval gates, and budget limits. A cancelled or unanswered question is not approval.
+
 ### Stage model and thinking-level assignment
 
 Before launching an authored workflow, assign every model stage a **role**, **failure cost**, **primary model**, **thinking level**, and **fallback policy**. Read [Model Selection](/models/model-selection) for the role defaults and [Evals](/models/evals) for the measured per-evaluation scores — its task-type picker maps each stage type (terminal debugging, knowledge-work planning, tool-calling loops, document research, code-reading review) to the eval that measures it and the models that lead it — but treat thinking levels in benchmark rows as measurement configurations, not production defaults. Reserve `max` for high-cost-of-error roles or an explicit user request; use `high` for demanding mapping, lifecycle analysis, compatibility, planning, synthesis, triage, and repair; use `medium` for user-impact review and final reporting; and keep deterministic checks as tool nodes with no model call.

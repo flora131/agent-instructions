@@ -180,11 +180,15 @@ Human-in-the-loop prompts appear as awaiting-input nodes in the workflow graph, 
 
 Use `/skill:<selector> [arguments]` in an editable stage composer, including qualified selectors such as `/skill:review@project`. Completion reads that stage's own resource catalog and `enableSkillCommands` setting, with the same source tags as main chat. The next completion request reflects a stage resource reload. If the host cannot expose stage command metadata, it reports discovery as unavailable instead of substituting main-chat resources.
 
+Suggestions use the terminal's default background, including selected rows; accent text and the selection arrow mark the current choice, matching main chat.
+
 Enter starts an idle turn or steers a streaming turn; Ctrl+F preserves follow-up delivery. The command stays bound to the submitted stage even if you switch panes. Its session performs the existing expansion once, including the selected skill's location, candidate identity, base directory, and trimmed arguments. Relative skill references use the skill directory; tools retain the stage cwd and restrictions. Manually typed commands still work when suggestions are disabled. Unknown bare selectors pass through unchanged, while qualified-resolution and file-read errors appear in the attached chat.
 
 Mounted HIL and custom prompts take precedence: a `/skill:` answer is literal prompt input. Blocked stages, read-only archives, and replay do not admit skill messages. Explicit editable [post-mortem chat](#post-mortem-chat-vs-execution-resume) can use its own skills, but cannot revive a workflow node or change the completed DAG. Skill invocation grants no additional delegation or tool authority and does not forward unrelated commands to the parent chat.
 
 `/tasks` opens the owner task list locally, never a skill or model message. Enter inspects the selected task; focused actions offer retained transcript inspection, foreground waiting, confirmed cancellation, and stdin when available. Terminal tasks omit live actions. Escape leaves task or stdin focus before applying the ordinary stage Escape behavior. Mounted human-input prompts retain priority. An empty owner explains that launched agents and shells appear here.
+
+`/tasks` is also suggested in the stage slash menu independently of `enableSkillCommands`. Its [background-task status](/background-tasks) appears below MCP status; failed counts stay visible alongside active work, and the graph-return shortcut does not overwrite the task-inspection hint. Pausing a stage chat or its foreground turn leaves those background tasks running. Closing the stage generation cancels remaining owned work and does not cancel sibling stages.
 
 If inspection fails, the host displays the error and keeps your input for retry. It does not send the command to the model.
 

@@ -22,7 +22,7 @@ test("inspector keeps selected live task reachable in a short viewport and confi
 		},
 	);
 	try {
-		assert.match(inspector.render(48).join("\n"), /Launched agents and shells/);
+		assert.match(inspector.render(48).join("\n"), /No background tasks/);
 		await fixture.start("first");
 		await fixture.start("second");
 		inspector.handleInput("\x1b[B");
@@ -42,5 +42,40 @@ test("inspector keeps selected live task reachable in a short viewport and confi
 		inspector.dispose();
 		await fixture.dispose();
 		setKeybindings(previous);
+	}
+});
+
+test("narrow inspector keeps the selected input-needed task visible", async () => {
+	initTheme("dark");
+	const fixture = taskFixture();
+	const inspector = new TaskInspector(
+		fixture.store,
+		() => {},
+		() => {},
+	);
+	try {
+		for (let i = 0; i < 8; i++) await fixture.start(`task-${i}`);
+		fixture.runners[7].context.reportActivity({
+			reportId: "question",
+			change: {
+				kind: "attention-set",
+				attention: {
+					kind: "input-needed",
+					requestId: "q",
+					prompt: "Continue?",
+					route: { sessionId: "fixture", promptId: "q" },
+				},
+			},
+		});
+		fixture.store.drain();
+		inspector.open(fixture.store.tasks[7].ref.taskId);
+		for (const width of [20, 21, 48]) {
+			const text = stripVTControlCharacters(inspector.renderViewport(width, 8).join("\n"));
+			assert.match(text, /› task-7/);
+			assert.doesNotMatch(text, /task-0/);
+		}
+	} finally {
+		inspector.dispose();
+		await fixture.dispose();
 	}
 });

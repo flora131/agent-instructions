@@ -27,22 +27,35 @@ export function taskListSections(tasks: readonly TaskRecord[]): Array<{ title: s
 		return selected.length ? [{ title: kind === "agent" ? "Agents" : "Shells", tasks: selected }] : [];
 	});
 }
+/** Terminal results remain inspectable but no longer advertise active work. */
+export function isActiveBackgroundTask(task: TaskRecord): boolean {
+	return task.observation.kind === "background" && task.execution.kind !== "settled";
+}
 export function renderTaskFooter(tasks: readonly TaskRecord[], width: number): string[] {
-	const background = tasks.filter(
-		(task) =>
-			task.observation.kind === "background" &&
-			(task.execution.kind === "running" || task.execution.kind === "queued"),
-	);
-	const attention = tasks.filter((task) => task.attention.kind !== "none");
-	if (!background.length && !attention.length) return [];
+	const active = tasks.filter(isActiveBackgroundTask);
+	const background = active.filter((task) => task.execution.kind === "running" || task.execution.kind === "queued");
+	const attention = active.filter((task) => task.attention.kind !== "none");
+	if (!active.length) return [];
 	const parts: string[] = [];
 	if (attention.length) parts.push(`${attention.length} need attention`);
 	const agents = background.filter((task) => task.kind === "agent" && task.execution.kind === "running").length;
 	const shells = background.filter((task) => task.kind === "command" && task.execution.kind === "running").length;
 	const queued = background.filter((task) => task.execution.kind === "queued").length;
-	if (agents) parts.push(`${agents} agents running`);
-	if (shells) parts.push(`${shells} shells running`);
+	if (agents && shells) parts.push(`${agents + shells} background tasks running`);
+	else if (agents) parts.push(`${agents} ${agents === 1 ? "local agent" : "local agents"} running`);
+	else if (shells) parts.push(`${shells} ${shells === 1 ? "shell" : "shells"} running`);
 	if (queued) parts.push(`${queued} queued`);
+	const cancelling = active.filter((task) => task.execution.kind === "cancelling").length;
+	if (cancelling) parts.push(`${cancelling} stopping`);
+	if (!parts.length) parts.push(`${active.length} active`);
 	const route = " · /tasks";
-	return [theme.fg("dim", truncateToWidth(`Tasks  ${parts.join(" · ")}`, Math.max(1, width - route.length)) + route)];
+	return [
+		theme.fg(
+			attention.length || cancelling ? "warning" : "accent",
+			truncateToWidth(
+				truncateToWidth(`Tasks  ${parts.join(" · ")}`, Math.max(1, width - route.length)) + route,
+				width,
+			),
+		),
+	];
 }

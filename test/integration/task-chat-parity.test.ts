@@ -4,6 +4,10 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { Container, setKeybindings } from "@earendil-works/pi-tui";
 import { test } from "vitest";
 import { KeybindingsManager } from "../../packages/coding-agent/src/core/keybindings.js";
+import {
+	type TaskCompletionEnvelope,
+	taskCompletionNotice,
+} from "../../packages/coding-agent/src/core/tasks/completion.js";
 import { TaskList } from "../../packages/coding-agent/src/modes/interactive/components/task-list.js";
 import {
 	disposeInteractiveTasks,
@@ -37,6 +41,7 @@ test("both chats retain the same task through tool end, agent end, background ac
 	let expanded = false;
 	const main = new ChatSessionHost({
 		style: plainStyle,
+		taskRowsInChat: false,
 		editorTheme,
 		getAgentSession: () => session,
 		getChatRenderSettings: () => ({ toolOutputExpanded: expanded }),
@@ -51,6 +56,7 @@ test("both chats retain the same task through tool end, agent end, background ac
 		stageId: "stage-a",
 		workflowName: "S4",
 		handle,
+		initialComposerDraft: "Workflow draft",
 		piTui: makeTestTui(100),
 		getToolsExpanded: () => expanded,
 		setToolsExpanded: (value) => {
@@ -59,22 +65,25 @@ test("both chats retain the same task through tool end, agent end, background ac
 		onDetach() {},
 		onClose() {},
 	});
-	const taskLines = (text: string) => {
-		const lines = stripAnsi(text)
+	const taskLines = (text: string) =>
+		stripAnsi(text)
 			.split("\n")
-			.map((line) => line.trim());
-		const start = lines.findIndex((line) => line.includes("worker:"));
-		const end = lines.findIndex((line, index) => index >= start && line.includes("ctrl+o"));
-		assert.ok(start >= 0 && end >= start, "complete task block is mounted");
-		return lines.slice(start, end + 1);
-	};
+			.map((line) => line.trim())
+			.filter((line) => line.startsWith("Tasks "))
+			.map((line) => line.slice(0, line.indexOf("/tasks") + 6));
 	const assertParity = () => {
-		assert.deepEqual(taskLines(main.renderBody(80, 100).join("\n")), taskLines(stage.render(80).join("\n")));
-		assert.equal(main.entries().filter((entry) => entry.kind === "task").length, 1);
+		assert.deepEqual(taskLines(main.renderFooter(80).join("\n")), taskLines(stage.render(80).join("\n")));
+		assert.equal(main.entries().filter((entry) => entry.kind === "task").length, 0);
+		assert.doesNotMatch(stripAnsi(stage.render(80).join("\n")), /worker:/);
 	};
 	try {
 		await fixture.start();
 		assertParity();
+		const screen = stripAnsi(stage.render(80).join("\n"));
+		assert.ok(
+			screen.indexOf("Workflow draft") >= 0 && screen.indexOf("Workflow draft") < screen.indexOf("Tasks  "),
+			"workflow background count stays below the composer",
+		);
 		for (const event of [
 			{ type: "tool_execution_start", toolCallId: "launch", toolName: "subagent", args: {} },
 			{
@@ -98,7 +107,7 @@ test("both chats retain the same task through tool end, agent end, background ac
 		);
 		fixture.store.drain();
 		assertParity();
-		assert.match(stripAnsi(stage.render(80).join("\n")), /live background output/);
+		assert.doesNotMatch(stripAnsi(stage.render(80).join("\n")), /live background output/);
 		await fixture.settle();
 		assertParity();
 		const task = fixture.store.tasks[0];
@@ -151,7 +160,36 @@ test("both chats retain the same task through tool end, agent end, background ac
 		assertParity();
 		expanded = true;
 		assertParity();
-		assert.doesNotMatch(main.renderFooter(80).join("\n"), /Tasks /);
+		assert.doesNotMatch(main.renderFooter(80).join("\n"), /Tasks {2}/);
+		const completedEnvelope: TaskCompletionEnvelope = {
+			...envelope,
+			terminalSequence: fixture.store.cursor!.sequence,
+			result: task.execution.kind === "settled" ? task.execution.result : { kind: "cancelled", cause: "user" },
+			display: false,
+		};
+		const visible: AgentSessionEvent = {
+			type: "message_start",
+			message: {
+				role: "custom",
+				customType: "task-completion",
+				content: "Internal model context must not appear in the notification",
+				details: {
+					...completedEnvelope,
+					notification: taskCompletionNotice(completedEnvelope, task, "Review finished successfully."),
+				},
+				display: true,
+				timestamp: 1,
+			},
+		};
+		for (const type of ["message_start", "message_end"] as const) {
+			main.applyAgentEvent({ type, message: visible.message });
+			emit({ type, message: visible.message });
+		}
+		for (const output of [main.renderBody(80, 100).join("\n"), stage.render(80).join("\n")]) {
+			assert.equal((stripAnsi(output).match(/Subagent worker completed/g) ?? []).length, 1);
+			assert.match(stripAnsi(output), /Review finished successfully/);
+			assert.doesNotMatch(output, /Internal model context|"completionId"/);
+		}
 	} finally {
 		main.dispose();
 		stage.dispose();
@@ -226,7 +264,7 @@ test("six task anchors stay complete behind a bounded viewport and mounted promp
 		assert.ok(renders > 0);
 		assert.equal(main.entries().filter((entry) => entry.kind === "task").length, 6);
 		const all = main.renderBody(80, 100).join("\n");
-		assert.equal((all.match(/∀ worker:/g) ?? []).length, 6);
+		assert.equal((stripAnsi(all).match(/∀ worker:/g) ?? []).length, 6);
 		assert.equal(main.renderBody(80, 5).length, 5);
 		const entries = main.entries().filter((entry) => entry.kind === "task");
 		main.handleScrollInput("\x1b[H");
@@ -258,11 +296,11 @@ test("six task anchors stay complete behind a bounded viewport and mounted promp
 		emit(event);
 		main.scrollToBottom();
 		assert.doesNotMatch(main.renderBody(80, 5).join("\n"), /worker:/);
-		assert.match(main.renderFooter(80).join("\n"), /Tasks {2}6 agents running/);
+		assert.match(main.renderFooter(80).join("\n"), /Tasks {2}6 local agents running/);
 		const mounted = stage.render(80);
 		assert.equal(mounted.length, 24);
 		assert.doesNotMatch(mounted.join("\n"), /worker:/);
-		assert.match(stripAnsi(mounted.join("\n")), /Tasks {2}6 agents running/);
+		assert.match(stripAnsi(mounted.join("\n")), /Tasks {2}6 local agents running/);
 		assert.equal(
 			store.recordStagePendingPrompt(
 				"run-1",
@@ -274,7 +312,7 @@ test("six task anchors stay complete behind a bounded viewport and mounted promp
 		const prompt = stage.render(80);
 		assert.equal(prompt.length, 24);
 		assert.match(stripAnsi(prompt.join("\n")), /Answer this stage question/);
-		assert.match(stripAnsi(prompt.join("\n")), /Tasks {2}6 agents running/);
+		assert.match(stripAnsi(prompt.join("\n")), /Tasks {2}6 local agents running/);
 	} finally {
 		main.dispose();
 		stage.dispose();

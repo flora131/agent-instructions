@@ -130,6 +130,8 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime, options: RpcM
 		rebindSession: () => sessionBinding.rebindSession(),
 		output,
 		keybindings,
+		// Browsing host-owned task history is not an extension approval prompt.
+		taskInspectorUi: customUi ? { custom: customUi.custom.bind(customUi) } : undefined,
 		reloadCoordinator,
 		inputForm,
 		pendingExtensionRequests,
