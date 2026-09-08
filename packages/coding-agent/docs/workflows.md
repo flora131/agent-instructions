@@ -60,6 +60,8 @@ Workflow-first does not require builtins, monolithic workflows, or a force-fit b
 
 Rich custom workflows can compose the [common workflow patterns](/workflows/reliable-design#common-workflow-patterns): classify and branch at runtime, fan out and synthesize artifacts, run worker/verifier/reducer repair cycles, generate and filter or tournament-rank candidates, and loop until explicit evidence says the work is done. Workflow definitions are composable TypeScript modules — see [Workflow Composition](/workflows/authoring#workflow-composition). Atomic can write the definition, reload workflow resources, and run it for the current task; the workflow tool has no create action.
 
+Design for elapsed time using [runtime-aware scheduling and estimates](/workflows/reliable-design#runtime-aware-scheduling-and-estimates). Use available CI/test history to place focused checks at slice boundaries, defer redundant full-suite runs to the final candidate, and overlap independent work with CI without bypassing required gates. After launch, report a source-backed completion range; at completion, compare it with actual elapsed time. Agent-authored user questions, including approvals, use [`ask_user_question`](/tools#ask_user_question), not prose-only prompts.
+
 If exploration drifts without progress, save findings and choose a concrete next action. Transfer them through `reads` to a fitting workflow when permitted; continue directly with appropriate validation when inline was requested.
 
 | User need | Use |

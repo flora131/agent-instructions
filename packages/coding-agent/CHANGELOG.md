@@ -22,6 +22,7 @@
 
 - `/tasks` in an attached stage chat is now a local inspection command, never a model message, including while an Escape interruption settles. Hosts without a task inspector report that it is unavailable.
 - Task lists and subagent detail views now use grouped counts, semantic status styling, pinned status/metrics/actions, recent tool activity, bounded response and shell-output previews, and narrow-terminal layouts. Finished tasks remain discoverable through `/tasks`; background bash receipts distinguish observation time from execution completion.
+- The question tool's default guidance now requires structured questions for all user decisions, including confirmations and approvals, rather than prose-only prompts. Missing or cancelled input does not authorize an action.
 
 ### Fixed
 

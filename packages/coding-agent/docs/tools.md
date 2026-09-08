@@ -46,6 +46,29 @@ Directory `read` output renders an oh-my-pi-style depth-2 tree sorted by most-re
 
 Plain URL reads follow oh-my-pi's fetch-pipeline truncation contract: unselected URL output shows the first 300 rendered lines (capped at 50 KiB), preserves full-output artifact/truncation metadata when available, and does not hard-block solely because the rendered URL body is large. By default Atomic rejects private, localhost, cloud-metadata, numeric/short-form private-IP URL targets (for example `2130706433`, octal/hex dotted forms, and `127.1`), IPv4-compatible and IPv4-mapped IPv6, NAT64, 6to4 private-address forms, and the full IPv6 link-local `fe80::/10` range, revalidates each manual redirect, pins DNS-validated addresses for outbound fetches, and caps streamed URL bodies; `ATOMIC_ALLOW_PRIVATE_URL_READS=1` is a dev-only escape hatch for trusted local tests and must not be set from untrusted project configuration. Local text reads use the shared 3,000-line/50 KiB output cap, while search match/context lines use the upstream 512-character cap before emitting a truncation notice.
 
+## `ask_user_question`
+
+All questions to the user must use `ask_user_question` instead of plain text. This includes clarifications, preferences, confirmations, approvals, and permission to proceed, not just ambiguous requirements. Do not end a progress update or final response with a prose-only "Proceed?".
+
+Ask only when a decision is needed. Do not ask again for already-authorized work. Group related questions in one call, up to four questions with two to four options each. For confirmations, state the concrete action and scope in the question and offer explicit proceed and decline options. For example, when this action needs approval, call `ask_user_question` with:
+
+```json
+{
+  "questions": [{
+    "header": "Merge approval",
+    "question": "Remove the stack grouping, then admin-merge the same seven PRs in dependency order without changing repository protections?",
+    "options": [
+      { "label": "Proceed", "description": "Remove the grouping and admin-merge those seven PRs in dependency order. Leave repository protections unchanged." },
+      { "label": "Do not proceed", "description": "Leave the grouping and PRs unchanged." }
+    ]
+  }]
+}
+```
+
+In a real confirmation, identify the target PRs in the question or immediately preceding context. This example explains question routing; it does not authorize merging any PRs.
+
+A cancelled or unanswered question is not approval. If the tool or interactive UI is unavailable, do not substitute a plain-text question or infer permission. Continue only within existing authorization using a stated, evidence-backed assumption, and report a blocker for actions requiring new permission. Workflow-authored `ctx.ui` gates and `workflow answer` for relaying actual user responses remain supported.
+
 ## Persisted tool output
 
 Output that does not fit in a tool result is written to a file, and the result points at it — `Full output: <path>` for `bash`, `Full output saved to: <path>` for any tool result that crosses the persistence threshold. Those files are storage, so Atomic bounds where they go, how large they get, and how long they live.

@@ -643,7 +643,7 @@ describe("workflow-first execution routing", () => {
 			"do not raise it silently",
 			"Summarize progress and the estimated next steps",
 			"ask the user whether to proceed",
-			"prefer the `ask_user_question` tool when it is available",
+			"ask the user whether to proceed using the `ask_user_question` tool",
 			"resume with a raised `budget` only after approval",
 		]) {
 			expect(modelVisibleRouting).toContain(phrase);
