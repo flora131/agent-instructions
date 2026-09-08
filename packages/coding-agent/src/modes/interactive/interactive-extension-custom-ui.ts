@@ -315,6 +315,16 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 							releaseDeferral = undefined;
 						};
 					}
+					if (pendingReserve && !options?.deferInlineCustomUiFocus) {
+						// Register before onHandle: caller code may synchronously close this mount.
+						const syncNavigationFocus = () => {
+							hiddenForNavigation =
+								this.navigationInlineCustomUiDepth > 0 || this.shouldDeferInlineCustomUiFocus();
+							handle.setHidden(hiddenByCaller || hiddenForNavigation);
+						};
+						releaseOverlayFocusListener = this.onHostCustomUiStateChange(syncNavigationFocus);
+						syncNavigationFocus();
+					}
 					if (options?.deferInlineCustomUiFocus || pendingReserve) {
 						const release = () => {
 							releaseOverlayInlineCustomUiFocusDeferral?.();
@@ -350,17 +360,6 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 						options?.onHandle?.(wrappedHandle);
 					} else {
 						options?.onHandle?.(handle);
-					}
-					if (pendingReserve && !options?.deferInlineCustomUiFocus) {
-						// Bottom prompts wait behind navigation just like inline prompts.
-						// Compose caller visibility with focus ownership without settling the prompt.
-						const syncNavigationFocus = () => {
-							hiddenForNavigation =
-								this.navigationInlineCustomUiDepth > 0 || this.shouldDeferInlineCustomUiFocus();
-							handle.setHidden(hiddenByCaller || hiddenForNavigation);
-						};
-						releaseOverlayFocusListener = this.onHostCustomUiStateChange(syncNavigationFocus);
-						syncNavigationFocus();
 					}
 				} else {
 					this.disposeActiveSelector();

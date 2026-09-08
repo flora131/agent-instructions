@@ -813,3 +813,34 @@ test("navigation does not reveal a reserving prompt hidden by its caller", async
 		setKeybindings(previous);
 	}
 });
+
+test("a reserving prompt removed in onHandle cannot reclaim focus after navigation", async () => {
+	const previous = getKeybindings();
+	const host = await mountMainInspector(false);
+	let finish = () => {};
+	const prompt = host.mode.showExtensionCustom<void>(
+		(_tui, _theme, _keys, done) => {
+			finish = done;
+			return new Text("Removed prompt", 0, 0);
+		},
+		{
+			overlay: true,
+			reserveTranscriptRows: true,
+			overlayOptions: QUESTIONNAIRE_OVERLAY_OPTIONS,
+			onHandle: (handle) => handle.hide(),
+		},
+	);
+	try {
+		await flush();
+		await host.input("\x1b");
+		await host.completion;
+		assert.equal(host.tui.getFocusedComponent() === host.editor, true, "removed prompt must never regain input");
+		await host.input("draft");
+		assert.equal(host.editor.getText(), "draft");
+	} finally {
+		finish();
+		await prompt;
+		await host.dispose();
+		setKeybindings(previous);
+	}
+});
