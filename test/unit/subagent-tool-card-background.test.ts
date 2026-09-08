@@ -208,4 +208,49 @@ for (const themeName of ["dark", "light"] as const) {
 			card.dispose();
 		}
 	});
+
+	test(`status card preserves its full host background through resize and expansion (${themeName})`, async () => {
+		initTheme(themeName);
+		const card = createCard({ action: "status", id: "43ad4599" });
+		const result = {
+			content: [{ type: "text" as const, text: "Parent: 43ad4599" }],
+			details: {
+				mode: "management" as const,
+				results: [],
+				statusGroups: [
+					{
+						parentPath: "43ad4599",
+						children: [
+							{
+								path: `43ad4599/debugger_${"界".repeat(70)}_1`,
+								parentPath: "43ad4599",
+								taskName: `debugger_${"界".repeat(70)}`,
+								depth: 1,
+								status: "running" as const,
+								loaded: true,
+								sessionFile: "/sessions/43ad4599/debugger_1.jsonl",
+							},
+						],
+					},
+				],
+			},
+			isError: false,
+		};
+		try {
+			card.updateResult(result);
+			for (const expanded of [false, true, false]) {
+				card.setExpanded(expanded);
+				for (const width of [120, 48, 12, 120]) {
+					const lines = card.render(width);
+					await assertFullBackground(lines, width, "toolSuccessBg");
+					const text = stripVTControlCharacters(lines.join("\n"));
+					assert.match(text, /Running/);
+					if (expanded) assert.match(text.replace(/\s/g, ""), /Residency:loaded/);
+					else assert.doesNotMatch(text, /Residency:|Session:/);
+				}
+			}
+		} finally {
+			card.dispose();
+		}
+	});
 }

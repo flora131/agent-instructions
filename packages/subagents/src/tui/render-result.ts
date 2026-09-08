@@ -15,6 +15,7 @@ import {
 } from "./render-result-animation.js";
 import { renderMultiCompact, renderSingleCompact } from "./render-result-compact.js";
 import { subagentResultRenderKey } from "./render-stable-output.js";
+import { renderSubagentStatus } from "./render-status.js";
 import {
 	buildLiveStatusLine,
 	displayProgressDurationMs,
@@ -83,6 +84,7 @@ export function renderSubagentResult(
 	theme: Theme,
 ): Component {
 	const d = result.details;
+	if (d?.statusGroups) return renderSubagentStatus(d.statusGroups, options.expanded, theme);
 	const liveMultiProgress = d?.mode === "parallel" && (d?.progress?.length ?? 0) > 0;
 	if (!d?.results.length && !liveMultiProgress) {
 		const t = result.content[0];
