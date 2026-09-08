@@ -30,35 +30,25 @@ import { SettingsManager } from "../../packages/coding-agent/src/core/settings-m
 import { moduleDir, readJson } from "../helpers/runtime.js";
 
 /**
- * `semver` was downgraded 7.8.5 -> 7.8.0 so this repository carries upstream pi's
- * pin. Two of the fixes given up reach functions this repository actually calls:
+ * Contract for the semver 7.8.5 pin shared by shipped code and build tooling.
+ * The BASELINE_* tables were measured against a real upstream 7.8.5 build;
+ * they preserve prerelease, build-metadata and package-source range behavior.
+ * Numeric tails after x-ranges must be rejected by the upstream 7.8.4 fix.
  *
- *   7.8.1 - strip build metadata before comparator trimming (`satisfies`)
- *   7.8.4 - reject a numeric segment after an x-range (`validRange`)
- *
- * This file is the evidence that the downgrade changes nothing this repository
- * relies on. It does not rest on hand-written expectations: every `BASELINE_*`
- * table below was *measured* against a real semver 7.8.5 build, so "unchanged"
- * means the pinned build reproduces recorded 7.8.5 output, case for case.
- *
- * The baseline is recorded rather than linked because the shipped surface has
- * only one build to run against: the root `overrides` entry collapses every edge
- * that reaches shipped code onto 7.8.0, and `package-lock.json` resolves exactly
- * one `semver` node there, which the first test asserts. The single node beside
- * it is the build-only copy `@napi-rs/cli` keeps — nested beside
- * `packages/natives` since the 3.8.1 bump — so no edge in this tree resolves
- * below its declared range; that copy is 7.8.5, so the last test runs the CLI's
- * own semver surface against the real baseline rather than a recorded table. To
- * re-record the shipped-surface tables after a future pin move, unpack the
- * baseline outside this tree and replay the same calls against it:
+ * Check every locked semver node and resolve the installed CLI from its owning
+ * workspace: npm may hoist or nest it without changing this contract. The CLI
+ * surface below was re-measured against @napi-rs/cli 3.9.0 and semver 7.8.5.
+ * To re-record these tables after a future pin move, unpack upstream outside
+ * this tree and replay the same calls against it:
  *
  *   npm pack semver@7.8.5 --pack-destination "$TMPDIR"
  *   tar -xzf "$TMPDIR/semver-7.8.5.tgz" -C "$TMPDIR"
  *   node -e "const baseline = require('$TMPDIR/package')"   # then replay each call below against it
  */
 
-const PINNED_SEMVER_VERSION = "7.8.0";
+const PINNED_SEMVER_VERSION = "7.8.5";
 const BASELINE_SEMVER_VERSION = "7.8.5";
+const PINNED_NAPI_CLI_VERSION = "3.9.0";
 
 const root = join(moduleDir(import.meta.url), "../..");
 const codingAgentDir = join(root, "packages/coding-agent");
@@ -69,20 +59,29 @@ interface Manifest {
 	version: string;
 }
 
-interface CliManifest {
+interface CliManifest extends Manifest {
 	dependencies: Record<string, string>;
 }
 
 interface Lockfile {
-	packages: Record<string, { version: string; dependencies?: Record<string, string> }>;
+	packages: Record<
+		string,
+		{
+			version: string;
+			dependencies?: Record<string, string>;
+			devDependencies?: Record<string, string>;
+			optionalDependencies?: Record<string, string>;
+		}
+	>;
 }
 
 /** Every package in `lockfile` that declares a `semver` dependency, with the range it declares. */
 function semverEdges(lockfile: Lockfile): [declarer: string, range: string][] {
-	return Object.entries(lockfile.packages).flatMap(([path, node]) => {
-		const range = node.dependencies?.semver;
-		return range ? [[path, range] as [string, string]] : [];
-	});
+	return Object.entries(lockfile.packages).flatMap(([path, node]) =>
+		[node.dependencies?.semver, node.devDependencies?.semver, node.optionalDependencies?.semver].flatMap((range) =>
+			range ? [[path, range] as [string, string]] : [],
+		),
+	);
 }
 
 /** The `semver` node `declarer` resolves, walking outward the way node does. */
@@ -98,17 +97,15 @@ function resolvedSemverFor(lockfile: Lockfile, declarer: string): string | undef
 }
 
 /**
- * The one edge the pin moves outside its declared range, and it moves it *up*.
- * `cross-spawn@6`, reached through `shx -> shelljs -> execa`, asks for `^5.5.0`;
- * its only semver call is `satisfies(process.version, "^4.8.0 || ^5.7.0 || >=
- * 6.0.0", true)`, which 7.8.0 answers identically — a boolean third argument
- * still parses as `loose` — and it is wrapped in `niceTry` regardless. Raising
- * an edge is a choice; holding one below its floor is the defect this table
- * exists to keep out.
+ * The pre-existing override exception is cross-spawn@6, reached through
+ * shx -> shelljs -> execa: it declares ^5.5.0, which 7.8.5 does NOT satisfy.
+ * Its only semver call checks Node's shell-option support with a boolean
+ * `loose` argument. The final test preserves that measured behavior and allows
+ * only this named upward override; every other edge must satisfy its range.
  */
 const RAISED_SEMVER_EDGES = new Map<string, string>([["node_modules/execa/node_modules/cross-spawn", "^5.5.0"]]);
 
-/** The six functions this repository imports from `semver`, and nothing else. */
+/** The semver operations exercised by the shipped-code contract below. */
 interface SemverApi {
 	compare(a: string, b: string): number;
 	maxSatisfying(versions: readonly string[], range: string): string | null;
@@ -122,41 +119,27 @@ interface SemverApi {
 const pinned: SemverApi = { compare, maxSatisfying, rcompare, satisfies, valid, validRange };
 
 /**
- * `@napi-rs/cli` 3.8.6 declares `semver@^7.8.2`, which the pin does not satisfy.
- * A flat `semver` override held it below that range and `npm ls` reported the
- * edge invalid, so the override is scoped instead: everything collapses onto
- * 7.8.0 except the CLI, which keeps 7.8.5. The CLI is a build-time
- * devDependency of `packages/natives`, reaches no shipped code and is absent
- * from the published shrinkwrap, so the second copy costs the pin nothing.
- * Since 3.8.1 npm nests the CLI and that copy under
- * `packages/natives/node_modules` rather than hoisting them to the root.
+ * @napi-rs/cli 3.9.0 declares semver@^7.8.2, satisfied by the shared 7.8.5 pin.
+ * Its four semver imports feed restrictWasiNodeEngine and its helpers, which
+ * intersect engines.node with the supported WASI Node.js lines.
  *
- * That the two builds agree is measured rather than assumed. The CLI imports
- * exactly `Comparator`, `Range`, `minVersion` and `subset`, and reaches all four
- * from one function — `restrictWasiNodeEngine`, which narrows a package's
- * `engines.node` to the WASI-supported Node.js lines. At 3.8.1 that function
- * raised its floor from `>=14.0.0` to the supported-line union below,
- * intersects every comparator set of the declared range with every supported
- * set, stabilizes prerelease comparators first, and throws instead of silently
- * flooring when nothing intersects. `MINIMUM_WASI_NODE_VERSION` and the body
- * below are transcribed from
- * `packages/natives/node_modules/@napi-rs/cli/dist/index.js`, and the last
- * test drives it over both builds.
- *
- * Both of the 7.8.0 -> 7.8.2 changes land in code this function runs — `subset`
- * switched to `c.test(...)` from `satisfies(..., String(c))`, and `Range` gained
- * build-metadata stripping — so this is where a real difference would appear.
+ * The floor and functions below are transcribed from the installed 3.9.0
+ * dist/index.js. Its intersection and prerelease stabilization still reproduce
+ * the recorded results; its no-intersection error now includes the supported
+ * range and remediation. This exercises the CLI's semver surface, not the
+ * full native build command, against both actual module resolutions.
  */
 const MINIMUM_WASI_NODE_VERSION = "^20.19.0 || ^22.13.0 || >=23.5.0";
 
 /** The four `semver` entry points `@napi-rs/cli` imports, and nothing else. */
 type NapiSemverApi = Pick<typeof import("semver"), "Comparator" | "Range" | "minVersion" | "subset">;
 
-/** The pinned build, and the build `@napi-rs/cli` itself resolves. */
+/** Resolve from the owning workspace, whether npm hoists or nests the CLI. */
+const requireFromNatives = createRequire(join(root, "packages/natives/package.json"));
+const napiCliManifestPath = requireFromNatives.resolve("@napi-rs/cli/package.json");
+const requireFromNapiCli = createRequire(napiCliManifestPath);
 const pinnedNapiSurface: NapiSemverApi = { Comparator, Range, minVersion, subset };
-const napiCliSemver = requireFromTest(
-	requireFromTest.resolve("semver", { paths: [join(root, "packages/natives/node_modules/@napi-rs/cli")] }),
-) as NapiSemverApi;
+const napiCliSemver = requireFromNapiCli("semver") as NapiSemverApi;
 
 function restrictWasiNodeEngine(semverBuild: NapiSemverApi, nodeRange: string): string {
 	const {
@@ -220,14 +203,16 @@ function restrictWasiNodeEngine(semverBuild: NapiSemverApi, nodeRange: string): 
 	} catch {
 		return MINIMUM_WASI_NODE_VERSION;
 	}
-	throw new Error(`Cannot restrict engines.node "${nodeRange}" to the Node.js versions supported by WASI packages`);
+	throw new Error(
+		`Cannot restrict engines.node "${nodeRange}" to the Node.js versions supported by WASI packages: ` +
+			`it does not intersect "${MINIMUM_WASI_NODE_VERSION}". ` +
+			"Broaden engines.node to include a supported Node.js version or remove the WASI targets.",
+	);
 }
 
 /**
- * `restrictWasiNodeEngine(range)` at 7.8.5, for every `engines.node` this
- * repository declares plus the WASI minimum itself. 7.8.0 was measured
- * alongside and agrees with every entry, so the pinned build and the build the
- * CLI resolves answer each of them the same way.
+ * restrictWasiNodeEngine(range) from CLI 3.9.0 with semver 7.8.5, for the
+ * repository's engines.node ranges plus the WASI minimum itself.
  */
 const BASELINE_NAPI_WASI_ENGINE = new Map<string, string>([
 	[">= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0", "^20.19.0 || ^22.13.0 || >=23.5.0"],
@@ -369,17 +354,8 @@ const BASELINE_RANGE_VALID = new Map<string, string | null>([
 	["not-a-range", null],
 ]);
 
-/**
- * A numeric segment after an x-range: accepted at 7.8.0, rejected at 7.8.5 by the
- * 7.8.4 fix. Measured at both builds; the value here is the 7.8.0 reading, and
- * 7.8.5 returned `null` for every one.
- */
-const XRANGE_NUMERIC_TAIL_AT_PINNED_VERSION = new Map<string, string | null>([
-	["1.x.3", ">=1.0.0 <2.0.0-0"],
-	["1.x.2", ">=1.0.0 <2.0.0-0"],
-	["1.X.4", ">=1.0.0 <2.0.0-0"],
-	["0.x.9", "<1.0.0-0"],
-]);
+/** Numeric tails after x-ranges: every case was measured as `null` at 7.8.5. */
+const XRANGE_NUMERIC_TAILS = ["1.x.3", "1.x.2", "1.X.4", "0.x.9"] as const;
 
 const tempDirs: string[] = [];
 afterEach(async () => {
@@ -452,35 +428,27 @@ function baselineFor<T>(table: Map<string, T>, key: string, tableName: string): 
 	return recorded;
 }
 
-describe("semver pinned at 7.8.0", () => {
-	test("one semver reaches shipped code, at 7.8.0, and the shipped code links against it", async () => {
+describe("semver pinned at 7.8.5", () => {
+	test("every locked semver is 7.8.5 and shipped code links against the pin", async () => {
 		assert.equal(
 			requireFromTest.resolve("semver", { paths: [codingAgentDir] }),
 			requireFromTest.resolve("semver"),
 			"this test must exercise the same semver instance packages/coding-agent resolves",
 		);
 
-		const pinnedManifest = await readJson<Manifest>(join(root, "node_modules/semver/package.json"));
+		const pinnedManifest = await readJson<Manifest>(requireFromTest.resolve("semver/package.json"));
 		assert.equal(pinnedManifest.version, PINNED_SEMVER_VERSION);
 
-		// The root `overrides` entry is what collapses the tree; without it a
-		// transitive range nests a second build beside the pin and the downgrade
-		// stops being a downgrade. The one node beside it is the build-only copy
-		// `@napi-rs/cli` needs to stay inside its declared range — it sits beside
-		// `packages/natives`, whose manifest declares no semver edge, and the
-		// published shrinkwrap does not carry it.
+		// The override keeps all copies at the pin, regardless of npm's layout.
 		const lockfile = await readJson<Lockfile>(join(root, "package-lock.json"));
-		const resolved = Object.entries(lockfile.packages)
-			.filter(([path]) => path.split("node_modules/").pop() === "semver")
-			.map(([path, node]) => `${path}@${node.version}`);
-		assert.deepEqual(
-			resolved,
-			[
-				`node_modules/semver@${PINNED_SEMVER_VERSION}`,
-				`packages/natives/node_modules/semver@${BASELINE_SEMVER_VERSION}`,
-			],
-			"package-lock.json must resolve the pinned semver plus the build-only copy, and nothing else",
+		assert.equal(resolvedSemverFor(lockfile, "packages/coding-agent"), PINNED_SEMVER_VERSION);
+		const resolved = Object.entries(lockfile.packages).filter(
+			([path]) => path.split("node_modules/").pop() === "semver",
 		);
+		assert.ok(resolved.length > 0, "package-lock.json must contain semver");
+		for (const [path, node] of resolved) {
+			assert.equal(node.version, PINNED_SEMVER_VERSION, `${path} must resolve the pin`);
+		}
 	});
 
 	test("prerelease resolution over this project's own version shape is unchanged", async () => {
@@ -556,35 +524,37 @@ describe("semver pinned at 7.8.0", () => {
 		assert.equal(bare.pinned, false);
 	});
 
-	test("the one behaviour 7.8.0 gives up is a form this repository never emits", () => {
-		// 7.8.4 rejects a numeric segment after an x-range. At 7.8.0 it is still
-		// accepted, read as the x-range with the trailing segment dropped. Across
-		// every case in this file that is the entire measured difference.
-		for (const [form, normalized] of XRANGE_NUMERIC_TAIL_AT_PINNED_VERSION) {
-			assert.equal(pinned.validRange(form), normalized, form);
-			assert.equal(BASELINE_RANGE_VALID_RANGE.has(form), false, `${form} must not be a form this repository emits`);
+	test("numeric tails after x-ranges are rejected rather than silently widened", () => {
+		for (const form of XRANGE_NUMERIC_TAILS) {
+			assert.equal(pinned.validRange(form), null, form);
+			const source = parseNpmSource(`npm:example@${form}`);
+			assert.equal(source.version, form, `parseSource preserves the supplied ${form}`);
+			assert.equal(source.range, undefined, `parseSource must not widen ${form} to an x-range`);
+			assert.equal(source.pinned, false, `parseSource must not treat ${form} as an exact pin`);
 		}
 	});
 
-	test("no semver edge resolves below its declared range, and both builds answer the CLI alike", async () => {
-		// @napi-rs/cli asks for ^7.8.2 and the scoped override gives it 7.8.5.
-		// Delete that scope and it drops to 7.8.0, `npm ls` reports the edge
-		// invalid again, and this fails.
-		const napiManifest = await readJson<CliManifest>(
-			join(root, "packages/natives/node_modules/@napi-rs/cli/package.json"),
-		);
-		const napiSemverManifest = await readJson<Manifest>(
-			join(root, "packages/natives/node_modules/semver/package.json"),
-		);
-		assert.equal(napiSemverManifest.version, BASELINE_SEMVER_VERSION);
+	test("dependency ranges are satisfied except the recorded raise, and CLI 3.9.0 keeps its measured behavior", async () => {
+		const napiManifest = await readJson<CliManifest>(napiCliManifestPath);
+		const napiSemverManifest = await readJson<Manifest>(requireFromNapiCli.resolve("semver/package.json"));
+		assert.equal(napiManifest.version, PINNED_NAPI_CLI_VERSION);
+		assert.equal(napiSemverManifest.version, PINNED_SEMVER_VERSION);
 		assert.ok(
 			pinned.satisfies(napiSemverManifest.version, napiManifest.dependencies.semver),
-			`@napi-rs/cli resolves semver ${napiSemverManifest.version}, below its declared ${napiManifest.dependencies.semver}`,
+			`@napi-rs/cli resolves semver ${napiSemverManifest.version}, outside its declared ${napiManifest.dependencies.semver}`,
 		);
 
-		// Every semver edge in the tree, resolved the way npm resolves it. The
-		// pin may raise an edge above its range; it may never hold one below.
 		const lockfile = await readJson<Lockfile>(join(root, "package-lock.json"));
+		const lockedCli = Object.entries(lockfile.packages).filter(([path]) =>
+			path.endsWith("node_modules/@napi-rs/cli"),
+		);
+		assert.ok(lockedCli.length > 0, "package-lock.json must contain @napi-rs/cli");
+		for (const [path, node] of lockedCli) {
+			assert.equal(node.version, napiManifest.version, `${path} must match the CLI being measured`);
+			assert.equal(node.dependencies?.semver, napiManifest.dependencies.semver, `${path} semver dependency range`);
+		}
+
+		// Check declared dependency ranges, not just the resolved versions' floors.
 		for (const [declarer, range] of semverEdges(lockfile)) {
 			const resolvedVersion = resolvedSemverFor(lockfile, declarer);
 			assert.ok(resolvedVersion, `${declarer} declares semver ${range} but resolves no node`);
@@ -602,45 +572,38 @@ describe("semver pinned at 7.8.0", () => {
 			);
 		}
 
-		// The CLI's own semver surface is restrictWasiNodeEngine. Both builds
-		// reproduce the recorded 7.8.5 answer for every engines.node this
-		// repository declares — including the four-clause range packages/natives
-		// actually ships — so the scoped override is a contract repair rather
-		// than a behaviour change.
+		// cross-spawn@6's boolean third argument must still mean `loose`.
+		for (const [version, supported] of [
+			["v4.7.9", false],
+			["v4.8.0", true],
+			["v5.6.9", false],
+			["v5.7.0", true],
+			["v6.0.0", true],
+			[process.version, true],
+		] as const) {
+			assert.equal(satisfies(version, "^4.8.0 || ^5.7.0 || >= 6.0.0", true), supported, version);
+		}
+
+		// Run the transcribed CLI surface against the pin and its own resolution.
 		for (const [nodeRange, restricted] of BASELINE_NAPI_WASI_ENGINE) {
 			assert.equal(restrictWasiNodeEngine(napiCliSemver, nodeRange), restricted, `${nodeRange} at the CLI's build`);
 			assert.equal(restrictWasiNodeEngine(pinnedNapiSurface, nodeRange), restricted, `${nodeRange} at the pin`);
 		}
 
 		const natives = await readJson<{
-			dependencies?: Record<string, string>;
 			devDependencies: Record<string, string>;
 			engines: { node: string };
 			napi: { targets: string[] };
 		}>(join(root, "packages/natives/package.json"));
 
-		// The 7.8.5 copy now sits beside packages/natives, so the day that
-		// package declares its own semver edge it starts resolving the CLI's
-		// build instead of the pin. Keep that day loud.
-		assert.equal(natives.dependencies?.semver, undefined, "packages/natives must not declare a semver dependency");
-		assert.equal(natives.devDependencies.semver, undefined, "packages/natives must not declare a semver dependency");
-
-		// The declared range this measurement is about remains `semver@^7.8.2` in 3.8.6.
-		// Both semver import statements are unchanged, and the `restrictWasiNodeEngine`
-		// body is byte-identical to 3.8.2, so the existing semver measurement carries
-		// over unchanged. The dependency table is not identical: `@napi-rs/wasm-tools`
-		// moved from `^1.0.1` to `^1.1.0` and `emnapi` was dropped, but neither delta
-		// touches the semver surface measured here. If the CLI moves off this pinned
-		// version, re-measure that surface.
-		assert.equal(natives.devDependencies["@napi-rs/cli"], "3.8.6");
+		// A CLI pin move requires re-measuring the transcribed surface above.
+		assert.equal(natives.devDependencies["@napi-rs/cli"], PINNED_NAPI_CLI_VERSION);
 		assert.ok(
 			BASELINE_NAPI_WASI_ENGINE.has(natives.engines.node),
 			`packages/natives engines.node ${natives.engines.node} is not in BASELINE_NAPI_WASI_ENGINE`,
 		);
 
-		// And the belt to that braces: restrictWasiNodeEngine only runs for a WASI
-		// target, which this repository does not build. Every target is a native
-		// triple, so the measured-equal path is not even reached today.
+		// WASI restriction is not reached by this repository's native-only targets.
 		assert.deepEqual(
 			natives.napi.targets.filter((target) => target.includes("wasi") || target.includes("wasm")),
 			[],

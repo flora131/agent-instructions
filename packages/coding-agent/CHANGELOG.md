@@ -22,6 +22,7 @@
 
 ### Changed
 
+- Built-in read, edit, write and shell tools now prefer strict JSON-schema sampling by default, falling back on providers without strict support. Atomic's other experimental tool hints retain their existing opt-in gate.
 - `/tasks` now opens as a compact inline picker like `/workflow connect`, with fullscreen detail, transcript, input, and confirmation pages. Returning from detail preserves selection.
 - Foreground and background subagent rows, task lists, and completion cards now display resolved model and reasoning settings, retaining them after completion.
 - `/tasks` in an attached stage chat is now a local inspection command, never a model message, including while an Escape interruption settles. Hosts without a task inspector report that it is unavailable.
@@ -80,6 +81,11 @@
 - Finished workflow failures now let Herdr return to idle while retaining attention and the failed outcome. Pending decisions, budget approvals, and live execution keep their existing states.
 - Fixed resume requests for ended recoverable workflow blocks falling through to a snapshot-only response. Non-resumable targets and unchanged blocked snapshots no longer report success.
 - Fixed macOS background-command cleanup failing immediately when a terminated process group temporarily contains an unreaped zombie. Cleanup remains bounded and still requires confirmed group disappearance.
+- Updated the locked Hono and js-yaml dependencies to patched releases and refreshed provider SDKs against upstream Pi. Google's consecutive tool-call limit now returns an error stop reason.
+- Extension model registries now expose authenticated streaming calls through their configured custom providers, preserving runtime provider ownership ([#9272](https://github.com/earendil-works/pi/pull/9272)).
+- Tree navigation rejects active compaction or branch summarization before replacing the current operation's UI, leaving the active branch intact ([#9179](https://github.com/earendil-works/pi/pull/9179)).
+- Radius login now prefers the discovered balanced model and falls back to the account's first available model after catalog refresh.
+- Direct steering and follow-up calls now run extension input handlers before queue admission, preserving transformed text/images and RPC input-source attribution while consuming handled inputs.
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

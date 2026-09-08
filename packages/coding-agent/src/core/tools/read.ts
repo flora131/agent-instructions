@@ -11,7 +11,6 @@ import { getLanguageFromPath, highlightCode, type Theme } from "../../modes/inte
 import { processImage } from "../../utils/image-process.ts";
 import { detectSupportedImageMimeTypeFromFile } from "../../utils/mime.ts";
 import { formatPathRelativeToCwdOrAbsolute } from "../../utils/paths.ts";
-import { experimentalToolSamplingProperty } from "../experimental.ts";
 import type { ExtensionContext, ToolDefinition, ToolRenderResultOptions } from "../extensions/types.ts";
 import { parseConflictBlocks, registerConflictBlocks } from "./conflict-registry.ts";
 import {
@@ -317,7 +316,7 @@ export function createReadToolDefinition(
 			"Read files, directories, archives, SQLite databases, internal resources, images, documents, and URLs through one path string.",
 		promptSnippet: readToolSystemPromptContribution.snippet,
 		promptGuidelines: [...readToolSystemPromptContribution.guidelines],
-		...experimentalToolSamplingProperty(),
+		constrainedSampling: { type: "json_schema", strict: "prefer" },
 		parameters: readSchema,
 		maxResultSizeChars: Infinity,
 		async execute(_toolCallId, { path }: ReadToolInput, signal?: AbortSignal, _onUpdate?, ctx?: ExtensionContext) {

@@ -192,6 +192,9 @@ const proseNames = new Set([
 	"anthropic",
 	// Parameter and request-field names, never exports.
 	"enabled",
+	"inheritEnv",
+	"bash",
+	"powershell",
 	"openrouter",
 	"flex",
 	"undefined",

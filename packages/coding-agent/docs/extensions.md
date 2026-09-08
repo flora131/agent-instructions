@@ -1002,6 +1002,8 @@ pi.on("user_bash", (event, ctx) => {
 
 Fired when user input is received, after extension commands are checked but before skill and template expansion. The event sees the raw input text, so `/skill:foo` and `/template` are not yet expanded.
 
+Direct `session.steer()` and `session.followUp()` calls also run input handlers before skill/template expansion and queue admission. A handled input is not queued; transformed text and images are queued instead. Their optional third argument sets `source`, defaulting to `interactive`; RPC queue commands use `rpc`.
+
 **Processing order:**
 1. Extension commands (`/cmd`) checked first - if found, handler runs and input event is skipped
 2. `input` event fires - can intercept, transform, or handle
@@ -1179,6 +1181,8 @@ ctx.sessionManager.getLeafId()        // Current leaf entry ID
 Access models, auth state, and provider-aware requests.
 
 Use `ctx.modelRegistry.complete()` for an extension model request that must use Atomic's provider composition. It dispatches through the active `ModelRuntime`, retaining registered custom providers and resolved request auth: the credential-specific `baseUrl`, headers (including `null` suppression markers), and environment values.
+
+For streaming requests, use `ctx.modelRegistry.streamSimple(model, context, options)` with provider-neutral options, or `stream()` with API-specific options. Both use configured providers and request-time authentication, including extension registrations. Iterate the returned `AssistantMessageEventStream` for events and await `.result()` for the final message. Setup failures produce error events and error results. The global compatibility streaming functions do not see extension provider registrations.
 
 ```typescript
 const model = ctx.modelRegistry.find("github-copilot", "gpt-5.5");
@@ -1418,7 +1422,7 @@ Options:
 
 ### ctx.navigateTree(targetId, options?)
 
-Navigate to a different point in the session tree:
+Navigate to a different point in the session tree. Navigation rejects while a response, compaction, or branch summarization is active, even with `summarize: false`. Rejection leaves the active branch unchanged. Wait for the active operation to finish and retry.
 
 ```typescript
 const result = await ctx.navigateTree("entry-id-456", {
@@ -2326,6 +2330,8 @@ Exact modes:
 - `{ type: "json_schema", strict: "require" }` fails the request rather than silently weakening the constraint.
 - `{ type: "grammar", variants: { openai_lark?: string, openai_regex?: string } }` requests an OpenAI custom grammar tool; Lark wins when both non-empty variants are present.
 - `false` explicitly opts out. Its runtime effect matches omission, but public tool inspection preserves `false` as a present property.
+
+Built-in `read`, `edit`, `write`, `bash`, and its Windows PowerShell variant request strict JSON-schema sampling with `prefer` by default. This is a provider hint, not a schema rewrite or a sandbox. Unsupported providers retain ordinary tool calling. Other experimental tool hints still follow the experimental environment flag.
 
 Atomic preserves the optional property's exact own-key state across wrappers, active-session inspection, staged extension inspection, bundled tools, and isolated transport: omission stays absent; explicitly present `undefined` stays present; `false` and config objects remain unchanged. This distinction matters to SDK/extension code that uses `Object.hasOwn()` rather than an ordinary property read.
 
