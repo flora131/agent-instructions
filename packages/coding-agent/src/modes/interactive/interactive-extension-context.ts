@@ -78,6 +78,7 @@ InteractiveModeBase.prototype.beginHostInlineCustomUi = function (
 InteractiveModeBase.prototype.beginInlineCustomUiFocusDeferral = function (this: InteractiveModeBase): () => void {
 	let released = false;
 	this.deferredInlineCustomUiFocusDepth++;
+	this.notifyHostCustomUiStateListeners();
 	return () => {
 		if (released) return;
 		released = true;
@@ -85,6 +86,7 @@ InteractiveModeBase.prototype.beginInlineCustomUiFocusDeferral = function (this:
 		if (this.deferredInlineCustomUiFocusDepth === 0) {
 			this.focusHostInlineCustomUi();
 		}
+		this.notifyHostCustomUiStateListeners();
 	};
 };
 

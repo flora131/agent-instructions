@@ -89,6 +89,7 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 		let releaseOverlayInlineCustomUiFocusDeferral: (() => void) | undefined;
 		let transcriptReserveCoordinator: TranscriptOverlayReserve | undefined;
 		let releaseTranscriptReserveRegistration: (() => void) | undefined;
+		let releaseOverlayFocusListener: (() => void) | undefined;
 
 		const disposeComponent = () => {
 			try {
@@ -126,6 +127,9 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 		const closeMountedUi = () => {
 			if (!mounted) return;
 			if (isOverlay) {
+				const ownedInput = overlayHandle?.isFocused();
+				releaseOverlayFocusListener?.();
+				releaseOverlayFocusListener = undefined;
 				releaseOverlayInlineCustomUiFocusDeferral?.();
 				releaseOverlayInlineCustomUiFocusDeferral = undefined;
 				releaseTranscriptReserve();
@@ -134,6 +138,10 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 				// generic top-overlay call would close that instead.
 				if (overlayHandle) overlayHandle.hide();
 				else this.ui.hideOverlay();
+				if (options?.reserveTranscriptRows && ownedInput && !this.ui.hasOverlay()) {
+					// Navigation may have closed while this prompt waited; its preFocus is stale.
+					this.ui.setFocus(this.editorContainer.children.at(-1) ?? this.editor);
+				}
 			} else if (inlineMount) {
 				const stack = this.inlineCustomUiStack;
 				const ownsSlot =
@@ -298,6 +306,8 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 						releaseTranscriptReserveRegistration = coordinator.register(pendingReserve);
 					}
 					let releaseDeferral: (() => void) | undefined;
+					let hiddenByCaller = false;
+					let hiddenForNavigation = false;
 					if (options?.deferInlineCustomUiFocus) {
 						releaseDeferral = this.beginInlineCustomUiFocusDeferral();
 						releaseOverlayInlineCustomUiFocusDeferral = () => {
@@ -312,13 +322,16 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 						};
 						const wrappedHandle: OverlayHandle = {
 							hide: () => {
+								releaseOverlayFocusListener?.();
+								releaseOverlayFocusListener = undefined;
 								release();
 								releaseTranscriptReserve();
 								handle.hide();
 							},
 							setHidden: (hidden) => {
+								hiddenByCaller = hidden;
 								if (hidden) release();
-								handle.setHidden(hidden);
+								handle.setHidden(hidden || hiddenForNavigation);
 								if (!hidden && options?.deferInlineCustomUiFocus && releaseDeferral === undefined) {
 									releaseDeferral = this.beginInlineCustomUiFocusDeferral();
 									releaseOverlayInlineCustomUiFocusDeferral = () => {
@@ -337,6 +350,17 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 						options?.onHandle?.(wrappedHandle);
 					} else {
 						options?.onHandle?.(handle);
+					}
+					if (pendingReserve && !options?.deferInlineCustomUiFocus) {
+						// Bottom prompts wait behind navigation just like inline prompts.
+						// Compose caller visibility with focus ownership without settling the prompt.
+						const syncNavigationFocus = () => {
+							hiddenForNavigation =
+								this.navigationInlineCustomUiDepth > 0 || this.shouldDeferInlineCustomUiFocus();
+							handle.setHidden(hiddenByCaller || hiddenForNavigation);
+						};
+						releaseOverlayFocusListener = this.onHostCustomUiStateChange(syncNavigationFocus);
+						syncNavigationFocus();
 					}
 				} else {
 					this.disposeActiveSelector();

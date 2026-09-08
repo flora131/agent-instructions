@@ -89,6 +89,7 @@
 - Fixed subagents stopped with `x` in `/tasks` failing to notify the parent chat. Running and queued cancellations now deliver their confirmed terminal receipt once, without requiring a final child response, duplicating completion notices, or overwriting an outcome that already settled.
 - Fixed premature Herdr idle reports between repeated output-cap continuations by keeping the original prompt active until the complete continuation chain settles, including quiet provider waits. No heartbeat or inactivity timer is required.
 - Fixed false Herdr blocked status after an answered prompt when an earlier notification observer is slow, and while browsing the read-only `/agents` catalog. Genuine user decisions still report blocked.
+- Fixed Escape in `/tasks` and subagent transcript navigation cancelling a pending `ask_user_question`. Questionnaires now wait behind navigation and resume with their selection intact; ordinary questionnaire cancellation is unchanged.
 
 ## [0.9.19-alpha.1] - 2026-09-06
 
