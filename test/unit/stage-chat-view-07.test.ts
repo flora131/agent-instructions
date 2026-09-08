@@ -323,7 +323,7 @@ describe("StageChatView", () => {
 		const { handle } = makeHandle(undefined, [], "running", agentSession);
 		const statuses = new Map([["mcp", "MCP: 1/1 servers connected (3 tools)"]]);
 		let branch = "main";
-		let branchChanged: (() => void) | undefined;
+		const branchChanged = new Set<() => void>();
 		let renderRequests = 0;
 		let unsubscribed = false;
 		const graphTheme = deriveGraphTheme({
@@ -342,8 +342,9 @@ describe("StageChatView", () => {
 				getExtensionStatuses: () => statuses,
 				getAvailableProviderCount: () => 2,
 				onBranchChange: (listener) => {
-					branchChanged = listener;
+					branchChanged.add(listener);
 					return () => {
+						branchChanged.delete(listener);
 						unsubscribed = true;
 					};
 				},
@@ -366,7 +367,7 @@ describe("StageChatView", () => {
 
 		branch = "feature/footer-parity";
 		statuses.set("mcp", "MCP: 0/1 servers");
-		branchChanged?.();
+		for (const listener of branchChanged) listener();
 		assert.equal(renderRequests, 1);
 		const updated = view.render(120).map(stripAnsi).join("\n");
 		assert.ok(updated.includes(`${shortCwd} (feature/footer-parity)`), "expected updated branch after invalidation");
@@ -375,6 +376,7 @@ describe("StageChatView", () => {
 
 		view.dispose();
 		assert.equal(unsubscribed, true);
+		assert.equal(branchChanged.size, 0, "disposal releases both repaint and cwd subscriptions");
 	});
 
 	test("footer keeps model context and Ctrl+X hierarchy hint on one line", () => {

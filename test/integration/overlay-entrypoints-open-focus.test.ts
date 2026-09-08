@@ -417,3 +417,43 @@ describe("buildGraphOverlayAdapter — open with pi.ui.custom", () => {
 		assert.equal(calls.length, 1, "host question completion must not remount the overlay");
 	});
 });
+
+test("input-needed status clears on hide, surface replacement and host disposal without masking live prompts", () => {
+	const first = buildMockUi();
+	const second = buildMockUi();
+	const firstState = attachHostCustomUiState(first.ui);
+	const secondState = attachHostCustomUiState(second.ui);
+	const firstStatuses = new Map<string, string>();
+	const secondStatuses = new Map<string, string>();
+	first.ui.setStatus = (key, value) =>
+		value === undefined ? firstStatuses.delete(key) : firstStatuses.set(key, value);
+	second.ui.setStatus = (key, value) =>
+		value === undefined ? secondStatuses.delete(key) : secondStatuses.set(key, value);
+	const adapter = buildGraphOverlayAdapter({ ui: first.ui }, createStore());
+	const key = "pi-workflows:main-chat-input";
+	try {
+		firstState.setActive(true);
+		adapter.open(null);
+		assert.equal(firstStatuses.get(key), "Main chat needs input — exit graph to answer.");
+		adapter.toggle(null);
+		assert.equal(firstStatuses.get(key), undefined);
+		firstState.setActive(false);
+		firstState.setActive(true);
+		assert.equal(firstStatuses.get(key), undefined, "late hidden updates cannot revive the notice");
+		adapter.open(null);
+		assert.ok(firstStatuses.has(key), "reopening must show a still-pending prompt");
+		secondState.setActive(true);
+		adapter.open(null, { ui: second.ui });
+		assert.equal(firstStatuses.get(key), undefined, "old surface must release its status");
+		assert.ok(secondStatuses.has(key));
+		firstState.setActive(false);
+		assert.ok(secondStatuses.has(key), "old surface updates cannot clear a new owner's prompt");
+		first.calls[0].component.dispose?.();
+		assert.equal(secondStatuses.get(key), undefined);
+		secondState.setActive(false);
+		secondState.setActive(true);
+		assert.equal(secondStatuses.get(key), undefined, "disposed host must unsubscribe");
+	} finally {
+		adapter.close();
+	}
+});

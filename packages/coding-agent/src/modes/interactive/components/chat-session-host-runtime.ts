@@ -180,6 +180,8 @@ export function disposeChatSession<TExtraEntry extends ChatTranscriptEntryLike>(
 	state: ChatSessionHostState<TExtraEntry>,
 ): void {
 	state.disposed = true;
+	state.footer?.dispose();
+	state.footer = undefined;
 	state.compacting = false;
 	stopChatSessionWorkingLifecycle(state, false);
 	state.transcriptComponent.invalidate();

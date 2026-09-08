@@ -22,6 +22,7 @@
  *   - `q` does not navigate, cancel, or pause the active run.
  */
 
+import { Container } from "@earendil-works/pi-tui";
 import {
 	type HostSessionPickerUi,
 	openLocalHostSessionPicker,
@@ -240,10 +241,7 @@ export function buildInteractiveHostCustomUi(): {
 			getText: () => "",
 			setText: () => undefined,
 		},
-		editorContainer: {
-			clear: () => undefined,
-			addChild: () => undefined,
-		},
+		editorContainer: new Container(),
 		keybindings: {},
 		ui: {
 			setFocus: (target: unknown) => {

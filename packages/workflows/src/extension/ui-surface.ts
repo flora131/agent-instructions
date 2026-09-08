@@ -101,6 +101,7 @@ export interface PiHostCustomUiState {
 	blockingInlineCustomUiDepth: number;
 	blockingInlineCustomUiActive: boolean;
 	blockingInlineCustomUiFocusDeferred?: boolean;
+	blockingInlineCustomUiNeedsInput?: boolean;
 }
 
 export type PiHostCustomUiStateListener = (state: PiHostCustomUiState) => void;

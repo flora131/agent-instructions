@@ -111,6 +111,9 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	get hasTaskInspector(): boolean {
 		return this.taskInspector !== undefined;
 	}
+	get taskInspectorFullscreen(): boolean {
+		return this.taskInspector?.fullscreen === true;
+	}
 	closeTasks(): void {
 		this.taskInspector?.dispose();
 		this.taskInspector = undefined;
@@ -294,7 +297,7 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 		return renderTaskFooter(this.taskStore?.backgroundTasks ?? [], width);
 	}
 	renderFooter(width: number): string[] {
-		const footer = renderChatSessionFooter(this.state, width);
+		const footer = renderChatSessionFooter(this.state, width, this.hasTaskInspector && !this.taskInspectorFullscreen);
 		return footer.length ? footer : renderTaskFooter(this.taskStore?.backgroundTasks ?? [], width);
 	}
 

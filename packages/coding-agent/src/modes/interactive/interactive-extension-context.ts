@@ -40,6 +40,9 @@ InteractiveModeBase.prototype.getHostCustomUiState = function (this: Interactive
 		blockingInlineCustomUiDepth: this.blockingInlineCustomUiDepth,
 		blockingInlineCustomUiActive: this.blockingInlineCustomUiDepth > 0,
 		...(focusDeferred ? { blockingInlineCustomUiFocusDeferred: true } : {}),
+		...(this.navigationInlineCustomUiDepth > 0
+			? { blockingInlineCustomUiNeedsInput: this.blockingInlineCustomUiDepth > this.navigationInlineCustomUiDepth }
+			: {}),
 	};
 };
 
@@ -54,14 +57,20 @@ InteractiveModeBase.prototype.notifyHostCustomUiStateListeners = function (this:
 	}
 };
 
-InteractiveModeBase.prototype.beginHostInlineCustomUi = function (this: InteractiveModeBase): () => void {
+InteractiveModeBase.prototype.beginHostInlineCustomUi = function (
+	this: InteractiveModeBase,
+	purpose?: "prompt" | "navigation",
+): () => void {
 	let released = false;
 	this.blockingInlineCustomUiDepth++;
+	if (purpose === "navigation") this.navigationInlineCustomUiDepth = (this.navigationInlineCustomUiDepth ?? 0) + 1;
 	this.notifyHostCustomUiStateListeners();
 	return () => {
 		if (released) return;
 		released = true;
 		this.blockingInlineCustomUiDepth = Math.max(0, this.blockingInlineCustomUiDepth - 1);
+		if (purpose === "navigation")
+			this.navigationInlineCustomUiDepth = Math.max(0, this.navigationInlineCustomUiDepth - 1);
 		this.notifyHostCustomUiStateListeners();
 	};
 };

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import {
 	Container,
@@ -9,13 +10,14 @@ import {
 	VStack,
 	visibleWidth,
 } from "@earendil-works/pi-tui";
-import { test } from "vitest";
+import { test, vi } from "vitest";
 import type { AgentSession } from "../../packages/coding-agent/src/core/agent-session.js";
 import type { ExtensionUIContext } from "../../packages/coding-agent/src/core/extensions/index.js";
 import { KeybindingsManager } from "../../packages/coding-agent/src/core/keybindings.js";
 import { SessionManager } from "../../packages/coding-agent/src/core/session-manager.js";
 import { bindOwnerTaskStore } from "../../packages/coding-agent/src/core/tasks/owner-store.js";
 import { CustomEditor } from "../../packages/coding-agent/src/modes/interactive/components/custom-editor.ts";
+import { FooterComponent } from "../../packages/coding-agent/src/modes/interactive/components/footer.js";
 import {
 	InteractiveModeBase,
 	shouldHandleFullscreenViewportInput,
@@ -40,22 +42,27 @@ import {
 import { RemoteComponentController } from "../../packages/coding-agent/src/modes/interactive-engine/remote-component.ts";
 import { registerRemoteProxyOwnership } from "../../packages/coding-agent/src/modes/interactive-engine/remote-input-ownership.ts";
 import { showEngineTaskInspector } from "../../packages/coding-agent/src/modes/rpc/task-ui-bridge.js";
-import { RecordingTerminal } from "../../packages/coding-agent/test/helpers/interactive-fullscreen-layout.ts";
+import {
+	getLayoutFrame,
+	RecordingTerminal,
+} from "../../packages/coding-agent/test/helpers/interactive-fullscreen-layout.ts";
+import { buildGraphOverlayAdapter, type OverlayUISurface } from "../../packages/workflows/src/tui/overlay-adapter.js";
 import { taskFixture } from "../helpers/task-projection.js";
+import { createStore, fakeFooterAgentSession } from "./stage-chat-view-helpers.js";
 
 async function flush(): Promise<void> {
 	for (let i = 0; i < 5; i++) await new Promise<void>((resolve) => setImmediate(resolve));
 }
 
-async function mountMainInspector(isolated: boolean) {
+async function mountMainInspector(isolated: boolean, populated = true) {
 	initTheme("dark");
 	const keys = new KeybindingsManager({ "app.tasks.inspect": "ctrl+e", "app.tasks.cancel": "ctrl+x" });
 	setKeybindings(keys);
 	const fixture = taskFixture();
-	await fixture.start("Fullscreen review");
+	if (populated) await fixture.start("Fullscreen review");
 	const transcript = SessionManager.inMemory();
 	for (let i = 0; i < 50; i++) transcript.appendMessage({ role: "user", content: `CHILD-MESSAGE-${i}`, timestamp: i });
-	fixture.runners[0].context.bindTranscript(transcript);
+	if (populated) fixture.runners[0].context.bindTranscript(transcript);
 	const terminal = new RecordingTerminal();
 	terminal.columns = 80;
 	terminal.rows = 24;
@@ -81,19 +88,44 @@ async function mountMainInspector(isolated: boolean) {
 	editorContainer.addChild(editor);
 	const document = new Text(Array.from({ length: 100 }, (_, i) => `MAIN-CHAT-${i}`).join("\n"), 0, 0);
 	const scroll = new ScrollView(document, { follow: "end", primary: true });
+	const statuses = new Map([["mcp", "MCP: 0/1 servers"]]);
+	const footerData = {
+		getGitBranch: () => "main",
+		getAvailableProviderCount: () => 2,
+		getExtensionStatuses: () => statuses,
+		onBranchChange: () => () => {},
+	};
 	tui.setLayoutRoot(
 		new VStack([
 			{ component: scroll, basis: 0, grow: 1, minSize: 1 },
 			{ component: editorContainer, shrink: 0 },
+			{
+				component: {
+					invalidate() {},
+					render: (width) =>
+						new FooterComponent(
+							session,
+							footerData,
+							undefined,
+							() => mode.navigationInlineCustomUiDepth > 0,
+						).render(width),
+				},
+				shrink: 0,
+			},
 		]),
 	);
 	tui.setFocus(editor);
 	const listeners = new Set<(message: InteractiveEngineMessage) => void>();
+	const engineMessages: InteractiveEngineMessage[] = [];
 	let service: EngineCustomUiService | undefined;
 	const session = {
+		...fakeFooterAgentSession(),
 		getAgentTaskHost() {},
 		extensionRunner: { getUIContext: () => ({ custom: service!.custom.bind(service!) }) },
 	} as unknown as AgentSession;
+	session.state.model!.id = "gpt-6-astra";
+	session.state.thinkingLevel = "medium";
+	session.sessionManager.getCwd = () => join(process.env.HOME!, "Documents/projects/atomic");
 	bindOwnerTaskStore(session, fixture.store);
 	const runtime = {
 		session,
@@ -131,7 +163,10 @@ async function mountMainInspector(isolated: boolean) {
 	if (isolated) {
 		service = new EngineCustomUiService((line) => {
 			const message = parseInteractiveEngineMessage(line);
-			if (message) for (const listener of listeners) listener(message);
+			if (message) {
+				engineMessages.push(message);
+				for (const listener of listeners) listener(message);
+			}
 		}, keys);
 		controller = new RemoteComponentController(
 			runtime,
@@ -166,6 +201,12 @@ async function mountMainInspector(isolated: boolean) {
 		return paint();
 	}
 	return {
+		mode,
+		service,
+		engineMessages,
+		session,
+		statuses,
+		frame: () => stripVTControlCharacters(getLayoutFrame(tui).lines.join("\n")),
 		tui,
 		terminal,
 		editor,
@@ -196,6 +237,11 @@ for (const isolated of [false, true]) {
 		const host = await mountMainInspector(isolated);
 		try {
 			assert.equal(host.tui.hasOverlay(), false, "/tasks opens in the editor slot like /workflow connect");
+			for (const surface of [host.mode, host.service].filter((value) => value !== undefined)) {
+				const state = surface.getHostCustomUiState();
+				assert.equal(state.blockingInlineCustomUiActive, true, "picker still owns inline input");
+				assert.equal(state.blockingInlineCustomUiNeedsInput, false, "navigation is not an approval wait");
+			}
 			const picker = await host.paint();
 			assert.ok(picker.length <= 12 && picker.length < host.terminal.rows);
 			assert.match(stripVTControlCharacters(picker.join("\n")), /Background tasks/);
@@ -285,4 +331,344 @@ for (const isolated of [false, true]) {
 			setKeybindings(previousKeys);
 		}
 	});
+}
+
+for (const [isolated, completeOlderFirst] of [
+	[false, true],
+	[false, false],
+	[true, true],
+	[true, false],
+]) {
+	test(`${isolated ? "isolated engine" : "in-process"} navigation preserves context and distinguishes real pending prompts (${completeOlderFirst ? "older" : "newer"} completes first)`, async () => {
+		const previous = getKeybindings();
+		const host = await mountMainInspector(isolated, false);
+		const source = host.service ?? host.mode;
+		const custom: ExtensionUIContext["custom"] = host.service
+			? host.service.custom.bind(host.service)
+			: host.mode.showExtensionCustom.bind(host.mode);
+		const surface: OverlayUISurface = {
+			custom: custom as unknown as OverlayUISurface["custom"],
+			getHostCustomUiState: () => source.getHostCustomUiState(),
+			onHostCustomUiStateChange: (listener) => source.onHostCustomUiStateChange(listener),
+			setStatus: (key, value) => (value === undefined ? host.statuses.delete(key) : host.statuses.set(key, value)),
+		};
+		const adapter = buildGraphOverlayAdapter({ ui: surface }, createStore());
+		const key = "pi-workflows:main-chat-input";
+		const notice = "Main chat needs input — exit graph to answer.";
+		// PR #2926: the footer abbreviates home using native path separators on Windows too.
+		const context = `(openai-codex) gpt-6-astra medium • ${join("~", "Documents/projects/atomic")} (main)`;
+		let finishFirst = () => {};
+		let finishSecond = () => {};
+		let first: Promise<void> | undefined;
+		let second: Promise<void> | undefined;
+		const answered: string[] = [];
+		try {
+			await host.paint();
+			assert.ok(host.frame().includes(context), host.frame());
+			assert.ok(host.frame().includes("MCP: 0/1 servers"));
+			assert.ok(host.frame().includes("0 active · 0 total"));
+			Object.defineProperty(host.session, "isStreaming", { value: true, configurable: true });
+			await host.paint();
+			assert.ok(host.frame().includes(context), host.frame());
+			assert.doesNotMatch(host.frame(), /esc to interrupt/i);
+			Object.defineProperty(host.session, "isStreaming", { value: false, configurable: true });
+			await host.fixture.start("Late task owned by main");
+			await vi.waitFor(async () => {
+				await host.paint();
+				assert.match(host.frame(), /Late task owned by main/);
+			});
+			adapter.open(null);
+			await flush();
+			assert.equal(host.statuses.get(key), undefined, "task navigation is not a main-chat question");
+			const graphFocus = host.tui.getFocusedComponent();
+			first = custom<void>((_ui, _theme, _keys, done) => {
+				finishFirst = done;
+				return Object.assign(new Text("First genuine approval", 0, 0), {
+					handleInput(data: string) {
+						if (data === "\r") {
+							answered.push("first");
+							done();
+						}
+						return true;
+					},
+				});
+			});
+			second = custom<void>(
+				(_ui, _theme, _keys, done) => {
+					finishSecond = done;
+					return Object.assign(new Text("Second genuine approval", 0, 0), {
+						handleInput(data: string) {
+							if (data === "\r") {
+								answered.push("second");
+								done();
+							}
+							return true;
+						},
+					});
+				},
+				{ purpose: "prompt" },
+			);
+			await flush();
+			assert.equal(host.statuses.get(key), notice);
+			assert.equal(
+				host.tui.getFocusedComponent(),
+				graphFocus,
+				"a main prompt must not steal foreground graph input",
+			);
+			if (completeOlderFirst) finishFirst();
+			else finishSecond();
+			await (completeOlderFirst ? first : second);
+			await flush();
+			assert.equal(host.statuses.get(key), notice, "one completion cannot mask another required prompt");
+			assert.equal(host.tui.getFocusedComponent(), graphFocus, "completion must preserve foreground graph focus");
+			adapter.toggle(null);
+			await flush();
+			assert.equal(host.statuses.get(key), undefined, "hidden graph must not advertise an exit-graph notice");
+			const survivor = completeOlderFirst ? /Second genuine approval/ : /First genuine approval/;
+			assert.match(stripVTControlCharacters((await host.paint()).join("\n")), survivor);
+			assert.match(host.frame(), survivor, "the focused approval must actually be visible");
+			assert.deepEqual(answered, []);
+			await host.input("\r");
+			await (completeOlderFirst ? second : first);
+			assert.deepEqual(
+				answered,
+				[completeOlderFirst ? "second" : "first"],
+				"dispatched Enter answers only the visible surviving approval",
+			);
+			assert.match(host.frame(), /Background tasks/, "the pending navigation owner must resume, not main chat");
+			assert.match(stripVTControlCharacters((await host.paint()).join("\n")), /Background tasks/);
+			assert.equal(host.statuses.get(key), undefined);
+			adapter.open(null);
+			await flush();
+			assert.equal(host.statuses.get(key), undefined, "navigation remaining after prompts is not input-needed");
+			adapter.close();
+			await flush();
+			assert.equal(host.statuses.get(key), undefined);
+			assert.match(stripVTControlCharacters((await host.input("\x05")).join("\n")), /Inspect transcript/);
+			await host.input("\x1b");
+			assert.match(host.frame(), /Background tasks/);
+			assert.equal(host.editor.getText(), "");
+			assert.equal(host.hostFallbacks, 0);
+			await host.input("\x1b");
+			await host.completion;
+			assert.equal(host.tui.getFocusedComponent(), host.editor);
+			assert.equal(source.getHostCustomUiState().blockingInlineCustomUiActive, false);
+		} finally {
+			finishFirst();
+			finishSecond();
+			adapter.close();
+			await Promise.all([first, second]);
+			await host.dispose();
+			setKeybindings(previous);
+		}
+	});
+}
+
+for (const isolated of [false, true]) {
+	test(`${isolated ? "isolated engine" : "in-process"} exiting task navigation restores the pending approval before the main draft`, async () => {
+		const previous = getKeybindings();
+		const host = await mountMainInspector(isolated);
+		const source = host.service ?? host.mode;
+		const custom: ExtensionUIContext["custom"] = host.service
+			? host.service.custom.bind(host.service)
+			: host.mode.showExtensionCustom.bind(host.mode);
+		let finish = () => {};
+		let approval: Promise<void> | undefined;
+		let answered = 0;
+		try {
+			await host.input("\x1b");
+			await host.completion;
+			host.editor.setText("Unsent main draft");
+			approval = custom<void>((_ui, _theme, _keys, done) => {
+				finish = done;
+				return Object.assign(new Text("Approval before navigation", 0, 0), {
+					handleInput(data: string) {
+						if (data === "\r") {
+							answered++;
+							done();
+						}
+						return true;
+					},
+				});
+			});
+			await flush();
+			await host.paint();
+			assert.match(host.frame(), /Approval before navigation/);
+			const navigation = showEngineTaskInspector(host.session, { custom });
+			await flush();
+			await host.paint();
+			assert.match(host.frame(), /Background tasks/);
+			assert.equal(source.getHostCustomUiState().blockingInlineCustomUiNeedsInput, true);
+			assert.match(stripVTControlCharacters((await host.input("\x05")).join("\n")), /Inspect transcript/);
+			await host.input("\x1b");
+			assert.match(host.frame(), /Background tasks/);
+			await host.input("ordinary text");
+			assert.equal(host.editor.getText(), "Unsent main draft");
+			await host.input("\x1b");
+			await navigation;
+			assert.match(host.frame(), /Approval before navigation/, "navigation cannot hide an unanswered approval");
+			assert.match(stripVTControlCharacters((await host.paint()).join("\n")), /Approval before navigation/);
+			assert.equal(answered, 0);
+			await host.input("\r");
+			await approval;
+			assert.equal(answered, 1);
+			assert.equal(host.tui.getFocusedComponent(), host.editor);
+			assert.match(host.frame(), /Unsent main draft/);
+			assert.equal(host.editor.getText(), "Unsent main draft");
+			assert.equal(host.hostFallbacks, 0);
+			assert.equal(source.getHostCustomUiState().blockingInlineCustomUiActive, false);
+		} finally {
+			finish();
+			await approval;
+			await host.dispose();
+			setKeybindings(previous);
+		}
+	});
+}
+
+for (const isolated of [false, true]) {
+	for (const abortOlder of [true, false]) {
+		test(`${isolated ? "isolated engine" : "in-process"} aborting the ${abortOlder ? "older" : "newer"} approval restores its live sibling then /tasks`, async () => {
+			const previous = getKeybindings();
+			const host = await mountMainInspector(isolated, false);
+			const source = host.service ?? host.mode;
+			const custom: ExtensionUIContext["custom"] = host.service
+				? host.service.custom.bind(host.service)
+				: host.mode.showExtensionCustom.bind(host.mode);
+			const adapter = buildGraphOverlayAdapter(
+				{
+					ui: {
+						custom: custom as unknown as OverlayUISurface["custom"],
+						getHostCustomUiState: () => source.getHostCustomUiState(),
+						onHostCustomUiStateChange: (listener) => source.onHostCustomUiStateChange(listener),
+						setStatus: (key, value) =>
+							value === undefined ? host.statuses.delete(key) : host.statuses.set(key, value),
+					},
+				},
+				createStore(),
+			);
+			const aborts = [new AbortController(), new AbortController()];
+			const reason = new Error("Approval canceled");
+			const labels = ["FIRST approval", "SECOND approval"];
+			const canceled = abortOlder ? 0 : 1;
+			const survivor = 1 - canceled;
+			const disposed = [0, 0];
+			const answered: number[] = [];
+			const settled: Array<{ index: number; value?: string; error?: Error }> = [];
+			const finish: Array<(result: string | undefined) => void> = [];
+			const completions: Promise<void>[] = [];
+			const states = () =>
+				[host.mode, ...(host.service ? [host.service] : [])].map((ui) => ui.getHostCustomUiState());
+			try {
+				adapter.open(null);
+				await flush();
+				const graphFocus = host.tui.getFocusedComponent();
+				for (const [index, label] of labels.entries()) {
+					completions.push(
+						custom<string | undefined>(
+							(_ui, _theme, _keys, done) => {
+								finish[index] = done;
+								return Object.assign(new Text(label, 0, 0), {
+									handleInput(data: string) {
+										if (data === "\r") {
+											answered.push(index);
+											done(label);
+										}
+										return true;
+									},
+									dispose() {
+										disposed[index]++;
+										// A teardown callback cannot turn cancellation into an approval result.
+										done("disposal must not become an approval");
+									},
+								});
+							},
+							{ signal: aborts[index].signal, purpose: "prompt" },
+						).then(
+							(value) => {
+								settled.push({ index, value });
+							},
+							(error: Error) => {
+								settled.push({ index, error });
+							},
+						),
+					);
+				}
+				await flush();
+				assert.ok(states().every((state) => state.blockingInlineCustomUiDepth === 3));
+				assert.equal(host.tui.getFocusedComponent(), graphFocus);
+				aborts[canceled].abort(reason);
+				await completions[canceled];
+				await flush();
+				const afterAbort = states();
+				assert.deepEqual(disposed, abortOlder ? [1, 0] : [0, 1]);
+				assert.deepEqual(settled, [
+					isolated ? { index: canceled, value: undefined } : { index: canceled, error: reason },
+				]);
+				assert.equal(host.tui.getFocusedComponent(), graphFocus, "abort cannot steal graph focus");
+				assert.equal(
+					host.statuses.get("pi-workflows:main-chat-input"),
+					"Main chat needs input — exit graph to answer.",
+				);
+				adapter.toggle(null);
+				await flush();
+				const survivorFocus = stripVTControlCharacters((await host.paint()).join("\n"));
+				const survivorFrame = host.frame();
+				await host.input("\r");
+				const resumedFocus = stripVTControlCharacters((await host.paint()).join("\n"));
+				const resumedFrame = host.frame();
+				const afterEnter = states();
+				const evidence = JSON.stringify({ afterAbort, afterEnter, answered, survivorFocus, resumedFocus });
+				assert.ok(survivorFocus.includes(labels[survivor]), evidence);
+				assert.ok(survivorFrame.includes(labels[survivor]), evidence);
+				assert.match(resumedFrame, /Background tasks/, evidence);
+				assert.match(resumedFocus, /Background tasks/, evidence);
+				assert.ok(
+					afterAbort.every(
+						(state) => state.blockingInlineCustomUiDepth === 2 && state.blockingInlineCustomUiNeedsInput === true,
+					),
+				);
+				assert.ok(
+					afterEnter.every(
+						(state) =>
+							state.blockingInlineCustomUiDepth === 1 && state.blockingInlineCustomUiNeedsInput === false,
+					),
+				);
+				assert.deepEqual(answered, [survivor], "Enter must answer the visibly focused surviving approval only");
+				assert.deepEqual(settled[1], { index: survivor, value: labels[survivor] });
+				assert.deepEqual(disposed, [1, 1]);
+				const doneMessages = host.engineMessages.filter((message) => message.type === "engine_custom_done");
+				if (isolated)
+					assert.deepEqual(
+						doneMessages.map((message) => message.result),
+						[undefined, labels[survivor]],
+					);
+				for (const done of finish) done("late completion");
+				for (const abort of aborts) abort.abort(reason);
+				await Promise.all(completions);
+				await flush();
+				assert.equal(settled.length, 2);
+				assert.deepEqual(disposed, [1, 1]);
+				assert.deepEqual(
+					host.engineMessages.filter((message) => message.type === "engine_custom_done"),
+					doneMessages,
+					"late done/abort must not emit duplicate settlements",
+				);
+				assert.equal(host.statuses.get("pi-workflows:main-chat-input"), undefined);
+				assert.equal(host.editor.getText(), "");
+				assert.equal(host.hostFallbacks, 0);
+				await host.input("\x1b");
+				await host.completion;
+				assert.equal(host.tui.getFocusedComponent(), host.editor);
+				assert.ok(states().every((state) => state.blockingInlineCustomUiDepth === 0));
+			} finally {
+				for (const abort of aborts) abort.abort(reason);
+				for (const done of finish) done(undefined);
+				adapter.close();
+				await Promise.all(completions);
+				await host.dispose();
+				setKeybindings(previous);
+			}
+		});
+	}
 }

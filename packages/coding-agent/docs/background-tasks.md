@@ -17,7 +17,9 @@ It summarizes only active background agents and shells, including queued work, s
 
 Run `/tasks` to open a compact inline picker in the editor slot, like `/workflow connect`, with the conversation still visible above it. Detail, transcript, input, and cancellation-confirmation pages use the full screen. Escape returns to the picker with the selected task preserved, then to chat. The command also appears in workflow-stage slash suggestions, including when skill commands are disabled. Foreground-only commands do not appear. Work that ran in the background stays available after completion or a later foreground wait. Updates never open the list automatically. Closing the inspector does not stop the tasks.
 
-Opening `/tasks` is navigation, not an approval request. It does not mark the agent blocked in Herdr. The inspector stays open until you close it, even when its tasks finish; task history is not deleted when the compact indicator disappears.
+Main and workflow-stage pickers use the same layout for empty and populated lists. Below the picker, the footer keeps that chat's resolved model and reasoning level, current folder and Git branch, and MCP status, including while its foreground turn streams. Each picker lists only its owner's tasks.
+
+Opening `/tasks` is navigation, not an approval request. It does not mark the agent blocked in Herdr or produce a "Main chat needs input" notice. A genuine main-chat question waiting behind the workflow graph still shows that notice until answered or the graph is hidden or closed. The inspector stays open until you close it, even when its tasks finish; task history is not deleted when the compact indicator disappears.
 
 ## Choose how long to wait
 
@@ -169,6 +171,8 @@ Native Windows bash and bash calls inside subagent sessions retain their existin
 Background means independent of the current observation, not independent of its owner. Pausing main chat or a workflow-node chat aborts the foreground turn only; already-running background agents and shells keep their identities, output, and later completion. Closing a session cancels its session-owned work. Workflow-stage tasks belong to the stage generation: detaching a pane, pausing, or ending a single model turn does not cancel them. Closing that generation does, without cancelling sibling stages. Closing `/tasks` only disposes the view. Explicit `/tasks` stop and declared execution timeouts remain separate controls.
 
 Task inspection is owner-scoped. It is not a machine-wide process list. Switching sessions does not copy the previous session's task rows into the new one. Missing retained history is reported explicitly.
+
+Git branch watchers for alternate folders are shared by their chat footers and released when the last viewer closes or changes folders. Main chat and other open stage chats keep their live branch updates; closing `/tasks` alone leaves its chat footer active.
 
 ## Task state and completion delivery
 

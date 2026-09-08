@@ -56,6 +56,7 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 		done: (result: T) => void,
 	) => (Component & { dispose?(): void }) | Promise<Component & { dispose?(): void }>,
 	options?: {
+		purpose?: "prompt" | "navigation";
 		overlay?: boolean;
 		deferInlineCustomUiFocus?: boolean;
 		handlesInternalUiAction?: boolean;
@@ -83,6 +84,7 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 		let closed = false;
 		let mounted = false;
 		let overlayHandle: OverlayHandle | undefined;
+		let inlineMount: { component: Component } | undefined;
 		let releaseHostInlineCustomUi: (() => void) | undefined;
 		let releaseOverlayInlineCustomUiFocusDeferral: (() => void) | undefined;
 		let transcriptReserveCoordinator: TranscriptOverlayReserve | undefined;
@@ -132,8 +134,27 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 				// generic top-overlay call would close that instead.
 				if (overlayHandle) overlayHandle.hide();
 				else this.ui.hideOverlay();
-			} else {
-				restoreEditor(!this.shouldDeferInlineCustomUiFocus() && this.pendingInlineCustomUiFocus !== component);
+			} else if (inlineMount) {
+				const stack = this.inlineCustomUiStack;
+				const ownsSlot =
+					stack.at(-1) === inlineMount && this.editorContainer.children.includes(inlineMount.component);
+				stack.splice(stack.indexOf(inlineMount), 1);
+				// An older completion must not clear a newer prompt's editor slot.
+				if (!ownsSlot) return;
+				const previous = stack.at(-1)?.component;
+				if (previous) {
+					this.editorContainer.clear();
+					this.editorContainer.addChild(previous);
+					if (this.shouldDeferInlineCustomUiFocus()) {
+						this.pendingInlineCustomUiFocus = previous;
+						this.notifyHostCustomUiStateListeners();
+					} else if (!this.ui.hasOverlay()) {
+						this.ui.setFocus(previous);
+					}
+					this.ui.requestRender();
+				} else {
+					restoreEditor(!this.shouldDeferInlineCustomUiFocus() && this.pendingInlineCustomUiFocus !== component);
+				}
 			}
 		};
 
@@ -165,7 +186,7 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 			abortCustomUi();
 			return;
 		}
-		releaseHostInlineCustomUi = isOverlay ? undefined : this.beginHostInlineCustomUi();
+		releaseHostInlineCustomUi = isOverlay ? undefined : this.beginHostInlineCustomUi(options?.purpose);
 		if (options?.signal?.aborted) {
 			abortCustomUi();
 			return;
@@ -319,6 +340,9 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 					}
 				} else {
 					this.disposeActiveSelector();
+					inlineMount = { component };
+					this.inlineCustomUiStack ??= [];
+					this.inlineCustomUiStack.push(inlineMount);
 					this.editorContainer.clear();
 					this.editorContainer.addChild(component);
 					if (this.shouldDeferInlineCustomUiFocus()) {

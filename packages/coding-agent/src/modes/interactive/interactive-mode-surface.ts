@@ -189,7 +189,7 @@ declare module "./interactive-mode-base.ts" {
 		clearExtensionTerminalInputListeners(): void;
 		getHostCustomUiState(): HostCustomUiState;
 		notifyHostCustomUiStateListeners(): void;
-		beginHostInlineCustomUi(): () => void;
+		beginHostInlineCustomUi(purpose?: "prompt" | "navigation"): () => void;
 		beginInlineCustomUiFocusDeferral(): () => void;
 		shouldDeferInlineCustomUiFocus(): boolean;
 		focusHostInlineCustomUi(): boolean;
@@ -228,6 +228,7 @@ declare module "./interactive-mode-base.ts" {
 				done: (result: T) => void,
 			) => (Component & { dispose?(): void }) | Promise<Component & { dispose?(): void }>,
 			options?: {
+				purpose?: "prompt" | "navigation";
 				overlay?: boolean;
 				deferInlineCustomUiFocus?: boolean;
 				handlesInternalUiAction?: boolean;
