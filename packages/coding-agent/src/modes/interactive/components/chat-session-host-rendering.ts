@@ -131,14 +131,20 @@ export function renderChatSessionEditor<TExtraEntry extends ChatTranscriptEntryL
 export function renderChatSessionFooter<TExtraEntry extends ChatTranscriptEntryLike>(
 	state: ChatSessionHostState<TExtraEntry>,
 	width: number,
+	navigationActive = false,
 ): string[] {
 	const agentSession = state.getAgentSession?.();
 	if (agentSession && state.footerData) {
-		return new FooterComponent(agentSession, state.footerData, {
-			dim: (text) => state.style.dim(text),
-			muted: (text) => state.style.textMuted(text),
-			warning: (text) => state.style.accent(text),
-		}).render(width);
+		return new FooterComponent(
+			agentSession,
+			state.footerData,
+			{
+				dim: (text) => state.style.dim(text),
+				muted: (text) => state.style.textMuted(text),
+				warning: (text) => state.style.accent(text),
+			},
+			() => navigationActive,
+		).render(width);
 	}
 	return [];
 }

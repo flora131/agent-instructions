@@ -315,6 +315,7 @@ export class RemoteComponentController {
 					message.handlesCtrlC === true,
 					message.handlesInternalUiAction === true,
 					message.reserveTranscriptRows === true,
+					message.purpose,
 				);
 				break;
 			case "engine_custom_close":
@@ -356,6 +357,7 @@ export class RemoteComponentController {
 		handlesCtrlC = false,
 		handlesInternalUiAction = false,
 		reserveTranscriptRows = false,
+		purpose?: "prompt" | "navigation",
 	): void {
 		if (this.mounted.has(componentId)) return;
 		if (widgetKey) {
@@ -407,6 +409,7 @@ export class RemoteComponentController {
 				},
 				{
 					overlay,
+					purpose,
 					deferInlineCustomUiFocus,
 					handlesInternalUiAction,
 					reserveTranscriptRows,

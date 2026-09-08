@@ -103,9 +103,13 @@ pi.on("session_start", async (_event, ctx) => {
 });
 ```
 
-Pass `{ signal }` to `ctx.ui.custom()` when the UI belongs to an abortable operation. If the signal aborts, Atomic dismisses the custom UI and rejects the returned promise with the signal reason. For overlays, use `options.onHandle` to receive an overlay handle for programmatic visibility control.
+Pass `{ signal }` to `ctx.ui.custom()` when the UI belongs to an abortable operation. Aborting a mounted custom UI dismisses it and releases its input ownership. In-process mode rejects the returned promise with the signal reason; isolated mode resolves it with `undefined`, like host-side cancellation. For overlays, use `options.onHandle` to receive an overlay handle for programmatic visibility control.
 
 For inspection or navigation, pass `{ purpose: "navigation" }`. Atomic then mounts the component without emitting `ui_prompt_start` / `ui_prompt_end`, so a persistent viewer does not falsely mark Herdr as blocked. The default is `"prompt"`; keep it for approvals and required user decisions. Separate prompts opened while a navigation view is mounted still emit their own lifecycle events.
+
+Navigation still owns keyboard focus. In `getHostCustomUiState()` and its change listener, `blockingInlineCustomUiActive` counts all inline mounts. When navigation is present, `blockingInlineCustomUiNeedsInput` distinguishes real pending prompts from navigation-only mounts; when omitted, use `blockingInlineCustomUiActive`. This distinction is preserved across the isolated-engine bridge.
+
+Main-chat inline custom UIs share the editor slot. Completing or canceling an older mount leaves the current one visible; closing the current mount restores the most recently mounted UI that is still pending, including task navigation or an approval. The main editor returns only after the last inline owner closes. A foreground workflow graph keeps focus until you hide or close it, then the surviving inline UI is visible and receives input.
 
 In Atomic's default interactive mode, the component instance remains in the isolated engine child. The terminal host caches rendered lines and forwards input asynchronously, so `render()` and `handleInput()` must not depend on direct access to host process objects. For a matching fullscreen viewport key, or for mouse input while a workflow overlay has focus, the host waits for the child's boolean input reply: `true` keeps the input local, while `false` lets the host transcript process it. Left-button selection events are also mirrored to pi-tui when an overlay handles them, so drag and multi-click selection stays available over fullscreen workflow overlays. Mouse input remains with pi-tui when a non-overlay component has focus, preserving transcript scrolling, scrollbar interaction, and drag selection. A stalled reply has a bounded fallback. The remote bridge preserves pi-tui's key-release contract: release events are filtered unless the child component sets `wantsKeyRelease = true`, matching a directly mounted component. Return values passed to `done()` must be JSON-safe.
 
@@ -904,6 +908,8 @@ ctx.ui.setFooter(undefined); // restore default
 ```
 
 `ctx.ui.getFooterDataProvider()` exposes the same read-only provider to embedded extension UIs. In isolated interactive mode Atomic maintains the provider inside the engine session, mirrors every `setStatus()` update into it, and uses the session cwd with the same cached Git-branch watcher, so synchronous renderers can read current status and branch data without an RPC round trip or per-render Git process.
+
+For a workflow-stage session with a different cwd, call `footerData.getGitBranch(stageCwd)`. The provider caches and watches that branch separately, notifies the same branch-change listeners, and disposes those watchers with the parent provider. Omitting the argument retains the provider's own cwd.
 
 Token stats available via `ctx.sessionManager.getBranch()` and `ctx.model`.
 

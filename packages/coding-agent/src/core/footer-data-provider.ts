@@ -128,6 +128,7 @@ export class FooterDataProvider {
 	private refreshPending = false;
 	private disposed = false;
 	private gitWatchersStarted = false;
+	private readonly cwdBranches = new Map<string, FooterDataProvider>();
 
 	constructor(cwd: string) {
 		this.cwd = cwd;
@@ -139,10 +140,21 @@ export class FooterDataProvider {
 		this.gitWatchersStarted = true;
 		this.ensureGitPaths();
 		this.setupGitWatcher();
+		for (const provider of this.cwdBranches.values()) provider.startGitWatcher();
 	}
 
-	/** Current git branch, null if not in repo, "detached" if detached HEAD */
-	getGitBranch(): string | null {
+	/** Current git branch for the displayed session cwd, defaulting to this provider's cwd. */
+	getGitBranch(cwd = this.cwd): string | null {
+		if (cwd !== this.cwd) {
+			let provider = this.cwdBranches.get(cwd);
+			if (!provider) {
+				provider = new FooterDataProvider(cwd);
+				provider.onBranchChange(() => this.notifyBranchChange());
+				this.cwdBranches.set(cwd, provider);
+				if (this.gitWatchersStarted && !this.disposed) provider.startGitWatcher();
+			}
+			return provider.getGitBranch();
+		}
 		if (this.cachedBranch === undefined) {
 			this.ensureGitPaths();
 			this.cachedBranch = this.resolveGitBranchSync();
@@ -216,6 +228,8 @@ export class FooterDataProvider {
 		this.clearGitWatchers();
 		this.gitWatchersStarted = false;
 		this.branchChangeCallbacks.clear();
+		for (const provider of this.cwdBranches.values()) provider.dispose();
+		this.cwdBranches.clear();
 	}
 
 	private ensureGitPaths(): void {

@@ -446,9 +446,14 @@ export class InteractiveModeBase {
 
 	blockingInlineCustomUiDepth = 0;
 
+	navigationInlineCustomUiDepth = 0;
+
 	deferredInlineCustomUiFocusDepth = 0;
 
 	pendingInlineCustomUiFocus: Component | undefined = undefined;
+
+	/** Pending inline mounts in display order, oldest first. */
+	inlineCustomUiStack: { component: Component }[] = [];
 
 	hostCustomUiStateListeners = new Set<HostCustomUiStateListener>();
 
@@ -650,7 +655,12 @@ export class InteractiveModeBase {
 		this.editorContainer = new Container();
 		this.editorContainer.addChild(this.editor as Component);
 		this.footerDataProvider = new FooterDataProvider(this.sessionManager.getCwd());
-		this.footer = new FooterComponent(this.session, this.footerDataProvider);
+		this.footer = new FooterComponent(
+			this.session,
+			this.footerDataProvider,
+			undefined,
+			() => this.navigationInlineCustomUiDepth > 0,
+		);
 		this.footerContainer = new Container();
 		this.footerContainer.addChild(this.footer);
 		this.usageMeter = new UsageMeterComponent(this.session);

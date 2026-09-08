@@ -183,15 +183,18 @@ export class FooterComponent implements Component {
 	private declare session: AgentSession;
 	private declare footerData: ReadonlyFooterDataProvider;
 	private declare readonly renderStyle: FooterRenderStyle;
+	private readonly navigationActive: () => boolean;
 
 	constructor(
 		session: AgentSession,
 		footerData: ReadonlyFooterDataProvider,
 		renderStyle: FooterRenderStyle = defaultFooterRenderStyle,
+		navigationActive: () => boolean = () => false,
 	) {
 		this.session = session;
 		this.footerData = footerData;
 		this.renderStyle = renderStyle;
+		this.navigationActive = navigationActive;
 	}
 
 	setSession(session: AgentSession): void {
@@ -220,8 +223,9 @@ export class FooterComponent implements Component {
 
 	render(width: number): string[] {
 		const state = this.session.state;
-		let pwd = replaceHome(this.session.sessionManager.getCwd());
-		const branch = this.footerData.getGitBranch();
+		const cwd = this.session.sessionManager.getCwd();
+		let pwd = replaceHome(cwd);
+		const branch = this.footerData.getGitBranch(cwd);
 		if (branch) pwd += ` (${branch})`;
 		const sessionName =
 			typeof this.session.sessionManager.getSessionName === "function"
@@ -239,7 +243,8 @@ export class FooterComponent implements Component {
 			modelLabel = `(${state.model.provider}) ${modelLabel}`;
 		}
 
-		const liveState = this.session.isStreaming ? this.renderStyle.muted("esc to interrupt") : undefined;
+		const liveState =
+			this.session.isStreaming && !this.navigationActive() ? this.renderStyle.muted("esc to interrupt") : undefined;
 		let statusText =
 			liveState ?? `${this.renderStyle.dim(modelLabel)} ${this.renderStyle.dim("•")} ${this.renderStyle.muted(pwd)}`;
 		if (areExperimentalFeaturesEnabled()) statusText += ` ${this.renderStyle.warning("xp")}`;
