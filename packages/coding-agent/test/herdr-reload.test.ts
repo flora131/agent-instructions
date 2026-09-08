@@ -5,6 +5,7 @@ import { test, vi } from "vitest";
 import { createExtensionRuntime } from "../src/core/extensions/loader.js";
 import { ExtensionRunner } from "../src/core/extensions/runner.js";
 import { noOpUIContext } from "../src/core/extensions/runner-ui.js";
+import type { ExtensionContext } from "../src/core/extensions/types.js";
 import { ModelRuntime } from "../src/core/model-runtime.js";
 import { createAgentSession } from "../src/core/sdk.js";
 import { SessionManager } from "../src/core/session-manager.js";
@@ -240,3 +241,190 @@ if (args[1] === "release-agent") {
 		await fake.dispose();
 	}
 });
+
+// PR #2925: a rejected candidate must not retire the runner that reload keeps alive.
+test.each(["prepareCommit", "extendResources", "publishProviders"] as const)(
+	"SDK rejected %s preserves live reporting, approval state and owning quit",
+	async (failure) => {
+		const fake = await fakeHerdr();
+		try {
+			let candidateContext: ExtensionContext | undefined;
+			const loaded = await createTestExtensionsResult(
+				[
+					createHerdrExtension({ env: fake.env, enabled: () => true, clock: () => 100 }),
+					(pi) => {
+						pi.on("session_start", (event, ctx) => {
+							if (event.reason === "reload") candidateContext = ctx;
+						});
+						pi.on("resources_discover", (event) =>
+							event.reason === "reload" && failure === "extendResources"
+								? { skillPaths: [join(fake.dir, "rejected-skill")] }
+								: {},
+						);
+					},
+				],
+				fake.dir,
+			);
+			loaded.runtime.workflowActivityHub
+				.registerWorkflowActivityPublisher()
+				.publishSnapshot({ availability: "ready", roots: [] });
+			const resourceLoader = {
+				...createTestResourceLoader({ extensionsResult: loaded }),
+				prepareReload: async () => {
+					const candidate = { ...loaded, runtime: createExtensionRuntime() };
+					candidate.runtime.workflowActivityHub
+						.registerWorkflowActivityPublisher()
+						.publishSnapshot({ availability: "ready", roots: [] });
+					return {
+						loader: {
+							...createTestResourceLoader({ extensionsResult: candidate }),
+							extendResources: async () => {
+								throw new Error("Herdr regression: extendResources rejected");
+							},
+						},
+						activate: () => assert.fail("rejected resources must not activate"),
+						prepareCommit: () => {
+							assert.ok(candidateContext, "candidate session_start ran before rejected preparation");
+							if (failure === "prepareCommit") throw new Error("Herdr regression: prepareCommit rejected");
+							return { commit: () => assert.fail("rejected preparation must not commit"), rollback: () => {} };
+						},
+						commit: () => assert.fail("rejected resources must not commit"),
+					};
+				},
+			};
+			const modelRuntime = await ModelRuntime.create({ modelsPath: null, authPath: join(fake.dir, "auth.json") });
+			const faux = createFauxStreamFn([
+				{
+					text: "Continued after rejection",
+					beforeEmit: async () => {
+						await fake.waitFor(5);
+					},
+				},
+			]);
+			modelRuntime.registerProvider(fauxModel.provider, {
+				baseUrl: fauxModel.baseUrl,
+				apiKey: "faux-key",
+				api: fauxModel.api,
+				models: [fauxModel],
+				streamSimple: faux.streamFn,
+			});
+			const sessionManager = SessionManager.create(fake.dir, fake.dir);
+			const { session } = await createAgentSession({
+				cwd: fake.dir,
+				agentDir: fake.dir,
+				resourceLoader,
+				modelRuntime,
+				sessionManager,
+				settingsManager: SettingsManager.inMemory({
+					compaction: { enabled: false },
+					sessionSummary: { enabled: false },
+				}),
+				model: fauxModel,
+				noTools: "all",
+			});
+			const providerTransaction = modelRuntime.createExtensionProviderTransaction.bind(modelRuntime);
+			// Fault injection at the supplied model service's fallible publication boundary.
+			const providerFailure =
+				failure === "publishProviders"
+					? vi.spyOn(modelRuntime, "createExtensionProviderTransaction").mockImplementation((ids) => ({
+							...providerTransaction(ids),
+							commit: async () => {
+								throw new Error("Herdr regression: publishProviders rejected");
+							},
+						}))
+					: undefined;
+			try {
+				await session.bindExtensions({ mode: "tui", uiContext: { ...noOpUIContext } });
+				const live = session.extensionRunner;
+				await fake.waitFor(1);
+				await live.emit({ type: "ui_prompt_start", reason: "ui_prompt", kind: "confirm" });
+				await fake.waitFor(2);
+				await assert.rejects(
+					() => session.reload({ failOnExtensionErrors: true }),
+					new RegExp(`${failure} rejected`),
+				);
+				assert.equal(session.extensionRunner, live);
+				assert.deepEqual(
+					(await fake.calls()).filter((call) => call.phase === "start").map((call) => call.args[1]),
+					["report-agent", "report-agent"],
+					"rejected preparation must leave the live pane claim untouched",
+				);
+				assert.ok(candidateContext);
+				assert.equal(live.createContext().sessionManager, sessionManager);
+				assert.throws(() => candidateContext!.sessionManager, /ctx is stale/);
+				const reporter = loaded.extensions[0];
+				// Replay captured callbacks directly, bypassing the invalid runner's event guards.
+				for (const type of [
+					"session_start",
+					"agent_start",
+					"agent_settled",
+					"ui_prompt_start",
+					"ui_prompt_end",
+					"session_shutdown",
+				] as const) {
+					for (const handler of reporter.handlers.get(type) ?? []) {
+						await handler(
+							{ type, reason: type === "session_shutdown" ? "quit" : "reload" } as never,
+							candidateContext,
+						);
+					}
+				}
+				await live.emit({ type: "agent_settled" });
+				await fake.waitFor(3);
+				assert.equal(
+					arg((await fake.calls()).at(-1)!.args, "--state"),
+					"blocked",
+					"live approval survives rejection",
+				);
+				await live.emit({ type: "ui_prompt_end", reason: "ui_prompt", kind: "confirm" });
+				await fake.waitFor(4);
+				await session.prompt("Continue after rejected reload");
+				await fake.waitFor(6);
+				assert.equal(session.agent.state.errorMessage, undefined);
+				assert.deepEqual(session.messages.at(-1)?.content, [{ type: "text", text: "Continued after rejection" }]);
+				await live.emit({ type: "session_shutdown", reason: "quit" });
+				await live.emit({ type: "session_shutdown", reason: "quit" });
+				await live.emit({ type: "session_start", reason: "reload" });
+				const records = await fake.calls();
+				assert.deepEqual(
+					records.map((call) => call.phase),
+					Array.from({ length: 7 }, () => ["start", "end"]).flat(),
+				);
+				const calls = records.filter((call) => call.phase === "start");
+				const states = ["idle", "blocked", "blocked", "idle", "working", "idle", undefined];
+				for (const [index, call] of calls.entries()) {
+					const seq = arg(call.args, "--seq")!;
+					if (index) assert.ok(Number(seq) > Number(arg(calls[index - 1].args, "--seq")));
+					assert.deepEqual(call.args, [
+						"pane",
+						states[index] ? "report-agent" : "release-agent",
+						fake.environment.paneId,
+						"--source",
+						"custom:atomic",
+						"--agent",
+						"atomic",
+						"--seq",
+						seq,
+						...(states[index] ? ["--state", states[index]] : []),
+						...(index === 1 || index === 2 ? ["--message", "Waiting for approval"] : []),
+						...(index === 0
+							? [
+									"--agent-session-id",
+									sessionManager.getSessionId(),
+									"--agent-session-path",
+									sessionManager.getSessionFile()!,
+								]
+							: []),
+					]);
+					assert.equal(call.socket, fake.environment.socketPath);
+				}
+			} finally {
+				await session.extensionRunner.emit({ type: "session_shutdown", reason: "quit" });
+				session.dispose();
+				providerFailure?.mockRestore();
+			}
+		} finally {
+			await fake.dispose();
+		}
+	},
+);

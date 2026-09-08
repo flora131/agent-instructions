@@ -115,6 +115,25 @@ export function getExtensionContextOwner(context: ExtensionContext): object {
 	return contextOwners.get(context) ?? context;
 }
 
+type ContextEffect = () => void | Promise<void>;
+const contextPublications = new WeakMap<object, (effect: ContextEffect) => void>();
+
+/** Keep builtin lifecycle effects behind the host's transactional publication boundary. */
+export function bindExtensionContextPublication(
+	context: ExtensionContext,
+	stage: ((effect: ContextEffect) => void) | undefined,
+): void {
+	const owner = getExtensionContextOwner(context);
+	if (stage) contextPublications.set(owner, stage);
+	else contextPublications.delete(owner);
+}
+
+export async function publishExtensionContextEffect(context: ExtensionContext, effect: ContextEffect): Promise<void> {
+	const stage = contextPublications.get(getExtensionContextOwner(context));
+	if (stage) stage(effect);
+	else await effect();
+}
+
 /**
  * Create an ExtensionContext for use in event handlers and tool execution.
  * Context values are resolved at call time, so host changes are reflected.
