@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { basename } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { expect, test } from "vitest";
@@ -111,4 +112,40 @@ test("abort settles promptly instead of waiting on descendant-held streams", asy
 	controller.abort();
 	await expect(run).rejects.toThrow(/aborted/);
 	expect(Date.now() - started).toBeLessThan(2000);
+});
+
+test("unbound PowerShell background observation refuses before executing, including PTY", async () => {
+	for (const pty of [false, true]) {
+		await expect(
+			createLocalPowerShellOperations().exec("Write-Output must-not-run", process.cwd(), {
+				pty,
+				wait: { kind: "background" },
+				onData: () => assert.fail("refused command produced output"),
+			}),
+		).rejects.toThrow(/supported task owner/);
+	}
+	let hooked = false;
+	const tool = createPowerShellToolDefinition(process.cwd(), {
+		spawnHook: (context) => {
+			hooked = true;
+			return context;
+		},
+	});
+	await expect(
+		tool.execute("unbound", { command: "Write-Output must-not-run", wait: { kind: "background" } }),
+	).rejects.toThrow(/supported task owner/);
+	assert.equal(hooked, false);
+});
+
+test("PowerShell validates direct observation and execution budgets", async () => {
+	const operations = createLocalPowerShellOperations();
+	await expect(
+		operations.exec("Write-Output must-not-run", process.cwd(), {
+			wait: { kind: "foreground", budgetMs: -1 },
+			onData: () => {},
+		}),
+	).rejects.toThrow(/Invalid bash wait/);
+	await expect(
+		operations.exec("Write-Output must-not-run", process.cwd(), { timeout: -1, onData: () => {} }),
+	).rejects.toThrow(/Invalid timeout/);
 });

@@ -1,7 +1,7 @@
 import { setTimeout as poll } from "node:timers/promises";
 import { createChildProcessEnvironment } from "../../utils/child-process.ts";
 import { createModuleRequire } from "../../utils/module-require.ts";
-import { getShellConfig, getShellEnv } from "../../utils/shell.ts";
+import { getShellConfig, getShellEnv, type ShellConfig } from "../../utils/shell.ts";
 import type { OperationId, WaitOutcome, WaitPolicy } from "../tasks/contracts.js";
 import type { OwnerLease, TaskSupervisor } from "../tasks/supervisor.js";
 
@@ -100,19 +100,24 @@ export async function executeSupervisedCommand(
 	options: NativePtyExecOptions,
 	pty: boolean,
 ): Promise<SupervisedCommandResult> {
-	validateBashWait(options.wait, !!options.taskOwner && process.platform !== "win32");
+	validateBashWait(options.wait, !!options.taskOwner);
 	if (options.signal?.aborted) throw new Error("aborted");
-	if (process.platform === "win32")
-		throw new Error("ContainmentUnavailable: Windows supervised bash transport is not implemented");
 	const context = options.taskOwner;
 	if (!context) throw new Error("Supervised command requires its task owner");
-	const shell = getShellConfig(options.shellPath);
+	const shell = options.shellConfig ?? getShellConfig(options.shellPath);
+	if (process.platform === "win32" && shell.commandTransport === "stdin")
+		throw new Error("ContainmentUnavailable: run Atomic inside WSL to supervise Linux guest commands");
 	const quote = (text: string) => `'${text.replaceAll("'", "'\\''")}'`;
 	const invocation = [shell.shell, ...shell.args].map(quote).join(" ");
 	const environment = createChildProcessEnvironment(
 		pty ? { TERM: "xterm-256color" } : undefined,
 		options.env ?? getShellEnv(),
 	);
+	// Windows names are case-insensitive. Resolve ordered JS overrides before
+	// crossing into the unordered native map, including explicit removals.
+	const launchEnvironment = new Map<string, [string, string | undefined]>();
+	for (const [key, value] of Object.entries(environment))
+		launchEnvironment.set(process.platform === "win32" ? key.toUpperCase() : key, [key, value]);
 	// The native command door merges env overrides. Clear omitted inherited shell
 	// variables before invoking the configured shell, without embedding env values
 	// (which may be secrets) into the retained command text.
@@ -128,12 +133,15 @@ export async function executeSupervisedCommand(
 		context.owner,
 		{
 			kind: "command",
-			command: clearInherited + launch,
-			description: command,
+			command: process.platform === "win32" ? command : clearInherited + launch,
+			description: options.commandDescription ?? command,
 			cwd,
 			env: Object.fromEntries(
-				Object.entries(environment).filter((entry): entry is [string, string] => entry[1] !== undefined),
+				[...launchEnvironment.values()].filter((entry): entry is [string, string] => entry[1] !== undefined),
 			),
+			...(process.platform === "win32"
+				? { shell: { program: shell.shell, args: shell.args }, inheritEnv: false }
+				: {}),
 			terminal: pty ? { kind: "pty", columns: options.cols ?? 120, rows: options.rows ?? 40 } : { kind: "pipe" },
 			...(options.timeout === undefined ? {} : { executionTimeoutMs: options.timeout * 1000 }),
 		},
@@ -198,6 +206,8 @@ export interface NativePtyExecOptions {
 	wait?: WaitPolicy;
 	env?: NodeJS.ProcessEnv;
 	shellPath?: string;
+	shellConfig?: ShellConfig;
+	commandDescription?: string;
 	cols?: number;
 	rows?: number;
 	taskOwner?: SupervisedCommandOwner;
@@ -208,12 +218,12 @@ export async function executeNativePty(
 	cwd: string,
 	options: NativePtyExecOptions,
 ): Promise<SupervisedCommandResult> {
-	validateBashWait(options.wait, !!options.taskOwner && process.platform !== "win32");
+	validateBashWait(options.wait, !!options.taskOwner);
 	if (options.taskOwner) return executeSupervisedCommand(command, cwd, options, true);
 	const loaded = loadNativePtyBinding();
 	if (!loaded.ok) throw loaded.error;
 	if (options.signal?.aborted) throw new Error("aborted");
-	const shellConfig = getShellConfig(options.shellPath);
+	const shellConfig = options.shellConfig ?? getShellConfig(options.shellPath);
 	const session = new loaded.binding.PtySession();
 	const onAbort = () => {
 		try {

@@ -26,7 +26,7 @@ import {
 	type TerminationCause as NativeTerminationCause,
 	SubagentControl,
 } from "@bastani/atomic-natives";
-import type { Api, AssistantMessage, Model } from "@bastani/pi-ai/compat";
+import { type Api, type AssistantMessage, clampThinkingLevel, type Model } from "@bastani/pi-ai/compat";
 import type { Cleanup } from "../../../../coding-agent/src/core/tasks/contracts.js";
 import type { AgentConfig } from "../../agents/agent-types.js";
 import {
@@ -815,6 +815,20 @@ export class SubagentControlRuntime {
 		let effectiveModelId = candidateModelId;
 		let effectiveThinking = initialThinkingForAttempt(candidateModelId, configuredThinking);
 		let attemptedModels: string[] = candidateModelId ? [candidateModelId] : [];
+		// Background receipts can precede capacity acquisition and session loading. Publish
+		// only the concrete selection handed to createAgentSession, not a requested ID
+		// or an arbitrary parent model. Session and fallback reports remain authoritative.
+		const selectedModel = candidate.model ?? admitted.policy.model;
+		if (selectedModel)
+			taskHooks?.reportActivity({
+				reportId: `${randomUUID()}:admission-model`,
+				change: {
+					kind: "model",
+					model: `${selectedModel.provider}/${selectedModel.id}`,
+					thinking:
+						configuredThinking === undefined ? undefined : clampThinkingLevel(selectedModel, configuredThinking),
+				},
+			});
 		let guard: NativeExecutionGuardResult;
 		let retryDelayMs = CAPACITY_RETRY_INITIAL_DELAY_MS;
 		for (;;) {

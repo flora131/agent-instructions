@@ -1,5 +1,4 @@
-//! Owned Unix pipe commands and bounded output retention (RFC #2884).
-// PTY, Windows pipe, and input/output doors follow in later S2 milestones.
+//! Owned pipe/PTY commands with process-tree containment and bounded output retention (RFC #2884).
 #![allow(dead_code)]
 use super::*;
 use std::sync::Condvar;
@@ -15,6 +14,10 @@ pub use input::*;
 mod resource;
 #[cfg(windows)]
 mod windows;
+#[cfg(windows)]
+mod windows_command;
+#[cfg(windows)]
+mod windows_pty;
 #[cfg(unix)]
 use resource::ProcessResource;
 type ProcessReader = Box<dyn Read + Send>;
@@ -36,6 +39,16 @@ pub enum CommandTerminal {
 	Pty { columns: u16, rows: u16 },
 }
 
+/// Execute this program directly, appending command as one final argument.
+#[napi(object)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CommandShell {
+	#[napi(ts_type = "string")]
+	pub program: JsString,
+	#[napi(ts_type = "string[]")]
+	pub args: Vec<JsString>,
+}
+
 #[napi(object)]
 #[derive(Clone, Debug)]
 pub struct CommandIntent {
@@ -48,6 +61,9 @@ pub struct CommandIntent {
 	pub cwd: Option<JsString>,
 	#[napi(ts_type = "Record<string,string>")]
 	pub env: Option<std::collections::HashMap<String, JsString>>,
+	pub shell: Option<CommandShell>,
+	/// Defaults to true; false makes env the complete child environment.
+	pub inherit_env: Option<bool>,
 	pub terminal: CommandTerminal,
 	pub execution_timeout_ms: Option<f64>,
 	#[napi(ts_type = "string")]
@@ -60,6 +76,8 @@ impl PartialEq for CommandIntent {
 			&& self.description == other.description
 			&& self.cwd == other.cwd
 			&& self.env == other.env
+			&& self.shell == other.shell
+			&& self.inherit_env == other.inherit_env
 			&& self.terminal == other.terminal
 			&& self.parent_task_id == other.parent_task_id
 			&& self.execution_timeout_ms.map(f64::to_bits)
@@ -214,7 +232,7 @@ impl Actor {
 			return Ok(lease);
 		}
 		// Unsupported platforms refuse before executing any part of the command.
-		#[cfg(not(unix))]
+		#[cfg(not(any(unix, windows)))]
 		if !matches!(intent.terminal, CommandTerminal::Pipe {}) {
 			return Err(fail("ContainmentUnavailable"));
 		}
@@ -373,9 +391,16 @@ impl Actor {
 					Ok((ProcessResource::Pty(pty), Some(writer), reader, Box::new(io::empty()), None))
 				},
 				CommandTerminal::Pipe {} => {
-					let mut spawn = Command::new("/bin/sh");
+					let mut spawn = if let Some(shell) = &command.intent.shell {
+						let mut spawn = Command::new(shell.program.process_text());
+						spawn.args(shell.args.iter().map(JsString::process_text));
+						spawn
+					} else {
+						let mut spawn = Command::new("/bin/sh");
+						spawn.arg("-c");
+						spawn
+					};
 					spawn
-						.arg("-c")
 						.arg(command.intent.command.process_text())
 						.process_group(0)
 						.stdin(Stdio::piped())
@@ -390,6 +415,9 @@ impl Actor {
 					}
 					if let Some(cwd) = &command.intent.cwd {
 						spawn.current_dir(cwd.process_text());
+					}
+					if command.intent.inherit_env == Some(false) {
+						spawn.env_clear();
 					}
 					if let Some(env) = &command.intent.env {
 						spawn.envs(env.iter().map(|(key, value)| (key, value.process_text())));
@@ -1006,6 +1034,8 @@ mod tests {
 			cwd: None,
 			env: None,
 			terminal: CommandTerminal::Pipe {},
+			shell: None,
+			inherit_env: None,
 			execution_timeout_ms: None,
 			parent_task_id: None,
 		}
@@ -1047,7 +1077,7 @@ mod tests {
 	}
 
 	// #2884: unsupported terminal modes must never execute as a different backend.
-	#[cfg(not(unix))]
+	#[cfg(not(any(unix, windows)))]
 	#[test]
 	fn unsupported_pty_refuses_before_execution() {
 		let (actor, owner) = command_owner();

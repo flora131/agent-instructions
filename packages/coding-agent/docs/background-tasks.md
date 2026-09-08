@@ -27,11 +27,11 @@ The agent can choose foreground-first or background observation for each authori
 
 | Call | Observation behavior |
 | --- | --- |
-| `bash` without `wait` | Waits for the owner's command observation budget, normally 10 seconds, then automatically returns if still running. |
+| `bash` or `powershell` without `wait` | Waits for the owner's command observation budget, normally 10 seconds, then automatically returns if still running. |
 | `subagent` without `wait` | Returns after admission; the child runs in the background by default. |
-| Either tool with `wait: { kind: "background" }` | Explicitly returns after admission without waiting for execution to finish. |
-| Either tool with `wait: { kind: "foreground" }` | Waits for the owner's observation budget, normally 10 seconds for shells and 30 seconds for agents. |
-| Either tool with `wait: { kind: "foreground", budgetMs: 1000 }` | Waits up to one second, then automatically yields if the original task is still running. |
+| Any of these tools with `wait: { kind: "background" }` | Explicitly returns after admission without waiting for execution to finish. |
+| Any of these tools with `wait: { kind: "foreground" }` | Waits for the owner's observation budget, normally 10 seconds for shells and 30 seconds for agents. |
+| Any of these tools with `wait: { kind: "foreground", budgetMs: 1000 }` | Waits up to one second, then automatically yields if the original task is still running. |
 
 If the task finishes during observation, the call returns its terminal result instead. Automatic backgrounding is **observation expiry**, not a slow-task failure, a restart, or a second execution. Use foreground-first observation for a dependency and background observation for independent work. If a dependency yields, wait for its actual completion before using the result.
 
@@ -147,7 +147,7 @@ Completed, failed, and stopped tasks retain inspection but do not offer executio
 
 ## Background shells
 
-Top-level model `bash` calls on POSIX use the session's task owner. A long command can outlive its foreground observation budget and return a task ID while continuing to run. Its status then appears below the prompt and under **Shells** in `/tasks`. An explicit execution timeout still ends the command; it is separate from observation yielding.
+Top-level model `bash` calls on POSIX and native Windows, and `powershell` calls on native Windows, use the session's task owner. A long command can outlive its foreground observation budget and return a task ID while continuing to run. Its status then appears below the prompt and under **Shells** in `/tasks`. An explicit execution timeout still ends the command; it is separate from observation yielding.
 
 ```ts
 // Background immediately, keeping the command owned and its output retained.
@@ -164,11 +164,15 @@ The shell execution timeout is separate: `timeout` is seconds and defaults to 30
 
 Shell completions use the same shaded card as subagents, with a retained output preview and available exit code. Nonzero shell exits are shown as failures even though the process itself reached a terminal state. Cancellation shows Stopped. The card and below-prompt count update in the owning main or workflow-stage chat.
 
-Native Windows bash and bash calls inside subagent sessions retain their existing execution paths. Without a supported task owner, explicit background requests are refused before execution; foreground calls wait for completion rather than automatically yielding. Custom `BashOperations` adapters receive `wait` but must implement it themselves. External-terminal processes are not adopted into `/tasks`. A child's own tool use appears in that subagent's activity and transcript.
+Native Windows owned shells use supervised pipes or ConPTY, with Job Object containment before execution resumes and confirmed cleanup. If containment cannot be established, launch is refused rather than falling back to unsupervised execution. The legacy Windows WSL `bash.exe` stdin transport remains unsupported for owned launch because Windows jobs cannot supervise Linux guest processes. Running Atomic inside WSL uses the normal POSIX/Bash path.
+
+Bash calls inside subagent sessions retain their existing execution paths. Without a supported task owner, explicit background requests are refused before execution; foreground calls wait for completion rather than automatically yielding. Custom operations adapters receive `wait` but must implement it themselves. External-terminal processes are not adopted into `/tasks`. A child's own tool use appears in that subagent's activity and transcript.
 
 ## Lifetime and scope
 
 Background means independent of the current observation, not independent of its owner. Pausing main chat or a workflow-node chat aborts the foreground turn only; already-running background agents and shells keep their identities, output, and later completion. Closing a session cancels its session-owned work. Workflow-stage tasks belong to the stage generation: detaching a pane, pausing, or ending a single model turn does not cancel them. Closing that generation does, without cancelling sibling stages. Closing `/tasks` only disposes the view. Explicit `/tasks` stop and declared execution timeouts remain separate controls.
+
+On native Windows, Suspend opens a PowerShell subshell rather than freezing Atomic. Exit the subshell to restore the same session; owned background tasks continue while it is open.
 
 Task inspection is owner-scoped. It is not a machine-wide process list. Switching sessions does not copy the previous session's task rows into the new one. Missing retained history is reported explicitly.
 

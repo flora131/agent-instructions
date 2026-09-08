@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { InteractiveMode } from "../src/modes/interactive/interactive-mode.ts";
 
+const subshell = vi.hoisted(() => ({ open: vi.fn(async () => {}), active: vi.fn(() => false) }));
+vi.mock("../src/modes/interactive/interactive-windows-subshell.ts", () => ({
+	openWindowsSubshell: subshell.open,
+	isWindowsSubshellActive: subshell.active,
+}));
+
 type FakeUi = {
 	start: () => void;
 	stop: () => void;
@@ -30,7 +36,7 @@ describe("InteractiveMode.handleCtrlZ", () => {
 		vi.restoreAllMocks();
 	});
 
-	test("shows a status message and skips suspend on Windows", () => {
+	test("opens a PowerShell subshell on Windows without Unix job control", () => {
 		const ui: FakeUi = {
 			start: vi.fn(),
 			stop: vi.fn(),
@@ -56,12 +62,21 @@ describe("InteractiveMode.handleCtrlZ", () => {
 			}
 		}
 
-		expect(showStatus).toHaveBeenCalledWith("Suspend to background is not supported on Windows");
+		expect(subshell.open).toHaveBeenCalledWith(context);
 		expect(ui.stop).not.toHaveBeenCalled();
 		expect(setIntervalSpy).not.toHaveBeenCalled();
 		expect(processOnSpy).not.toHaveBeenCalledWith("SIGINT", expect.any(Function));
 		expect(processOnceSpy).not.toHaveBeenCalledWith("SIGCONT", expect.any(Function));
 		expect(processKillSpy).not.toHaveBeenCalled();
+	});
+
+	test("ignores Ctrl+C while PowerShell owns the terminal", () => {
+		subshell.active.mockReturnValueOnce(true);
+		const context = { interruptActiveOperation: vi.fn(), shutdown: vi.fn(), clearEditor: vi.fn() };
+		(InteractiveMode.prototype.handleCtrlC as (this: typeof context) => void).call(context);
+		expect(context.interruptActiveOperation).not.toHaveBeenCalled();
+		expect(context.shutdown).not.toHaveBeenCalled();
+		expect(context.clearEditor).not.toHaveBeenCalled();
 	});
 
 	testNonWindowsSuspend("keeps the process alive while suspended and restores the TUI on SIGCONT", () => {

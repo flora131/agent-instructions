@@ -26,8 +26,8 @@ mod waits;
 pub use events::*;
 pub use owner::*;
 pub use process::{
-	CommandIntent, CommandOutputSink, CommandResourceOptions, CommandTaskKind, CommandTerminal,
-	InputData, InputReceipt, OutputPage, OutputRange, StdinLease,
+	CommandIntent, CommandOutputSink, CommandResourceOptions, CommandShell, CommandTaskKind,
+	CommandTerminal, InputData, InputReceipt, OutputPage, OutputRange, StdinLease,
 };
 use report_identity::{TASK_REPORT_IDENTITY_WINDOW, activity_hash};
 use strings::JsString;
