@@ -1003,9 +1003,8 @@ describe("workflow-first execution routing", () => {
 		for (const phrase of [
 			"Do not pass a `budget` unless the user asked for a limit",
 			"omitting `budget` inherits the workflow declaration and config",
-			"assuming no budget is always the correct default",
 			"pass only the fields they named",
-			"Pass budget only when the user asked for a limit",
+			"Pass budget only for a user-specified limit",
 			"Heartbeat cadence is 15 minutes by default",
 			"Keep that interval unless the user explicitly asks for a different cadence",
 			"A heartbeat is a periodic alignment check",

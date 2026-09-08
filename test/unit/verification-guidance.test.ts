@@ -29,9 +29,12 @@ const approval = JSON.stringify({
 });
 
 function executionModeContract(prompt: string): void {
-	for (const literal of ["inline", "do this directly", "don't use a workflow"]) assert.ok(prompt.includes(literal));
+	for (const literal of ["quickly", "inline", "do this directly", "don't use a workflow"])
+		assert.ok(prompt.includes(literal));
 	assert.match(prompt, /specified task|task-scoped/);
 	assert.match(prompt, /Quoted examples and questions about inline code are not/);
+	assert.ok(prompt.includes('Treat "quickly" as an inline execution choice, not a request for a faster workflow.'));
+	assert.ok(prompt.includes("neither are descriptions of software that should run quickly"));
 	assert.match(prompt, /hidden\/nested/);
 	assert.match(prompt, /reapprove/);
 	assert.match(prompt, /reconcile completed work and in-flight side effects/);
@@ -186,7 +189,7 @@ test("default constructed guidance permits complex inline tasks without changing
 	assert.match(prompt, /Unless the user explicitly chooses inline execution for this task/);
 	assert.match(prompt, /even when complex/);
 	assert.match(prompt, /Without an explicit execution-mode preference, skip workflows for tiny/);
-	assert.match(prompt, /do not extend a scoped preference to unrelated tasks/);
+	assert.match(prompt, /Do not extend a scoped preference to unrelated tasks/);
 	assert.match(prompt, /Do not claim already-completed work was undone/);
 });
 
