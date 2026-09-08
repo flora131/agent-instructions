@@ -24,6 +24,7 @@ pub(super) fn activity_hash(report: &ActivityReport) -> [u8; 32] {
 	std::mem::discriminant(&report.change).hash(&mut hash);
 	match &report.change {
 		ActivityChange::Action { tool, text } => (tool, text).hash(&mut hash),
+		ActivityChange::Model { model, thinking } => (model, thinking).hash(&mut hash),
 		ActivityChange::Metrics { elapsed_ms, tool_count, token_count } => {
 			(
 				elapsed_ms.map(f64::to_bits),

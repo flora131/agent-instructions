@@ -75,7 +75,7 @@ test("engine task widget follows the real lazy owner through activity, settlemen
 	}
 });
 
-test("engine task inspector requests an opaque fullscreen overlay using live host geometry", async () => {
+test("engine task picker opens inline and detail uses an opaque fullscreen overlay with live geometry", async () => {
 	initTheme("dark");
 	const previousKeys = getKeybindings();
 	const keys = new KeybindingsManager();
@@ -96,13 +96,40 @@ test("engine task inspector requests an opaque fullscreen overlay using live hos
 		await fixture.start("Fullscreen background review");
 		completion = showEngineTaskInspector(session, { custom: service.custom.bind(service) });
 		await new Promise<void>((resolve) => setImmediate(resolve));
-		const open = messages.find((message) => message.type === "engine_custom_open");
+		const picker = messages.find((message) => message.type === "engine_custom_open");
+		assert.ok(picker && picker.type === "engine_custom_open");
+		assert.equal(picker.overlay, false);
+		assert.equal(picker.overlayOptions, undefined);
+		service.handleLine(
+			serializeInteractiveEngineFrame({
+				type: "engine_custom_render",
+				componentId: picker.componentId,
+				requestId: 1,
+				width: 80,
+				rows: 24,
+			}),
+		);
+		await new Promise<void>((resolve) => setImmediate(resolve));
+		const pickerFrame = messages.findLast((message) => message.type === "engine_custom_frame");
+		assert.ok(pickerFrame && pickerFrame.type === "engine_custom_frame");
+		assert.ok(pickerFrame.lines.length <= 12);
+		service.handleLine(
+			serializeInteractiveEngineFrame({
+				type: "engine_custom_input",
+				componentId: picker.componentId,
+				requestId: 2,
+				data: "\r",
+			}),
+		);
+		await new Promise<void>((resolve) => setImmediate(resolve));
+		const open = messages.findLast((message) => message.type === "engine_custom_open");
 		assert.ok(open && open.type === "engine_custom_open");
-		assert.equal(open.overlay, true, "task inspection must not replace the editor inline");
+		assert.notEqual(open.componentId, picker.componentId);
+		assert.equal(open.overlay, true);
 		assert.deepEqual(open.overlayOptions, { anchor: "center", width: "100%", maxHeight: "100%", margin: 0 });
 		assert.equal(open.deferInlineCustomUiFocus, true);
 		assert.equal(open.handlesInternalUiAction, true);
-		assert.notEqual(open.handlesCtrlC, true, "keep the host's first-press Ctrl+C dismissal");
+		assert.equal(open.handlesCtrlC, true);
 		for (const [width, rows] of [
 			[80, 24],
 			[31, 9],

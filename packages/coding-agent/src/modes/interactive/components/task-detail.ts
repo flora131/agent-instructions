@@ -4,7 +4,7 @@ import type { Attention, Execution, TaskRecord } from "../../../core/tasks/contr
 import type { TaskActivity } from "../../../core/tasks/owner-store.js";
 import { theme } from "../theme/theme.js";
 import { keyHintIfBound } from "./keybinding-hints.js";
-import { taskDisplayText, taskMetricsText, taskStatusAppearance } from "./task-row.js";
+import { taskDisplayText, taskMetricsText, taskModelText, taskStatusAppearance } from "./task-row.js";
 
 export type TaskDetailAction = "transcript" | "foreground" | "cancel" | "input" | "question";
 
@@ -93,6 +93,8 @@ export class TaskDetail implements Component {
 	renderContent(width: number): string[] {
 		const task = this.task;
 		const lines: string[] = [];
+		if (task.kind === "agent")
+			lines.push(...wrapTextWithAnsi(theme.fg("dim", taskModelText(task)), Math.max(1, width)));
 		const section = (label: string, text: string, limit: number, tail = false) => {
 			const wrapped = wrapTextWithAnsi(displayMultiline(text), Math.max(1, width));
 			lines.push(

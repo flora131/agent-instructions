@@ -15,7 +15,7 @@ import { taskOutputText } from "../../../core/tasks/command-output.js";
 import type { OperationId, PromptRoute, TaskId } from "../../../core/tasks/contracts.js";
 import type { OwnerTaskStore } from "../../../core/tasks/owner-store.js";
 import { taskTranscriptSource } from "../../../core/tasks/supervisor.js";
-import { readTaskTranscript } from "../../../core/tasks/transcript.js";
+import { readTaskTranscriptSnapshot } from "../../../core/tasks/transcript.js";
 import { theme } from "../theme/theme.js";
 import { chatEntriesFromAgentMessages, renderChatMessageEntry } from "./chat-message-renderer.ts";
 import { mouseWheelDeltaRows } from "./chat-transcript.js";
@@ -28,8 +28,9 @@ import {
 	taskDetailSummary,
 } from "./task-detail.js";
 import { taskListSections } from "./task-list.js";
+import { TaskLiveTranscript } from "./task-live-transcript.js";
 import { TaskNavigation } from "./task-navigation.js";
-import { taskDisplayText, taskLabel, taskMetricsText, taskStatusAppearance } from "./task-row.js";
+import { taskDisplayText, taskLabel, taskMetricsText, taskModelText, taskStatusAppearance } from "./task-row.js";
 
 /** Focused view only. The store and original session remain the authorities. */
 export class TaskInspector implements Component {
@@ -37,6 +38,8 @@ export class TaskInspector implements Component {
 	private actionIndex = 0;
 	private confirmation?: (answer: boolean) => void;
 	private transcript?: Component[];
+	private liveTranscript?: TaskLiveTranscript;
+	private transcriptRefreshPending = false;
 	private transcriptRequested = false;
 	private transcriptLoading = false;
 	private transcriptHistorical = false;
@@ -61,6 +64,7 @@ export class TaskInspector implements Component {
 		this.close = privateClose;
 		this.navigation = new TaskNavigation(getKeybindings() as KeybindingsManager, {
 			inspect: () => {
+				this.releaseLiveTranscript();
 				this.actionIndex = 0;
 				this.scroll = 0;
 				this.transcript = undefined;
@@ -108,7 +112,7 @@ export class TaskInspector implements Component {
 		this.unsubscribe = this.store.subscribe(() => {
 			this.navigation.update(this.store.backgroundTasks);
 			if (this.transcriptRequested) {
-				if (!this.transcriptLoading && !this.transcriptHistorical && this.scroll === 0) void this.loadTranscript();
+				this.refreshTranscript();
 			} else if (this.navigation.focus.kind === "detail") void this.loadDetail();
 			this.requestRender();
 		});
@@ -126,6 +130,7 @@ export class TaskInspector implements Component {
 	}
 	dispose(): void {
 		this.disposed = true;
+		this.releaseLiveTranscript();
 		this.confirmation?.(false);
 		this.unsubscribe();
 	}
@@ -158,6 +163,22 @@ export class TaskInspector implements Component {
 		this.status = result.ok ? `Sent ${result.value.acceptedBytes} bytes` : result.error.message;
 		this.input.setValue("");
 		this.requestRender();
+	}
+	private releaseLiveTranscript(): void {
+		this.liveTranscript?.dispose();
+		this.liveTranscript = undefined;
+		this.transcriptRefreshPending = false;
+	}
+	private refreshTranscript(): void {
+		if (this.disposed || !this.transcriptRequested) return;
+		const task = this.selected();
+		const lease = task && this.store.resolveTask(task.ref.taskId);
+		const bound = lease?.ok ? taskTranscriptSource(lease.value) : undefined;
+		if (bound?.ok && this.liveTranscript?.source === bound.value.session) return;
+		// Legacy history-only sources have no live tail; keep their retained page anchored.
+		if (bound?.ok && !bound.value.session.subscribe && this.transcriptHistorical) return;
+		if (this.transcriptLoading) this.transcriptRefreshPending = true;
+		else void this.loadTranscript();
 	}
 	private async loadTranscript(earlier = false): Promise<void> {
 		const task = this.selected();
@@ -197,7 +218,7 @@ export class TaskInspector implements Component {
 				this.requestRender();
 				return;
 			}
-			const page = await readTaskTranscript(lease.value, earlier ? this.cursor : undefined);
+			const page = readTaskTranscriptSnapshot(lease.value, earlier ? this.cursor : undefined);
 			if (
 				this.disposed ||
 				generation !== this.detailGeneration ||
@@ -206,12 +227,12 @@ export class TaskInspector implements Component {
 			)
 				return;
 			const bound = taskTranscriptSource(lease.value);
-			if (!page.ok || !bound.ok) {
+			if (!bound.ok || (!page.ok && !bound.value.session.subscribe)) {
 				this.status = "Transcript unavailable";
 				this.requestRender();
 				return;
 			}
-			const ids = new Set(page.value.items.map((item) => item.source.entryId));
+			const ids = new Set(page.ok ? page.value.items.map((item) => item.source.entryId) : []);
 			const messages = bound.value.session.getEntries().flatMap<AgentMessage>((entry) => {
 				if (entry.type !== "message" || !ids.has(entry.id)) return [];
 				const message = entry.message;
@@ -222,6 +243,7 @@ export class TaskInspector implements Component {
 							content: message.content.filter(
 								(block, index) =>
 									block.type !== "thinking" &&
+									page.ok &&
 									page.value.items.some(
 										(item) => item.source.entryId === entry.id && item.source.contentIndex === index,
 									),
@@ -239,8 +261,12 @@ export class TaskInspector implements Component {
 					showImages: false,
 				}),
 			);
-			this.transcript = earlier ? [...components, ...(this.transcript ?? [])] : components;
-			this.cursor = page.value.nextCursor;
+			if (!earlier && bound.value.session.subscribe) {
+				this.releaseLiveTranscript();
+				this.liveTranscript = new TaskLiveTranscript(bound.value.session, messages, this.requestRender);
+				this.transcript = [this.liveTranscript];
+			} else this.transcript = earlier ? [...components, ...(this.transcript ?? [])] : components;
+			this.cursor = page.ok ? page.value.nextCursor : undefined;
 			this.status = this.cursor ? "PageUp: earlier retained messages" : "";
 			this.requestRender();
 		} catch {
@@ -250,7 +276,13 @@ export class TaskInspector implements Component {
 				this.requestRender();
 			}
 		} finally {
-			if (generation === this.detailGeneration) this.transcriptLoading = false;
+			if (generation === this.detailGeneration) {
+				this.transcriptLoading = false;
+				if (this.transcriptRefreshPending) {
+					this.transcriptRefreshPending = false;
+					this.refreshTranscript();
+				}
+			}
 		}
 	}
 	private async loadDetail(): Promise<void> {
@@ -343,6 +375,7 @@ export class TaskInspector implements Component {
 			(matchesKey(data, "left") && this.navigation.focus.kind !== "stdin" && !this.configuredTaskKey(data))
 		) {
 			if (this.transcriptRequested) {
+				this.releaseLiveTranscript();
 				this.detailGeneration++;
 				this.transcript = undefined;
 				this.transcriptRequested = false;
@@ -408,6 +441,17 @@ export class TaskInspector implements Component {
 			(key) => getKeybindings().matches(data, key),
 		);
 	}
+	/** Only the task picker stays inline; drill-down and confirmation own the screen. */
+	get fullscreen(): boolean {
+		return (
+			this.confirmation !== undefined ||
+			this.navigation.focus.kind === "detail" ||
+			this.navigation.focus.kind === "stdin"
+		);
+	}
+	renderPicker(width: number, availableRows: number): string[] {
+		return this.renderViewport(width, Math.max(1, Math.min(12, availableRows)));
+	}
 	render(width: number): string[] {
 		return this.renderViewport(width, Math.max(3, (process.stdout.rows || 24) - 5));
 	}
@@ -464,7 +508,8 @@ export class TaskInspector implements Component {
 		const height = Math.max(0, budget - (framed ? 4 : 1) - actionRow.length - compactSummary.length);
 		const selected = detail ? -1 : rows.findIndex((row) => stripVTControlCharacters(row).startsWith("›"));
 		this.scroll = Math.min(this.scroll, Math.max(0, rows.length - height));
-		const offset = detail ? this.scroll : Math.max(0, selected - height + 1);
+		const selectionRows = Math.min(height, current?.kind === "agent" ? 3 : 2);
+		const offset = detail ? this.scroll : Math.max(0, selected + selectionRows - height);
 		const view = rows.slice(offset, offset + height);
 		const inspect = keyHintIfBound("app.tasks.inspect", detail ? "select" : "view");
 		const hints = this.confirmation
@@ -560,6 +605,7 @@ export class TaskInspector implements Component {
 					.join(" · ");
 				return [
 					truncateToWidth(row, width),
+					...(item.kind === "agent" ? [theme.fg("dim", truncateToWidth(`  ${taskModelText(item)}`, width))] : []),
 					...(selected ? [theme.fg("dim", truncateToWidth(`  ${taskDisplayText(metadata)}`, width))] : []),
 				];
 			}),

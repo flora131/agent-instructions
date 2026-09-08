@@ -232,7 +232,13 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	}
 
 	renderBody(width: number, budget: number): string[] {
-		if (this.taskInspector) return this.taskInspector.renderViewport(width, budget);
+		if (this.taskInspector) {
+			if (this.taskInspector.fullscreen) return this.taskInspector.renderViewport(width, budget);
+			const picker = this.taskInspector.renderPicker(width, budget);
+			const remaining = Math.max(0, budget - picker.length);
+			const body = remaining ? renderChatSessionBody(this.state, width, remaining) : [];
+			return [...body, ...Array.from({ length: Math.max(0, remaining - body.length) }, () => ""), ...picker];
+		}
 		return renderChatSessionBody(this.state, width, budget);
 	}
 

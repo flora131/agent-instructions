@@ -217,7 +217,7 @@ export interface SingleResult {
 /** Read-only control-plane snapshot for status cards; text output stays unchanged. */
 export interface SubagentStatusGroup {
 	parentPath: string;
-	children: Array<ChildIdentity & { sessionFile?: string }>;
+	children: Array<ChildIdentity & { sessionFile?: string; model?: string; thinking?: string }>;
 }
 
 export interface Details {

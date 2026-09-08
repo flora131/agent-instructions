@@ -31,10 +31,16 @@ function statusGroup(control: NonNullable<ReturnType<typeof findSubagentControl>
 		parentPath: control.parent.path,
 		children: canonicalChildren(control)
 			.filter((child) => !id || id === control.parent.path || child.path === id)
-			.map((child) => ({
-				...child,
-				sessionFile: control.getDeliveredResult(child.path)?.sessionFile,
-			})),
+			.map((child) => {
+				const delivered = control.getDeliveredResult(child.path);
+				const metadata = control.getChildMetadata(child.path) ?? delivered;
+				return {
+					...child,
+					sessionFile: delivered?.sessionFile,
+					...(metadata?.model === undefined ? {} : { model: metadata.model }),
+					...(metadata?.thinking === undefined ? {} : { thinking: metadata.thinking }),
+				};
+			}),
 	};
 }
 

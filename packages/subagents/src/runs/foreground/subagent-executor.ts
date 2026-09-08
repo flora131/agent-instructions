@@ -17,6 +17,7 @@ import {
 	type ResolvedExecutorDeps,
 	type SubagentParamsLike,
 } from "./subagent-executor-types.js";
+import { taskResponseRecords } from "./task-execution.js";
 
 const MUTATING_MANAGEMENT_ACTIONS = new Set(["create", "update", "delete"]);
 /** Observing management actions do not start or mutate child execution. */
@@ -80,7 +81,13 @@ async function handleManagementRequest(input: {
 				mode: "management",
 				results: [],
 				...(observed.ok
-					? { taskResponse: { kind: "admitted", observation: observed.value } as const }
+					? {
+							taskResponse: { kind: "admitted", observation: observed.value } as const,
+							taskRecords: taskResponseRecords(
+								{ kind: "admitted", observation: observed.value },
+								ctx.getAgentTaskHost?.(),
+							),
+						}
 					: { taskError: observed.error.message }),
 			},
 			...(!observed.ok ? { isError: true } : {}),

@@ -266,7 +266,7 @@ export async function runSinglePath(
 							})
 						: getSingleResultOutput(child),
 			});
-			if (!parentAsk || !settledChild?.interrupted) return taskToolResult(response);
+			if (!parentAsk || !settledChild?.interrupted) return taskToolResult(response, ctx.getAgentTaskHost());
 			r = settledChild;
 		} else r = await deps.runtime.runSync(ctx.cwd, agents, params.agent!, task, runOptions);
 	} catch (error) {

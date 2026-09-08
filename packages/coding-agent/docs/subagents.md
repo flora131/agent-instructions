@@ -23,9 +23,13 @@ Hosts with an owner task store expose `/tasks` and `/tasks <id>` for background 
 
 `/tasks` appears in slash-command autocomplete. The inspector groups agents and shells with counts, status symbols, and a highlighted selection. Task descriptions lead; the selected row shows secondary activity and tool counts. The header and footer remain visible in ordinary terminal sizes, with a compact fallback for short terminals.
 
+The list opens as a compact inline widget, like the `/workflow connect` picker. Detail, transcript, input, and stop-confirmation pages are fullscreen; returning to the list preserves selection. Every agent row includes its resolved model and reasoning level when available, including completed background tasks.
+
 In the default isolated CLI, background subagents continue running after their launch observation returns. The engine publishes a compact task-status indicator below the prompt box, without task rows or activity previews. Run `/tasks` to open the list and inspect individual tasks; task updates never open it automatically. A compact finished-task summary remains after completion. Inspecting does not restart work or create a second task owner. Top-level model bash commands use this owner on POSIX systems; native Windows and commands inside subagent sessions retain their existing execution path.
 
 Transcript inspection uses a dedicated scrolling view with pinned identity, position, and controls. Retained child messages use the normal message renderers, excluding hidden reasoning and inline images. Missing capture is reported as `Transcript unavailable`; metrics never substitute for missing messages. Arrows scroll, PageUp/PageDown moves one viewport, and PageUp at the top loads earlier retained history. Home/End jumps within loaded history.
+
+Open live transcripts subscribe to child-session events, so streaming text and partial/final tool results refresh without reopening the page or waiting for a task-activity counter. Earlier pages remain anchored while updates arrive. Leaving the transcript releases its subscription without affecting execution.
 
 Detail views pin task identity, state, available metrics, and the selected action while PageUp/PageDown scrolls the body. Recent activity shows up to five retained tool actions; errors and input requests appear explicitly. Left returns to the previous view. `x` requests cancellation without bypassing confirmation or configured task bindings. Shell inspection shows a bounded output tail with omission markers.
 
@@ -167,6 +171,8 @@ Inside workflow stages, completion delivery observes the stage generation bounda
 Cancellation does not retract an Intercom send already submitted to the broker. That operation keeps its transport receipt or retry identity, while the closed stage suppresses late incoming messages from its own children. A transport acknowledgement does not mean a late finding was shown in the parent chat.
 
 Live progress and completed results show each step's resolved model ID and effective reasoning level, including after a model fallback; parallel steps keep their metadata separate. Fast inference is part of the model ID, so an agent pinned to a fast variant renders it directly — `codebase-analyzer (openai-codex/gpt-5.6-sol-fast · thinking medium)` — with no separate `fast` badge. Select fast inference in an agent definition's `model` and fallback model fields, for example `openai-codex/gpt-5.6-sol-fast:medium`; normal and fast IDs stay distinct fallback candidates and distinct records. See [Providers](/providers#fast-models) for which providers publish fast variants and what each one sends upstream.
+
+Owner-task rows, status cards, foreground result receipts, and background completion cards retain these settings too. A launch receipt is a snapshot and can precede model resolution; inspect `/tasks` for current settings. Missing model or reasoning data is shown as unavailable rather than guessed. Completion metadata is persisted with the notification so it remains visible when replaying chat history.
 
 ## Owner-bound task projection
 
