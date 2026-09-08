@@ -48,7 +48,7 @@ Plain URL reads follow oh-my-pi's fetch-pipeline truncation contract: unselected
 
 ## `ask_user_question`
 
-All questions to the user must use `ask_user_question` instead of plain text. This includes clarifications, preferences, confirmations, approvals, and permission to proceed, not just ambiguous requirements. Do not end a progress update or final response with a prose-only "Proceed?".
+When `ask_user_question` or an equivalent question tool is available, all questions to the user must use that tool instead of plain text. This includes clarifications, preferences, confirmations, approvals, and permission to proceed, not just ambiguous requirements. Prefer `ask_user_question` when available; otherwise follow the equivalent tool's supported schema. In these sessions, do not end a progress update or final response with a prose-only "Proceed?".
 
 Ask only when a decision is needed. Do not ask again for already-authorized work. Group related questions in one call, up to four questions with two to four options each. For confirmations, state the concrete action and scope in the question and offer explicit proceed and decline options. For example, when this action needs approval, call `ask_user_question` with:
 
@@ -67,7 +67,7 @@ Ask only when a decision is needed. Do not ask again for already-authorized work
 
 In a real confirmation, identify the target PRs in the question or immediately preceding context. This example explains question routing; it does not authorize merging any PRs.
 
-A cancelled or unanswered question is not approval. If the tool or interactive UI is unavailable, do not substitute a plain-text question or infer permission. Continue only within existing authorization using a stated, evidence-backed assumption, and report a blocker for actions requiring new permission. Workflow-authored `ctx.ui` gates and `workflow answer` for relaying actual user responses remain supported.
+A cancelled or unanswered question is not approval. If no usable question tool is available, continue autonomously using best judgment and state evidence-backed assumptions rather than stopping just because the tool is missing. Preserve safety, authorization, and explicit approval gates. Workflow-authored `ctx.ui` gates and `workflow answer` for relaying actual user responses remain supported.
 
 ## Persisted tool output
 

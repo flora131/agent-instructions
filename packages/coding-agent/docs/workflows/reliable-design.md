@@ -92,9 +92,9 @@ Revise the remaining-time estimate at lifecycle updates only when new evidence m
 
 ### Questions and approvals
 
-All agent-authored questions to the user must use `ask_user_question` instead of plain text, including clarification, confirmation, and permission to proceed. Do not append a prose-only "Proceed?" to a status update. Ask only for needed decisions, not repeat approval of already-authorized work. See the [question tool guidance and confirmation example](/tools#ask_user_question).
+When `ask_user_question` or an equivalent question tool is available, all agent-authored questions to the user must use that tool instead of plain text, including clarification, confirmation, and permission to proceed. Prefer `ask_user_question` when available; otherwise follow the equivalent tool's supported schema. In these sessions, do not append a prose-only "Proceed?" to a status update. Ask only for needed decisions, not repeat approval of already-authorized work. See the [question tool guidance and confirmation example](/tools#ask_user_question).
 
-Workflow-authored `ctx.ui` gates remain supported. `workflow answer` relays an actual user response to a pending prompt; it does not grant authority to choose an approval on the user's behalf. Intercom questions are for agents, not a substitute for user approval. If the tool or human input is unavailable, continue only within existing authorization using a stated, evidence-backed assumption. A cancelled or unanswered question is not approval. Keep actions requiring new permission or a budget increase blocked.
+Workflow-authored `ctx.ui` gates remain supported. `workflow answer` relays an actual user response to a pending prompt; it does not grant authority to choose an approval on the user's behalf. Intercom questions are for agents, not a substitute for user approval. If no usable question tool is available, continue autonomously using best judgment and record evidence-backed assumptions. Tool unavailability alone is not a blocker. Preserve safety, authorization, explicit approval gates, and budget limits. A cancelled or unanswered question is not approval.
 
 ### Stage model and thinking-level assignment
 

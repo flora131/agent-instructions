@@ -118,14 +118,16 @@ describe("built-in tool system prompt contributions", () => {
 		const definition = createAskUserQuestionToolDefinition();
 		const guidelines = definition.promptGuidelines?.join("\n") ?? "";
 		for (const text of [definition.description, guidelines]) {
-			expect(text).toContain("All questions to the user must use ask_user_question instead of plain text");
+			expect(text).toContain("When ask_user_question or an equivalent question tool is available");
+			expect(text).toContain("all questions to the user must use that tool instead of plain text");
+			expect(text).toContain("Prefer ask_user_question when available");
 			expect(text).toContain("Proceed?");
 			expect(text).toContain("explicit proceed and decline options");
 			expect(text).toContain("A cancelled or unanswered question is not approval");
-			expect(text).toContain("do not substitute a plain-text question");
+			expect(text).toContain("If no usable question tool is available, continue autonomously using best judgment");
 		}
 		expect(guidelines).toContain("do not seek approval again for already-authorized work");
-		expect(guidelines).toContain("report a blocker for actions that require new permission");
+		expect(guidelines).toContain("Tool unavailability alone is not a blocker");
 		expect(definition.promptSnippet).toContain("Ask all user questions through this tool");
 	});
 

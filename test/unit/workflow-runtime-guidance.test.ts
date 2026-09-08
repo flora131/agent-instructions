@@ -59,14 +59,18 @@ for (const contract of contracts) {
 	});
 }
 
-test("user questions require the tool while unavailable approval remains blocked", () => {
+test("uses available question tools and continues autonomously when none is usable", () => {
 	for (const phrase of [
-		"All agent-authored questions to the user must use `ask_user_question`",
+		"When `ask_user_question` or an equivalent question tool is available",
+		"all agent-authored questions to the user must use that tool instead of plain text",
+		"Prefer `ask_user_question` when available; otherwise use the equivalent tool's supported schema",
 		"never end a status or final message with a prose-only question",
 		"This does not replace workflow-authored `ctx.ui` gates",
 		"relaying an actual user response to a pending prompt",
-		"A missing tool, headless session, cancellation, or unanswered question is not approval",
-		"keep actions requiring new permission or a budget increase blocked",
+		"no usable question tool exists",
+		"continue fully autonomously on best judgment",
+		"Tool unavailability alone is not a blocker",
+		"Preserve explicit approval gates, safety, authorization, and budget limits",
 	]) {
 		assert.ok(guidance.includes(phrase), `model guidance missing: ${phrase}`);
 	}
