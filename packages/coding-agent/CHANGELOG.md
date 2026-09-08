@@ -29,6 +29,7 @@
 
 ### Fixed
 
+- Fixed Herdr reporting idle while standalone subagents or background shell tasks are running. The parent reporter now observes owner-scoped task activity and reattaches on reload, retaining working status until all tasks settle without granting children pane ownership.
 - Open subagent transcripts now refresh from live session events, including streaming text and partial/final tool results. Shell transcript reads coalesce pending state updates instead of requiring the view to be reopened.
 - Discarded stale command detail results and read errors after task selection, focus, or inspector lifetime changes, preventing another task's output from appearing in the current view ([#2908](https://github.com/bastani-inc/atomic/pull/2908)).
 - Connected isolated interactive sessions to the engine's compact background-task indicator below the prompt box and command-opened `/tasks` inspector instead of opening an empty host-local task owner. Added `/tasks` autocomplete and live subagent activity, tool/token counts, and response previews inside task details.

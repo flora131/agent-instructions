@@ -12,6 +12,7 @@ export interface SessionActivity {
 
 export interface SessionActivityInput {
 	agentRunning: boolean;
+	tasksRunning?: boolean;
 	openPromptCount: number;
 	roots: readonly WorkflowRootActivity[];
 	availability: "ready" | "recovering" | "unavailable";
@@ -20,7 +21,7 @@ export interface SessionActivityInput {
 export function deriveSessionActivity(input: SessionActivityInput): SessionActivity | undefined {
 	const working = input.roots.find((root) => root.state === "working");
 	const attention = input.roots.some((root) => root.needsAttention || root.state === "blocked");
-	if (working || (input.agentRunning && input.openPromptCount === 0)) {
+	if (working || input.tasksRunning || (input.agentRunning && input.openPromptCount === 0)) {
 		return {
 			state: "working",
 			reason: working?.reason ?? "executing",
