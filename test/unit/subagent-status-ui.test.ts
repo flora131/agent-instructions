@@ -198,3 +198,23 @@ test("status disclosure hint respects custom and unbound expand keys", () => {
 		setKeybindings(previous);
 	}
 });
+
+test("expanded status preserves empty run identities alongside populated runs", () => {
+	initTheme("dark");
+	for (const groups of [[group("empty", 0)], [group("empty", 0), group("active")]]) {
+		const expanded = plain(render(groups, true));
+		assert.match(expanded, /Run empty\s+No subagents/);
+		assert.doesNotMatch(plain(render(groups)), /Run empty/);
+	}
+	assert.match(plain(render([], true)), /No subagents/);
+	const control = createSubagentControl({ path: "empty-native-parent", depth: 0 });
+	registerSubagentControl(control);
+	try {
+		const inspection = inspectInProcessChildStatus(control.parent.path);
+		assert.deepEqual(inspection?.content, [{ type: "text", text: "Parent: empty-native-parent" }]);
+		assert.deepEqual(inspection?.details?.statusGroups, [{ parentPath: "empty-native-parent", children: [] }]);
+		assert.match(plain(render(inspection!.details!.statusGroups!, true)), /Run empty-native-parent/);
+	} finally {
+		unregisterSubagentControl(control);
+	}
+});

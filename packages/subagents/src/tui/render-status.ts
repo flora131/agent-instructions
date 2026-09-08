@@ -42,16 +42,20 @@ function childStatusLines(
 
 function statusLines(groups: SubagentStatusGroup[], expanded: boolean, theme: Theme, width: number): string[] {
 	const total = groups.reduce((sum, group) => sum + group.children.length, 0);
-	if (total === 0) return [theme.fg("muted", "No subagents")];
 	const lines = total > 1 ? [theme.fg("muted", `${total} agents`)] : [];
 	let shown = 0;
 	for (const group of groups) {
 		const children = expanded ? group.children : group.children.slice(0, COMPACT_CHILD_LIMIT - shown);
-		if (!children.length) continue;
-		if (groups.length > 1) lines.push(theme.fg("dim", `Run ${displayText(group.parentPath)}`));
-		lines.push(...children.flatMap((child) => childStatusLines(child, expanded, theme, width)));
+		if (!children.length && !expanded) continue;
+		if (groups.length > 1 || !children.length) lines.push(theme.fg("dim", `Run ${displayText(group.parentPath)}`));
+		lines.push(
+			...(children.length
+				? children.flatMap((child) => childStatusLines(child, expanded, theme, width))
+				: [theme.fg("muted", "  No subagents")]),
+		);
 		shown += children.length;
 	}
+	if (!lines.length) lines.push(theme.fg("muted", "No subagents"));
 	if (shown < total) lines.push(theme.fg("muted", `… ${total - shown} more agents`));
 	const hint = !expanded && keyHintIfBound("app.tools.expand", "to expand");
 	if (hint) lines.push(theme.fg("dim", hint));
