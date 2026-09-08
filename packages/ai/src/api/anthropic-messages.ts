@@ -1703,6 +1703,61 @@ function shouldUseFineGrainedToolStreamingBeta(model: Model<"anthropic-messages"
 	return !!context.tools?.length && !getAnthropicCompat(model).supportsEagerToolInputStreaming;
 }
 
+type ToolSchemaObject = {
+	type?: string | string[];
+	properties?: Record<string, unknown>;
+	required?: string[];
+	anyOf?: ToolSchemaObject[];
+};
+
+function projectObjectUnionForAnthropic(
+	schema: ToolSchemaObject,
+): { properties: Record<string, unknown>; required: string[] } | undefined {
+	if (schema.properties !== undefined || !Array.isArray(schema.anyOf) || schema.anyOf.length === 0) return undefined;
+	const branches = schema.anyOf;
+	if (
+		!branches.every(
+			(branch) =>
+				(branch.type === undefined ||
+					branch.type === "object" ||
+					(Array.isArray(branch.type) &&
+						branch.type.length > 0 &&
+						branch.type.every((type) => type === "object"))) &&
+				branch.properties !== undefined,
+		)
+	)
+		return undefined;
+
+	const variantsByKey = new Map<string, unknown[]>();
+	for (const branch of branches) {
+		for (const [key, propertySchema] of Object.entries(branch.properties ?? {})) {
+			const variants = variantsByKey.get(key);
+			if (variants === undefined) {
+				variantsByKey.set(key, [propertySchema]);
+				continue;
+			}
+			const serialized = JSON.stringify(propertySchema);
+			if (!variants.some((variant) => variant === propertySchema || JSON.stringify(variant) === serialized)) {
+				variants.push(propertySchema);
+			}
+		}
+	}
+
+	const properties: Record<string, unknown> = Object.fromEntries(
+		[...variantsByKey].flatMap(([key, variants]) => {
+			const first = variants[0];
+			return first === undefined ? [] : [[key, variants.length === 1 ? first : { anyOf: variants }]];
+		}),
+	);
+
+	return {
+		properties,
+		required: (branches[0]?.required ?? []).filter((key) =>
+			branches.every((branch) => (branch.required ?? []).includes(key)),
+		),
+	};
+}
+
 function convertTools(
 	tools: Tool[],
 	isOAuthToken: boolean,
@@ -1716,14 +1771,17 @@ function convertTools(
 	return tools.map((tool, index) => {
 		const strict = resolveJsonSchemaStrictSampling(tool, supportsStrictTools);
 		const parameters = getJsonSchemaToolParameters(tool, strict);
-		const schema = parameters as { properties?: unknown; required?: string[] };
+		const schema = parameters as ToolSchemaObject;
+		// Anthropic rejects top-level combinators, so project object-union fields for advertising only.
+		// Local runtime validation still enforces the complete authored union without mutating it.
+		const projectedUnion = projectObjectUnionForAnthropic(schema);
 		const legacyInputSchema = {
 			type: "object" as const,
-			properties: schema.properties ?? {},
-			required: schema.required ?? [],
+			properties: projectedUnion?.properties ?? schema.properties ?? {},
+			required: projectedUnion?.required ?? schema.required ?? [],
 		};
 		const inputSchema =
-			strict === true
+			strict === true && projectedUnion === undefined
 				? {
 						...(parameters as Record<string, unknown>),
 						...legacyInputSchema,
