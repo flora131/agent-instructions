@@ -4,6 +4,7 @@ import { stripVTControlCharacters } from "node:util";
 import {
 	Container,
 	getKeybindings,
+	type OverlayHandle,
 	ScrollView,
 	setKeybindings,
 	Text,
@@ -16,6 +17,11 @@ import type { ExtensionUIContext } from "../../packages/coding-agent/src/core/ex
 import { KeybindingsManager } from "../../packages/coding-agent/src/core/keybindings.js";
 import { SessionManager } from "../../packages/coding-agent/src/core/session-manager.js";
 import { bindOwnerTaskStore } from "../../packages/coding-agent/src/core/tasks/owner-store.js";
+import {
+	createAskUserQuestionToolDefinition,
+	QUESTIONNAIRE_OVERLAY_OPTIONS,
+} from "../../packages/coding-agent/src/core/tools/ask-user-question/ask-user-question.js";
+import { isQuestionnaireResult } from "../../packages/coding-agent/src/core/tools/ask-user-question/tool/types.js";
 import { CustomEditor } from "../../packages/coding-agent/src/modes/interactive/components/custom-editor.ts";
 import { FooterComponent } from "../../packages/coding-agent/src/modes/interactive/components/footer.js";
 import {
@@ -86,7 +92,8 @@ async function mountMainInspector(isolated: boolean, populated = true) {
 	editor = new CustomEditor(tui, getEditorTheme(), keys);
 	const editorContainer = new Container();
 	editorContainer.addChild(editor);
-	const document = new Text(Array.from({ length: 100 }, (_, i) => `MAIN-CHAT-${i}`).join("\n"), 0, 0);
+	const document = new Container();
+	document.addChild(new Text(Array.from({ length: 100 }, (_, i) => `MAIN-CHAT-${i}`).join("\n"), 0, 0));
 	const scroll = new ScrollView(document, { follow: "end", primary: true });
 	const statuses = new Map([["mcp", "MCP: 0/1 servers"]]);
 	const footerData = {
@@ -143,6 +150,8 @@ async function mountMainInspector(isolated: boolean, populated = true) {
 		editor,
 		defaultEditor: editor,
 		editorContainer,
+		documentContainer: document,
+		transcriptScrollView: scroll,
 		keybindings: keys,
 		firstSubmitRecorded: true,
 		blockingInlineCustomUiDepth: 0,
@@ -672,3 +681,166 @@ for (const isolated of [false, true]) {
 		});
 	}
 }
+
+for (const isolated of [false, true]) {
+	for (const transcript of [false, true]) {
+		for (const questionFirst of [false, true]) {
+			test(`${isolated ? "isolated engine" : "in-process"} ${transcript ? "transcript" : "/tasks"} owns Escape with a questionnaire opened ${questionFirst ? "before" : "during"} navigation`, async () => {
+				const previous = getKeybindings();
+				const host = await mountMainInspector(isolated);
+				const tool = createAskUserQuestionToolDefinition();
+				const abort = new AbortController();
+				const custom = host.service
+					? host.service.custom.bind(host.service)
+					: host.mode.showExtensionCustom.bind(host.mode);
+				let settled = false;
+				let question: ReturnType<typeof tool.execute> | undefined;
+				let navigation = host.completion;
+				const openQuestion = async () => {
+					question = tool.execute(
+						"focus-question",
+						{
+							questions: [
+								{
+									header: "Approach",
+									question: "Which approach?",
+									options: [
+										{ label: "Alpha", description: "First approach" },
+										{ label: "Beta", description: "Second approach" },
+									],
+								},
+							],
+						},
+						abort.signal,
+						() => {},
+						{
+							hasUI: true,
+							ui: { custom },
+						} as Parameters<typeof tool.execute>[4],
+					);
+					void question.then(
+						() => {
+							settled = true;
+						},
+						() => {},
+					);
+					await flush();
+				};
+				try {
+					if (questionFirst) {
+						await host.input("\x1b");
+						await navigation;
+						await openQuestion();
+						await host.input("\x1b[B"); // Preserve the selected answer across navigation.
+						navigation = showEngineTaskInspector(host.session, { custom });
+						await flush();
+					}
+					if (transcript) {
+						await host.input("\x05");
+						await host.input("\x05");
+					}
+					if (!questionFirst) await openQuestion();
+					assert.match(
+						stripVTControlCharacters((await host.paint()).join("\n")),
+						transcript ? /^Transcript/ : /Background tasks/,
+					);
+					if (transcript) {
+						await host.input("\x1b");
+						assert.equal(settled, false, "transcript Escape must not cancel the questionnaire");
+						assert.match(stripVTControlCharacters((await host.paint()).join("\n")), /Inspect transcript/);
+						await host.input("\x1b");
+						assert.equal(settled, false, "detail Escape must not cancel the questionnaire");
+						assert.match(stripVTControlCharacters((await host.paint()).join("\n")), /Background tasks/);
+					}
+					await host.input("\x1b");
+					assert.equal(settled, false, "task Escape must not cancel the pending questionnaire");
+					await navigation;
+					assert.match(stripVTControlCharacters((await host.paint()).join("\n")), /Which approach/);
+					await host.input(questionFirst ? "\r" : "\x1b");
+					const result = await question;
+					assert.ok(isQuestionnaireResult(result?.details));
+					if (questionFirst) assert.equal(result.details.answers[0].answer, "Beta");
+					else assert.equal(result.details.cancelled, true, "standalone questionnaire Escape still cancels");
+					assert.equal(host.fixture.runners[0].context.signal.aborted, false);
+					assert.equal(host.tui.getFocusedComponent(), host.editor);
+					assert.equal(host.hostFallbacks, 0);
+				} finally {
+					abort.abort();
+					await question?.catch(() => {});
+					await host.dispose();
+					setKeybindings(previous);
+				}
+			});
+		}
+	}
+}
+
+test("navigation does not reveal a reserving prompt hidden by its caller", async () => {
+	const previous = getKeybindings();
+	const host = await mountMainInspector(false);
+	let handle: OverlayHandle | undefined;
+	let finish = () => {};
+	const prompt = host.mode.showExtensionCustom<void>(
+		(_tui, _theme, _keys, done) => {
+			finish = done;
+			return new Text("Manually hidden prompt", 0, 0);
+		},
+		{
+			overlay: true,
+			reserveTranscriptRows: true,
+			overlayOptions: QUESTIONNAIRE_OVERLAY_OPTIONS,
+			onHandle: (value) => {
+				handle = value;
+				value.setHidden(true);
+			},
+		},
+	);
+	try {
+		await flush();
+		await host.input("\x1b");
+		await host.completion;
+		assert.ok(handle);
+		assert.ok(handle.isHidden(), "leaving navigation must respect caller visibility");
+		assert.equal(host.tui.hasOverlay(), false);
+		handle.setHidden(false);
+		await host.paint();
+		assert.equal(handle.isFocused(), true);
+		assert.equal(host.tui.hasOverlay(), true);
+	} finally {
+		finish();
+		await prompt;
+		await host.dispose();
+		setKeybindings(previous);
+	}
+});
+
+test("a reserving prompt removed in onHandle cannot reclaim focus after navigation", async () => {
+	const previous = getKeybindings();
+	const host = await mountMainInspector(false);
+	let finish = () => {};
+	const prompt = host.mode.showExtensionCustom<void>(
+		(_tui, _theme, _keys, done) => {
+			finish = done;
+			return new Text("Removed prompt", 0, 0);
+		},
+		{
+			overlay: true,
+			reserveTranscriptRows: true,
+			overlayOptions: QUESTIONNAIRE_OVERLAY_OPTIONS,
+			onHandle: (handle) => handle.hide(),
+		},
+	);
+	try {
+		await flush();
+		await host.input("\x1b");
+		await host.completion;
+		assert.equal(host.tui.getFocusedComponent() === host.editor, true, "removed prompt must never regain input");
+		await host.input("draft");
+		assert.equal(host.editor.getText(), "draft");
+	} finally {
+		finish();
+		await prompt;
+		await host.dispose();
+		setKeybindings(previous);
+	}
+});
