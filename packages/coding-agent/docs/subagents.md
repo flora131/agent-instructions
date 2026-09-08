@@ -15,6 +15,8 @@ Background subagents are supported. See [Background tasks](/background-tasks) fo
 
 Open `/agents` to browse the available project, user, and built-in agents. Type to filter by name, description, or source. Use arrows to select an agent and Enter to inspect its description, model and fallbacks, tools, definition path, and system prompt. Escape returns to the catalog, then to chat. `/agents <query>` starts with a filter. Browsing is read-only and never launches an agent.
 
+The catalog is navigation, not an approval prompt. Leaving it open does not mark [Herdr](/herdr) blocked or hide active agent work; separate user-decision prompts still report their normal waits.
+
 The catalog uses the same effective discovery rules as execution, so overridden definitions and disabled agents are not offered as separate launchable choices. Ask Atomic to create or modify an agent; the catalog does not change configuration.
 
 ## Task inspection

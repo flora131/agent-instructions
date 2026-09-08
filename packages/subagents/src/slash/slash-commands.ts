@@ -13,16 +13,19 @@ export function registerSlashCommands(pi: ExtensionAPI, _state: SubagentState): 
 				return;
 			}
 			const { agents } = discoverAgents(ctx.cwd, "both");
-			await ctx.ui.custom<void>((tui, theme, _keys, done) => {
-				const browser = new AgentBrowser(
-					agents,
-					theme,
-					() => done(),
-					() => tui.terminal.rows,
-					args.trim(),
-				);
-				return browser;
-			});
+			await ctx.ui.custom<void>(
+				(tui, theme, _keys, done) => {
+					const browser = new AgentBrowser(
+						agents,
+						theme,
+						() => done(),
+						() => tui.terminal.rows,
+						args.trim(),
+					);
+					return browser;
+				},
+				{ purpose: "navigation" },
+			);
 		},
 	});
 }
