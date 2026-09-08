@@ -206,8 +206,8 @@ The initial job caps used the latest two completed CI runs available at calibrat
 [33997819241](https://github.com/bastani-inc/atomic/actions/runs/33997819241)
 (PR, `bafc6ebd17`). Both succeeded. Run `33998194502` was still in progress
 and was excluded rather than treating unfinished durations as measurements.
-Those samples and caps remain unchanged except for Windows release archive,
-whose September 6 recalibration uses the explicitly identified runs below.
+Those samples and caps remain unchanged except for Windows release archive
+and integration tests, whose recalibrations use the explicitly identified runs below.
 
 For each job/platform, the cap in minutes is
 `ceil(max(run_1_seconds, run_2_seconds) × 1.5 / 60)`. Durations come from
@@ -217,10 +217,10 @@ over the observed duration, not over an unobserved completion after a timeout.
 
 | Job | Platform | Sample 1 (33997174167 unless noted) | Sample 2 (33997819241 unless noted) | Timeout |
 | --- | --- | ---: | ---: | ---: |
-| Unit tests | Linux | 371 s | 367 s | 10 min |
+| Unit tests | Linux | 618 s (34147316169; timeout-censored during the bounded flake retry) | 371 s | 14 min (formula gives 16; bounded by the 14-minute hang-detector maximum) |
 | Unit tests | Windows | 526 s | 511 s | 14 min |
-| Integration tests | Linux | 112 s | 118 s | 3 min |
-| Integration tests | Windows | 195 s | 195 s | 5 min |
+| Integration tests | Linux | 145 s (34142104101; success) | 118 s | 4 min |
+| Integration tests | Windows | 305 s (34142104101; timeout-censored) | 195 s | 8 min |
 | Agent suite | Linux | 226 s | 216 s | 6 min |
 | Agent suite | Windows | 331 s | 327 s | 9 min |
 | Release archive | Linux | 76 s | 80 s | 2 min |
@@ -231,6 +231,19 @@ over the observed duration, not over an unobserved completion after a timeout.
 
 Both final gate legs execute on Linux. The topology contract pins the caps and
 the sampled matrix-job maxima used to calculate them.
+
+For the S1 task supervisor suites in PR #2902, run `34142104101` measured
+[Linux integration job 101806128732](https://github.com/bastani-inc/atomic/actions/runs/34142104101/job/101806128732)
+at 145 s and
+[Windows integration job 101806127937](https://github.com/bastani-inc/atomic/actions/runs/34142104101/job/101806127937)
+at 305 s. The Windows first attempt failed the callback fixture's wake/poll
+ordering assertion; its bounded retry then exceeded the 5-minute job cap.
+That fixture ordering is repaired separately without changing runtime behavior
+or per-test budgets. Applying the same policy gives 4 minutes for Linux and
+8 minutes for Windows. The Windows sample is timeout-censored, like the
+release-archive sample below; it does not establish an uncapped completion time
+or guarantee retry headroom. Both result-gate failures came from this cancelled
+Windows work job, not separate Linux and Windows test assertions.
 
 The Windows release-archive cap previously used 138 s / 135 s samples, yielding
 4 minutes. In PR #2887, [run 34035777039, job 101493452122](https://github.com/bastani-inc/atomic/actions/runs/34035777039/job/101493452122)
@@ -256,8 +269,9 @@ Retaining both latest observations gives `ceil(max(244, 149) × 1.5 / 60) = 7`
 minutes for Windows only. The successful run demonstrates completion with
 headroom; it does not erase the slower observation or prove cold-cache/retry
 headroom. The 244 s sample remains timeout-censored, not a successful uncapped
-duration. Linux's 2-minute cap, all other job caps, the 14-minute hang-detector
-ceiling, required contexts, smoke tests and per-test thresholds are unchanged.
+duration. That release-archive recalibration left Linux's 2-minute cap, the
+other job caps, the 14-minute hang-detector ceiling, required contexts, smoke
+tests and per-test thresholds unchanged.
 
 These are two-run wall-clock limits, not a guarantee that a full suite retry or
 a cold-cache toolchain download will fit. Bounded retries remain enabled but

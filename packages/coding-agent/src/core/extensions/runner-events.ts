@@ -102,6 +102,7 @@ export async function runGenericHandlers<TEvent extends RunnerEmitEvent>(
 	ctx: ExtensionContext,
 	event: TEvent,
 	emitError: EmitExtensionError,
+	isCurrent?: () => boolean,
 ): Promise<RunnerEmitResult<TEvent>> {
 	let result: SessionBeforeEventResult | undefined;
 
@@ -110,10 +111,13 @@ export async function runGenericHandlers<TEvent extends RunnerEmitEvent>(
 		if (!handlers || handlers.length === 0) continue;
 
 		for (const handler of handlers) {
+			// Workflow publishers can retire while a previous handler awaits.
+			if (isCurrent && !isCurrent()) return result as RunnerEmitResult<TEvent>;
 			try {
 				const handlerResult = await runCallback(
 					{ kind: "extension.hook", name: event.type, sourcePath: ext.path },
-					() => handler(event, ctx),
+					// Activity reporting may yield again before invoking the callback.
+					() => (!isCurrent || isCurrent() ? handler(event, ctx) : undefined),
 				);
 				if (isSessionBeforeEvent(event) && handlerResult) {
 					result = handlerResult as SessionBeforeEventResult;

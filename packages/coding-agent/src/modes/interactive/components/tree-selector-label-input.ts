@@ -1,6 +1,6 @@
 import { type Component, type Focusable, getKeybindings, Input, truncateToWidth } from "@earendil-works/pi-tui";
-import { theme } from "../theme/theme.ts";
-import { keyHint } from "./keybinding-hints.ts";
+import { theme } from "../theme/theme.js";
+import { keyHint } from "./keybinding-hints.js";
 
 /** Label input component shown when editing a label */
 export class LabelInput implements Component, Focusable {

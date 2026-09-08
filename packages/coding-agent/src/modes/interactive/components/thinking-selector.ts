@@ -11,9 +11,9 @@ import {
 	Spacer,
 	Text,
 } from "@earendil-works/pi-tui";
-import { getSelectListTheme, theme } from "../theme/theme.ts";
+import { getSelectListTheme, theme } from "../theme/theme.js";
 import { DynamicBorder } from "./dynamic-border.ts";
-import { keyDisplayText } from "./keybinding-hints.ts";
+import { keyDisplayText } from "./keybinding-hints.js";
 
 const THINKING_SELECT_LIST_LAYOUT: SelectListLayoutOptions = { minPrimaryColumnWidth: 12, maxPrimaryColumnWidth: 32 };
 const LEVEL_DESCRIPTIONS: Record<ThinkingLevel, string> = {

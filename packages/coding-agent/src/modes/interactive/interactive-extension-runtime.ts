@@ -29,6 +29,7 @@ InteractiveModeBase.prototype.setupExtensionShortcuts = function (
 
 	// Create a context for shortcut handlers
 	const createContext = (): ExtensionContext => ({
+		observeWorkflowActivity: (observer) => extensionRunner.createContext().observeWorkflowActivity(observer),
 		ui: extensionRunner.getUIContext(),
 		mode: "tui",
 		hasUI: true,

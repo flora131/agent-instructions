@@ -243,6 +243,8 @@ function entryContentCacheKey<TExtraEntry extends ChatTranscriptEntryLike>(
 ): string {
 	if (!isChatMessageEntry(entry)) return cacheKey(["extra"]);
 	switch (entry.kind) {
+		case "task":
+			return cacheKey(["task", renderIdentityKey(state, entry.task), entry.duplicate]);
 		case "assistant":
 			return cacheKey(["assistant", renderIdentityKey(state, entry.message)]);
 		case "tool":

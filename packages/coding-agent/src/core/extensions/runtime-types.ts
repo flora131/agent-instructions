@@ -21,6 +21,7 @@ import type {
 } from "./message-types.ts";
 import type { ProviderConfig } from "./provider-types.ts";
 import type { ToolDefinition, ToolInfo } from "./tool-types.ts";
+import type { WorkflowActivityHub } from "./workflow-activity-hub.js";
 
 export interface RegisteredTool {
 	definition: ToolDefinition;
@@ -88,6 +89,8 @@ export type SetLabelHandler = (entryId: string, label: string | undefined) => vo
  * Contains flag values (defaults set during registration, CLI values set after).
  */
 export interface ExtensionRuntimeState {
+	/** Shared by extension loading and its runner generation. */
+	workflowActivityHub: WorkflowActivityHub;
 	flagValues: Map<string, boolean | string>;
 	explicitFlagNames?: Set<string>;
 	/** Extension path that owns each active flag registration. */

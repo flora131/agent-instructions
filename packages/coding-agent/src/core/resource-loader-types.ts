@@ -1,4 +1,4 @@
-import type { Theme } from "../modes/interactive/theme/theme.ts";
+import type { Theme } from "../modes/interactive/theme/theme.js";
 import type { ResourceDiagnostic } from "./diagnostics.ts";
 import type { EventBus } from "./event-bus.ts";
 import type { InlineExtension, LoadExtensionsResult } from "./extensions/types.ts";
@@ -27,6 +27,8 @@ export interface ResourceLoaderReloadOptions {
 	 * resources before a later full reload() completes.
 	 */
 	deferResources?: boolean;
+	/** Publish trust-safe extensions now; complete trust after binding a live session and UI. */
+	deferProjectTrust?: (complete: () => Promise<void>) => void;
 	resolveProjectTrust?: (options: { extensionsResult: LoadExtensionsResult }) => boolean | Promise<boolean>;
 	resolveBorrowedProjectTrust?: (options: {
 		source: string;

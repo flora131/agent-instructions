@@ -6,11 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Connected workflow activity to the host extension observer stream, independently of lifecycle-notification settings and attribution filters. Root activity is projected from workflow snapshots plus run-qualified runtime execution ownership: nested runs fold into full root replacements; independent execution is distinguished from human waits; runnable handoffs, retries, stop draining, pauses, and acknowledged failures are accounted for without treating historical running stages as execution. Tool-only execution, parallel human-input waits, pause, cancellation drain, and unresolved failures publish root activity replacements; late attachment receives current state, and durable hydration announces recovering before ready. Typed lifecycle hooks cover run, stage, tool, prompt, and control transitions with canonical nested identities; successful-stage completion hooks exclude failed/skipped outcomes, explicit execution replay is tagged, and restored history creates no synthetic completions. Heartbeat hooks follow the existing configured cadence without adding timers or graph nodes. Because the workflows extension publishes root activity to the host, Atomic's built-in Herdr reporter reflects workflow execution and human-input waits in the owning pane; the end-to-end path is covered by an integration test against a fake Herdr CLI ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).
+- Attached stage chats now suggest stage-local `/skill:` commands with source metadata, qualified selectors, and refreshed catalogs after resource reload. Idle, steering, and follow-up submissions reuse session expansion once, retain stage admission and HIL ownership, and show skill diagnostics locally. Explicit editable post-mortem chats can invoke skills without reopening workflow execution.
+- `StageSendUserMessageOptions.expandPromptTemplates` opts native stage-session delivery into existing command and skill/template expansion; ordinary programmatic messages remain literal by default.
+- Attached stage chats render a bound owner task store through the shared chat host, keeping task activity separate from pending launch-tool replay and retaining the compact task footer after the launch row scrolls away. This requires the stage producer to bind its owner store ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+
+### Changed
+
+- `/tasks` in an attached stage chat opens the shared owner-bound inspector without entering model context, including during interrupt settlement. Task focus exits before the ordinary stage Escape action, and mounted human-input prompts retain input priority ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+
 ### Fixed
 
+- Paused stage skill submissions retain Enter versus Ctrl+F delivery intent. Custom stage hosts without admission-aware user-message delivery now report invocation as unavailable rather than using an unguarded fallback.
+- Skill autocomplete reuses the attached stage session without writing durable checkpoints per keystroke. Concurrent lazy discovery requests share one attachment.
 - Same-name prompt/tool nodes no longer cause valid duplicate agent matches to be refused as non-agents. Live `ask` retains ambiguity diagnostics and name-based `send` retains sticky agent delivery ([#2895](https://github.com/bastani-inc/atomic/pull/2895)).
+- Keep a bound task footer visible beside mounted stage questions within the existing viewport budget, and apply the host's expansion setting consistently to task rows.
 - Preserve an ordinary stage's complete output artifact when a follow-up clarification arrives before completion. Completed answers from the same prompt generation remain ordered supplements, including executor continuations and close-time delivery, without copying earlier history or tool progress. Accepted answers survive context compaction and model fallback during a continuation; failed attempts cannot discard an earlier successful report. Tree navigation cannot import historical answers, and generation close stops capture of later retained-session chat. Completed artifact receipts stay stable under repeated finalization; structured output keeps its existing capture contract.
 - Discard provisional artifact answers from each failed same-model retry, preserving earlier accepted reports and only publishing the successful retry's answers.
+- Prevent workflow activity from briefly reporting idle between settled nodes and live author continuation. Historical, paused, blocked, and stopping runs do not gain continuation ownership ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).
+- Preserved workflow lifecycle `kill` events for already-aborted caller signals and report task-result checkpoint interrupts as `interrupt`, without changing their graceful paused outcome ([#2912](https://github.com/bastani-inc/atomic/pull/2912)).
+- Durable tool callbacks now wait for agent tasks they admit to reach terminal results before checkpointing. Yielded observations are replaced with terminal observations without changing the cancellation-before-persistence or commit-wins fences ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

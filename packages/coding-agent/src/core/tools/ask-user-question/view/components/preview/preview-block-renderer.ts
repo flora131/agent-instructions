@@ -1,5 +1,5 @@
 import type { MarkdownTheme } from "@earendil-works/pi-tui";
-import type { Theme } from "../../../../../../modes/interactive/theme/theme.ts";
+import type { Theme } from "../../../../../../modes/interactive/theme/theme.js";
 import type { QuestionData } from "../../../tool/types.ts";
 import {
 	MAX_PREVIEW_HEIGHT_SIDE_BY_SIDE,

@@ -176,6 +176,20 @@ At the supported 40-column terminal minimum, attached stage chats keep the `ctrl
 
 Human-in-the-loop prompts appear as awaiting-input nodes in the workflow graph, not as ordinary chat modals — see [Lifecycle Notices and Human Input](#lifecycle-notices-and-human-input) for how to find and answer them.
 
+### Skills in attached stage chats
+
+Use `/skill:<selector> [arguments]` in an editable stage composer, including qualified selectors such as `/skill:review@project`. Completion reads that stage's own resource catalog and `enableSkillCommands` setting, with the same source tags as main chat. The next completion request reflects a stage resource reload. If the host cannot expose stage command metadata, it reports discovery as unavailable instead of substituting main-chat resources.
+
+Enter starts an idle turn or steers a streaming turn; Ctrl+F preserves follow-up delivery. The command stays bound to the submitted stage even if you switch panes. Its session performs the existing expansion once, including the selected skill's location, candidate identity, base directory, and trimmed arguments. Relative skill references use the skill directory; tools retain the stage cwd and restrictions. Manually typed commands still work when suggestions are disabled. Unknown bare selectors pass through unchanged, while qualified-resolution and file-read errors appear in the attached chat.
+
+Mounted HIL and custom prompts take precedence: a `/skill:` answer is literal prompt input. Blocked stages, read-only archives, and replay do not admit skill messages. Explicit editable [post-mortem chat](#post-mortem-chat-vs-execution-resume) can use its own skills, but cannot revive a workflow node or change the completed DAG. Skill invocation grants no additional delegation or tool authority and does not forward unrelated commands to the parent chat.
+
+`/tasks` opens the owner task list locally, never a skill or model message. Enter inspects the selected task; focused actions offer retained transcript inspection, foreground waiting, confirmed cancellation, and stdin when available. Terminal tasks omit live actions. Escape leaves task or stdin focus before applying the ordinary stage Escape behavior. Mounted human-input prompts retain priority. An empty owner explains that launched agents and shells appear here.
+
+If inspection fails, the host displays the error and keeps your input for retry. It does not send the command to the model.
+
+The shared chat host owns this local-command dispatch, including during interrupt settlement. Its host callback is the task-inspector integration point; stage session extension commands named `/tasks` do not override this reserved view action. Skill completion itself reuses the attached session and does not checkpoint it on each keystroke. Tab also completes relative paths rooted at the stage session cwd; `@` file-mention suggestions are not available.
+
 ## Monitor and Control Runs
 
 The workflow tool exposes lifecycle controls for non-interactive use:
@@ -304,6 +318,26 @@ This reopens only the conversation. The workflow DAG and terminal stage snapshot
 Workflow stage sessions and first-party subagent transcripts created inside them are classified as **internal** at creation and excluded from the standard `/resume`, `atomic -r`, `--continue`, and global history surfaces. Fork-context stages and subagents inherit the owning run/stage marker in their initial JSONL header, avoiding a briefly visible ordinary session. Workflow stage sessions remain resumable and inspectable through the workflow-specific commands and tool actions shown here (`/workflow resume`, `/workflow attach`, `workflow({ action: "status" | "stages" | "stage" | "resume" })`), which read the run/stage store and its `sessionFile` links directly. Subagent transcripts remain artifacts only; no workflow command revives their terminal child identities.
 
 Passing a stage session's file path to `--session` still opens it explicitly. Classification requires exact `internal: true` plus complete run/stage metadata; malformed legacy markers and ordinary user forks remain in standard history. Legacy workflow sessions created before this marker behavior lack provable ownership and continue to appear until they age out.
+
+## Workflow activity for extensions
+
+Extensions can subscribe with `ctx.observeWorkflowActivity(observer)` and use the typed `workflow_lifecycle`, `workflow_activity_changed`, `workflow_stage_completed`, and `workflow_heartbeat` hooks. See [Workflow activity and lifecycle hooks](/extensions#workflow-activity-and-lifecycle-hooks) for the public types and subscription example.
+
+The workflows extension publishes activity for its owning session, folding nested runs into full root summaries. Observation is silent and independent of `workflowNotifications.enabled`, `notifyOn`, and the user/agent attribution filters used by chat notices. It neither wakes the model nor adds graph nodes. The built-in [Herdr reporter](/herdr) is one consumer: it reports these root states, combined with agent and approval-prompt activity, to the owning Herdr pane (see its [compatibility matrix](/herdr#compatibility)).
+
+| Runtime situation | Root activity |
+| --- | --- |
+| A stage or `ctx.tool` is executing | `working` |
+| One branch waits for human input while another executes | `working`, with `needsAttention: true` |
+| Only human input can advance the workflow | `blocked / awaiting_input` |
+| An unresolved failure requires intervention | `blocked / manual_intervention` |
+| Paused with no execution draining | `idle / paused` |
+| Quit or cancellation requested while work drains | `working / stopping`; independent sibling execution retains its own working reason |
+| Execution completed or intentionally stopped | `idle` |
+
+Registration delivers an ordered initial snapshot, followed by structurally changed root replacements and removals. Late attachment reconstructs current activity; historical `running` records alone are not evidence of live execution. Durable catalog/resume hydration publishes `recovering` before awaiting the backend and `ready` afterwards. `recovering` and `unavailable` are unknown source states, not empty ready snapshots: do not interpret them as idle.
+
+Lifecycle targets identify runs, stages, tools, and prompts. Nested stage/tool ids use the expanded graph's `runId:nodeId` identity; `runId` still names the actual owning run and `rootRunId` names the aggregate. Control requests carry `action` and remain distinct from the status outcome. Prompt cancellation is not an answer. The completion convenience hook shares its event id with the corresponding successful stage lifecycle event and excludes failed/skipped stages. Only an explicit execution replay publishes `delivery: "replay"`; reading restored history never manufactures completion hooks. Heartbeats observe the existing configured scheduler cadence and do not prove execution.
 
 ## Lifecycle Notices and Human Input
 

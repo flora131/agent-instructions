@@ -7,6 +7,7 @@ import type {
 	RegisteredCommand,
 	RegisteredTool,
 } from "./types.ts";
+import { WorkflowActivityHub } from "./workflow-activity-hub.js";
 
 export async function runResourceRegistrationBatch<T>(runtime: ExtensionRuntime, run: () => Promise<T>): Promise<T> {
 	if (!runtime.beginResourceRegistrationBatch || !runtime.endResourceRegistrationBatch) return run();
@@ -45,6 +46,7 @@ export function createExtensionRuntime(): ExtensionRuntime {
 	};
 
 	const runtime: ExtensionRuntime = {
+		workflowActivityHub: new WorkflowActivityHub(),
 		sendMessage: notInitialized,
 		sendMessages: notInitialized,
 		sendUserMessage: notInitialized,
@@ -216,6 +218,7 @@ export function createExtensionRuntime(): ExtensionRuntime {
 		invalidate: (message) => {
 			if (state.staleMessage) return;
 			state.staleMessage = message ?? STALE_EXTENSION_CONTEXT_MESSAGE;
+			runtime.workflowActivityHub.dispose();
 			for (const unsubscribe of eventBusUnsubscribers) unsubscribe();
 			eventBusUnsubscribers.clear();
 		},

@@ -15,9 +15,9 @@ import {
 } from "@earendil-works/pi-tui";
 import type { KeybindingsManager } from "../../../core/keybindings.ts";
 import { editInExternalEditor, resolveExternalEditorCommand } from "../external-editor.ts";
-import { getEditorTheme, theme } from "../theme/theme.ts";
+import { getEditorTheme, theme } from "../theme/theme.js";
 import { DynamicBorder } from "./dynamic-border.ts";
-import { keyHint } from "./keybinding-hints.ts";
+import { keyHint } from "./keybinding-hints.js";
 
 export class ExtensionEditorComponent extends Container implements Focusable {
 	private editor: Editor;

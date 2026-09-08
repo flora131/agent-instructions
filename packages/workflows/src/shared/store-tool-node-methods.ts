@@ -2,6 +2,7 @@ import { type StoreContext, TERMINAL_STATUSES } from "./store-internal.js";
 import type { Store } from "./store-public-types.js";
 import type { RunSnapshot, ToolNodeSnapshot } from "./store-types.js";
 import { boundedToolPayload } from "./tool-payload-bounds.js";
+import { workflowActivityNodeKey } from "./workflow-activity.js";
 
 type ToolNodeStoreMethods = Pick<Store, "recordToolNodeStart" | "recordToolNodeRunning" | "recordToolNodeEnd">;
 
@@ -30,6 +31,8 @@ export function createToolNodeStoreMethods(context: StoreContext): ToolNodeStore
 			if (node === undefined || node.status !== "pending") return false;
 			node.status = "running";
 			node.startedAt = startedAt;
+			if (context.observation.liveRunIds.has(runId))
+				context.observation.executingToolNodeIds.add(workflowActivityNodeKey(runId, nodeId));
 			context.bumpAndNotify();
 			return true;
 		},
@@ -43,6 +46,7 @@ export function createToolNodeStoreMethods(context: StoreContext): ToolNodeStore
 				node.status === "cancelled"
 			)
 				return false;
+			context.observation.executingToolNodeIds.delete(workflowActivityNodeKey(runId, nodeId));
 			node.status = update.status;
 			if (update.endedAt !== undefined) node.endedAt = update.endedAt;
 			if (update.durationMs !== undefined) node.durationMs = update.durationMs;

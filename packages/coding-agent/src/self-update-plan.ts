@@ -1,6 +1,6 @@
 import { Markdown } from "@earendil-works/pi-tui";
 import { APP_NAME, PACKAGE_NAME, VERSION } from "./config.js";
-import { getMarkdownTheme } from "./modes/interactive/theme/theme.ts";
+import { getMarkdownTheme } from "./modes/interactive/theme/theme.js";
 import {
 	formatVersionCheckError,
 	getLatestPiRelease,

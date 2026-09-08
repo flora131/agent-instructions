@@ -1,5 +1,5 @@
 import { truncateToWidth } from "@earendil-works/pi-tui";
-import type { Theme } from "../../../../../modes/interactive/theme/theme.ts";
+import type { Theme } from "../../../../../modes/interactive/theme/theme.js";
 import { OVERLAY_ACTIVE_ROW_MARKER } from "../../../../extensions/ui-types.ts";
 import type { StatefulView } from "../stateful-view.ts";
 

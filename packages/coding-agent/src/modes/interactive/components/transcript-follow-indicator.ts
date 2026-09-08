@@ -1,5 +1,5 @@
 import { type Component, hyperlink, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { theme } from "../theme/theme.ts";
+import { theme } from "../theme/theme.js";
 
 export const TRANSCRIPT_JUMP_TO_END_URL = "atomic-ui://transcript/jump-to-end";
 const FULL_RESET = "\x1b[0m";

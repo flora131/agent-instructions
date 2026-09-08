@@ -119,8 +119,12 @@ test("each split job retains its measured timeout hang detector", async () => {
 	// Runs 33997174167 / 33997819241, except Windows release-archive recalibrated for PR #2887:
 	// Run 34035777039, job 101493452122, was timeout-censored at 244s; run 34037177374 succeeded in 149s.
 	const caps: Record<string, [number, number]> = {
-		"unit-tests": [Math.ceil((371 * 1.5) / 60), Math.ceil((526 * 1.5) / 60)],
-		"integration-tests": [Math.ceil((118 * 1.5) / 60), Math.ceil((195 * 1.5) / 60)],
+		// Linux unit tests: run 34147316169, job 101822029919, was timeout-censored at 618s while its bounded
+		// flake retry re-ran the whole suite; the formula yields 16, bounded by the 14-minute hang detector.
+		"unit-tests": [Math.min(14, Math.ceil((618 * 1.5) / 60)), Math.ceil((526 * 1.5) / 60)],
+		// RFC #2884, run 34142104101: Linux job 101806128732 took 145s;
+		// Windows job 101806127937 was timeout-censored at 305s during its retry.
+		"integration-tests": [Math.ceil((145 * 1.5) / 60), Math.ceil((305 * 1.5) / 60)],
 		"agent-suite": [Math.ceil((226 * 1.5) / 60), Math.ceil((331 * 1.5) / 60)],
 		"release-archive": [Math.ceil((80 * 1.5) / 60), Math.ceil((244 * 1.5) / 60)],
 	};

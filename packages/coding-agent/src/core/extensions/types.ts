@@ -56,3 +56,4 @@ export type * from "./ui-types.ts";
  * removing it from the published surface.
  */
 export type ExtensionScopedModels = ExtensionContext["scopedModels"];
+export type * from "./workflow-events.js";

@@ -353,18 +353,30 @@ describe("workflow stage bundled resources", () => {
 				await session.bindExtensions({});
 				const tool = session.getToolDefinition("subagent");
 				assert.ok(tool, "workflow stages must register the subagent tool");
+				// RFC #2884 §5.2: a task-bound single launch returns an observation DTO, not the legacy
+				// `results[]` execution shape. A foreground wait settles on the in-process child result.
 				const result = await tool.execute(
 					"stage-delegation",
-					{ agent: "worker", task: "complete this test task", context: "fresh" } as never,
+					{
+						agent: "worker",
+						task: "complete this test task",
+						context: "fresh",
+						wait: { kind: "foreground", budgetMs: 60_000 },
+					} as never,
 					undefined,
 					undefined,
 					session.extensionRunner.createContext(),
 				);
 				const details = result.details as Details;
+				const response = details.taskResponse;
 				assert.ok(
-					details.results.some((child) => child.envelope?.includes("done") === true),
-					"the stage tool must return the in-process child result",
+					response?.kind === "admitted" && response.observation.kind === "settled",
+					`the stage tool must admit and settle the in-process child: ${JSON.stringify(response)}`,
 				);
+				const settled = response.observation.result;
+				assert.equal(settled.kind, "completed", "the stage tool must return the in-process child result");
+				// The in-process test child answers "done"; its terminal output is the settled output artifact.
+				assert.equal(settled.output?.byteCount, String(Buffer.byteLength("done")));
 			} finally {
 				session.dispose();
 			}
