@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { test } from "vitest";
+import { test, vi } from "vitest";
 import { AgentTaskHost } from "../../packages/coding-agent/src/core/tasks/agent-adapter.js";
 import type {
 	Cleanup,
 	OperationId,
+	SettlementReceipt,
 	TaskResult,
 	WaitPolicy,
 } from "../../packages/coding-agent/src/core/tasks/contracts.js";
@@ -258,3 +259,95 @@ for (const [label, policy, reason] of [
 		}
 	});
 }
+
+test("queued agent cancellation notifies once without dispatching a child", async () => {
+	const receipts: SettlementReceipt[] = [];
+	const owner = new AgentTaskHost({
+		scope: { kind: "session", sessionId: randomUUID() },
+		authorizeLaunch() {},
+		onTaskSettled: (_ref, receipt) => receipts.push(receipt),
+	});
+	let dispatch: (() => Promise<void>) | undefined;
+	let starts = 0;
+	try {
+		const started = await owner.startAgentTask(
+			intent,
+			operation(),
+			() => {
+				starts++;
+				throw new Error("cancelled queued child must not start");
+			},
+			(run) => {
+				dispatch = run;
+			},
+		);
+		assert.ok(started.ok);
+		assert.ok((await owner.observeAgentLaunch(started.value.taskId)).ok);
+		assert.ok((await owner.cancelTask(started.value.taskId, "user")).ok);
+		assert.ok(dispatch);
+		await dispatch();
+		await vi.waitFor(() => assert.equal(receipts.length, 1));
+		assert.equal(receipts[0].taskId, started.value.taskId);
+		assert.deepEqual(receipts[0].result, { kind: "cancelled", cause: "user" });
+		assert.ok((await owner.cancelTask(started.value.taskId, "shutdown")).ok);
+		assert.ok((await owner.close("session-close")).ok);
+		assert.equal(receipts.length, 1);
+		assert.equal(starts, 0);
+	} finally {
+		await owner.close("session-close");
+	}
+});
+
+test.each(["completed", "failed", "cancelled"] as const)(
+	"runner %s outcome is delivered once and survives a later stop",
+	async (kind) => {
+		const receipts: SettlementReceipt[] = [];
+		const owner = new AgentTaskHost({
+			scope: { kind: "session", sessionId: randomUUID() },
+			authorizeLaunch() {},
+			onTaskSettled: (_ref, receipt) => receipts.push(receipt),
+		});
+		const result = deferred<TaskResult>();
+		try {
+			const started = await owner.startAgentTask(intent, operation(), () => ({
+				result: result.promise,
+				cleanup: Promise.resolve({ kind: "reaped" }),
+			}));
+			assert.ok(started.ok);
+			assert.ok((await owner.observeAgentLaunch(started.value.taskId)).ok);
+			const terminal: TaskResult =
+				kind === "completed"
+					? {
+							kind,
+							output: {
+								ownerId: owner.ownerBinding.supervisor.taskReference(started.value.lease).ownerId,
+								taskId: started.value.taskId,
+								artifactId: "test-output",
+								byteCount: "0",
+								omittedRanges: [],
+							},
+						}
+					: kind === "failed"
+						? { kind, code: "TaskFailed", message: "Original failure" }
+						: { kind, cause: "parent-handoff" };
+			result.resolve(terminal);
+			await owner.waitForTask(started.value.taskId);
+			await vi.waitFor(() => assert.equal(receipts.length, 1));
+			const original = receipts[0];
+			assert.equal(original.taskId, started.value.taskId);
+			assert.deepEqual(original.result, terminal);
+			const cancelled = await owner.cancelTask(started.value.taskId, "user");
+			assert.ok(cancelled.ok);
+			assert.equal(cancelled.value.decision, "already-settled");
+			assert.deepEqual(await owner.waitForTask(started.value.taskId), {
+				ok: true,
+				value: { kind: "settled", taskId: started.value.taskId, result: terminal },
+			});
+			// Closure drains the owner snapshot too, exercising both delivery paths.
+			assert.ok((await owner.close("session-close")).ok);
+			assert.deepEqual(receipts, [original]);
+		} finally {
+			await owner.close("session-close");
+		}
+	},
+);
