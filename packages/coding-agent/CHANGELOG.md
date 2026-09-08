@@ -34,6 +34,7 @@
 
 ### Fixed
 
+- Prevented internal-URL shell expansion from turning quoted paths into executable syntax. Expansion now rejects commands containing quotes, substitutions, escapes, heredocs or other non-plain syntax; bare URLs remain safely quoted, and commands without resolved URLs are unchanged.
 - Fixed Herdr reporting idle while standalone subagents or background shell tasks are running. The parent reporter now observes owner-scoped task activity and reattaches on reload, retaining working status until all tasks settle without granting children pane ownership.
 - Open subagent transcripts now refresh from live session events, including streaming text and partial/final tool results. Shell transcript reads coalesce pending state updates instead of requiring the view to be reopened.
 - Discarded stale command detail results and read errors after task selection, focus, or inspector lifetime changes, preventing another task's output from appearing in the current view ([#2908](https://github.com/bastani-inc/atomic/pull/2908)).
