@@ -5,6 +5,7 @@
 ### Added
 
 - Added `/agents` to browse and filter effective agent definitions by source, with model, tool, description, and prompt details.
+- Added the builtin herdr skill from upstream v0.9.0 beside tmux, preserving its managed-pane safety checks and CLI guidance.
 
 ### Fixed
 
