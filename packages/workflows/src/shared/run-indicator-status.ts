@@ -18,7 +18,7 @@ function isTerminalOrBlockedRun(run: RunSnapshot): boolean {
 }
 
 /**
- * Resolve the status represented by a run's primary indicator.
+ * Resolve the status represented by the live BACKGROUND widget's indicator.
  *
  * A live run with a pending run/stage prompt is awaiting input. When the
  * caller supplies the complete run collection, pending prompts in hidden
@@ -37,6 +37,53 @@ export function runIndicatorStatus(run: RunSnapshot, allRuns: readonly RunSnapsh
 }
 
 /**
+ * Preserve status-only attribution for listings, restored status entries and
+ * the run picker. Their root/parent links need not establish prompt ownership;
+ * only the live widget uses runIndicatorStatus and visibleRunTreeMembers.
+ */
+export function statusOnlyRunIndicator(run: RunSnapshot, allRuns: readonly RunSnapshot[] = [run]): RunIndicatorStatus {
+	const status = effectiveRunStatus(run);
+	if (isTerminalOrBlockedRun(run)) return status;
+	if (statusRunHasPendingInput(run)) return "awaiting_input";
+
+	const runsById = new Map(allRuns.map((candidate) => [candidate.id, candidate]));
+	for (const candidate of allRuns) {
+		if (candidate.id === run.id || !runBelongsTo(candidate, run, runsById)) continue;
+		if (!isTerminalOrBlockedRun(candidate) && statusRunHasPendingInput(candidate)) return "awaiting_input";
+	}
+	return status;
+}
+
+function statusRunHasPendingInput(run: RunSnapshot): boolean {
+	if (run.pendingPrompt !== undefined) return true;
+	return run.stages.some(
+		(stage) =>
+			stage.status === "awaiting_input" ||
+			stage.awaitingInputSince !== undefined ||
+			stage.pendingPrompt !== undefined ||
+			stage.inputRequest !== undefined,
+	);
+}
+
+function runBelongsTo(
+	candidate: RunSnapshot,
+	ancestor: RunSnapshot,
+	runsById: ReadonlyMap<string, RunSnapshot>,
+): boolean {
+	if (candidate.rootRunId === ancestor.id) return true;
+
+	const visited = new Set<string>();
+	let current: RunSnapshot | undefined = candidate;
+	while (current !== undefined && current.parentRunId !== undefined) {
+		if (current.parentRunId === ancestor.id) return true;
+		if (visited.has(current.id)) return false;
+		visited.add(current.id);
+		current = runsById.get(current.parentRunId);
+	}
+	return false;
+}
+
+/**
  * Precompute the indicator status of each listed run against the complete
  * run collection. The result is plain serializable data, so a surface whose
  * payload is persisted and re-rendered after a session restore (e.g. the
@@ -48,7 +95,7 @@ export function resolveRunIndicatorStatuses(
 	allRuns: readonly RunSnapshot[],
 ): Readonly<Record<string, RunIndicatorStatus>> {
 	const statuses: Record<string, RunIndicatorStatus> = {};
-	for (const run of runs) statuses[run.id] = runIndicatorStatus(run, allRuns);
+	for (const run of runs) statuses[run.id] = statusOnlyRunIndicator(run, allRuns);
 	return statuses;
 }
 
