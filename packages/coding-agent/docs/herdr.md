@@ -17,7 +17,7 @@ The reporter captures these values on activation, not at module import. It runs 
 
 ## States and reasons
 
-The reporter uses `agent_start`, `agent_settled`, `ui_prompt_start`, `ui_prompt_end`, the owning session's task subscription, and its `observeWorkflowActivity` stream. It does not infer execution from screen text or use `agent_end` as the idle boundary.
+The reporter uses interactive `input`, `agent_start`, `agent_settled`, `ui_prompt_start`, `ui_prompt_end`, live `workflow_lifecycle` events, the owning session's task subscription, and its `observeWorkflowActivity` stream. It does not infer execution from screen text or use `agent_end` as the idle boundary.
 
 Quiet work is still work: waiting for a provider response, tool completion, retry backoff, or another automatic continuation does not become `idle` because output stops. Repeated output-cap continuations remain part of the same owning prompt until the entire chain finishes. Reporting is lifecycle-driven, with no inactivity-to-idle timer or heartbeat requirement.
 
@@ -38,6 +38,8 @@ Independent workflow execution keeps the pane working even after the parent agen
 Standalone subagents and background shell tasks also keep the pane working after the parent settles. The reporter reads the owner's task snapshot on activation and follows task events until shutdown. Reload reattaches to existing tasks; one task completing, failing, or being cancelled cannot clear another task's activity. Settled tasks retained in `/tasks` do not count as running. Children never claim the pane or overwrite the parent's session identity.
 
 A failed review or cleanup can leave a workflow outcome marked `blocked` after execution ends. That outcome remains inspectable and retains `needsAttention`, but does not by itself keep the pane red. A pending decision or exhausted budget still reports `blocked`; independent execution still reports `working`. Reporting `idle` neither acknowledges the failure nor resumes it. The parent session retains pane ownership until it exits, so a child stopping does not call `release-agent` for the parent.
+
+Sending a message acknowledges currently observed workflow blocks for the pane indicator only. The next settled response can return to `idle` instead of repeatedly turning red for the same block; workflow states and budget approvals are not changed. Repeated activity snapshots do not re-arm that attention. A changed workflow activity or a new live block/prompt does, and open approval widgets remain blocking until answered. Extension-generated messages and automatic agent starts do not acknowledge blocks. This acknowledgement is local to the reporter and resets on reload or restart.
 
 Opening or closing the host-owned `/tasks` inspector or the `/agents` catalog is navigation and does not emit an approval span or change Herdr activity. Genuine extension approval prompts still report `blocked`. This follows [Herdr's custom-agent contract](https://herdr.dev/docs/integrations/#integrate-your-own-agent), which defines `blocked` as needing a user decision. [Prime Agent's reporter](https://github.com/PrimeIntellect-ai/prime-agent/blob/main/packages/coding-agent/src/core/extensions/builtin/herdr-agent-state.ts) likewise observes explicit block notifications. Atomic retains its settled-event and workflow aggregation instead of copying Prime's retry grace timers.
 
