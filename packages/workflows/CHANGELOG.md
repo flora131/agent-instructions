@@ -40,6 +40,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Workflow-stage `/tasks` now retains the shared compact picker and the stage's model, reasoning, cwd/branch, and MCP footer. Detail pages stay fullscreen. Task navigation no longer triggers the main-chat input notice, and pending-prompt notices clear when the graph hides, closes, or changes host.
 - Resume ended recoverable blocks through the existing continuation path rather than returning an unchanged snapshot as success. Non-resumable targets and unchanged blocked snapshots report no progress.
 - Settled failed or blocked runs retain attention without reporting an active user-decision wait to Herdr. Pending prompts and exhausted budgets remain blocked.
+- Stopped the workflow graph projection from retaining and deep-freezing a completed stage's structured result, and gave input defaulting a resolver-owned copy, so a stage's structured output can still be handed to a typed child workflow ([#2936](https://github.com/bastani-inc/atomic/issues/2936)).
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

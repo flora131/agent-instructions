@@ -377,6 +377,34 @@ describe("executor input resolution — Phase C", () => {
 			/ctx\.workflow\(definition\) requires a workflow definition produced by workflow\(\{\.\.\.\}\); hand-rolled __piWorkflow objects are not supported/,
 		);
 	});
+
+	// Regression: https://github.com/bastani-inc/atomic/issues/2936
+	test("graph observation leaves a completed stage's structured output usable as child inputs", () => {
+		const store = createStore();
+		const setup = { summaryMarkdown: "saved setup" };
+		store.recordRunStart({
+			id: "run-handoff",
+			name: "handoff",
+			inputs: {},
+			status: "running",
+			stages: [
+				{
+					id: "setup",
+					name: "setup",
+					status: "completed",
+					parentIds: [],
+					toolEvents: [],
+					structured: setup,
+				},
+			],
+			startedAt: Date.now(),
+		});
+
+		store.graphSnapshot();
+
+		const resolved = resolveInputs({ setup: Type.Object({ summaryMarkdown: Type.String() }) }, { setup });
+		assert.deepEqual(resolved.setup, { summaryMarkdown: "saved setup" });
+	});
 });
 
 // ---------------------------------------------------------------------------
