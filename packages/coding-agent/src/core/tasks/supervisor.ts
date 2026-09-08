@@ -73,6 +73,7 @@ type OwnerState = {
 	host: HostState;
 	tasks: Map<C.TaskId, TaskLease>;
 	watches: Set<TaskSubscription>;
+	settledTasks: Set<C.TaskId>;
 };
 type TaskState = {
 	native: native.TaskLease;
@@ -563,11 +564,17 @@ export class TaskSupervisor {
 				if (existing) return existing;
 				const owner = new OwnerCapability();
 				Object.freeze(owner);
-				this.#owners.set(owner, { native: lease, host: state, tasks: new Map(), watches: new Set() });
+				const ownerState: OwnerState = {
+					native: lease,
+					host: state,
+					tasks: new Map(),
+					watches: new Set(),
+					settledTasks: new Set(),
+				};
+				this.#owners.set(owner, ownerState);
 				this.#ownerIds.set(id, owner);
 				const watched = this.watchOwnerTasks(owner);
 				if (!watched.ok) throw new Error(watched.error.message);
-				const settledCommands = new Set<C.TaskId>();
 				watched.value.onReconcile = (projection) => {
 					if (projection.state === "closed") this.#ownerIds.delete(projection.ownerId);
 					for (const record of projection.tasks) {
@@ -584,27 +591,19 @@ export class TaskSupervisor {
 					let failure: Error | undefined;
 					for (const record of projection.tasks) {
 						if (
-							record.kind !== "command" ||
 							record.execution.kind !== "settled" ||
-							settledCommands.has(record.ref.taskId) ||
+							ownerState.settledTasks.has(record.ref.taskId) ||
 							!state.binding.onTaskSettled
 						)
 							continue;
 						try {
-							// The journal may have reset, and native setup may finish before its JS lease exists.
+							// Cancellation settles at cleanup (or while queued), without a runner outcome.
+							// Recover its authentic receipt even when the bounded journal has reset.
 							const task = this.#native.lookupTask(lease, record.ref.taskId);
 							if (!task.ok) throw new Error(task.error.message);
 							const settled = this.#native.taskSettlement(task.value);
 							if (!settled.ok) throw new Error(settled.error.message);
-							const receipt = settled.value;
-							// Mark before entering host code: reentrant drains and callback failures must not redeliver.
-							settledCommands.add(record.ref.taskId);
-							state.binding.onTaskSettled(record.ref, {
-								taskId: receipt.taskId as C.TaskId,
-								cursor: cursor(receipt.cursor),
-								result: taskResult(receipt.result),
-								completionId: receipt.completionId,
-							});
+							this.#notifyTaskSettled(ownerState, record.ref, settled.value);
 						} catch (error) {
 							failure ??= new Error(rejectionMessage(error));
 						}
@@ -616,6 +615,18 @@ export class TaskSupervisor {
 			},
 			ownerErrors,
 		);
+	}
+	#notifyTaskSettled(state: OwnerState, ref: C.NativeTaskRef, receipt: native.SettlementReceipt): void {
+		if (!state.host.binding.onTaskSettled || state.settledTasks.has(ref.taskId)) return;
+		// Runner outcomes and snapshot recovery share one delivery door. Mark before
+		// host code so reentrant drains or callback failures cannot redeliver.
+		state.settledTasks.add(ref.taskId);
+		state.host.binding.onTaskSettled(ref, {
+			taskId: receipt.taskId as C.TaskId,
+			cursor: cursor(receipt.cursor),
+			result: taskResult(receipt.result),
+			completionId: receipt.completionId,
+		});
 	}
 	async startCommandTask(
 		owner: OwnerLease,
@@ -752,14 +763,7 @@ export class TaskSupervisor {
 				.then((result) => {
 					return mapped(
 						this.#native.reportRunnerOutcome(runner.value, result),
-						(receipt) => {
-							state.host.binding.onTaskSettled?.(taskState.ref, {
-								taskId: receipt.taskId as C.TaskId,
-								cursor: cursor(receipt.cursor),
-								result: taskResult(receipt.result),
-								completionId: receipt.completionId,
-							});
-						},
+						(receipt) => this.#notifyTaskSettled(state, taskState.ref, receipt),
 						reportErrors,
 					);
 				});

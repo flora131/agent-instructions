@@ -86,6 +86,7 @@
 - Tree navigation rejects active compaction or branch summarization before replacing the current operation's UI, leaving the active branch intact ([#9179](https://github.com/earendil-works/pi/pull/9179)).
 - Radius login now prefers the discovered balanced model and falls back to the account's first available model after catalog refresh.
 - Direct steering and follow-up calls now run extension input handlers before queue admission, preserving transformed text/images and RPC input-source attribution while consuming handled inputs.
+- Fixed subagents stopped with `x` in `/tasks` failing to notify the parent chat. Running and queued cancellations now deliver their confirmed terminal receipt once, without requiring a final child response, duplicating completion notices, or overwriting an outcome that already settled.
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

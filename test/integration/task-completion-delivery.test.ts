@@ -4,16 +4,20 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
+import { getKeybindings, setKeybindings } from "@earendil-works/pi-tui";
 import { test, vi } from "vitest";
-import { getAgentTaskHost } from "../../packages/coding-agent/src/core/agent-session-tasks.js";
+import { closeSessionTasks, getAgentTaskHost } from "../../packages/coding-agent/src/core/agent-session-tasks.js";
+import { KeybindingsManager } from "../../packages/coding-agent/src/core/keybindings.js";
 import { SessionManager } from "../../packages/coding-agent/src/core/session-manager.js";
 import { AgentTaskHost } from "../../packages/coding-agent/src/core/tasks/agent-adapter.js";
 import { TaskCompletionOutbox } from "../../packages/coding-agent/src/core/tasks/completion.js";
-import type { OperationId, TaskResult } from "../../packages/coding-agent/src/core/tasks/contracts.js";
+import type { Cleanup, OperationId, TaskResult } from "../../packages/coding-agent/src/core/tasks/contracts.js";
+import { getOwnerTaskStore } from "../../packages/coding-agent/src/core/tasks/owner-store.js";
 import {
 	completionNoticeFromDetails,
 	TaskCompletionMessage,
 } from "../../packages/coding-agent/src/modes/interactive/components/task-completion-message.js";
+import { TaskInspector } from "../../packages/coding-agent/src/modes/interactive/components/task-inspector.js";
 import { initTheme } from "../../packages/coding-agent/src/modes/interactive/theme/theme.js";
 
 // RFC PR #2884: task settlement is separate from persisted model delivery.
@@ -245,6 +249,117 @@ test("session completion delivers readable text once while preserving the receip
 		await session._taskCompletionOutbox?.flush();
 		assert.equal(sendCustomMessage.mock.calls.length, 1);
 	} finally {
+		await host.close("session-close");
+	}
+});
+
+test("confirmed inspector x stop notifies the parent once after cleanup, without a runner result", async () => {
+	initTheme("dark");
+	const previousKeys = getKeybindings();
+	setKeybindings(new KeybindingsManager());
+	const sessionManager = SessionManager.inMemory();
+	const sendCustomMessage = vi.fn(async () => {});
+	const session = { sessionManager, sendCustomMessage } as unknown as ThisParameterType<typeof getAgentTaskHost>;
+	const host = getAgentTaskHost.call(session);
+	const store = getOwnerTaskStore(session)!;
+	const inspector = new TaskInspector(
+		store,
+		() => {},
+		() => {},
+	);
+	const result = Promise.withResolvers<TaskResult>();
+	const cleanup = Promise.withResolvers<Cleanup>();
+	let signal: AbortSignal | undefined;
+	try {
+		const started = await host.startAgentTask(
+			{ kind: "agent", agent: "reviewer", task: "Review the stop path" },
+			"inspector-stop" as OperationId,
+			(context) => {
+				signal = context.signal;
+				return { result: result.promise, cleanup: cleanup.promise };
+			},
+		);
+		assert.ok(started.ok);
+		assert.ok((await host.observeAgentLaunch(started.value.taskId)).ok);
+		store.drain();
+		inspector.open(started.value.taskId);
+		inspector.handleInput("x");
+		assert.match(stripVTControlCharacters(inspector.render(100).join("\n")), /Review the stop path/);
+		assert.equal(signal?.aborted, false, "x alone must not cancel");
+		inspector.handleInput("n");
+		await Promise.resolve();
+		assert.equal(signal?.aborted, false, "declining confirmation keeps the child running");
+		inspector.handleInput("x");
+		inspector.handleInput("y");
+		await vi.waitFor(() => assert.equal(signal?.aborted, true));
+		assert.equal(signal?.reason, "user");
+		store.drain();
+		assert.equal(store.tasks[0].execution.kind, "cancelling");
+		assert.equal(sendCustomMessage.mock.calls.length, 0, "a stop request is not a terminal notification");
+		cleanup.resolve({ kind: "reaped" });
+		await vi.waitFor(() => {
+			store.drain();
+			assert.equal(store.tasks[0].execution.kind, "settled");
+		});
+		const terminal = { kind: "cancelled", cause: "user" };
+		assert.deepEqual(store.tasks[0].execution, { kind: "settled", result: terminal });
+		await vi.waitFor(() => assert.equal(sendCustomMessage.mock.calls.length, 1));
+		const [message, options] = sendCustomMessage.mock.calls[0] as unknown as Parameters<
+			ThisParameterType<typeof getAgentTaskHost>["sendCustomMessage"]
+		>;
+		assert.equal(message.customType, "task-completion");
+		assert.equal(message.display, true);
+		assert.equal(options?.triggerTurn, true, "the parent model also receives the stop context");
+		assert.match(String(message.content), /Subagent reviewer stopped: Review the stop path/);
+		assert.match(String(message.content), /Stop reason: user/);
+		assert.equal(completionNoticeFromDetails(message.details)?.status, "cancelled");
+		await session._taskCompletionOutbox!.flush();
+		const intents = sessionManager
+			.getEntries()
+			.filter((entry) => entry.type === "custom" && entry.customType === "task-completion-intent");
+		assert.equal(intents.length, 1);
+		assert.ok(intents[0].type === "custom");
+		assert.deepEqual((intents[0].data as { result: TaskResult }).result, terminal);
+		// A late result and repeated stop must neither replace cancellation nor redeliver it.
+		result.resolve({ kind: "failed", code: "LateResult", message: "arrived after stop" });
+		assert.ok((await host.cancelTask(started.value.taskId, "shutdown")).ok);
+		await host.close("session-close");
+		await session._taskCompletionOutbox!.flush();
+		store.drain();
+		assert.deepEqual(store.tasks[0].execution, { kind: "settled", result: terminal });
+		assert.equal(sendCustomMessage.mock.calls.length, 1);
+	} finally {
+		cleanup.resolve({ kind: "reaped" });
+		inspector.dispose();
+		store.dispose();
+		await host.close("session-close");
+		setKeybindings(previousKeys);
+	}
+});
+
+test("session closure still suppresses its children's cancellation notifications", async () => {
+	const sessionManager = SessionManager.inMemory();
+	const sendCustomMessage = vi.fn(async () => {});
+	const session = { sessionManager, sendCustomMessage } as unknown as ThisParameterType<typeof getAgentTaskHost>;
+	const host = getAgentTaskHost.call(session);
+	const result = Promise.withResolvers<TaskResult>();
+	try {
+		const started = await host.startAgentTask(
+			{ kind: "agent", agent: "reviewer", task: "Work until owner closes" },
+			"closed-owner" as OperationId,
+			() => ({ result: result.promise, cleanup: Promise.resolve({ kind: "reaped" }) }),
+		);
+		assert.ok(started.ok);
+		assert.ok((await host.observeAgentLaunch(started.value.taskId)).ok);
+		await closeSessionTasks.call(session);
+		await session._taskCompletionOutbox!.flush();
+		assert.deepEqual(
+			session._taskCompletionOutbox!.pending.map((entry) => entry.result),
+			[{ kind: "cancelled", cause: "owner-close" }],
+		);
+		assert.equal(sendCustomMessage.mock.calls.length, 0);
+	} finally {
+		getOwnerTaskStore(session)?.dispose();
 		await host.close("session-close");
 	}
 });

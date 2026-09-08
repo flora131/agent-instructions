@@ -267,7 +267,12 @@ test.runIf(process.platform !== "win32").each(["completed", "cancelled"] as cons
 			value(await h.supervisor.closeTaskOwner(h.owner, "session-close"));
 			h.actor.disposeSubscription(h.journal.lease);
 		}
-		assert.equal(h.settlements.length, 1);
+		// Owner reconciliation also delivers the journal-noise agent's real teardown outcome.
+		assert.equal(h.settlements.length, 2);
+		assert.deepEqual(h.settlements[1], {
+			ref: value(h.actor.taskReference(noise)),
+			receipt: value(h.actor.taskSettlement(noise)),
+		});
 	},
 );
 
