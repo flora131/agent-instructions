@@ -16,7 +16,7 @@ import type { WorkflowDefinition } from "../../packages/workflows/src/types.js";
 import { makeMockCtx } from "./builtin-workflows-helpers.js";
 import { orchestratorFallbacks, reviewerFallbacks } from "./latest-model-config-expectations.js";
 
-test("Goal orchestrator uses a local copy of Ralph's exact Astra high model config", async () => {
+test("Goal orchestrator uses a local copy of Ralph's exact Astra medium model config", async () => {
 	const mod = await import("../../packages/workflows/builtin/goal.js");
 	const workflow = mod.default as unknown as WorkflowDefinition;
 	const ctx = makeMockCtx({
@@ -28,7 +28,7 @@ test("Goal orchestrator uses a local copy of Ralph's exact Astra high model conf
 
 	const options = ctx.calls.taskOptions["orchestrator-1"]?.[0];
 	assert.ok(options, "missing Goal orchestrator options");
-	assert.equal(options.model, "openai-codex/gpt-6-astra:high");
+	assert.equal(options.model, "openai-codex/gpt-6-astra:medium");
 	assert.deepEqual(options.fallbackModels, orchestratorFallbacks);
 	assert.equal(options.model, ralphOrchestratorModelConfig.model);
 	assert.deepEqual(options.fallbackModels, ralphOrchestratorModelConfig.fallbackModels);
