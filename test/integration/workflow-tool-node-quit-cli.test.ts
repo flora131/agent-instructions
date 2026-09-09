@@ -453,7 +453,7 @@ async function runScenario(
 		};
 	} finally {
 		await cli.stop();
-		removeTempRootReleasingBroker(root);
+		await removeTempRootReleasingBroker(root);
 	}
 }
 
