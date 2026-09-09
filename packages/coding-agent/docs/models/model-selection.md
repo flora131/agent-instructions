@@ -29,7 +29,7 @@ If live results cannot be retrieved, use the dated docs snapshot and say it was 
 
 The thinking level in brackets in the chart is the **measurement configuration used for that benchmark result**, not a universal workflow default. A score measured at `max` does not mean every stage using that model should use `max`; benchmark model identity and production thinking effort are separate choices. When authoring a workflow, choose effort from the stage role and cost of being wrong, then check the returned `availableThinkingLevels` for the configured catalog model.
 
-In practice, `max` reasoning is usually overkill and is not the preferred workflow default. Start with `medium` for routine work and `high` for demanding analysis or coding, subject to catalog support. Treat `max` as an exception for high-cost-of-error judgments or an explicit user request, not a general quality upgrade. Compare task success, latency and cost on representative work before adopting it more broadly; a higher effort level does not guarantee a better result.
+Practical default: use `low` or `medium` for coding, and `high` or `xhigh` for code review, test design and failure analysis, subject to catalog support. Run actual tests as tool calls. `max` is usually overkill and is not preferred in practice. These are starting recommendations to validate on your workflow, not a claim that lower effort reproduces the benchmark scores below.
 
 ## Pin model identity
 
@@ -114,25 +114,26 @@ Use this table when the user has not requested a thinking level. It is a product
 
 | Stage role | Default thinking level | Why |
 | --- | --- | --- |
-| Security, identity, adversarial challenge, final approval | `max` | A wrong judgment can create a high-risk false approval or waste a full downstream loop. |
-| Codebase mapping, lifecycle analysis, compatibility, planning, synthesis, triage, repair | `high` | These stages must resolve demanding uncertainty and preserve evidence across handoffs; routine synthesis may use `medium` when evidence quality holds. |
+| Coding, implementation, routine fixes | `low` or `medium` | Keep implementation fast; use review and tests to catch defects. |
+| Code review, test design, failure analysis, security, identity, adversarial challenge, final approval | `high` or `xhigh` | Spend more reasoning on finding defects, probing edge cases and judging evidence. |
+| Codebase mapping, lifecycle analysis, compatibility, planning, synthesis, triage | `high` | These stages must resolve demanding uncertainty and preserve evidence across handoffs; routine synthesis may use `medium` when evidence quality holds. |
 | User-impact review and final reporting | `medium` | Clear evidence-backed summaries usually do not need the deepest reasoning. |
 | Deterministic checks | No model call | Run typechecks, tests, schema checks, runtime probes, and artifact checks as durable tool nodes. |
 
-Reserve `max` for a high-cost-of-error role or an explicit user request. An explicit request wins over this role default, but the requested level still must appear in the configured catalog; do not invent an unsupported suffix. For each primary and fallback, choose a level for the same stage role independently. A fallback is not a reason to inherit `max` mechanically: use the role default at a supported level, choose another catalog model when needed, or leave the stage unpinned rather than guessing.
+`max` is an exception, not a role default. Consider it only when task-specific evidence justifies the extra effort or the user explicitly requests it. An explicit request wins over these defaults, but the requested level still must appear in the configured catalog; do not invent an unsupported suffix. For each primary and fallback, choose a supported level for the same stage role independently. If `xhigh` is unavailable, use `high` rather than automatically promoting to `max`; choose another catalog model or leave the stage unpinned if neither is supported.
 
 ## Scenario-based guidance
 
 Pick by the cost of being wrong in each role, not by raw accuracy. The AA evidence below was read on 2026-09-08; the Datacurve evidence remains the September 3 snapshot. See [Evals](/models/evals) for measurement settings, normalized Elo versus pass-rate units and source links.
 
-- **Reviewer / judgment gates.** Use `max` for a high-cost-of-error security, identity, adversarial or final-approval decision, subject to the configured model's supported efforts. No external benchmark here establishes security-review reliability. Claude Code + Fable 5.1 max with fallback and Claude Code + Opus 5 xhigh score 56% and 55% on SWE-Atlas-QnA, versus 51% for Codex + Astra max, but those harness-specific results need validation in Atomic.
+- **Reviewer / judgment gates.** Use `high` or `xhigh` for code review and approval decisions, subject to the configured model's supported efforts. No external benchmark here establishes security-review reliability. Claude Code + Fable 5.1 max with fallback and Claude Code + Opus 5 xhigh score 56% and 55% on SWE-Atlas-QnA, versus 51% for Codex + Astra max, but those harness-specific results need validation in Atomic.
 - **Codebase mapping / planner.** Start at `high`. For knowledge-work deliverables, Fable 5.1 max with fallback scores 58% normalized Elo on AA-Briefcase, Opus 5 max 57%, and GLM-5.3-Flash 48% at $0.25 per Index task. These are candidates, not measured repository-planning pass rates. Raise effort only for the role's cost of error or the user's request.
-- **Debugger / triage / repair.** Start at `high`. The new Terminal-Bench v4.0 is no longer flat near 90%: Astra xhigh scores 60%, Fable 5.1 xhigh with fallback 55%, Opus 5 max 49%, and Gemini 3.8 Flash high 20%. Keep Datacurve cost and steps as separate evidence; do not transfer its 74% Gemini result into this benchmark.
+- **Debugger / triage / repair.** Use `high` or `xhigh` for failure analysis and test design, then `low` or `medium` to implement a diagnosed fix. The new Terminal-Bench v4.0 is no longer flat near 90%: Astra xhigh scores 60%, Fable 5.1 xhigh with fallback 55%, Opus 5 max 49%, and Gemini 3.8 Flash high 20%. Keep Datacurve cost and steps as separate evidence; do not transfer its 74% Gemini result into this benchmark.
 - **Research / synthesis.** Use `high` for demanding reconciliation and `medium` for routine synthesis. Luna max scores 84% on AA-LCR at $0.18 per Index task, but its 7% non-hallucination rate counts partial answers or not attempted among non-correct responses, not all answers. Verify factual claims. Astra xhigh leads the displayed GDP.pdf rows at 32%; GLM-5.3-Flash and GLM-5.3 max score 72% and 70% non-hallucination.
 - **Orchestrator / worker / cheap loops.** Use AutomationBench-AA for SaaS tool workflows: Astra max 68%, GLM-5.3-Flash 60%, Luna max 50%. GLM-5.3-Flash and Luna remain budget candidates on the separately dated Datacurve frontier. Gemini 3.8 Flash's 166 steps and 143k output tokens in that snapshot argue against choosing workers on pass rate alone. Validate the tradeoff on the actual workflow.
-- **User-impact review / final reporting** — use `medium` for impact summaries and reports that preserve the evidence needed by the user. Do not spend `max` here unless the user explicitly requests it or the role has become a high-cost-of-error approval.
+- **User-impact review / final reporting.** Use `medium` for impact summaries and reports that preserve the evidence needed by the user. If the stage makes an approval decision, use the reviewer guidance instead.
 - **Design** — a quality-first domain not directly measured by these coding tables. Choose effort by the review or approval role. Fable 5.1's AA-Briefcase results make it a candidate for knowledge-work deliverables, not proof of product-design quality; evaluate it on the intended design tasks and do not carry Fable 5's DeepSWE row over to it.
-- **Interactive coding sessions** — use `high` for complex, multi-step coding and `medium` for routine edits; reserve `max` for a high-cost-of-error judgment or an explicit user request.
+- **Interactive coding sessions.** Use `low` or `medium` for implementation, switching to `high` or `xhigh` for code review, test design and failure analysis. Choose only levels supported by the configured model.
 - **Deterministic checks** — make typechecks, tests, schema validation, runtime probes, and artifact inspection tool nodes with no model call. Model self-report is not verification evidence.
 
 ## Related
