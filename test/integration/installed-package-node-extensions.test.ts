@@ -106,11 +106,14 @@ function buildInstalledLayout(): string {
 		if (entry === ".bin" || entry === ".cache") continue;
 		const source = join(repoNodeModules, entry);
 		if (!fs.statSync(source).isDirectory()) continue;
-		if (entry === "@bastani") {
+		if (entry === "@bastani" || entry === "@earendil-works") {
 			const scopeDir = join(layoutNodeModules, entry);
 			fs.mkdirSync(scopeDir);
 			for (const scoped of fs.readdirSync(source)) {
-				if (scoped === "atomic") continue;
+				if (entry === "@bastani" && scoped === "atomic") continue;
+				// The local build alias is not a dependency of the published package.
+				// Exclude it on every platform so it cannot hide undeclared imports.
+				if (entry === "@earendil-works" && scoped === "pi-ai") continue;
 				linkDir(join(source, scoped), join(scopeDir, scoped));
 			}
 			continue;

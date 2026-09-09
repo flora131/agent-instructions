@@ -47,6 +47,7 @@ const project = (name: string, include: string[], exclude: string[]) => ({
 		name,
 		globals: true,
 		environment: "node" as const,
+		globalSetup: ["../../test/global-setup-herdr-isolation.ts"],
 		testTimeout: defaultTestTimeoutMs,
 		include,
 		exclude: ["**/node_modules/**", ...exclude],

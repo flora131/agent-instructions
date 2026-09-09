@@ -234,6 +234,7 @@ If a user asks to publish a release or prerelease, route the request through the
 ## Docs
 
 - ALWAYS keep the user-facing docs in `packages/coding-agent/docs` up-to-date with the latest changes after you make changes. Prefer to keep other docs up-to-date as well, but the coding-agent docs are the most important since they are user-facing and often consulted by users and other agents.
+- `packages/coding-agent/docs` is user-facing documentation. Explain how to use, configure, and troubleshoot Atomic. Do not include internal implementation details, test infrastructure, debugging histories, verification evidence, or maintainer-only design notes. Keep those in repository-level docs, code/test comments, or PR descriptions. Keep user guides concise and focused on what users need to know.
 - To update docs, prefer using your `release-docs` workflow to thoroughly update all relevant docs with the latest changes. If you need to make a quick fix or update, you can also edit the markdown files directly, but make sure to keep them comprehensive and up-to-date.
 
 ## Changelog

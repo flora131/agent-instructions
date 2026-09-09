@@ -11,6 +11,7 @@ import {
 } from "../../packages/workflows/src/durable/tool-primitive.js";
 import { run } from "../../packages/workflows/src/engine/run.js";
 import { BUDGET_WRAP_UP_PROMPT } from "../../packages/workflows/src/engine/run-budget.js";
+import { WORKFLOW_CONFIG_DEFAULTS } from "../../packages/workflows/src/extension/config-loader.js";
 import { createExtensionRuntime } from "../../packages/workflows/src/extension/runtime.js";
 import { workflowResumeAction } from "../../packages/workflows/src/extension/workflow-tool-control.js";
 import { stageControlRegistry } from "../../packages/workflows/src/runs/foreground/stage-control-registry.js";
@@ -111,6 +112,14 @@ test("raised-budget continuation replays tool-parented parallel tasks", async ()
 		},
 	});
 	const runtime = createExtensionRuntime({
+		// Admit the whole fan-out before any task settles, keeping every task parented by the preflight tool.
+		config: {
+			maxDepth: WORKFLOW_CONFIG_DEFAULTS.maxDepth,
+			defaultConcurrency: taskNames.length,
+			persistRuns: WORKFLOW_CONFIG_DEFAULTS.persistRuns,
+			statusFile: WORKFLOW_CONFIG_DEFAULTS.statusFile,
+			resumeInFlight: WORKFLOW_CONFIG_DEFAULTS.resumeInFlight,
+		},
 		adapters: {
 			agentSession: {
 				async create(_options, meta: StageExecutionMeta) {

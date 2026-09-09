@@ -10,6 +10,8 @@
 - Capped agent retry backoff with `retry.maxAgentDelayMs` (60 seconds by default), preserving independent provider retry limits ([#8826](https://github.com/earendil-works/pi/issues/8826)).
 - Rejected extension tools with missing or non-object parameter schema containers during registration instead of breaking provider requests ([#9300](https://github.com/earendil-works/pi/issues/9300)).
 - Workflow-stage pause now blocks new task launches, cancels active and admitted queued agents and commands, and waits for in-flight command admission and resource cleanup. Main-chat and sibling tasks stay unaffected; queued user and Intercom messages survive, and resume permits fresh work without restarting cancelled executions.
+- Fixed npm-installed Node startup failing with a missing upstream AI package after the retry-policy update. Core retry imports now use Atomic's declared AI dependency.
+- Fixed an unhandled rejection when session cancellation interrupts an in-flight stage-chat pause, while preserving pause error reporting and rejection for callers awaiting completion.
 
 ## [0.9.19-alpha.2] - 2026-09-08
 
