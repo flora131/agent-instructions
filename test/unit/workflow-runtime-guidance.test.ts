@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { test } from "vitest";
-import { DEFAULT_PROMPT_GUIDANCE } from "../../packages/workflows/src/extension/workflow-prompts.js";
+import {
+	DEFAULT_PROMPT_GUIDANCE,
+	WORKFLOW_TOOL_DESCRIPTION,
+} from "../../packages/workflows/src/extension/workflow-prompts.js";
 import { moduleDir, readText } from "../helpers/runtime.js";
 
 const root = resolve(moduleDir(import.meta.url), "../..");
@@ -48,31 +51,11 @@ const contracts = [
 		],
 	},
 	{
-		name: "asks for a budget after the estimate but before launch and waits for a decision",
+		name: "inherits limits without a routine budget question and honors explicit overrides",
 		phrases: [
-			"After sharing the estimate and before calling `workflow run`",
-			"use `ask_user_question` or an equivalent usable question tool",
-			"ask whether the user wants an explicit budget",
-			'Offer "Proceed with inherited limits", "Set an explicit budget", and "Do not launch"',
-			"Wait for the answer; a cancelled or unanswered question is not approval to launch or set a cap",
-			"collect the desired duration, token, or cost limit before launch",
-		],
-	},
-	{
-		name: "honors existing choices and avoids repeated questions for inline work or nested children",
-		phrases: [
-			"Skip this question when the user already supplied a budget choice",
-			"including an explicit choice to inherit limits",
-			"share per-item estimates and ask once with clear per-run budget scope, not between launches",
-			"This pre-launch step does not apply to inline work or each nested child",
-		],
-	},
-	{
-		name: "continues autonomously without a question tool but preserves limits and approval gates",
-		phrases: [
-			"If no usable question tool exists, proceed autonomously on best judgment",
-			"briefly state the assumption",
+			"Proceed with inherited budget limits without asking the user to choose a budget before each launch",
 			"preserve existing budget limits and approval gates",
+			"When the user does state a limit, pass only the fields they named",
 			"Never convert an estimate into a cap",
 		],
 	},
@@ -113,6 +96,14 @@ test("removes contradictory post-launch estimate and unanswered-question fallbac
 		assert.ok(!text.includes("estimate as low-confidence"));
 		assert.ok(!text.includes("or nobody answers, do not stall"));
 		assert.ok(!text.includes("assuming no budget is always the correct default"));
-		assert.ok(text.indexOf("Before launching a workflow, give") < text.indexOf("After sharing the estimate"));
+		assert.ok(!text.includes("ask whether the user wants an explicit budget"));
+		assert.ok(!text.includes('Offer "Proceed with inherited limits"'));
+		assert.ok(guidance.includes("resume with a raised `budget` only after approval"));
 	}
+});
+
+test("tool description inherits limits without offering a routine budget choice", () => {
+	assert.ok(WORKFLOW_TOOL_DESCRIPTION.includes("Proceed with inherited budget limits without asking"));
+	assert.ok(WORKFLOW_TOOL_DESCRIPTION.includes("Pass budget only for a user-specified limit"));
+	assert.ok(!WORKFLOW_TOOL_DESCRIPTION.includes("ask whether the user wants an explicit budget"));
 });
