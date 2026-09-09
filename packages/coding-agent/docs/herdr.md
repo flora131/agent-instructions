@@ -79,6 +79,10 @@ The reporter invokes the CLI directly with an argument array, not a shell. It pe
 
 Only the fixed messages in the table are sent. Prompt titles, tool arguments, provider error bodies, transcripts, and workflow outputs are not forwarded. The parent's session ID and, when available, native absolute session path accompany reports until the first successful CLI delivery per claim, using `--agent-session-id` and `--agent-session-path`. Later reports in that claim omit these flags. This is not a once-per-claim attempt: after a transport failure, later activity retries that identity; no retry timer is added. Child sessions do not replace that identity.
 
+## Troubleshooting task initialization
+
+If an npm-installed Atomic reports `Failed to initialize class constructor` when starting shell commands or subagents, the failure is in native task-host initialization, not the Herdr CLI. The reporter also reads that task host during activation. Affected builds construct the first supervisor but fail on subsequent instances in the same process. Use a release containing the task-supervisor construction fix and restart Atomic; changing Herdr settings does not repair that initialization failure.
+
 ## Compatibility
 
 The reporter is tested against Herdr **0.8.2 (protocol 20)**; that is the minimum supported release. The rows below record the observed CLI and server behaviour the reporter is built on, and how Atomic responds.

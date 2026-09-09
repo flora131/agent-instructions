@@ -537,8 +537,15 @@ export class TaskSubscription {
 	}
 }
 
+function createNativeSupervisor(): native.TaskSupervisor {
+	// Keep loading separate from `new`: type-assertion erasure in the build
+	// must not move construction onto createModuleRequire instead of the class.
+	const binding = createModuleRequire(import.meta.url)("@bastani/atomic-natives") as typeof native;
+	return new binding.TaskSupervisor();
+}
+
 export class TaskSupervisor {
-	#native = new (createModuleRequire(import.meta.url)("@bastani/atomic-natives") as typeof native).TaskSupervisor();
+	#native = createNativeSupervisor();
 	#hosts = environment.hosts;
 	#owners = environment.owners;
 	#tasks = environment.tasks;
