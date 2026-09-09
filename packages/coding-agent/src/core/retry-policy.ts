@@ -9,7 +9,7 @@
  * handling, sleeping, and whether the chain may advance afterwards.
  */
 
-import { retryDelayMs } from "@earendil-works/pi-ai";
+import { retryDelayMs } from "@bastani/pi-ai";
 
 export interface RetryPolicySettings {
 	readonly enabled: boolean;
