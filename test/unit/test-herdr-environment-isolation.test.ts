@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { convertPathToPattern } from "tinyglobby";
 import { test } from "vitest";
 import { repositoryRoot } from "../../vitest.base.js";
 import {
@@ -27,6 +28,8 @@ for (const [label, root] of [
 			const directory = makeTempDirectory("atomic-herdr-test-isolation-");
 			const configPath = join(directory, "vitest.config.mjs");
 			const fixturePath = join(directory, "isolation.test.ts");
+			// Vitest include entries are glob patterns, not native Windows paths.
+			const fixturePattern = convertPathToPattern(fixturePath);
 			const configUrl = pathToFileURL(join(root, "vitest.config.ts")).href;
 			const vitestUrl = pathToFileURL(join(repositoryRoot, "node_modules/vitest/dist/index.js")).href;
 			const environmentUrl = pathToFileURL(
@@ -45,7 +48,7 @@ export default {
     ...config.test,
     projects: config.test.projects.map(project => ({
       ...project,
-      test: {...project.test, root: ${JSON.stringify(root)}, include: [${JSON.stringify(fixturePath)}]},
+      test: {...project.test, root: ${JSON.stringify(root)}, include: [${JSON.stringify(fixturePattern)}]},
     })),
   },
 };\n`,
