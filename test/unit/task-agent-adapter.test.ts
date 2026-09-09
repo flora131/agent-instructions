@@ -351,3 +351,80 @@ test.each(["completed", "failed", "cancelled"] as const)(
 		}
 	},
 );
+
+test("owner message yields all host waits, not other owners or independent SDK observations", async () => {
+	const owner = host();
+	const other = host();
+	const result = deferred<TaskResult>();
+	const terminal: TaskResult = { kind: "failed", code: "Expected", message: "Original execution finished" };
+	const runner = () => ({ result: result.promise, cleanup: Promise.resolve<Cleanup>({ kind: "reaped" }) });
+	try {
+		const first = await owner.startAgentTask(intent, operation(), runner);
+		const second = await other.startAgentTask(intent, operation(), runner);
+		assert.ok(first.ok && second.ok);
+		const launch = owner.observeAgentLaunch(first.value.taskId, { kind: "foreground" });
+		const explicit = owner.waitForTask(first.value.taskId);
+		const { supervisor } = owner.ownerBinding;
+		let independentFinished = false;
+		const independent = Promise.all([
+			other.observeAgentLaunch(second.value.taskId, { kind: "foreground" }),
+			supervisor.waitForTask(first.value.lease),
+		]).then((outcomes) => {
+			independentFinished = true;
+			return outcomes;
+		});
+		owner.yieldTaskWaits("intercom-coordination");
+		for (const outcome of await Promise.all([launch, explicit])) {
+			assert.ok(outcome.ok && outcome.value.kind === "yielded");
+			assert.equal(outcome.value.reason, "intercom-coordination");
+			assert.equal(outcome.value.taskId, first.value.taskId);
+			assert.equal(supervisor.findWait(outcome.value.waitId), undefined);
+		}
+		assert.equal(independentFinished, false);
+		// No stale wait remains subscribed to subsequent owner messages.
+		const yieldWait = vi.spyOn(supervisor, "yieldTaskWait");
+		owner.yieldTaskWaits("input-needed");
+		assert.equal(yieldWait.mock.calls.length, 0);
+		yieldWait.mockRestore();
+		// A new observation is not interrupted by an old message.
+		const next = owner.waitForTask(first.value.taskId);
+		result.resolve(terminal);
+		for (const outcome of [await next, ...(await independent)]) {
+			assert.ok(outcome.ok && outcome.value.kind === "settled");
+			assert.deepEqual(outcome.value.result, terminal);
+		}
+	} finally {
+		result.resolve(terminal);
+		await owner.close("session-close");
+		await other.close("session-close");
+	}
+});
+
+test.each(["elapsed", "settled", "owner-close"] as const)(
+	"%s launch observation releases its owner-message registration",
+	async (ending) => {
+		const owner = host();
+		const result = deferred<TaskResult>();
+		try {
+			const started = await owner.startAgentTask(intent, operation(), () => ({
+				result: result.promise,
+				cleanup: Promise.resolve({ kind: "reaped" }),
+			}));
+			assert.ok(started.ok);
+			const waiting = owner.observeAgentLaunch(started.value.taskId, {
+				kind: "foreground",
+				budgetMs: ending === "elapsed" ? 0 : 60_000,
+			});
+			if (ending === "settled") result.resolve({ kind: "failed", code: "Expected", message: "done" });
+			if (ending === "owner-close") await owner.close("session-close");
+			assert.ok((await waiting).ok);
+			const yieldWait = vi.spyOn(owner.ownerBinding.supervisor, "yieldTaskWait");
+			owner.yieldTaskWaits("input-needed");
+			assert.equal(yieldWait.mock.calls.length, 0);
+			yieldWait.mockRestore();
+		} finally {
+			result.resolve({ kind: "cancelled", cause: "user" });
+			await owner.close("session-close");
+		}
+	},
+);

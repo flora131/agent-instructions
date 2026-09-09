@@ -5,6 +5,7 @@
 ### Fixed
 
 - Fixed `Failed to initialize class constructor` when npm-installed Node sessions create multiple task supervisors, preventing shell commands and subagent launches from failing during task-host initialization.
+- Fixed foreground subagent launches and explicit waits blocking parent user steering and incoming Intercom asks/sends. Admitted messages now release the waiting parent's observations in main and workflow-stage chat without cancelling children or affecting other owners.
 - Fixed PowerShell internal-URL path quoting so apostrophes and smart single quotes in resolved paths remain literal instead of allowing injected commands. Bash quoting, deliberate shell commands, and balanced command prefixes are unchanged.
 
 ## [0.9.19-alpha.2] - 2026-09-08
