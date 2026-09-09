@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { DEFAULT_MAX_AGENT_RETRY_DELAY_MS } from "@earendil-works/pi-ai";
 import { normalizePath } from "../utils/paths.ts";
 import { DEFAULT_HTTP_IDLE_TIMEOUT_MS, parseHttpIdleTimeoutMs } from "./http-dispatcher.ts";
 import { SettingsManager } from "./settings-manager-core.ts";
@@ -65,7 +66,7 @@ interface SettingsManagerBasicAccessors {
 	getSessionSummarySettings(): { enabled: boolean };
 	getRetryEnabled(): boolean;
 	setRetryEnabled(enabled: boolean): void;
-	getRetrySettings(): { enabled: boolean; maxRetries: number; baseDelayMs: number };
+	getRetrySettings(): { enabled: boolean; maxRetries: number; baseDelayMs: number; maxAgentDelayMs: number };
 	getHttpProxy(): string | undefined;
 	setHttpProxy(proxy: string | undefined): void;
 	getHttpIdleTimeoutMs(): number;
@@ -363,6 +364,7 @@ const basicAccessors: SettingsManagerBasicAccessors = {
 			enabled: this.getRetryEnabled(),
 			maxRetries: settingsInternals(this).settings.retry?.maxRetries ?? 3,
 			baseDelayMs: settingsInternals(this).settings.retry?.baseDelayMs ?? 2000,
+			maxAgentDelayMs: settingsInternals(this).settings.retry?.maxAgentDelayMs ?? DEFAULT_MAX_AGENT_RETRY_DELAY_MS,
 		};
 	},
 
