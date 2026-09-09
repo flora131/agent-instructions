@@ -5,6 +5,7 @@
 ### Fixed
 
 - Fixed `Failed to initialize class constructor` when npm-installed Node sessions create multiple task supervisors, preventing shell commands and subagent launches from failing during task-host initialization.
+- Fixed foreground subagent launches and explicit waits blocking parent user steering and incoming Intercom asks/sends. Admitted messages now release the waiting parent's observations in main and workflow-stage chat without cancelling children or affecting other owners.
 
 ## [0.9.19-alpha.2] - 2026-09-08
 
