@@ -5,6 +5,7 @@
 ### Fixed
 
 - Fixed `Failed to initialize class constructor` when npm-installed Node sessions create multiple task supervisors, preventing shell commands and subagent launches from failing during task-host initialization.
+- Fixed PowerShell internal-URL path quoting so apostrophes and smart single quotes in resolved paths remain literal instead of allowing injected commands. Bash quoting, deliberate shell commands, and balanced command prefixes are unchanged.
 
 ## [0.9.19-alpha.2] - 2026-09-08
 

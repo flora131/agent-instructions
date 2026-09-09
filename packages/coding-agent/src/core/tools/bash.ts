@@ -240,6 +240,8 @@ export interface BashToolOptions {
 	commandPrefix?: string;
 	/** Override shell executable resolution for local bash operations. */
 	shellPath?: string;
+	/** Dialect for generated internal-URL path literals. Defaults to POSIX; does not select the executable. */
+	shellDialect?: "posix" | "powershell";
 	/** Last-mile hook for rewriting the command/cwd/env spawn context. */
 	spawnHook?: BashSpawnHook;
 	/** Optional command interceptor used by extensions and parity tests. */
@@ -454,7 +456,13 @@ export function createBashToolDefinition(
 					? await expandShellInternalUrls(bashCommand.cwd!, executionCwd, resourceCtx)
 					: executionCwd,
 				requestedCwd = resolvePath(executionCwd, cwdInput);
-			const expandedCommand = await expandShellInternalUrls(command, executionCwd, resourceCtx, true);
+			const expandedCommand = await expandShellInternalUrls(
+				command,
+				executionCwd,
+				resourceCtx,
+				true,
+				options?.shellDialect,
+			);
 			const strippedExpandedContext = hasExplicitCwd
 				? undefined
 				: stripLeadingCdCommand(expandedCommand, requestedCwd);

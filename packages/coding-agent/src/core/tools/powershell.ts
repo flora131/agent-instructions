@@ -111,6 +111,7 @@ export function createPowerShellToolDefinition(cwd: string, options: PowerShellT
 		cwd,
 		{
 			...options,
+			shellDialect: "powershell",
 			operations: options.operations ?? createLocalPowerShellOperations({ taskOwner: options.taskOwner }),
 		},
 		POWERSHELL_PRESENTATION,
