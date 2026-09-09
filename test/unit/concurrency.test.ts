@@ -142,17 +142,17 @@ describe("ConcurrencyLimiter", () => {
 
 describe("createRunLimiter", () => {
 	test("uses provided defaultConcurrency", () => {
-		const lim = createRunLimiter(3);
+		const lim = createRunLimiter(8);
+		assert.equal(lim.limit, 8);
+	});
+
+	test("defaults to 3 when no value provided", () => {
+		const lim = createRunLimiter();
 		assert.equal(lim.limit, 3);
 	});
 
-	test("defaults to 4 when no value provided", () => {
-		const lim = createRunLimiter();
-		assert.equal(lim.limit, 4);
-	});
-
-	test("defaults to 4 when undefined", () => {
+	test("defaults to 3 when undefined", () => {
 		const lim = createRunLimiter(undefined);
-		assert.equal(lim.limit, 4);
+		assert.equal(lim.limit, 3);
 	});
 });
