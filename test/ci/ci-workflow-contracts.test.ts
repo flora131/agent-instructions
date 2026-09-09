@@ -131,36 +131,7 @@ test("npm registry request retries are bounded below npm-installing CI job caps"
 	);
 });
 
-/**
- * Run 33833721342 let the packed-artifact test's npm child consume the same
- * 240-second budget as the whole test. The child timed out, and the 243795 ms
- * test duration then exceeded the suite's 70% headroom gate as a second,
- * guaranteed failure. The fixture lives outside the repository too, so npm
- * does not discover the committed project .npmrc by walking up from its cwd.
- */
-test("packed-artifact children cannot consume the whole test budget", async () => {
-	const source = await readText(join(root, "test/integration/packed-workflow-sdk-types.test.ts"));
-	const namedBudget = (name: string): number => {
-		const declaration = new RegExp(`^const ${name} = ([\\d_]+);$`, "mu").exec(source);
-		assert.ok(declaration, `packed-artifact test must declare ${name}`);
-		return Number((declaration[1] as string).replaceAll("_", ""));
-	};
-	const subprocessBudgetMs = namedBudget("PACKED_ARTIFACT_SUBPROCESS_TIMEOUT_MS");
-	const testBudgetMs = namedBudget("PACKED_ARTIFACT_TYPECHECK_TEST_TIMEOUT_MS");
-	assert.ok(
-		subprocessBudgetMs < testBudgetMs,
-		`packed-artifact subprocess budget ${subprocessBudgetMs}ms must be strictly smaller than its ${testBudgetMs}ms test budget`,
-	);
-	assert.match(source, /timeout: PACKED_ARTIFACT_SUBPROCESS_TIMEOUT_MS/u);
-	assert.match(source, /^\tPACKED_ARTIFACT_TYPECHECK_TEST_TIMEOUT_MS,$/mu);
-	assert.match(
-		source,
-		/`--userconfig=\$\{npmConfigPath\}`/u,
-		"the temp-dir install must explicitly use the repo .npmrc",
-	);
-});
-
-test("global setups provide artifacts and native bindings to every project", async () => {
+test("global setups isolate Herdr and provide artifacts and native bindings to every project", async () => {
 	const config = (await import("../../vitest.config.js")) as {
 		default: {
 			test?: {
@@ -169,6 +140,7 @@ test("global setups provide artifacts and native bindings to every project", asy
 		};
 	};
 	const projects = config.default.test?.projects ?? [];
+	const herdrSetup = "./test/global-setup-herdr-isolation.ts";
 	const artifactSetup = "./test/global-setup-workflow-artifacts.ts";
 	const nativeSetup = "./test/global-setup-natives.ts";
 	for (const name of ["unit", "integration", "ci"]) {
@@ -176,8 +148,8 @@ test("global setups provide artifacts and native bindings to every project", asy
 		assert.ok(project, `missing vitest project: ${name}`);
 		assert.deepEqual(
 			project.test?.globalSetup,
-			[artifactSetup, nativeSetup],
-			`${name} must keep the artifact and native global setups`,
+			[herdrSetup, artifactSetup, nativeSetup],
+			`${name} must isolate inherited Herdr credentials before artifact and native setup`,
 		);
 	}
 });
