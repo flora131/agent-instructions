@@ -82,6 +82,7 @@ export async function loadVirtualModules(): Promise<Record<string, object>> {
 		"proper-lockfile": properLockfile,
 		...(atomicNatives ? { "@bastani/atomic-natives": atomicNatives } : {}),
 		"@bastani/atomic": piCodingAgent,
+		"@earendil-works/pi-coding-agent": piCodingAgent,
 		"@mariozechner/pi-agent-core": piAgentCore,
 		"@mariozechner/pi-tui": piTui,
 		"@mariozechner/pi-tui/dist/layout.js": piTuiLayout,

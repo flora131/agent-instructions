@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { expect, it } from "vitest";
+import { bunExecutable, moduleDir, spawnSyncCollect } from "../../../test/helpers/runtime.js";
 import { createEventBus } from "../src/core/event-bus.js";
 import { createExtensionRuntime, loadExtensionFromFactory } from "../src/core/extensions/loader.ts";
 import { clearExtensionCache, extensionLoaderTestHooks } from "../src/core/extensions/loader-virtual-modules.ts";
@@ -56,6 +57,19 @@ export default function (pi) {
 			fs.rmSync(root, { recursive: true, force: true });
 			clearExtensionCache();
 		}
+	},
+	REAL_EXTENSION_LOADER_TEST_TIMEOUT_MS,
+);
+
+// #2963: supported aliases must stay interchangeable when native first load becomes a transformed reload.
+it(
+	"keeps coding-agent aliases interchangeable when first load becomes an edited reload",
+	() => {
+		const result = spawnSyncCollect(
+			[bunExecutable(), path.join(moduleDir(import.meta.url), "fixtures/extensions-host-alias-transition.ts")],
+			{ timeout: REAL_EXTENSION_LOADER_TEST_TIMEOUT_MS },
+		);
+		expect(result.exitCode, result.stdout.toString() + result.stderr.toString()).toBe(0);
 	},
 	REAL_EXTENSION_LOADER_TEST_TIMEOUT_MS,
 );
