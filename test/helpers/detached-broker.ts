@@ -5,18 +5,16 @@
  * It holds log and SQLite handles, so signaling it is not sufficient: Windows
  * cleanup must wait for exit before removing its agent directory.
  */
-import { existsSync, readFileSync } from "node:fs";
-import { rm } from "node:fs/promises";
 import { join } from "node:path";
-import { sleep } from "./runtime.js";
+import { fileExistsSync, readTextSync, removePath, sleep } from "./runtime.js";
 
 const BROKER_EXIT_TIMEOUT_MS = 5_000;
 
 /** Terminate and await the broker recorded at `{agentDir}/intercom/broker.pid`, if any. */
 export async function stopDetachedBroker(agentDir: string): Promise<void> {
 	const pidPath = join(agentDir, "intercom", "broker.pid");
-	if (!existsSync(pidPath)) return;
-	const pid = Number.parseInt(readFileSync(pidPath, "utf8").trim(), 10);
+	if (!fileExistsSync(pidPath)) return;
+	const pid = Number.parseInt(readTextSync(pidPath, "utf8").trim(), 10);
 	if (!Number.isFinite(pid) || pid <= 0) return;
 	try {
 		process.kill(pid, "SIGTERM");
@@ -49,5 +47,5 @@ export async function stopDetachedBroker(agentDir: string): Promise<void> {
  */
 export async function removeTempRootReleasingBroker(root: string, agentDir = join(root, "agent")): Promise<void> {
 	await stopDetachedBroker(agentDir);
-	await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 });
+	await removePath(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 });
 }
