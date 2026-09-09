@@ -86,6 +86,7 @@ interface PendingStageAcknowledgment {
 	readonly message: Message;
 	readonly liveTargetId?: string;
 	readonly signature?: string;
+	readonly resolveReplyTarget?: true;
   readonly timeout: NodeJS.Timeout;
 }
 
@@ -681,6 +682,7 @@ class IntercomBroker {
 		message: route.message,
 		...(route.liveTargetId === undefined ? {} : { liveTargetId: route.liveTargetId }),
 		...(route.signature === undefined ? {} : { signature: route.signature }),
+		...(route.resolveReplyTarget === true ? { resolveReplyTarget: true } : {}),
       timeout,
     });
     if (
@@ -828,6 +830,8 @@ class IntercomBroker {
 						return;
 					}
 					this.pendingQuestions.record(from.info.id, target.info.id, pending.messageId);
+					if (pending.resolveReplyTarget === true && pending.attemptId !== undefined)
+						writeMessageIfOpen(pending.senderSocket, { type: "question_target", messageId: pending.messageId, attemptId: pending.attemptId, sessionId: target.info.id });
 				}
 				writeMessageIfOpen(pending.senderSocket, {
 					type: "delivered",
@@ -880,6 +884,8 @@ class IntercomBroker {
 					return;
 				}
 				this.pendingQuestions.record(from.info.id, target.info.id, pending.messageId);
+				if (pending.resolveReplyTarget === true && pending.attemptId !== undefined)
+					writeMessageIfOpen(pending.senderSocket, { type: "question_target", messageId: pending.messageId, attemptId: pending.attemptId, sessionId: target.info.id });
 			}
 			writeMessageIfOpen(pending.senderSocket, {
 				type: "delivered",
@@ -903,6 +909,8 @@ class IntercomBroker {
 			});
 			return;
 		}
+		if (pending.message.expectsReply === true && pending.resolveReplyTarget === true && pending.attemptId !== undefined)
+			writeMessageIfOpen(pending.senderSocket, { type: "question_target", messageId: pending.messageId, attemptId: pending.attemptId, sessionId: target.info.id });
 		if (!writeMessageIfOpen(target.socket, { type: "message", from: pending.sender, message: pending.message })) {
 			this.deliveredMessages.forget(pending.messageId, pending.signature);
 			writeMessageIfOpen(pending.senderSocket, {

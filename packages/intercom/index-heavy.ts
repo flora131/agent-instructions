@@ -362,7 +362,12 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
     if (stageClosed) {
       routeClosedWorkflowStageMessage(
         entry, inboundDeliveries, replyTracker, replyWaiters.pending(),
-        () => sendIncomingMessage(entry, isDeliveryFeedback(message) ? "prelude" : "trigger", messageGeneration, false),
+        () => {
+          if (message.expectsReply === true && liveContext.orchestrationContext?.lateMessageRouter === undefined) {
+            throw new Error("Workflow stage is closed and cannot reply because post-mortem routing is unavailable. Contact a live stage or start new work with explicit context.");
+          }
+          return sendIncomingMessage(entry, isDeliveryFeedback(message) ? "prelude" : "trigger", messageGeneration, false);
+        },
         () => client,
         () => Boolean(getLiveContext(liveContext, messageGeneration)),
         (runId) => stageAdmission.boundary.ownsSubagentRun(runId),

@@ -95,7 +95,7 @@ export function registerIntercomLifecycle(pi: ExtensionAPI, deps: LifecycleDeps)
     deps.setAgentRunning(false);
     deps.activeTools.clear();
     const stage = ctx.orchestrationContext;
-    const closeSignal = stage?.kind === "workflow-stage" ? stage.messageAdmission?.boundary.closeSignal : undefined;
+    const closeSignal = stage?.kind === "workflow-stage" ? stage.messageAdmission?.boundary?.closeSignal : undefined;
     closeSignal?.addEventListener("abort", deps.syncPresenceStatus, { once: true });
     unbindStageClose = () => closeSignal?.removeEventListener("abort", deps.syncPresenceStatus);
     if (closeSignal?.aborted) deps.syncPresenceStatus();

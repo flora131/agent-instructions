@@ -1,3 +1,5 @@
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { workflow } from "@bastani/workflows";
 
 const options = { model: "nested-discovery-fixture/fixture", group: "reviewers" };
@@ -18,6 +20,7 @@ const child = workflow({
 	outputs: {},
 	inputs: {},
 	run: async (ctx) => {
+		writeFileSync(join(process.env.NESTED_DISCOVERY_STATE_DIR!, "child-run-id"), ctx.runId!);
 		await ctx.workflow(grandchild);
 		return {};
 	},

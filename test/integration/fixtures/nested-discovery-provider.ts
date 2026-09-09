@@ -1,10 +1,42 @@
 /** Deterministic model only: real CLI sessions, workflow tools and Intercom transport remain intact. */
 import { appendFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import type { ExtensionAPI } from "@bastani/atomic";
+import type { CreateAgentSessionOptions, ExtensionAPI } from "@bastani/atomic";
 import { type AssistantMessage, createAssistantMessageEventStream } from "@bastani/pi-ai/compat";
+import { Type } from "typebox";
 
 export default function (pi: ExtensionAPI): void {
+	// A custom SDK host may omit post-mortem routing. Do not alter a real workflow session to fake that state.
+	pi.registerTool({
+		name: "fixture_unavailable_stage",
+		label: "Unavailable stage fixture",
+		description: "Create and close an isolated custom-host stage without a late-message router.",
+		parameters: Type.Object({ group: Type.String() }),
+		async execute(_id, params, _signal, _update, ctx) {
+			const { createAgentSession, SessionManager } = await import("@bastani/atomic");
+			const orchestrationContext: NonNullable<CreateAgentSessionOptions["orchestrationContext"]> = {
+				kind: "workflow-stage",
+				intercomGroup: params.group,
+				workflowRunId: "custom-host-unavailable",
+				workflowStageId: "unavailable",
+				workflowStageName: "unavailable",
+				constraints: { disableWorkflowTool: true },
+			};
+			const { session } = await createAgentSession({
+				cwd: ctx.cwd,
+				model: ctx.model,
+				sessionManager: SessionManager.inMemory(ctx.cwd),
+				orchestrationContext,
+			});
+			await session.bindExtensions({});
+			await session.prompt('fixture-call {"name":"intercom","arguments":{"action":"status"}}');
+			await orchestrationContext.messageAdmission!.boundary.close();
+			return {
+				content: [{ type: "text", text: "Custom-host stage closed without post-mortem capability." }],
+				details: {},
+			};
+		},
+	});
 	pi.registerProvider("nested-discovery-fixture", {
 		api: "nested-discovery-fixture",
 		apiKey: "fixture-only",

@@ -542,6 +542,27 @@ test("public Intercom list reports closed workflow generations instead of idle r
 			const closed = await executeIntercom(target, { action: "list" });
 			assert.equal(closed.isError, false);
 			assert.ok(closed.content[0]?.text.includes(expected), closed.content[0]?.text);
+			if (!hasRouter) {
+				const sender = extensionFixture("closed-stage-observer", "closed-stage-observer", undefined, GROUP);
+				intercomHeavy(sender.pi as never);
+				try {
+					await sender.start();
+					const reply = await executeIntercom(
+						sender,
+						{
+							action: "ask",
+							to: "closed-stage-false",
+							message: "can you reply?",
+						},
+						AbortSignal.timeout(BROKER_FRAME_TIMEOUT_MS),
+					);
+					assert.equal(reply.isError, true);
+					assert.match(reply.content[0]?.text ?? "", /closed and cannot reply.*post-mortem.*Contact a live stage/);
+					assert.equal(target.injectedMessages.length, 0, "unavailable generation must not start a turn");
+				} finally {
+					await sender.shutdown();
+				}
+			}
 		} finally {
 			await target.shutdown();
 			observer.mockRestore();
@@ -1449,7 +1470,12 @@ test("live agent aliases survive same-name tools when pending capability disappe
 	const received: string[] = [];
 	agent.on("message", (from, message) => {
 		received.push(message.content.text);
-		if (message.expectsReply) void agent.send(from.id, { text: "still an agent", replyTo: message.id });
+		if (message.expectsReply)
+			void agent.send(from.id, {
+				text: "still an agent",
+				replyTo: message.id,
+				...(message.content.text === "failure" ? { replyError: "retained conversation unavailable" } : {}),
+			});
 	});
 	intercom(owner.pi as never);
 	intercom(sender.pi as never);
@@ -1556,6 +1582,28 @@ test("live agent aliases survive same-name tools when pending capability disappe
 				const reply = await asker.next("message", (frame) => frame.message.replyTo === questionId);
 				assert.equal(reply.from.id, agent.sessionId);
 				assert.equal(reply.message.content.text, "still an agent");
+				const publicReply = await executeIntercom(
+					sender,
+					{
+						action: "ask",
+						to: `${group}/${key}`,
+						message: "public exact answer?",
+					},
+					AbortSignal.timeout(BROKER_FRAME_TIMEOUT_MS),
+				);
+				assert.equal(publicReply.isError, false, `${phase}/${key}: ${publicReply.content[0]?.text}`);
+				assert.match(publicReply.content[0]?.text ?? "", /still an agent/);
+				const failedReply = await executeIntercom(
+					sender,
+					{
+						action: "ask",
+						to: `${group}/${key}`,
+						message: "failure",
+					},
+					AbortSignal.timeout(BROKER_FRAME_TIMEOUT_MS),
+				);
+				assert.equal(failedReply.isError, true);
+				assert.equal(failedReply.content[0]?.text, "Failed: retained conversation unavailable");
 			}
 			const refused = await executeIntercom(sender, {
 				action: "send",
@@ -1565,7 +1613,7 @@ test("live agent aliases survive same-name tools when pending capability disappe
 			assert.equal(refused.isError, true);
 		}
 		await agent.listDirectory();
-		assert.equal(received.length, 12);
+		assert.equal(received.length, 24);
 		assert.deepEqual(store.runs()[0]?.pendingStageMessages ?? [], []);
 	} finally {
 		disposeBridge();

@@ -833,6 +833,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
               attachments,
               replyTo,
               expectsReply: true,
+              ...(parseWorkflowStageTarget(to)?.kind === "path" ? { onReplyTarget: wait.bindSender } : {}),
             });
 
             if (sendResult.queued === true) {
