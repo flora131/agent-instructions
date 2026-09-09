@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed `Failed to initialize class constructor` when npm-installed Node sessions create multiple task supervisors, preventing shell commands and subagent launches from failing during task-host initialization.
+
 ## [0.9.19-alpha.2] - 2026-09-08
 
 ### Added

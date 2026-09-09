@@ -138,6 +138,25 @@ runTest(
 		fs.mkdirSync(workDir, { recursive: true });
 
 		assert.ok(nodeExe, "real node executable must be resolved before the smoke runs");
+		// Exercise emitted JavaScript: source-runtime tests hid a constructor-precedence
+		// regression that wrapped the native exports object and failed on the second host.
+		const supervisorProbe = spawnSync(
+			nodeExe,
+			[
+				"--input-type=module",
+				"-e",
+				`import { TaskSupervisor } from "./dist/core/tasks/supervisor.js";
+				for (let i = 0; i < 3; i++) new TaskSupervisor();
+				console.log("repeated supervisor construction passed");`,
+			],
+			{ cwd: atomicDest, encoding: "utf8", timeout: 30_000 },
+		);
+		assert.equal(
+			supervisorProbe.status,
+			0,
+			`installed supervisor construction failed:\n${supervisorProbe.stdout}\n${supervisorProbe.stderr}`,
+		);
+		assert.match(supervisorProbe.stdout, /repeated supervisor construction passed/);
 		const result = spawnSync(nodeExe, [join(atomicDest, "dist", "cli.js"), "--no-session"], {
 			cwd: workDir,
 			input: "",
