@@ -10,6 +10,7 @@ All notable changes to the `pi-intercom` extension will be documented in this fi
 
 ### Fixed
 
+- Reject asks to terminal noninteractive subagent children with an explicit error instead of waiting on retained idle registrations. Termination also settles exact pending asks, including socket-write races; live interactive idle asks, workflow post-mortem conversations, and send delivery remain unchanged.
 - Excluded internal workflow route-owner/control connections, model-less `ctx.ui` prompts, and `ctx.tool` nodes from recipient discovery. Broker checks refuse known non-agent targets before delivery or queueing, including retained completed prompts. Genuine agents busy in tools or awaiting human input remain eligible, and connected aliases survive pending-capability changes and completion without same-name controls changing agent ambiguity diagnostics.
 - Reject malformed session/roster recipient purposes while preserving omitted-purpose legacy agents. Workflow roster updates now wait for broker processing before reporting completion, preventing stale discovery across connections ([#2895](https://github.com/bastani-inc/atomic/pull/2895)).
 - `send`, `ask`, and `reply` now retry recoverable disconnects inside one tool invocation, preserving delivery identity and reply correlation for up to three retries. Cancellation stops retries, unresolved outcomes warn against automatic resending, and client retry state is released on exit. Broker deduplication and durable acceptance safeguards remain unchanged.

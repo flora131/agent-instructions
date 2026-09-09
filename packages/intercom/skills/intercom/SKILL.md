@@ -358,6 +358,7 @@ If neither `cmux` nor `tmux` is available, skip this path and use normal `interc
 
 ### `ask` Limitations
 
+- **Terminal noninteractive children**: Completed, failed, interrupted, or cancelled subagents cannot reply, even if listed as `idle`. New asks fail immediately; an admitted ask fails if the child terminates before replying. Launch a fresh child with explicit context. Live interactive idle sessions and reply-capable workflow post-mortem conversations remain askable; `send` semantics are unchanged.
 - **10-minute timeout**: If no reply comes within 10 minutes, the ask fails
 - **Bounded concurrency**: Up to `maxPendingAsks` asks (default: 6) may wait concurrently; additional calls receive a structured capacity error
 - **Exact correlation**: Same-target and mixed-target asks may run together; out-of-order replies and peer disconnects settle only the matching sender/message pair

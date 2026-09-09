@@ -8,6 +8,7 @@ import { SessionManager } from "../src/core/session-manager.ts";
 import { createRpcCommandHandler } from "../src/modes/rpc/rpc-command-handler.ts";
 import { RpcSessionBinding } from "../src/modes/rpc/rpc-session-binding.ts";
 import type { RpcCommand } from "../src/modes/rpc/rpc-types.ts";
+import { delayedOutputCommand, gatedOutputCommand } from "./helpers/rpc-shell-commands.js";
 import { createHarness } from "./suite/harness.ts";
 
 const RPC_OUTPUT_WAIT_TIMEOUT_MS = 10_000,
@@ -26,9 +27,9 @@ const RPC_OUTPUT_WAIT_TIMEOUT_MS = 10_000,
  */
 const RPC_BASH_CANCEL_HEADROOM_SECONDS = 10;
 
-/** `printf <prefix>`, a cancellable gap, then a tail no assertion may observe. */
+/** A prefix, a cancellable gap, then a tail no assertion may observe. */
 function cancellableShellCommand(prefix: string, tail: string): string {
-	return `printf ${prefix}; sleep ${RPC_BASH_CANCEL_HEADROOM_SECONDS}; printf ${tail}`;
+	return delayedOutputCommand(prefix, RPC_BASH_CANCEL_HEADROOM_SECONDS, tail);
 }
 
 /**
@@ -49,8 +50,7 @@ function createBashGate(label: string) {
 	const cwd = mkdtempSync(join(tmpdir(), `atomic-rpc-bash-${label}-`));
 	return {
 		cwd,
-		command: (marker: string, before = "before", after = "after") =>
-			`: > '${marker}.waiting'; printf '${before}'; while [ ! -f '${marker}' ]; do sleep 0.01; done; printf '${after}'`,
+		command: (marker: string, before = "before", after = "after") => gatedOutputCommand(marker, before, after),
 		isWaiting: (marker: string) => existsSync(join(cwd, `${marker}.waiting`)) && !existsSync(join(cwd, marker)),
 		release: (marker: string) => writeFileSync(join(cwd, marker), ""),
 		cleanup: () => {

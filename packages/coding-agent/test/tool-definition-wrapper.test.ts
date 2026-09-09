@@ -148,8 +148,16 @@ describe("tool definition wrappers", () => {
 			expect(inspected.constrainedSampling).toBe(definition.constrainedSampling);
 		}
 
-		const bundledRead = inspect(createReadToolDefinition(process.cwd()));
-		expect(Object.hasOwn(bundledRead, "constrainedSampling")).toBe(false);
+		// PR #2939 makes bundled read prefer strict JSON-schema sampling.
+		const definition = createReadToolDefinition(process.cwd());
+		expect(definition.constrainedSampling).toEqual({ type: "json_schema", strict: "prefer" });
+		const wrapped = wrapToolDefinition(definition);
+		const synthesized = createToolDefinitionFromAgentTool(wrapped);
+		const bundledRead = inspect(synthesized);
+		for (const tool of [wrapped, synthesized, bundledRead]) {
+			expect(Object.hasOwn(tool, "constrainedSampling")).toBe(true);
+			expect(tool.constrainedSampling).toBe(definition.constrainedSampling);
+		}
 	});
 
 	test("converts Pi tools back without inventing an argument preparer", async () => {

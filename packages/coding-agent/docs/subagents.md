@@ -83,6 +83,8 @@ In a parallel run, `intercom.ask`, `contact_supervisor({ reason: "need_decision"
 
 Targeted `interrupt` still stops only the selected child. Explicit batch cancellation and session/workflow-stage lifetime closure still stop the intended owned children, including pending reply waits. A late or duplicate reply cannot revive a terminal child. Ordinary Intercom group restrictions and the authorized cross-group `contact_supervisor` route are unchanged.
 
+Completed, failed, interrupted, and cancelled noninteractive children cannot answer new Intercom asks, even when their retained registration still says `idle`. Such asks fail immediately with an explicit terminal-child error; an admitted ask also fails if its child terminates before replying. Launch a fresh child with the required context for follow-up work. This does not restrict live interactive idle sessions or workflow-stage post-mortem conversations, and does not change `send` delivery semantics.
+
 ### Single-child handoff
 
 A single-child launch retains its existing terminal handoff: a parent-targeted blocking ask is claimed before send/waiter admission, ends that child, and returns the original question, ordered attachments, agent identity, and a dynamic `[TASK_CONTEXT]` handoff through the parent `subagent` call. The handoff explicitly requests a fresh child with a new run identity and the supervisor answer in its task. This single-child behavior does not apply to parallel runs or collected sibling launches.

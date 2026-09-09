@@ -882,6 +882,7 @@ export class SubagentControlRuntime {
 		const token = guard.token;
 		this.attemptTokens.set(admitted.identity.path, token);
 		let session: AgentSession | undefined;
+		const executionEnded = new AbortController();
 		let activeSessionManager: SessionManager | undefined;
 		let termination: TerminationCauseName | undefined;
 		let terminating: Promise<void> | undefined;
@@ -974,7 +975,7 @@ export class SubagentControlRuntime {
 							sessionManager,
 							settingsManager,
 							orchestrationContext: admitted.spec.parent?.orchestrationContext,
-							subagentPolicy: admitted.policy,
+							subagentPolicy: { ...admitted.policy, executionEnded: executionEnded.signal },
 							systemPromptTransform,
 							initialContextTransform: promptBehavior.initialContextTransform,
 						})
@@ -1193,6 +1194,8 @@ export class SubagentControlRuntime {
 				...skillReport,
 			};
 		} finally {
+			// End reply capability before asynchronous cleanup or extension invalidation.
+			executionEnded.abort();
 			signals.abort.removeEventListener("abort", abortListener);
 			signals.interrupt.removeEventListener("abort", interruptListener);
 			try {
