@@ -15,6 +15,55 @@ import { arg, fakeHerdr } from "./helpers/herdr.js";
 import { createFauxStreamFn, fauxModel } from "./test-harness.js";
 import { createTestExtensionsResult, createTestResourceLoader } from "./utilities.js";
 
+test.each([
+	{ availability: "recovering" as const, shutdownFirst: false },
+	{ availability: "unavailable" as const, shutdownFirst: false },
+	{ availability: "recovering" as const, shutdownFirst: true },
+	{ availability: "unavailable" as const, shutdownFirst: true },
+])(
+	"reload preserves registration with $availability activity (shutdown first: $shutdownFirst) without another prompt",
+	async ({ availability, shutdownFirst }) => {
+		const fake = await fakeHerdr();
+		const loaded = await createTestExtensionsResult(
+			[createHerdrExtension({ env: fake.env, enabled: () => true })],
+			fake.dir,
+		);
+		const publisher = loaded.runtime.workflowActivityHub.registerWorkflowActivityPublisher();
+		publisher.publishSnapshot({ availability: "ready", roots: [] });
+		const manager = SessionManager.inMemory();
+		const runners = [0, 1].map(() => {
+			const runner = new ExtensionRunner(loaded.extensions, loaded.runtime, fake.dir, manager, {} as never);
+			runner.setUIContext({ ...noOpUIContext }, "tui");
+			return runner;
+		});
+		try {
+			await runners[0].emit({ type: "session_start" });
+			await fake.waitFor(1);
+			publisher.publishSnapshot({ availability });
+			if (shutdownFirst) await runners[0].emit({ type: "session_shutdown", reason: "reload" });
+			await runners[1].emit({ type: "session_start", reason: "reload" });
+			await runners[0].emit({ type: "session_shutdown", reason: "reload" });
+			assert.deepEqual(
+				(await fake.calls()).filter((call) => call.phase === "start").map((call) => call.args[1]),
+				["report-agent"],
+				"unknown workflow activity must retain the registered agent, not release it",
+			);
+			await runners[1].emit({ type: "session_shutdown", reason: "quit" });
+			assert.deepEqual(
+				(await fake.calls()).filter((call) => call.phase === "start").map((call) => call.args[1]),
+				["report-agent", "release-agent"],
+				"quit releases the inherited registration even without a successor report",
+			);
+		} finally {
+			for (const runner of runners) {
+				await runner.emit({ type: "session_shutdown", reason: "quit" });
+				runner.invalidate();
+			}
+			await fake.dispose();
+		}
+	},
+);
+
 // PR #2925: a supplied transactional loader may retain the loaded reporter closure.
 test("SDK transactional reload retains the new reporter through retiring shutdown and final quit", async () => {
 	const fake = await fakeHerdr();
@@ -50,7 +99,7 @@ test("SDK transactional reload retains the new reporter through retiring shutdow
 			{
 				text: "Continued after reload",
 				beforeEmit: async () => {
-					await fake.waitFor(4);
+					await fake.waitFor(3);
 				},
 			},
 		]);
@@ -83,14 +132,14 @@ test("SDK transactional reload retains the new reporter through retiring shutdow
 			assert.equal(committed, true, "the real SDK transaction committed");
 			assert.notEqual(session.extensionRunner, retiring);
 			assert.equal(session.extensionRunner.createContext().sessionManager, sessionManager);
-			await fake.waitFor(3);
+			await fake.waitFor(2);
 			assert.deepEqual(
 				(await fake.calls()).filter((call) => call.phase === "start").map((call) => call.args[1]),
-				["report-agent", "release-agent", "report-agent"],
+				["report-agent", "report-agent"],
 				"retiring runner shutdown must not release the candidate's claim",
 			);
 			await session.prompt("Continue working after reload");
-			await fake.waitFor(5);
+			await fake.waitFor(4);
 			assert.equal(session.agent.state.errorMessage, undefined);
 			assert.deepEqual(session.messages.at(-1)?.content, [{ type: "text", text: "Continued after reload" }]);
 			await session.extensionRunner.emit({ type: "session_shutdown", reason: "quit" });
@@ -99,9 +148,9 @@ test("SDK transactional reload retains the new reporter through retiring shutdow
 			const records = await fake.calls();
 			assert.deepEqual(
 				records.map((call) => call.phase),
-				Array.from({ length: 6 }, () => ["start", "end"]).flat(),
+				Array.from({ length: 5 }, () => ["start", "end"]).flat(),
 			);
-			const states = ["idle", undefined, "idle", "working", "idle", undefined];
+			const states = ["idle", "idle", "working", "idle", undefined];
 			const calls = records.filter((call) => call.phase === "start");
 			for (const [index, call] of calls.entries()) {
 				const seq = arg(call.args, "--seq")!;
@@ -117,7 +166,7 @@ test("SDK transactional reload retains the new reporter through retiring shutdow
 					"--seq",
 					seq,
 					...(states[index] ? ["--state", states[index]] : []),
-					...(index === 0 || index === 2
+					...(index === 0 || index === 1
 						? [
 								"--agent-session-id",
 								sessionManager.getSessionId(),
@@ -140,7 +189,7 @@ test("SDK transactional reload retains the new reporter through retiring shutdow
 // PR #2925: exercise stale events before runner invalidation can reject their contexts.
 test("same-session retiring runner cannot cancel a pending claim or reclaim the active successor", async () => {
 	const fake = await fakeHerdr(`
-if (args[1] === "release-agent") {
+if (args.includes("working")) {
 	const timer = setInterval(() => {
 		if (fs.existsSync(require("node:path").join(args[2], "allow-release"))) {
 			clearInterval(timer);
@@ -166,18 +215,20 @@ if (args[1] === "release-agent") {
 	try {
 		await retiring.emit({ type: "session_start" });
 		await fake.waitFor(1);
+		await retiring.emit({ type: "agent_start" });
+		await vi.waitFor(async () => assert.equal((await fake.calls()).length, 3));
 		starting = successor.emit({ type: "session_start", reason: "reload" });
-		await vi.waitFor(async () => assert.equal((await fake.calls()).at(-1)?.args[1], "release-agent"));
+		await Promise.resolve();
 		await retiring.emit({ type: "agent_start" });
 		await retiring.emit({ type: "ui_prompt_start", reason: "ui_prompt", kind: "confirm" });
 		stopping = retiring.emit({ type: "session_shutdown", reason: "reload" });
-		assert.equal((await fake.calls()).length, 3, "candidate transport waits for predecessor release");
+		assert.equal((await fake.calls()).length, 3, "candidate transport waits for predecessor report");
 		await writeFile(join(fake.dir, "allow-release"), "");
 		await Promise.all([starting, stopping]);
 		await fake.waitFor(3);
 		assert.deepEqual(
 			(await fake.calls()).filter((call) => call.phase === "start").map((call) => call.args[1]),
-			["report-agent", "release-agent", "report-agent"],
+			["report-agent", "report-agent", "report-agent"],
 		);
 		await successor.emit({ type: "agent_start" });
 		await fake.waitFor(4);
@@ -206,7 +257,7 @@ if (args[1] === "release-agent") {
 			Array.from({ length: 8 }, () => ["start", "end"]).flat(),
 		);
 		const calls = records.filter((call) => call.phase === "start");
-		const states = ["idle", undefined, "idle", "working", "blocked", "working", "idle", undefined];
+		const states = ["idle", "working", "idle", "working", "blocked", "working", "idle", undefined];
 		for (const [index, call] of calls.entries()) {
 			const seq = arg(call.args, "--seq")!;
 			if (index) assert.ok(Number(seq) > Number(arg(calls[index - 1].args, "--seq")));

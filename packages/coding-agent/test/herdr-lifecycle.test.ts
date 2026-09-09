@@ -229,12 +229,12 @@ test("child shutdown cannot cancel a parent claim waiting for a timed-out predec
 		await child.emit({ type: "session_shutdown", reason: "quit" });
 		await starting;
 		await parent.emit({ type: "agent_start" });
-		await fake.waitFor(2); // predecessor release, then parent working (hung report has no end)
+		await fake.waitFor(1); // parent working (hung predecessor report has no end)
 		await parent.emit({ type: "session_shutdown", reason: "quit" });
 		const calls = (await fake.calls()).filter((call) => call.phase === "start");
 		assert.deepEqual(
 			calls.map((call) => call.args[1]),
-			["report-agent", "release-agent", "report-agent", "release-agent"],
+			["report-agent", "report-agent", "release-agent"],
 		);
 		assert.deepEqual(diagnostics, [{ kind: "timeout" }]);
 		for (let index = 0; index < calls.length; index++) {
@@ -243,7 +243,7 @@ test("child shutdown cannot cancel a parent claim waiting for a timed-out predec
 			if (index) assert.ok(Number(seq) > Number(arg(calls[index - 1].args, "--seq")));
 			assert.deepEqual(args, [
 				"pane",
-				index % 2 ? "release-agent" : "report-agent",
+				index === 2 ? "release-agent" : "report-agent",
 				fake.environment.paneId,
 				"--source",
 				"custom:atomic",
@@ -251,7 +251,7 @@ test("child shutdown cannot cancel a parent claim waiting for a timed-out predec
 				"atomic",
 				"--seq",
 				seq,
-				...(index % 2
+				...(index === 2
 					? []
 					: [
 							"--state",
@@ -325,15 +325,15 @@ test("SDK successor reuses the loaded reporter after owning shutdown and continu
 		const calls = (await fake.calls()).filter((call) => call.phase === "start");
 		assert.deepEqual(
 			calls.map((call) => call.args[1]),
-			["report-agent", "release-agent", "report-agent", "release-agent"],
+			["report-agent", "report-agent", "release-agent"],
 		);
 		for (const [index, call] of calls.entries()) {
 			const seq = arg(call.args, "--seq")!;
 			if (index) assert.ok(Number(seq) > Number(arg(calls[index - 1].args, "--seq")));
-			const manager = managers[Math.floor(index / 2)];
+			const manager = managers[Math.min(index, 1)];
 			assert.deepEqual(call.args, [
 				"pane",
-				index % 2 ? "release-agent" : "report-agent",
+				index === 2 ? "release-agent" : "report-agent",
 				fake.environment.paneId,
 				"--source",
 				"custom:atomic",
@@ -341,7 +341,7 @@ test("SDK successor reuses the loaded reporter after owning shutdown and continu
 				"atomic",
 				"--seq",
 				seq,
-				...(index % 2
+				...(index === 2
 					? []
 					: [
 							"--state",
@@ -361,7 +361,7 @@ test("SDK successor reuses the loaded reporter after owning shutdown and continu
 
 test("shared reporter admits a successor during shutdown drain without stale predecessor interference", async () => {
 	const fake = await fakeHerdr(`
-if (args[1] === "release-agent") {
+if (args.includes("working")) {
 	const timer = setInterval(() => {
 		if (fs.existsSync(require("node:path").join(args[2], "allow-release"))) {
 			clearInterval(timer);
@@ -398,19 +398,21 @@ if (args[1] === "release-agent") {
 		await successor.emit({ type: "ui_prompt_start", reason: "ui_prompt", kind: "confirm" });
 		await successor.emit({ type: "session_shutdown", reason: "quit" });
 		assert.equal((await fake.calls()).length, 2);
+		await previous.emit({ type: "agent_start" });
+		await vi.waitFor(async () => assert.equal((await fake.calls()).length, 3));
 		let stopped = false;
 		stopping = previous.emit({ type: "session_shutdown", reason: "new" }).then(() => {
 			stopped = true;
 		});
-		await vi.waitFor(async () => assert.equal((await fake.calls()).at(-1)?.args[1], "release-agent"));
+		await Promise.resolve();
 		starting = successor.emit({ type: "session_start", reason: "new" });
-		// The new binding must already be reserved while its claim waits for release.
+		// The new binding must already be reserved while its claim waits for the old report.
 		await foreign.emit({ type: "session_start" });
 		await foreign.emit({ type: "session_shutdown", reason: "quit" });
 		await previous.emit({ type: "agent_start" });
 		await previous.emit({ type: "session_shutdown", reason: "reload" });
-		assert.equal(stopped, false, "owning shutdown must await the real release child");
-		assert.equal((await fake.calls()).length, 3, "successor transport must wait for the predecessor release");
+		assert.equal(stopped, false, "owning shutdown must await the in-flight report");
+		assert.equal((await fake.calls()).length, 3, "successor transport must wait for the predecessor report");
 		await writeFile(join(fake.dir, "allow-release"), "");
 		await Promise.all([stopping, starting]);
 		await fake.waitFor(3);
@@ -435,7 +437,7 @@ if (args[1] === "release-agent") {
 			Array.from({ length: 8 }, () => ["start", "end"]).flat(),
 		);
 		const calls = records.filter((call) => call.phase === "start");
-		const states = ["idle", undefined, "idle", "working", "blocked", "working", "idle", undefined];
+		const states = ["idle", "working", "idle", "working", "blocked", "working", "idle", undefined];
 		for (const [index, call] of calls.entries()) {
 			const seq = arg(call.args, "--seq")!;
 			if (index) assert.ok(Number(seq) > Number(arg(calls[index - 1].args, "--seq")));
