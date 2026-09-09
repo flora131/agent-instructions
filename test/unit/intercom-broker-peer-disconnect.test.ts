@@ -408,3 +408,46 @@ test("broker honors groups-only registration and presence for discovery and dire
 	const delivered = await target.next("message", (frame) => frame.message.id === "groups-only-direct");
 	assert.equal(delivered.from.id, reviewerId);
 });
+
+test("terminal child wire capability refuses new asks, settles admitted asks, and survives reconnect registration", async () => {
+	const asker = new WireClient();
+	const child = new WireClient();
+	await register(asker, "terminal-wire-parent");
+	const childId = await register(child, "terminal-wire-child");
+	sendQuestion(asker, childId, "terminal-wire-race", 1);
+	await asker.next("delivered", (frame) => frame.messageId === "terminal-wire-race");
+	await child.next("message");
+	child.send({ type: "presence", replyCapability: "terminal", requestId: "terminal-wire-state" });
+	await child.next("presence_ack", (frame) => frame.requestId === "terminal-wire-state");
+	const feedback = await asker.next("message", (frame) => frame.message.replyTo === "terminal-wire-race");
+	assert.equal(feedback.from.id, childId);
+	assert.match(feedback.message.replyError ?? "", /terminal.*cannot reply/i);
+	for (const to of [childId, "terminal-wire-child"]) {
+		sendQuestion(asker, to, `terminal-wire-${to}`, 2);
+		const failure = await asker.next("delivery_failed", (frame) => frame.messageId === `terminal-wire-${to}`);
+		assert.match(failure.reason, /terminal.*cannot reply/i);
+	}
+	child.send({ type: "presence", replyCapability: "live", requestId: "terminal-wire-revive" });
+	assert.match((await child.next("presence_failed")).reason, /cannot be revived/);
+	asker.send({
+		type: "send",
+		to: childId,
+		message: { id: "terminal-wire-send", timestamp: 3, content: { text: "retained send" } },
+	});
+	await asker.next("delivered", (frame) => frame.messageId === "terminal-wire-send");
+	assert.equal((await child.next("message")).message.content.text, "retained send");
+	child.send({ type: "unregister" });
+	await asker.next("session_left", (frame) => frame.sessionId === childId);
+	const reconnected = new WireClient();
+	await reconnected.connected();
+	reconnected.send({
+		type: "register",
+		session: { ...session, name: "terminal-wire-child", replyCapability: "terminal" },
+	});
+	const reboundId = (await reconnected.next("registered")).sessionId;
+	sendQuestion(asker, reboundId, "terminal-wire-reconnected", 4);
+	assert.match(
+		(await asker.next("delivery_failed", (frame) => frame.messageId === "terminal-wire-reconnected")).reason,
+		/terminal.*cannot reply/i,
+	);
+});

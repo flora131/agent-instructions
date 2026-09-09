@@ -1,3 +1,4 @@
+import { registerSubagentReplyCapability } from "./subagent-reply-capability.js";
 import { APP_NAME, type ExtensionAPI, type ExtensionContext } from "@bastani/atomic";
 import { appendFileSync } from "node:fs";
 import {
@@ -132,6 +133,7 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
   };
   let client: IntercomClient | null = null;
   let clientRegistrationGroup: string | null = null;
+  const replyCapability = registerSubagentReplyCapability(pi, () => client);
   const config: IntercomConfig = loadConfig();
   const legacyChildOrchestratorMetadata = readChildOrchestratorMetadata();
   let runtimeContext: ExtensionContext | null = null;
@@ -233,6 +235,7 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
       startedAt: sessionStartedAt,
       lastActivity: Date.now(),
       status: currentStatus(),
+      replyCapability: replyCapability(),
       groups: [...currentIntercomGroups()],
       group: currentIntercomGroup(),
     };
@@ -875,6 +878,8 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
           resolveSessionHomeGroup(),
         );
         clientRegistrationGroup = resolveSessionHomeGroup();
+        // Termination may have won while registration was in flight.
+        if (replyCapability() === "terminal") nextClient.updatePresence({ replyCapability: "terminal" });
         await supervisorAuthorizations.restore(nextClient);
         for (const [runId, route] of pendingStageRoutes) {
           await registerPendingStageRoute(nextClient, runId, route);

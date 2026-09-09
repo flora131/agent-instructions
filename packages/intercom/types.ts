@@ -2,6 +2,8 @@ export interface SessionInfo {
   id: string;
   /** Host-declared connection purpose; omitted by legacy agent clients. Immutable after registration. */
   readonly recipientPurpose?: "agent" | "control";
+  /** Host-owned execution capability, independent of idle/thinking presence. */
+  replyCapability?: "live" | "terminal";
   name?: string;
   cwd: string;
   model: string;
@@ -155,6 +157,7 @@ export type ClientMessage =
       type: "presence";
       name?: string;
       status?: string;
+      replyCapability?: SessionInfo["replyCapability"];
       model?: string;
       groups?: string[];
       /** Legacy single-group membership; accepted alongside `groups` for compatibility. */

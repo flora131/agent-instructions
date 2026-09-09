@@ -1,3 +1,4 @@
+import { TERMINAL_CHILD_ASK_REFUSAL } from "../recipient-purpose.js";
 import type net from "node:net";
 import type { BrokerMessage, Message, SessionInfo } from "../types.js";
 import {
@@ -304,6 +305,10 @@ export function handleBrokerSend(
       });
       return;
     }
+  if (message.expectsReply === true && target.info.replyCapability === "terminal") {
+    write(socket, { type: "delivery_failed", messageId: message.id, attemptId, reason: TERMINAL_CHILD_ASK_REFUSAL });
+    return;
+  }
 	if (deliveredMatch === "match") {
 		if (message.expectsReply === true) {
 			const acceptedQuestionTarget = deliveredMessages.lookupQuestionTarget(
@@ -451,6 +456,17 @@ export function handleBrokerSend(
 		});
 		return;
 	  }
+      // A terminal presence frame can arrive while the socket write callback is pending.
+      // Retain accepted-delivery authority, but never open a reply route after termination.
+      if (message.expectsReply === true && target.info.replyCapability === "terminal") {
+        write(socket, { type: "delivery_failed", messageId: message.id, attemptId, reason: TERMINAL_CHILD_ASK_REFUSAL });
+        return;
+      }
+      if (message.expectsReply === true && sessions.get(target.info.id) !== target) {
+        write(socket, { type: "delivery_failed", messageId: message.id, attemptId,
+          reason: `Session "${target.info.name ?? target.info.id}" disconnected before replying` });
+        return;
+      }
       if (message.expectsReply === true) {
         pendingQuestions.record(fromSession.info.id, target.info.id, message.id);
 	  }

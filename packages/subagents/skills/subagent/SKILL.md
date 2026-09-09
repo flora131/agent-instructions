@@ -213,6 +213,8 @@ Choose the observation mode for each authorized task. No extra user confirmation
 
 Use `subagent({ action: "wait", id: taskId, budgetMs: 1000 })` to observe an existing task, `status` to inspect its state, or `interrupt` to stop it. A yielded receipt is not a terminal result. Background counts stay below the prompt; `/tasks` opens inspection only on command. A shaded completion notification reaches the owning chat without requiring a model reply. A later wait does not extend the owner's lifetime.
 
+Intercom `ask` cannot revive a completed, failed, interrupted, or cancelled noninteractive child, even if its retained registration says `idle`. New asks fail immediately, and termination fails an already-admitted ask that has not received a reply. Use a fresh child for follow-up work. Live interactive idle sessions and workflow post-mortem conversations remain separate reply-capable cases; `send` transport behavior is unchanged.
+
 Completed, interrupted, and parent-question children are terminal for continuation. Do not address a prior child or sibling set by run ID. Start follow-up work with the normal launch form and an explicit handoff:
 
 ```typescript

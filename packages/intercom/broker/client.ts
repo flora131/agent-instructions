@@ -93,6 +93,7 @@ export interface PresenceUpdates {
   model?: string;
   groups?: string[];
   group?: string;
+  replyCapability?: SessionInfo["replyCapability"];
 }
 
 

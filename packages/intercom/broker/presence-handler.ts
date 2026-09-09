@@ -4,6 +4,8 @@ import type { BrokerMessage } from "../types.js";
 import { sessionGroups, sessionsShareGroup, setSessionGroups } from "./group-membership.js";
 import type { BrokerConnectedSession } from "./send-handler.js";
 import { isAgentRecipient } from "../recipient-purpose.js";
+import type { PendingQuestionIndex } from "./pending-question-index.js";
+import { failTerminalQuestions } from "./terminal-questions.js";
 
 interface PresenceClientMessage extends Record<string, unknown> {
 	type: string;
@@ -40,6 +42,7 @@ export function handleBrokerPresence(
 	currentId: string | null,
 	sessions: Map<string, BrokerConnectedSession>,
 	write: WriteMessage,
+	pendingQuestions?: PendingQuestionIndex,
 ): void {
 	const rawRequestId = clientMessage.requestId;
 	if (rawRequestId !== undefined && typeof rawRequestId !== "string") {
@@ -99,10 +102,19 @@ export function handleBrokerPresence(
 	if (status !== undefined && typeof status !== "string") return void fail("Invalid presence status");
 	const model = clientMessage.model;
 	if (model !== undefined && typeof model !== "string") return void fail("Invalid presence model");
+	const capability = clientMessage.replyCapability;
+	if (capability !== undefined && capability !== "live" && capability !== "terminal") {
+		return void fail("Invalid reply capability");
+	}
+	if (capability === "live" && session.info.replyCapability === "terminal") {
+		return void fail("Terminal reply capability cannot be revived");
+	}
 
 	if (typeof name === "string") session.info.name = name;
 	if (typeof status === "string") session.info.status = status;
 	if (typeof model === "string") session.info.model = model;
+	if (capability === "live" || capability === "terminal") session.info.replyCapability = capability;
+	if (capability === "terminal" && pendingQuestions) failTerminalQuestions(session, sessions, pendingQuestions, write);
 	setSessionGroups(session.info, nextGroups, legacyGroup);
 	session.info.lastActivity = Date.now();
 	broadcastMembershipChange(sessions, write, session, previousGroups);
