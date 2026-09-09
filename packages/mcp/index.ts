@@ -1,6 +1,6 @@
 import { isStaleExtensionContextError, type AgentToolUpdateCallback, type ExtensionAPI, type ExtensionContext, type SubagentChildPolicy, type ToolInfo } from "@bastani/atomic";
 import type { McpExtensionState } from "./state.js";
-import type { McpConfig } from "./types.ts";
+import type { McpConfig } from "./types.js";
 import type { MetadataCache } from "./metadata-cache.js";
 import type { ProxyToolResult } from "./proxy-types.js";
 import { waitForCaller } from "./caller-wait.js";
@@ -11,6 +11,7 @@ import { Type } from "typebox";
 import { loadMcpConfig } from "./config.ts";
 import { getConfigPathFromArgv } from "./utils.js";
 import { renderMcpToolResult } from "./tool-result-renderer.js";
+import { renderMcpDirectToolCall, renderMcpToolCall } from "./tool-call-renderer.js";
 
 const STALE_INITIALIZATION_PREFIX = "Stale MCP session initialization cancelled";
 
@@ -33,6 +34,7 @@ function isContextActive(ctx: ExtensionContext): boolean {
 
 export default function mcpAdapter(pi: ExtensionAPI) {
   let state: McpExtensionState | null = null;
+  let renderConfig: McpConfig | undefined;
   let initPromise: Promise<McpExtensionState> | null = null;
   let lifecycleGeneration = 0;
   let registeredDirectToolNames = new Set<string>();
@@ -68,6 +70,8 @@ export default function mcpAdapter(pi: ExtensionAPI) {
           (candidate) => isOwnedState(candidate),
           spec,
         ),
+        renderCall: (_args: Record<string, unknown>, theme: Parameters<typeof renderMcpDirectToolCall>[2]) =>
+          renderMcpDirectToolCall(spec.serverName, spec.originalName, theme),
         renderResult: renderMcpToolResult,
       });
     }
@@ -262,6 +266,7 @@ export default function mcpAdapter(pi: ExtensionAPI) {
     const previousState = state;
     const retiredInitialization = initPromise;
     state = null;
+    renderConfig = undefined;
     stateOwner = null;
     initPromise = null;
     registeredDirectToolNames = new Set<string>();
@@ -280,6 +285,7 @@ export default function mcpAdapter(pi: ExtensionAPI) {
       const config = loadMcpConfig(earlyConfigPath, ctx.cwd);
       const { loadMetadataCache } = await import("./metadata-cache.js");
       if (!isStartCurrent()) return;
+      renderConfig = config;
       const directToolState = await registerDirectToolsFromConfig(config, loadMetadataCache());
       if (!isStartCurrent()) return;
       if (
@@ -306,6 +312,7 @@ export default function mcpAdapter(pi: ExtensionAPI) {
     const retiredInitialization = initPromise;
     activeSession = null;
     state = null;
+    renderConfig = undefined;
     stateOwner = null;
     initPromise = null;
     registeredDirectToolNames = new Set<string>();
@@ -349,6 +356,8 @@ export default function mcpAdapter(pi: ExtensionAPI) {
         server: Type.Optional(Type.String({ description: "Filter to specific server (also disambiguates tool calls)" })),
         action: Type.Optional(Type.String({ description: "Action: 'ui-messages' to retrieve prompts/intents from UI sessions" })),
       }),
+      renderCall: (args: Record<string, unknown>, theme: Parameters<typeof renderMcpToolCall>[1]) =>
+        renderMcpToolCall(args, theme, { config: state?.config ?? renderConfig, toolMetadata: state?.toolMetadata }),
       renderResult: renderMcpToolResult,
       async execute(_toolCallId: string, params: {
         tool?: string;

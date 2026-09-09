@@ -121,7 +121,7 @@ describe("AgentSession concurrent prompt guard", () => {
 		}
 	});
 
-	async function createSession() {
+	async function createSession(extensions: Parameters<typeof createTestExtensionsResult>[0] = []) {
 		const model = getModel("anthropic", "claude-sonnet-4-5")!;
 		let abortSignal: AbortSignal | undefined;
 
@@ -167,7 +167,7 @@ describe("AgentSession concurrent prompt guard", () => {
 			settingsManager,
 			cwd: tempDir,
 			modelRuntime,
-			resourceLoader: createTestResourceLoader(),
+			resourceLoader: createTestResourceLoader({ extensionsResult: await createTestExtensionsResult(extensions) }),
 		});
 
 		return session;
@@ -193,6 +193,30 @@ describe("AgentSession concurrent prompt guard", () => {
 		await session.abort();
 		await firstPrompt.catch(() => {}); // Ignore abort error
 	});
+	it("queued inputs run transformations and handled inputs are not queued", async () => {
+		// Queue hooks run before admission, including RPC-originated messages.
+		await createSession([
+			(pi) => {
+				pi.on("input", (event) =>
+					event.text === "consume"
+						? { action: "handled" }
+						: { action: "transform", text: `${event.source}:${event.text}` },
+				);
+			},
+		]);
+		await session.steer("consume");
+		expect(session.pendingMessageCount).toBe(0);
+		await session.followUp("queued", undefined, { source: "rpc" });
+		expect(session.getFollowUpMessages()).toEqual(["rpc:queued"]);
+	});
+
+	it("tree navigation rejects active compaction before changing the leaf", async () => {
+		// Upstream #9178.
+		await createSession();
+		vi.spyOn(session, "isCompacting", "get").mockReturnValue(true);
+		await expect(session.navigateTree("missing")).rejects.toThrow("current compaction");
+		expect(session.sessionManager.getLeafId()).toBeNull();
+	});
 	it("should allow steer() while streaming", async () => {
 		await createSession();
 		// Start first prompt
@@ -200,7 +224,7 @@ describe("AgentSession concurrent prompt guard", () => {
 		await new Promise((resolve) => setTimeout(resolve, 10));
 
 		// steer should work while streaming
-		expect(() => session.steer("Steering message")).not.toThrow();
+		await session.steer("Steering message");
 		expect(session.pendingMessageCount).toBe(1);
 
 		// Cleanup
@@ -214,7 +238,7 @@ describe("AgentSession concurrent prompt guard", () => {
 		await new Promise((resolve) => setTimeout(resolve, 10));
 
 		// followUp should work while streaming
-		expect(() => session.followUp("Follow-up message")).not.toThrow();
+		await session.followUp("Follow-up message");
 		expect(session.pendingMessageCount).toBe(1);
 
 		// Cleanup

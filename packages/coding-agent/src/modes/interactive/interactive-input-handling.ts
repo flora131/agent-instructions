@@ -1,5 +1,4 @@
 import { markLifecycleTiming } from "../../core/lifecycle-timings.ts";
-import type { TaskId } from "../../core/tasks/contracts.js";
 import { getOwnerTaskStore } from "../../core/tasks/owner-store.js";
 import { yieldToEventLoop } from "../../utils/event-loop.ts";
 import {
@@ -7,13 +6,14 @@ import {
 	interruptBlockedInteractiveEngine,
 	terminateInteractiveEngine,
 } from "../interactive-engine/extension-ui-bridge.ts";
+import { IsolatedInteractiveRuntime } from "../interactive-engine/isolated-runtime.js";
 import {
 	dismissRemoteProxy,
 	remoteEngineProxyOwner,
 	remoteProxyHandlesCtrlC,
 } from "../interactive-engine/remote-input-ownership.ts";
+import { showTaskInspector } from "../rpc/task-ui-bridge.js";
 import { StartupIdentityComponent } from "./components/startup-identity.ts";
-import { TaskInspector } from "./components/task-inspector.js";
 import { COMPACTION_ALREADY_IN_PROGRESS_WARNING } from "./interactive-bash-compact.ts";
 import { routeGlobalClearInput } from "./interactive-global-clear.ts";
 import { isPhysicalCtrlC, isPhysicalEscape, isSafetyKeyRelease } from "./interactive-key-identity.ts";
@@ -279,6 +279,10 @@ InteractiveModeBase.prototype.setupEditorSubmitHandler = function (this: Interac
 		try {
 			// Handle commands
 			if (text === "/tasks" || text.startsWith("/tasks ")) {
+				if (this.runtimeHost instanceof IsolatedInteractiveRuntime) {
+					await this.runtimeHost.openTaskInspector(text.slice(6).trim() || undefined);
+					return;
+				}
 				if (!getOwnerTaskStore(this.session)) this.session.getAgentTaskHost();
 				const store = getOwnerTaskStore(this.session);
 				this.editor.setText("");
@@ -286,11 +290,11 @@ InteractiveModeBase.prototype.setupEditorSubmitHandler = function (this: Interac
 					this.showStatus("Launched agents and shells will appear here.");
 					return;
 				}
-				this.showSelector((done) => {
-					const inspector = new TaskInspector(store, () => this.ui.requestRender(), done);
-					inspector.open((text.slice(6).trim() || undefined) as TaskId | undefined);
-					return { component: inspector, focus: inspector, dispose: () => inspector.dispose() };
-				});
+				await showTaskInspector(
+					{ custom: (factory, options) => this.showExtensionCustom(factory, options) },
+					store,
+					text.slice(6).trim() || undefined,
+				);
 				return;
 			}
 			if (text === "/settings") {

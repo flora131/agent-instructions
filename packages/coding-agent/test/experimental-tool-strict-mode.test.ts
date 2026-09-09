@@ -71,12 +71,14 @@ describe("experimental strict built-in tools", () => {
 		expect(experimentalTools.map((tool) => tool.name)).toEqual(normalTools.map((tool) => tool.name));
 		for (const [index, tool] of experimentalTools.entries()) {
 			expect(tool.constrainedSampling).toEqual({ type: "json_schema", strict: "prefer" });
-			// Strict mode is a sampling hint, never a schema rewrite: parameters
-			// stay identical to the unconstrained definitions, and the key stays
-			// absent rather than owned-with-undefined when the gate is off.
+			// Sampling hints never rewrite the schema.
 			expect(tool.parameters).toEqual(normalTools[index]?.parameters);
-			expect(normalTools[index]?.constrainedSampling).toBeUndefined();
-			expect(Object.hasOwn(normalTools[index]!, "constrainedSampling")).toBe(false);
+			if (["bash", "powershell", "read", "edit", "write"].includes(tool.name)) {
+				expect(normalTools[index]?.constrainedSampling).toEqual({ type: "json_schema", strict: "prefer" });
+			} else {
+				expect(normalTools[index]?.constrainedSampling).toBeUndefined();
+				expect(Object.hasOwn(normalTools[index]!, "constrainedSampling")).toBe(false);
+			}
 			expect(Object.hasOwn(tool, "constrainedSampling")).toBe(true);
 		}
 	});

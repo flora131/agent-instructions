@@ -9,11 +9,35 @@ Atomic bundles `@bastani/subagents`, an extension for bounded specialist delegat
 
 You do not need to install anything separately when you use `@bastani/atomic`.
 
+Background subagents are supported. See [Background tasks](/background-tasks) for launch examples, the below-prompt status indicator, `/tasks`, shell output, cancellation, and completion notices.
+
+## Browse agents
+
+Open `/agents` to browse the available project, user, and built-in agents. Type to filter by name, description, or source. Use arrows to select an agent and Enter to inspect its description, model and fallbacks, tools, definition path, and system prompt. Escape returns to the catalog, then to chat. `/agents <query>` starts with a filter. Browsing is read-only and never launches an agent.
+
+The catalog is navigation, not an approval prompt. Leaving it open does not mark [Herdr](/herdr) blocked or hide active agent work; separate user-decision prompts still report their normal waits.
+
+The catalog uses the same effective discovery rules as execution, so overridden definitions and disabled agents are not offered as separate launchable choices. Ask Atomic to create or modify an agent; the catalog does not change configuration.
+
 ## Task inspection
 
-Hosts with an owner task store expose `/tasks` and `/tasks <id>`. Agents and shells stay in admission order, including terminal tasks. Enter opens detail; arrows select an explicit action. Cancel asks for confirmation of the selected task. Terminal tasks retain transcript inspection but omit foreground, cancellation, and stdin actions. Escape returns from detail or stdin before returning to the composer.
+Hosts with an owner task store expose `/tasks` and `/tasks <id>` for background agents and shells, including their retained terminal results. Foreground-only work is excluded. Enter opens detail; arrows select an explicit action. Cancel asks for confirmation of the selected task. Terminal tasks retain transcript inspection but omit foreground, cancellation, and stdin actions. Escape returns from detail or stdin before returning to the composer.
 
-Transcript inspection uses retained child-session messages and the normal message renderers, excluding hidden reasoning. Missing capture is reported as `Transcript unavailable`; metrics never substitute for missing messages. In transcript focus, arrows scroll and PageUp requests earlier retained messages when available.
+`/tasks` appears in slash-command autocomplete. The inspector groups agents and shells with counts, status symbols, and a highlighted selection. Task descriptions lead; the selected row shows secondary activity and tool counts. The header and footer remain visible in ordinary terminal sizes, with a compact fallback for short terminals.
+
+The list opens as a compact inline widget, like the `/workflow connect` picker. Detail, transcript, input, and stop-confirmation pages are fullscreen; returning to the list preserves selection. Every agent row includes its resolved model and reasoning level when available, including completed background tasks.
+
+While `/tasks` or its fullscreen transcript/detail view is active, Escape navigates back or closes that view; it does not cancel a pending `ask_user_question`. The questionnaire waits out of the way and returns with its selection intact after task navigation closes. With no task view active, Escape cancels the questionnaire normally.
+
+In the default isolated CLI, background subagents continue running after their launch observation returns. The engine publishes a compact task-status indicator below the prompt box, without task rows or activity previews. Run `/tasks` to open the list and inspect individual tasks; task updates never open it automatically. A compact finished-task summary remains after completion. Inspecting does not restart work or create a second task owner. Top-level model bash commands use this owner on POSIX systems; native Windows and commands inside subagent sessions retain their existing execution path.
+
+Transcript inspection uses a dedicated scrolling view with pinned identity, position, and controls. Retained child messages use the normal message renderers, excluding hidden reasoning and inline images. Missing capture is reported as `Transcript unavailable`; metrics never substitute for missing messages. Arrows scroll, PageUp/PageDown moves one viewport, and PageUp at the top loads earlier retained history. Home/End jumps within loaded history.
+
+Open live transcripts subscribe to child-session events, so streaming text and partial/final tool results refresh without reopening the page or waiting for a task-activity counter. Earlier pages remain anchored while updates arrive. Leaving the transcript releases its subscription without affecting execution.
+
+Detail views pin task identity, state, available metrics, and the selected action while PageUp/PageDown scrolls the body. Recent activity shows up to five retained tool actions; errors and input requests appear explicitly. Left returns to the previous view. `x` requests cancellation without bypassing confirmation or configured task bindings. Shell inspection shows a bounded output tail with omission markers.
+
+After a confirmed `x` stop settles, the owning chat receives a visible **stopped** notification and the parent model receives the stop context, even if the child returns no final message. Repeated stops do not duplicate notifications or replace an already-recorded terminal result. Closing the owner still suppresses late completion delivery.
 
 ## Start with natural language
 
@@ -45,21 +69,29 @@ Subagents now run and return their results directly. Atomic does not infer accep
 
 Runtime-created session contexts bind single launches to their actual session or workflow-stage owner. Omitted `wait` returns an admitted observation with reason `default-background`; `wait: {kind: "background"}` uses reason `explicit`. `wait: {kind: "foreground", budgetMs: 30000}` opts into foreground-first observation. The omitted foreground budget is 30000 ms. `subagent({action: "wait", id: taskId, budgetMs: 1000})` observes an existing task in the same owner without restarting it.
 
-An Intercom peer-message yield keeps the original execution alive. Terminal completion is recorded separately and admitted as a `task-completion` custom message with `display:false`. Failed delivery retains the same persisted completion identity for retry. Default parallel launches admit all accepted slots and leave work queued under the configured concurrency limit; explicit foreground-first groups retain lazy admission and Intercom skip semantics. Existing unbound SDK callers retain their legacy result fields.
+The agent may choose foreground-first or background observation for each authorized call without asking the user merely to select a mode. When a foreground observation expires, the returned task is still running. Wait for terminal completion before using its result in dependent work. See [Choosing how long to wait](/background-tasks#choose-how-long-to-wait) for shell and subagent defaults and the separate execution-timeout behavior.
+
+User steering or an incoming Intercom ask/send admitted to the waiting parent releases its active subagent observations, including both foreground launches and `action: "wait"`. This applies to main chat and live workflow-stage chat. The parent can handle the queued message and reply without cancelling the child, closing its owner, or interrupting another owner's waits. User input yields with reason `input-needed`; Intercom coordination yields with reason `intercom-coordination`. The original task can be observed again after handling the message.
+
+An Intercom peer-message yield keeps the original execution alive. Terminal completion is recorded separately and admitted as a readable `task-completion` custom message. Background completions show a visible notification in main or owning workflow-stage chat, without requiring the parent model to reply. Its text names the available agent/task, outcome, error, and response excerpt; the receipt remains in structured details. Failed delivery retains the same persisted completion identity for retry. Parallel launches admit accepted slots independently of foreground/background observation and keep execution queued under the configured concurrency limit. Intercom yields do not skip queued siblings. Existing unbound SDK callers retain their legacy result fields.
 
 Durable `ctx.tool` callbacks wait for tasks admitted inside their callback before checkpointing, even when the launching observation yielded. Session lifetime closure cancels session-owned work; stage generation closure, not pane detach or fallback session replacement, owns stage tasks.
 
-## Foreground supervisor coordination
+## Supervisor coordination
 
-When a foreground child calls `contact_supervisor` with `need_decision` or `interview_request`, or uses `intercom.ask` against its resolved launching parent, Atomic claims the request before broker send or reply-waiter admission. The current child ends and the parent `subagent` call returns the original question verbatim, the child agent identity, ordered attachments with duplicates preserved, and a dynamically generated `[TASK_CONTEXT]` handoff.
+In a parallel run, `intercom.ask`, `contact_supervisor({ reason: "need_decision" })`, and `interview_request` wait only in the requesting child. The supervisor answers with ordinary `intercom({ action: "reply", message: "..." })`; use `pending` and `replyTo` to select the exact question when several asks are pending. The correlated reply returns to the same child execution, with its context and run identity intact. Do not relaunch the requester or its siblings to deliver an answer.
 
-The handoff explicitly tells the parent to start a fresh child with a normal launch such as `subagent({ agent: "worker", task: "[TASK_CONTEXT] ... Continue with this supervisor answer: ..." })`. The new child receives a new run identity. Completed, interrupted, and parent-question children are terminal for continuation; a prior run ID cannot revive one.
+`intercom.send` and `contact_supervisor` progress updates return after delivery without waiting for a reply. An exact-child Intercom handshake can release the parallel call's foreground observations so the supervisor can handle the message. This is not execution cancellation: active siblings keep running, queued siblings start once capacity is available, and worktrees stay owned until their children exit. Background calls use the same communication path without needing to release an observation.
 
-For a parallel foreground run, one claimed parent ask interrupts the active siblings and closes the worker gate. Tasks still queued behind the concurrency limit never launch or request supervisor authorization. No sibling set or worktree/session execution state is retained for later continuation. Follow-up work is launched explicitly as fresh SINGLE or PARALLEL work with the necessary context.
+Targeted `interrupt` still stops only the selected child. Explicit batch cancellation and session/workflow-stage lifetime closure still stop the intended owned children, including pending reply waits. A late or duplicate reply cannot revive a terminal child. Ordinary Intercom group restrictions and the authorized cross-group `contact_supervisor` route are unchanged.
 
-`intercom.send`, `contact_supervisor` progress updates, and `intercom.ask` calls resolved to a sibling or other peer keep their existing Intercom delivery path. Non-parent blocking asks keep the single race-safe reply-waiter slot and exact threaded replies.
+Completed, failed, interrupted, and cancelled noninteractive children cannot answer new Intercom asks, even when their retained registration still says `idle`. Such asks fail immediately with an explicit terminal-child error; an admitted ask also fails if its child terminates before replying. Launch a fresh child with the required context for follow-up work. This does not restrict live interactive idle sessions or workflow-stage post-mortem conversations, and does not change `send` delivery semantics.
 
-When the Intercom bridge is active, the parent may connect long enough to issue the initial child capability; the child's own connection remains tool-driven. A claimed parent decision or interview ends before child send or waiter admission. Non-interactive children still run normal extension lifecycle and remain in-process `AgentSession` instances while live.
+### Single-child handoff
+
+A single-child launch retains its existing terminal handoff: a parent-targeted blocking ask is claimed before send/waiter admission, ends that child, and returns the original question, ordered attachments, agent identity, and a dynamic `[TASK_CONTEXT]` handoff through the parent `subagent` call. The handoff explicitly requests a fresh child with a new run identity and the supervisor answer in its task. This single-child behavior does not apply to parallel runs or collected sibling launches.
+
+When the Intercom bridge is active, the parent may connect to issue the child capability; the child's own connection remains tool-driven. Non-interactive children still run normal extension lifecycle and remain in-process `AgentSession` instances while live.
 
 ## Migration from acceptance gates
 
@@ -113,7 +145,7 @@ Compose those review and research passes with the `subagent` tool. Treat them as
 
 ## Foreground work and control
 
-Foreground subagents stream progress in the conversation and return their results before the call completes.
+Explicit foreground-first observations wait for the child until it settles or the observation yields. The child continues after a yield; owner-bound calls without `wait` use background observation by default.
 
 Natural-language examples:
 
@@ -128,7 +160,7 @@ Show me the current subagent status.
 Tool examples:
 
 ```ts
-subagent({ agent: "codebase-analyzer", task: "Trace the auth flow with file references." })
+subagent({ agent: "codebase-analyzer", task: "Trace the auth flow with file references.", wait: { kind: "foreground", budgetMs: 30000 } })
 ```
 
 Use `interrupt` to stop a live child. Interrupted children are terminal for continuation; launch a fresh child with an explicit context handoff for follow-up work.
@@ -140,7 +172,9 @@ If the parent turn is cancelled while a foreground in-process child is still run
 
 A thinking-only aborted final message is skipped so earlier text can still be recovered. Session, Progress, and Output paths are cited only when those files exist when the cancelled envelope or receipt is built. A parallel set shares one `progress.md`; recovery attributes that file to the first progress-enabled child so siblings are not each given a copy of the same findings. A mixed parallel set that contains both a user interrupt and a parent cancellation presents the cancellation summary rather than interrupt-specific follow-up guidance.
 
-Status and interrupt use the live Rust registry and status watch; `list` and `get` remain read-only management actions. No retained foreground-run map, resume generation, session rehydration, or bare-run-ID continuation exists. Terminal delivery remains an in-memory bounded envelope with artifacts and run history persisted once.
+For owner-bound task IDs, status and interrupt resolve the same task owner as launch and wait. Legacy run IDs use the live Rust registry and status watch; `list` and `get` remain read-only definition management actions. Neither identifier revives a completed execution. Owner-bound completions use persisted delivery identities; unbound callers retain their legacy result and artifact behavior.
+
+In-process status results use compact rows such as `∀ debugger_1 · Running`, matching the other subagent tool cards. The collapsed card shows up to six children and an omitted count; expanding the tool result shows every child, full paths, parent, task, depth, loaded/cold residency, and any recorded termination cause or session file. Multiple runs have separate labels. The configured tool-expansion shortcut appears below the compact rows. This is a status snapshot, not an animated live monitor; inspection does not start or resume work. Model-facing status text and canonical identifiers remain unchanged.
 
 Inside workflow stages, completion delivery observes the stage generation boundary. A completion admitted before the boundary closes is queued through the stage AgentSession and processed before the stage publishes its terminal snapshot. Closing the boundary cancels still-running stage-owned children, and findings or completion notifications that arrive afterward are suppressed rather than routed to the parent/main chat. Explicit post-mortem stage chat remains available separately for deliberate follow-up.
 
@@ -148,13 +182,17 @@ Cancellation does not retract an Intercom send already submitted to the broker. 
 
 Live progress and completed results show each step's resolved model ID and effective reasoning level, including after a model fallback; parallel steps keep their metadata separate. Fast inference is part of the model ID, so an agent pinned to a fast variant renders it directly — `codebase-analyzer (openai-codex/gpt-5.6-sol-fast · thinking medium)` — with no separate `fast` badge. Select fast inference in an agent definition's `model` and fallback model fields, for example `openai-codex/gpt-5.6-sol-fast:medium`; normal and fast IDs stay distinct fallback candidates and distinct records. See [Providers](/providers#fast-models) for which providers publish fast variants and what each one sends upstream.
 
+Owner-task rows, status cards, foreground result receipts, and background completion cards retain these settings too. Background launch receipts include the concrete model and known, capability-clamped reasoning level selected at admission, including inherited defaults, without waiting for child session startup. A launch receipt remains a snapshot; inspect `/tasks` for later session resolution or fallback changes. Settings that are not yet resolved remain unavailable rather than being guessed from the parent's display. Completion metadata is persisted with the notification so it remains visible when replaying chat history.
+
 ## Owner-bound task projection
 
-Host adapters can construct an `OwnerTaskStore` from their existing supervisor and owner lease, check the `store.connect()` result, then call `bindOwnerTaskStore(session, store)` for that exact live session. Binding does not create or connect an owner. The store observes snapshot/cursor reconciliation and notifies already-mounted chats even when the producer binds lazily. Its task rows remain subscribed after launch tools and agent turns end; disposing the view does not cancel the owner. Reattachment uses the same task identities rather than replaying launch tools.
+Host adapters can construct an `OwnerTaskStore` from their existing supervisor and owner lease, check the `store.connect()` result, then call `bindOwnerTaskStore(session, store)` for that exact live session. Binding does not create or connect an owner. The store observes snapshot/cursor reconciliation and notifies already-mounted chats even when the producer binds lazily. Disposing the view does not cancel the owner. Reattachment uses existing identities rather than replaying launch tools.
 
-Session replacement clears the previous session's task rows and footer immediately, even when the replacement store binds later. Rebuilding the main transcript remounts tasks from its current store without launching new work. Late updates from the previous store cannot repopulate the replacement chat.
+Native task snapshots retain `wasBackground` once a designated observation yields, so a fresh projection can distinguish completed background work from foreground-only commands. Trusted hosts recover authentic command settlement receipts independently of the bounded event journal. Neither recovery path registers a new wait or restarts execution.
 
-Compact rows show the agent label, description, execution state and available tool-use count. Display-colliding labels get a stable short suffix derived from the task ID. Foreground/background badges describe the designated host observation, not independent SDK waits. Ctrl+O exposes available metadata, bounded retained action/output previews, and clearly labelled missing prompt/response transcripts. Retention is at most 64 reports and 8 KiB of encoded preview records per task; omitted older previews are labelled rather than presented as a complete transcript. The compact footer remains visible while bound background tasks run or need attention, including when launch rows scroll out of view or a stage question occupies the body.
+Main and workflow-stage chats use below-prompt background counts instead of persistent task rows in the transcript. Session replacement clears the previous owner's status before a replacement store binds. A workflow question retains the background count below its input area. Completion notifications use the same shared renderer in both chats.
+
+Custom `ChatSessionHost` adapters can still use live task rows; set `taskRowsInChat: false` for footer-only status. Those rows show agent labels, state, duration, and bounded activity previews. Display-colliding labels get a stable short suffix derived from the task ID. Retention is at most 64 reports and 8 KiB of encoded preview records per task; omitted previews are labelled rather than presented as a complete transcript.
 
 This is a host integration API above the SDK task foundation. Existing subagent and command producers are not automatically migrated by binding a projection. Full task transcript retrieval and `/tasks` navigation are separate integrations; unavailable transcript content is not inferred from activity reports.
 
@@ -177,9 +215,11 @@ For adversarial review or research, prefer fresh context so the specialist inspe
 
 For parallel implementation work, `worktree: true` can give each child an isolated git worktree so concurrent edits do not clobber each other.
 
+Observation yields do not release these worktrees. Cancelling a queued child before it starts, or closing the session or workflow-stage owner, still allows the batch's worktrees and branches to be removed after the remaining executions finish. Live children's changes stay in place until then; Atomic captures worktree diffs before cleanup.
+
 Fresh child sessions use normal Atomic package discovery when an agent omits `extensions`, so bundled lightweight MCP and web-access wrappers are available just as they are in the parent. An explicit `extensions` field, including an empty list, switches optional extensions to allowlist mode and excludes unlisted optional builtins; mandatory bundled Intercom remains loaded. The child does not inherit the parent's normal optional discovery set.
 
-Top-level parallel calls support up to 50 subagents after expanding each task's optional `count`. The extension's `parallel.maxTasks` setting defaults to 50 and can enforce a lower task limit; `parallel.concurrency` independently controls how many of those children run at once, while the Rust turn limiter admits at most four running turns per parent.
+Top-level parallel calls support up to 50 subagents after expanding each task's optional `count`. The extension's `parallel.maxTasks` setting defaults to 50 and can enforce a lower task limit; `parallel.concurrency` defaults to 3 and independently controls how many of those children run at once. Explicit configuration overrides that default, and per-call `concurrency` takes precedence over configuration. The separate Rust turn limiter still admits at most four running turns per parent.
 
 When one assistant response emits several sibling execution-mode `subagent` tool calls, Atomic collects that synchronous burst before starting a child and runs it as one indexed parallel set. Each original tool call still receives one result containing only the children it requested, and its live result, progress, control, and artifact updates are projected to that same route without sibling data. The TUI redraws the shared run as one aggregate parallel widget rather than retaining one widget per original call. A single call keeps its original SINGLE or PARALLEL mode, calls awaited in sequence remain separate runs, and management actions bypass collection. An execution call that arrives after a child has started still receives the existing in-progress rejection. Prefer one explicit `{ tasks: [...] }` call when planning parallel work; burst collection handles sibling calls emitted by a model.
 

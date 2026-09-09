@@ -107,13 +107,19 @@ This slice exercises fake runners, not force-stop or real-process cleanup guaran
 
 ### Supervised command SDK
 
-`startCommandTask(owner, intent, operation)` starts an owned Unix pipe/PTY or Windows pipe command.
+`startCommandTask(owner, intent, operation)` starts an owned Unix pipe/PTY or Windows pipe/ConPTY command.
 The command intent keeps execution timeout separate from observation: `waitForTask`
 defaults to 10000 ms for commands, and expiry returns a yielded observation without
 terminating the process. On Unix, owner closure sends TERM, allows 250 ms grace, then KILL,
 reaps the leader and confirms process-group exit and reader drain. A cleanup failure
 retains diagnostics instead of claiming a closed owner. This is normal owner/host
 shutdown cleanup, not a guarantee for forced host death or a blocked JavaScript loop.
+
+Both native and facade `CommandIntent` accept optional `shell: { program, args }`:
+the executable is launched directly with `command` appended as one final argv argument.
+Omitting `shell` preserves the default native pipe shell. `inheritEnv` defaults to
+`true`; `false` uses exactly the supplied environment rather than inheriting the host's.
+Both fields participate in operation replay identity.
 
 `taskStdin(task)` returns a non-serializable stdin capability. `writeTaskInput` takes
 an operation ID and `{kind:"bytes", bytes:Uint8Array}` or `{kind:"eof"}`. Empty bytes
@@ -134,15 +140,16 @@ After foreground collection yields, rejected overflow kills the group and settle
 `OutputLimitExceeded` after confirmed cleanup. Spool setup failure refuses launch
 with `SpawnFailed`. Drained pipe/PTY output instead keeps running with bounded
 retained bytes and omissions.
-PTY resize uses the retained portable-pty master. Windows pipe commands use a
-suspended `cmd.exe` launch assigned to a kill-on-close Job Object before resume.
-Failed assignment terminates and waits for the suspended process; unconfirmed
-cleanup retains a failed resource rather than reporting it reaped. Windows PTY
-and owner-aware Windows bash transport are not implemented and refuse with
-`ContainmentUnavailable` before launch. Legacy unowned execution is unchanged.
+Unix PTY resize uses the retained portable-pty master; Windows PTY uses ConPTY.
+Windows pipe and ConPTY commands start suspended and enter a kill-on-close Job Object
+before resume. Failed containment refuses execution, with no unsupervised spawn fallback.
+Cleanup must be confirmed; failures retain diagnostic resources rather than reporting reaping.
+Native Windows legacy WSL `bash.exe` stdin transport remains refused for owned launch:
+Windows jobs cannot supervise the Linux guest process tree. Atomic running inside WSL
+uses the normal POSIX/Bash path instead.
 
 Bash tools and `createLocalBashOperations` accept a trusted `taskOwner` binding.
-On Unix, that binding obtains pipe/PTY processes through supervised admission,
+On Unix and native Windows, that binding obtains pipe/PTY processes through supervised admission,
 preserving configured shell arguments, cwd, environment and existing authorization.
 Foreground collection honors the owner's command wait configuration, including
 `until-settled`; the automatic default is 10000 ms. A yielded process stays owned
@@ -388,6 +395,8 @@ interface AgentSession {
 ```
 
 `compact()` serializes older context to numbered lines, asks the session model for JSON deleted ranges, validates them, and mechanically reconstructs a durable verbatim transcript string. It appends a `compaction` entry with `details.strategy: "verbatim-lines"`; the recent tail remains ordinary messages. The model never authors replacement context text.
+
+`session.navigateTree()` rejects during streaming, compaction, or branch summarization rather than queueing the navigation. The active branch stays unchanged. Wait for the operation to finish before retrying.
 
 Session replacement APIs such as new-session, resume, fork, and import live on `AgentSessionRuntime`, not on `AgentSession`.
 
@@ -826,6 +835,13 @@ Atomic's built-in `bash` tool matches upstream pi: when `bash` is enabled, comma
 #### PowerShell tool behavior
 
 `createPowerShellTool()` and `createPowerShellToolDefinition()` provide the same tool used by interactive sessions. When their default local operations execute on native Windows, they prefer `pwsh.exe`, fall back to `powershell.exe`, and throw a clear error when neither executable is available. `createLocalPowerShellOperations()` and `getPowerShellConfig()` are also exported for custom integrations. The PowerShell factories expose the current `ATOMIC_*` and legacy `PI_*` session snapshot by default; set `exposeSessionEnvironment: false` to opt out.
+
+PowerShell tools and local operations accept a trusted `taskOwner` binding and the same
+`wait` observation policy as bash. Owned native Windows execution automatically yields
+after the owner's command budget (normally 10000 ms); explicit per-call budgets override it,
+and execution timeout remains separate. Commands use encoded PowerShell transport internally,
+while task descriptions retain the original command text. Without a supported owner,
+explicit background requests are refused and foreground execution waits for completion.
 
 ```typescript
 import { createPowerShellTool } from "@bastani/atomic";

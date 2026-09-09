@@ -1,6 +1,6 @@
-import type { AgentSession } from "../../core/agent-session.ts";
+import type { AgentSession } from "../../core/agent-session.js";
 import type { BashResult } from "../../core/bash-executor.ts";
-import type { BashOutputChannel } from "../../core/tools/bash.ts";
+import type { BashOutputChannel } from "../../core/tools/bash.js";
 import type { RpcOutput } from "./rpc-responses.ts";
 
 interface ActiveBashRequest {

@@ -181,10 +181,10 @@ describe("pi 0.84.2 docs contract — every shipped door is documented", () => {
 		assert.match(env, /`PI_TUI_ESC_TIMEOUT`/u);
 		assert.match(env, /`100` over SSH and `10` otherwise/u);
 		assert.match(env, /`AI_AGENT=atomic`/u);
-		// The strict-sampling feature is reachable only through this gate, so the
-		// gate itself must be documented where the other app variables live.
+		// Additional built-in tools retain the gate; read/edit/write/shell prefer strict sampling by default.
 		assert.match(env, /\| `ATOMIC_EXPERIMENTAL` \| `PI_EXPERIMENTAL` \|/u);
 		assert.match(env, /strict JSON-schema constrained sampling/u);
+		assert.match(env, /already prefer strict sampling by default/u);
 	});
 
 	test("json.md and rpc.md document usage and endTurn on message_update", () => {

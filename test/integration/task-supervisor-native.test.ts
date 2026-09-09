@@ -79,6 +79,7 @@ function designatedWait(h: ReturnType<typeof harness>) {
 // RFC #2884: observation never relaunches or stops the admitted execution.
 test("facade returns after setup, replays one execution and preserves identity across default, explicit and elapsed observations", async () => {
 	const h = harness();
+	const observe = vi.spyOn(h.supervisor, "observeTaskWait");
 	try {
 		const op = operation();
 		const task = value(await h.supervisor.startAgentTask(h.owner, intent, op));
@@ -93,16 +94,26 @@ test("facade returns after setup, replays one execution and preserves identity a
 		assert.equal(explicit.kind === "yielded" && explicit.reason, "explicit");
 		const foreground = value(await h.supervisor.initialObservation(task, { kind: "foreground", budgetMs: 0 }));
 		assert.equal(foreground.kind === "yielded" && foreground.reason, "elapsed");
+		observe.mockClear();
 		const pending = h.supervisor.waitForTask(task, 0, h.host);
 		assert.ok(pending instanceof Promise);
-		const wait = designatedWait(h);
+		// PR #2934: native expiry can release designation before the next JS snapshot.
+		// Capture the real lease at the observation door, not from transient host focus.
+		assert.equal(observe.mock.calls.length, 1);
+		const wait = observe.mock.lastCall?.[0];
+		assert.ok(wait, "registration must precede the public promise's first await");
+		const JS_DESCHEDULE_MS = 50;
+		Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, JS_DESCHEDULE_MS);
 		assert.equal(h.supervisor.findWait(h.supervisor.waitId(wait)), wait);
 		const elapsed = value(await pending);
 		assert.equal(elapsed.kind === "yielded" && elapsed.reason, "elapsed");
+		assert.equal(elapsed.kind === "yielded" && elapsed.waitId, h.supervisor.waitId(wait));
 		assert.equal(h.supervisor.findWait(h.supervisor.waitId(wait)), undefined);
 		assert.deepEqual(h.supervisor.taskReference(task), ref);
 		const watch = value(h.supervisor.watchOwnerTasks(h.owner));
 		assert.equal(watch.snapshot.tasks[0].execution.kind, "running");
+		assert.deepEqual(watch.snapshot.tasks[0].observation, { kind: "background", reason: "elapsed" });
+		assert.equal(h.contexts[0].signal.aborted, false);
 		watch.dispose();
 		const conflict = await h.supervisor.startAgentTask(h.owner, { ...intent, task: "x" }, op);
 		assert.equal(!conflict.ok && conflict.error.code, "OperationConflict");
@@ -110,6 +121,7 @@ test("facade returns after setup, replays one execution and preserves identity a
 		assert.notEqual(h.supervisor.taskReference(second).taskId, ref.taskId);
 		assert.equal(h.contexts.length, 2);
 	} finally {
+		observe.mockRestore();
 		value(await h.supervisor.closeTaskOwner(h.owner, "session-close"));
 	}
 });
@@ -533,7 +545,8 @@ test("same-scope replay converges and native external cancellation bridges throu
 
 // RFC #2884: facade instances share the same environment's execution continuation.
 test("operation replay across facade instances returns the original lease without a second execution", async () => {
-	const h = harness();
+	// PR #2934: designation identity needs a wait that cannot expire during inspection.
+	const h = harness(undefined, { kind: "until-settled" });
 	try {
 		const op = operation();
 		const task = value(await h.supervisor.startAgentTask(h.owner, intent, op));
@@ -541,10 +554,13 @@ test("operation replay across facade instances returns the original lease withou
 		assert.equal(value(peer.openTaskOwner(h.host, h.scope)), h.owner);
 		assert.equal(value(await peer.startAgentTask(h.owner, intent, op)), task);
 		assert.equal(h.contexts.length, 1);
-		const pending = peer.waitForTask(task, 0, h.host);
+		const pending = peer.waitForTask(task, undefined, h.host);
 		const wait = designatedWait(h);
 		assert.equal(h.supervisor.findWait(peer.waitId(wait)), wait);
+		value(h.supervisor.yieldTaskWait(wait, "explicit"));
 		assert.equal(value(await pending).kind, "yielded");
+		assert.equal(h.supervisor.findWait(peer.waitId(wait)), undefined);
+		assert.equal(h.contexts[0].signal.aborted, false);
 	} finally {
 		value(await h.supervisor.closeTaskOwner(h.owner, "session-close"));
 	}
@@ -820,7 +836,7 @@ test("Node and Bun preserve UTF-16 code units across S1 records and replay", () 
 		assert.equal(result.exitCode, 0, `${runtime}\n${result.stdout}\n${result.stderr}`);
 		assert.match(
 			result.stdout.toString(),
-			/UTF16 PRESERVED 9 strings 45 variant reports 387 conflicts 27 facade launches/,
+			/UTF16 PRESERVED 9 strings 54 variant reports 405 conflicts 27 facade launches/,
 		);
 	}
 });

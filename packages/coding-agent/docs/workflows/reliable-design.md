@@ -2,7 +2,7 @@
 
 Use this guide to turn an objective into an acyclic, evidence-producing workflow with explicit contracts, context boundaries, verification, and stop conditions. Read [Custom Workflow Authoring](/workflows/authoring) first if you have not built a workflow definition yet.
 
-First honor the user's task-scoped [execution-mode choice](/workflows/verification#execution-mode). Explicit inline/no-workflow requests override the routing rubric below, including complex tasks and review loops; preserve the same safety and verification bar without creating a hidden workflow. For workflow authoring, carry the [domain/environment verification and media evidence contract](/workflows/verification) into worker, reviewer and final handoff prompts.
+First honor the user's task-scoped [execution-mode choice](/workflows/verification#execution-mode). Requests to do the task "quickly" or "inline", or not to use a workflow, override the routing rubric below, including complex tasks and review loops. Preserve the same safety and verification bar without creating a hidden workflow. Descriptions of software that should run quickly are not execution-mode instructions. For workflow authoring, carry the [domain/environment verification and media evidence contract](/workflows/verification) into worker, reviewer and final handoff prompts.
 
 ## Choosing an Execution Shape
 
@@ -66,6 +66,37 @@ Ask these questions in order and stop at the cheapest shape that satisfies every
 A first named workflow launch commits the selected execution shape for the turn. For one task, end the turn after that launch. For an independent queue, the selected shape is a bounded launch wave: issue every planned per-item top-level launch up to the concurrency bound before ending the turn. Do not casually chain unplanned unrelated top-level workflow launches. When one task needs multiple workflow capabilities or dependent items need ordered handoffs, design composition **before** launch: author one custom parent, import project/package definitions or builtins from `@bastani/atomic/workflows/builtin`, and call `ctx.workflow(...)`. Nested children preserve their stages and guarantees within the expanded graph up to `maxDepth`, but they remain under the parent's root lifecycle and failure boundary.
 
 Choose the cheapest complete graph. Routing cues are not a reason to add decorative stages: avoid duplicated research and review loops. Before launch, state the selected graph, why one broad builtin is sufficient or insufficient, the evidence each major stage produces, and the stop/repair conditions. A simple direct match can be one sentence; a composed graph should briefly name its children and task-specific gates.
+
+### Runtime-aware scheduling and estimates
+
+Treat workflow runtime as a dependency-constrained task-scheduling problem. Optimize elapsed time while preserving the evidence and approval contract, not by deleting gates or minimizing node count.
+
+During the short architecture pass, inspect project scripts and available historical runtimes from comparable CI jobs, test-suite reports, and prior workflow stages. For GitHub projects, recent run/job timings and uploaded test-duration reports can provide evidence. Record the source links or artifact paths, sample size and range, runner/cache differences, and missing data. Do not run the full suite just to collect an estimate or turn timing reconnaissance into a separate research project.
+
+Use a compact schedule alongside the coverage matrix:
+
+```text
+node | prerequisites | duration range and source | shared resources | evidence needed by
+```
+
+- Estimate the critical path, the longest dependency path, rather than adding all parallel node durations. Account for bounded concurrency, runner queues, environment setup, model variability, retries, and resource contention. More parallel jobs can be slower when they compete for the same resources.
+- Put focused tests and necessary build/type/contract checks at each implementation slice. When repeated full-suite runs add no required evidence, run the full suite once on the final candidate instead of after every stage. Preserve mandatory per-slice checks, required CI contexts, approval gates, and repair reruns. Each slice must still pass its own gates before dependent work starts.
+- Start long CI/check waits when their candidate is ready and overlap independent review, documentation, or handoff preparation that neither mutates that candidate nor needs its check results. Use supported concurrency, keep workflow-owned CI launch/wait/result checks in durable `ctx.tool` nodes with finite timeouts and cancellation, and join required results before acceptance, merge, or publication. Background admission is not check completion.
+- Record the checked commit or artifact identity. Later edits invalidate affected results, so rerun those checks for the new candidate. Never reuse a green check from an older commit as proof for a changed head. Do not alter repository protections, required checks, or concurrency limits to shorten the estimate.
+
+Before launching a workflow, give the user an estimated wall-clock completion range without confidence labels or scores. Cite available timing sources and distinguish measured checks from estimated model work, queue/repair uncertainty, and human wait time. If history is missing, state that briefly rather than inventing metrics. An estimate is not a `budget` override or a promise.
+
+Proceed with inherited budget limits without asking the user to choose a budget before each launch; preserve existing budget limits and approval gates. Omit `budget` unless the user specified a limit, inheriting the workflow declaration and config. When the user does state a limit, pass only the fields they named, leave every other field inherited, and use `0` only for a field the user asked to disable. Never convert an estimate into a cap.
+
+For example, with hypothetical timings, 6 minutes of implementation followed by independent 12-minute CI and 4-minute read-only review branches, then a 1-minute handoff, has a 19-minute critical path, not a 23-minute sum. Queue delays, repairs, and human approval can extend that. Real launch estimates must cite actual project evidence rather than reuse these illustrative numbers.
+
+Revise the remaining-time estimate at lifecycle updates only when new evidence materially changes the path. Keep the normal heartbeat cadence and end-turn/no-polling rules. At completion, report actual elapsed time against the estimate and identify the main bottleneck to improve the next schedule. These are agent design/reporting instructions, not an automatic scheduler or ETA feature.
+
+### Questions and approvals
+
+When `ask_user_question` or an equivalent question tool is available, all agent-authored questions to the user must use that tool instead of plain text, including clarification, confirmation, and permission to proceed. Prefer `ask_user_question` when available; otherwise follow the equivalent tool's supported schema. In these sessions, do not append a prose-only "Proceed?" to a status update. Ask only for needed decisions, not repeat approval of already-authorized work. See the [question tool guidance and confirmation example](/tools#ask_user_question).
+
+Workflow-authored `ctx.ui` gates remain supported. `workflow answer` relays an actual user response to a pending prompt; it does not grant authority to choose an approval on the user's behalf. Intercom questions are for agents, not a substitute for user approval. If no usable question tool is available, continue autonomously using best judgment and record evidence-backed assumptions. Tool unavailability alone is not a blocker. Preserve safety, authorization, explicit approval gates, and budget limits. A cancelled or unanswered question is not approval.
 
 ### Stage model and thinking-level assignment
 
@@ -143,7 +174,7 @@ Interpretation:
 - **7+ total, or Iteration = 2, or Verifiability = 2 with a review/approval gate:** a real workflow. Prefer a named workflow when one fits the whole task; otherwise author a custom graph, nesting proven children where sub-problems overlap.
 - **Any single hard signal overrides the arithmetic:** an explicit loop/stop condition, an approval or evidence gate, or a request for durable/background execution puts the task in workflow territory regardless of total score.
 
-When workflow execution is permitted, use the rubric to select tracked implementation/review loops and transfer bounded reconnaissance through `reads`. It does not override an explicit inline request. In either mode, stop unbounded reconnaissance by recording findings and taking the next concrete in-scope action.
+When workflow execution is permitted, use the rubric to select tracked implementation/review loops and transfer bounded reconnaissance through `reads`. It does not override a request to do the task quickly or inline. In either mode, stop unbounded reconnaissance by recording findings and taking the next concrete in-scope action.
 
 ### Task queues and software factories
 
@@ -374,7 +405,7 @@ The factory self-prompt is: **enumerate â†’ inspect and classify dependencies â†
 
 Humans can steer the shape directly:
 
-- **Name the shape or installed workflow.** "Do this inline", "use subagents to investigate", or "write a custom workflow for this" overrides automatic scoring.
+- **Name the shape or installed workflow.** "Do this quickly", "do this inline", "use subagents to investigate", or "write a custom workflow for this" overrides automatic scoring.
 - **State acceptance criteria.** Verbatim criteria make the objective provable and define reviewer and reducer contracts.
 - **State the loop.** "Iterate until tests pass" or "review and fix until approved" defines a hard workflow stop condition.
 - **State the evidence.** A QA video, test output, generated artifact, or reviewer sign-off tells the graph which gates it needs.

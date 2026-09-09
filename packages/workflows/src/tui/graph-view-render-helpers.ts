@@ -1,4 +1,4 @@
-import { BOLD, hexBg, hexToAnsi, RESET } from "./color-utils.js";
+import { BOLD, DEFAULT_BG, fillBackground, hexBg, hexToAnsi, RESET } from "./color-utils.js";
 import type { GraphCanvas } from "./graph-canvas.js";
 import {
 	COMPACT_HINT_KEYS,
@@ -119,12 +119,12 @@ export abstract class GraphViewRenderHelpers extends GraphViewState {
 			`${chromeBg} ${RESET}${top}${chromeBg}${blankAcross}${RESET}`,
 			`${chromeBg} ${RESET}${mid}${chromeBg}${filler}${hintsStyled}${chromeBg}${" ".repeat(rightEdgePad)}${RESET}`,
 			`${chromeBg} ${RESET}${bot}${chromeBg}${blankAcross}${RESET}`,
-		];
+		].map((line) => fillBackground(line, width, chromeBg));
 	}
 
-	/** Blank canvas row — single line of `bg`. */
+	/** Blank canvas row uses the terminal's background. */
 	protected _blankRow(width: number): string {
-		return `${hexBg(this.graphTheme.bg)}${" ".repeat(width)}${RESET}`;
+		return `${DEFAULT_BG}${" ".repeat(width)}${RESET}`;
 	}
 
 	protected _centerCanvasContent(content: string, width: number): string {
@@ -133,21 +133,17 @@ export abstract class GraphViewRenderHelpers extends GraphViewState {
 		return `${" ".repeat(leftPad)}${truncated}`;
 	}
 
-	/** Wrap content in a canvas-bg row, padded to `width`. Re-emits the
-	 * bg ANSI right before the trailing fill so any internal `RESET`
-	 * from cards/edges doesn't let the terminal default bleed through. */
+	/** Restore the terminal background around content and trailing fill. */
 	protected _canvasRow(content: string, width: number): string {
-		const bg = hexBg(this.graphTheme.bg);
+		const bg = DEFAULT_BG;
 		const truncated = truncateToWidth(content, width, "…", true);
 		const padLen = Math.max(0, width - visibleWidth(truncated));
 		return `${bg}${truncated}${bg}${" ".repeat(padLen)}${RESET}`;
 	}
 
-	/** Pad pre-styled content out to canvas width without truncation.
-	 * Re-emits the body bg ANSI right before the trailing fill so any
-	 * internal RESET inside `content` doesn't leak the terminal default. */
+	/** Pad pre-styled content without carrying a card background into the fill. */
 	protected _padCanvas(content: string, width: number): string {
-		const bg = hexBg(this.graphTheme.bg);
+		const bg = DEFAULT_BG;
 		const padLen = Math.max(0, width - visibleWidth(content));
 		return `${bg}${content}${bg}${" ".repeat(padLen)}${RESET}`;
 	}
@@ -163,7 +159,7 @@ export abstract class GraphViewRenderHelpers extends GraphViewState {
 	 * background winning is fine.
 	 */
 	protected _overlayCard(_base: string, cardLine: string, leftPad: number, totalWidth: number): string {
-		const bg = hexBg(this.graphTheme.bg);
+		const bg = DEFAULT_BG;
 		const cardW = visibleWidth(cardLine);
 		const rightPadLen = Math.max(0, totalWidth - leftPad - cardW);
 		return `${bg}${" ".repeat(leftPad)}${RESET}${cardLine}${bg}${" ".repeat(rightPadLen)}${RESET}`;
@@ -260,15 +256,13 @@ export abstract class GraphViewRenderHelpers extends GraphViewState {
 		cards: Array<{ startCol: number; width: number; line: string }>,
 		_edgeColor: string,
 	): string {
-		const bg = hexBg(this.graphTheme.bg);
+		const bg = DEFAULT_BG;
 		const sorted = cards.slice().sort((a, b) => a.startCol - b.startCol);
 		let cursor = 0;
 		let out = "";
 		for (const card of sorted) {
 			if (card.startCol > cursor) {
-				// Edge segment up to card start — prepend bg so empty cells
-				// in this stretch keep the body bg instead of falling back
-				// to the terminal default once any prior RESET fired.
+				// Restore the canvas background after any preceding card.
 				out += `${bg}${this._edgeSegment(edgeRow, cursor, card.startCol)}`;
 				cursor = card.startCol;
 			}

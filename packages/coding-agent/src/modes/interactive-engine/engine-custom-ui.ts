@@ -9,6 +9,7 @@ import {
 } from "@earendil-works/pi-tui";
 import { getAgentDir } from "../../config.js";
 import { runCallback } from "../../core/callback-activity.ts";
+import type { HostCustomUiState, HostCustomUiStateListener } from "../../core/extensions/index.js";
 import type { KeybindingsManager } from "../../core/keybindings.ts";
 import type { Theme } from "../interactive/theme/theme.js";
 import { theme } from "../interactive/theme/theme.js";
@@ -23,6 +24,7 @@ import {
 } from "./protocol.ts";
 
 interface CustomUiOptions {
+	purpose?: "prompt" | "navigation";
 	overlay?: boolean;
 	deferInlineCustomUiFocus?: boolean;
 	/** The component binds Ctrl+C itself; see ExtensionUIContext.custom options. */
@@ -40,6 +42,7 @@ interface ActiveComponent {
 	component: Component & { dispose?(): void };
 	resolve: (value: JsonValue | undefined) => void;
 	overlay: boolean;
+	purpose?: "prompt" | "navigation";
 	terminal: RemoteTerminal;
 	tui: TUI;
 	widgetKey?: string;
@@ -106,9 +109,7 @@ export class EngineCustomUiService {
 	private nextId = 0;
 	private readonly write: (line: string) => void;
 	private readonly keybindings: KeybindingsManager;
-	private readonly stateListeners = new Set<
-		(state: { blockingInlineCustomUiDepth: number; blockingInlineCustomUiActive: boolean }) => void
-	>();
+	private readonly stateListeners = new Set<HostCustomUiStateListener>();
 	private readonly widgetReleaseListeners = new Map<string, Set<() => void>>();
 
 	setWidget(
@@ -195,10 +196,12 @@ export class EngineCustomUiService {
 		tui.setFocus(component);
 		const record: ActiveComponent = {
 			component,
-			resolve: (value) => resolveCompletion(value as T),
+			// Cancellation must settle through the same guarded host completion as done().
+			resolve: (value) => done(value as T),
 			terminal,
 			tui,
 			overlay: options?.overlay === true,
+			purpose: options?.purpose,
 		};
 		this.active.set(componentId, record);
 		this.notifyState();
@@ -207,6 +210,7 @@ export class EngineCustomUiService {
 			type: "engine_custom_open",
 			componentId,
 			overlay: options?.overlay === true,
+			purpose: options?.purpose,
 			deferInlineCustomUiFocus: options?.deferInlineCustomUiFocus,
 			handlesCtrlC: options?.handlesCtrlC,
 			handlesInternalUiAction: options?.handlesInternalUiAction,
@@ -224,14 +228,17 @@ export class EngineCustomUiService {
 			this.disposeComponent(componentId, false);
 		}
 	}
-	getHostCustomUiState(): { blockingInlineCustomUiDepth: number; blockingInlineCustomUiActive: boolean } {
-		const depth = [...this.active.values()].filter((record) => !record.overlay && !record.widgetKey).length;
-		return { blockingInlineCustomUiDepth: depth, blockingInlineCustomUiActive: depth > 0 };
+	getHostCustomUiState(): HostCustomUiState {
+		const inline = [...this.active.values()].filter((record) => !record.overlay && !record.widgetKey);
+		const navigation = inline.filter((record) => record.purpose === "navigation").length;
+		return {
+			blockingInlineCustomUiDepth: inline.length,
+			blockingInlineCustomUiActive: inline.length > 0,
+			...(navigation > 0 ? { blockingInlineCustomUiNeedsInput: inline.length > navigation } : {}),
+		};
 	}
 
-	onHostCustomUiStateChange(
-		listener: (state: { blockingInlineCustomUiDepth: number; blockingInlineCustomUiActive: boolean }) => void,
-	): () => void {
+	onHostCustomUiStateChange(listener: HostCustomUiStateListener): () => void {
 		this.stateListeners.add(listener);
 		return () => this.stateListeners.delete(listener);
 	}
@@ -332,6 +339,8 @@ export class EngineCustomUiService {
 		const record = this.active.get(componentId);
 		if (!record) return;
 		this.active.delete(componentId);
+		// Claim cancellation before user disposal code can call done() reentrantly.
+		if (resolve) record.resolve(undefined);
 		record.component.dispose?.();
 		record.tui.stop();
 		if (record.widgetKey) {
@@ -340,7 +349,6 @@ export class EngineCustomUiService {
 			if (notifyWidgetRelease) this.notifyWidgetRelease(record.widgetKey);
 		}
 		this.notifyState();
-		if (resolve) record.resolve(undefined);
 	}
 	private notifyWidgetRelease(key: string): void {
 		for (const listener of this.widgetReleaseListeners.get(key) ?? []) {

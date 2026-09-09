@@ -41,11 +41,21 @@ pub(crate) fn supervised_pty(
 	if flags < 0 || unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) } < 0 {
 		return Err(std::io::Error::last_os_error());
 	}
-	let mut command = CommandBuilder::new("/bin/sh");
-	command.arg("-c");
+	let mut command = if let Some(shell) = &intent.shell {
+		let mut command = CommandBuilder::new(shell.program.process_text());
+		command.args(shell.args.iter().map(|arg| arg.process_text()));
+		command
+	} else {
+		let mut command = CommandBuilder::new("/bin/sh");
+		command.arg("-c");
+		command
+	};
 	command.arg(intent.command.process_text());
 	if let Some(cwd) = &intent.cwd {
 		command.cwd(cwd.process_text());
+	}
+	if intent.inherit_env == Some(false) {
+		command.env_clear();
 	}
 	if let Some(env) = &intent.env {
 		for (key, value) in env {

@@ -689,7 +689,6 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
           let askDelivered = false;
 
           try {
-            if (retryToken !== undefined && !message) throw new RetryTokenError("mismatch");
             retryIdentity = retryIdentities.begin({
               sessionId: toolSessionId,
               action: "ask",
@@ -708,6 +707,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
                 to === currentSupervisorId ||
                 to === metadataSupervisorId),
             );
+            let parentTarget = directParentTarget;
             const claimParentAsk = (resolvedTargetId: string): boolean =>
               Boolean(
                 metadata &&
@@ -761,13 +761,14 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
                 details: retryErrorDetails(retained?.retryToken),
               };
             }
-            if (retryToken === undefined && metadata && !directParentTarget) {
+            if (metadata && !directParentTarget) {
               const authoritativeParent = [currentSupervisorId, metadataSupervisorId].find(
                 (candidate) => candidate === sendTo,
               );
               const resolvedParent =
                 authoritativeParent ?? await resolveTarget(connectedClient, metadata.orchestratorTarget);
-              if (resolvedParent !== null && resolvedParent === sendTo && claimParentAsk(sendTo)) {
+              parentTarget = resolvedParent !== null && resolvedParent === sendTo;
+              if (retryToken === undefined && parentTarget && claimParentAsk(sendTo)) {
                 retryIdentities.release(retryIdentity);
                 retryIdentity = undefined;
                 return {
@@ -778,7 +779,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
               }
             }
 
-            if (!message) {
+            if (!message && !parentTarget) {
               retryIdentities.release(retryIdentity);
               retryIdentity = undefined;
               return {
@@ -828,7 +829,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
             const sendResult = await connectedClient.send(sendTo, {
               messageId: questionId,
               logicalTarget: to,
-              text: message,
+              text: message ?? "",
               attachments,
               replyTo,
               expectsReply: true,

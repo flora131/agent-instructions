@@ -29,6 +29,7 @@ interface PauseRequest {
 	readonly abortBoundary: PromiseWithResolvers<void>;
 	readonly runnerOwnedDeliveries: Set<Promise<void>>;
 	readonly nativeQueuePause?: NativeQueuePauseControl;
+	readonly taskControl?: Pick<StageSessionRuntime, "pauseTasks" | "resumeTasks">;
 	confirmed: boolean;
 	resumePromise?: Promise<StageSessionPauseResumeResult>;
 }
@@ -62,6 +63,7 @@ export class StageSessionPause {
 			runnerOwnedDeliveries: new Set(),
 			confirmed: false,
 			...(nativeQueuePause === undefined ? {} : { nativeQueuePause }),
+			...(session?.pauseTasks && session.resumeTasks ? { taskControl: session } : {}),
 		};
 		void request.deferred.promise.catch(() => {});
 		void request.abortBoundary.promise.catch(() => {});
@@ -69,7 +71,11 @@ export class StageSessionPause {
 		let failed = false;
 		try {
 			request.nativeQueuePause?.pauseQueuedMessages();
-			await session?.abort();
+			// Start cancellation before abort can release an active agent's dispatch slot.
+			// Join both boundaries even on failure: abort alone is not cleanup evidence.
+			const tasks = request.taskControl?.pauseTasks?.();
+			const settled = await Promise.allSettled([tasks, (async () => session?.abort())()]);
+			for (const result of settled) if (result.status === "rejected") throw result.reason;
 			request.abortBoundary.resolve();
 			await request.abortBoundary.promise;
 			request.confirmed = true;
@@ -77,6 +83,7 @@ export class StageSessionPause {
 			failed = true;
 			request.abortBoundary.reject(error);
 			request.deferred.reject(error);
+			request.taskControl?.resumeTasks?.();
 			await this.rollbackNativePause(request.nativeQueuePause);
 			throw error;
 		} finally {
@@ -159,6 +166,7 @@ export class StageSessionPause {
 		const admitRelease = (): void => {
 			if (releaseAdmitted) return;
 			beforeRelease?.();
+			request.taskControl?.resumeTasks?.();
 			releaseAdmitted = true;
 		};
 		let releasedQueuedMessages: boolean;

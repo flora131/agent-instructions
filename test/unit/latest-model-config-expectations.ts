@@ -31,9 +31,21 @@ export const ordinaryAgentFallbacks = [
 	"openrouter/openai/gpt-5.5:medium",
 	"openrouter/anthropic/claude-fable-5:low",
 	"openrouter/anthropic/claude-opus-4-8:medium",
-	"openrouter/x-ai/grok-4.6",
+	"openrouter/x-ai/grok-4.6:xhigh",
 	"openrouter/z-ai/glm-5.3:high",
 	"openrouter/z-ai/glm-5.3-flash:high",
+];
+
+export const locatorAgentFallbacks = [
+	"github-copilot/gpt-5.6-luna:xhigh",
+	"openai/gpt-5.6-luna:xhigh",
+	"openai-codex/gpt-6-astra:low",
+	...ordinaryAgentFallbacks.flatMap((model) => {
+		if (model === "openrouter/openai/gpt-6-astra:low") {
+			return ["openrouter/openai/gpt-5.6-luna:xhigh", model];
+		}
+		return [model.replace("grok-4.6:xhigh", "grok-4.6:medium")];
+	}),
 ];
 
 // Shared literal tail for debugger, Goal review, and Ralph B. Astra effort is role-specific.
@@ -73,7 +85,7 @@ const reviewRouterTail = [
 	"openrouter/sakana/fugu-ultra:high",
 	"openrouter/openai/gpt-5.5:xhigh",
 	"openrouter/anthropic/claude-opus-4-8:high",
-	"openrouter/x-ai/grok-4.6",
+	"openrouter/x-ai/grok-4.6:xhigh",
 	"openrouter/z-ai/glm-5.3:high",
 	"openrouter/z-ai/glm-5.3-flash:high",
 ];
@@ -84,16 +96,23 @@ export const reviewerFallbacks = [
 	"openrouter/openai/gpt-6-astra:xhigh",
 	...reviewRouterTail,
 ];
-export const researchFallbacks = [
+export const promptEngineerFallbacks = [
 	"github-copilot/gpt-6-astra:high",
 	"openai/gpt-6-astra:high",
 	...reviewTail,
 	"openrouter/openai/gpt-6-astra:high",
 	...reviewRouterTail,
 ];
+export const researchFallbacks = [
+	"github-copilot/gpt-6-astra:medium",
+	"openai/gpt-6-astra:medium",
+	...reviewTail,
+	"openrouter/openai/gpt-6-astra:medium",
+	...reviewRouterTail,
+];
 export const orchestratorFallbacks = [
-	"github-copilot/gpt-6-astra:high",
-	"openai/gpt-6-astra:high",
+	"github-copilot/gpt-6-astra:medium",
+	"openai/gpt-6-astra:medium",
 	"anthropic/claude-fable-5-1:high",
 	"github-copilot/claude-fable-5-1:high",
 	"anthropic/claude-opus-5:high",
@@ -119,7 +138,7 @@ export const orchestratorFallbacks = [
 	"zai-coding-cn/glm-5.3-flash:high",
 	"baseten/zai-org/GLM-5.3:high",
 	"baseten/zai-org/GLM-5.3-Flash:high",
-	"openrouter/openai/gpt-6-astra:high",
+	"openrouter/openai/gpt-6-astra:medium",
 	"openrouter/anthropic/claude-fable-5-1:high",
 	"openrouter/anthropic/claude-opus-5:high",
 	"openrouter/openai/gpt-5.6-sol:xhigh",
@@ -128,7 +147,7 @@ export const orchestratorFallbacks = [
 	"openrouter/sakana/fugu-ultra:high",
 	"openrouter/openai/gpt-5.5:xhigh",
 	"openrouter/anthropic/claude-opus-4-8:high",
-	"openrouter/x-ai/grok-4.6",
+	"openrouter/x-ai/grok-4.6:xhigh",
 	"openrouter/z-ai/glm-5.3:high",
 	"openrouter/z-ai/glm-5.3-flash:high",
 ];
@@ -169,13 +188,13 @@ export const reviewerAFallbacks = [
 	"openrouter/sakana/fugu-ultra:high",
 	"openrouter/openai/gpt-5.5:xhigh",
 	"openrouter/anthropic/claude-opus-4-8:high",
-	"openrouter/x-ai/grok-4.6",
+	"openrouter/x-ai/grok-4.6:xhigh",
 	"openrouter/z-ai/glm-5.3:high",
 	"openrouter/z-ai/glm-5.3-flash:high",
 ];
 export const designFallbacks = [
-	"github-copilot/gpt-6-astra:high",
-	"openai/gpt-6-astra:high",
+	"github-copilot/gpt-6-astra:medium",
+	"openai/gpt-6-astra:medium",
 	"anthropic/claude-fable-5-1:high",
 	"github-copilot/claude-fable-5-1:high",
 	"anthropic/claude-opus-5:high",
@@ -198,7 +217,7 @@ export const designFallbacks = [
 	"zai-coding-cn/glm-5.3-flash:high",
 	"baseten/zai-org/GLM-5.3:high",
 	"baseten/zai-org/GLM-5.3-Flash:high",
-	"openrouter/openai/gpt-6-astra:high",
+	"openrouter/openai/gpt-6-astra:medium",
 	"openrouter/anthropic/claude-fable-5-1:high",
 	"openrouter/anthropic/claude-opus-5:high",
 	"openrouter/anthropic/claude-fable-5:high",
@@ -206,7 +225,7 @@ export const designFallbacks = [
 	"openrouter/moonshotai/kimi-k3:max",
 	"openrouter/openai/gpt-5.6-sol:xhigh",
 	"openrouter/sakana/fugu-ultra:high",
-	"openrouter/x-ai/grok-4.6",
+	"openrouter/x-ai/grok-4.6:xhigh",
 	"openrouter/z-ai/glm-5.3:high",
 	"openrouter/z-ai/glm-5.3-flash:high",
 ];

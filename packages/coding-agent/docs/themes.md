@@ -41,6 +41,10 @@ Use `"theme": "light-theme/dark-theme"` for automatic mode. Atomic chooses the f
 
 On first run, Atomic detects your terminal background and defaults to `dark` or `light`.
 
+Main chat, attached workflow-stage chat, and the workflow graph canvas use the terminal's default background, including terminal transparency. Graph node interiors share that background; headers, footers, focused title tabs, and tool cards retain their theme colors.
+
+Truncated workflow-node labels keep the focused tab's fill, text color, and weight through the ellipsis. The surrounding border and node body retain their own styling.
+
 ### Initial Theme
 
 Start an interactive run with a theme without changing the saved setting:

@@ -576,7 +576,9 @@ export async function workflowResumeAction(
 							: `No paused stages on run ${result.runId}.`
 						: `Resumed ${result.resumed.length} stage(s) on run ${result.runId}${args.message ? ` with message: "${args.message}"` : ""}.`
 					: `Snapshot available: run ${result.runId} (${result.snapshot.name}) — status: ${result.snapshot.status}, stages: ${result.snapshot.stages.length}`);
-			const status = result.mode === "partial" ? "partial" : noPausedProgress ? "noop" : "ok";
+			const noContinuation =
+				result.mode === "not_resumable" || (result.mode === "snapshot" && result.snapshot.status === "blocked");
+			const status = result.mode === "partial" ? "partial" : noContinuation || noPausedProgress ? "noop" : "ok";
 			return { action: "resume", runId: result.runId, status, message };
 		}
 		return { action: "resume", runId: stageRunId, status: "noop", message: `Run not found: ${stageRunId}` };

@@ -17,6 +17,7 @@ import {
 	type ResolvedExecutorDeps,
 	type SubagentParamsLike,
 } from "./subagent-executor-types.js";
+import { taskResponseRecords } from "./task-execution.js";
 
 const MUTATING_MANAGEMENT_ACTIONS = new Set(["create", "update", "delete"]);
 /** Observing management actions do not start or mutate child execution. */
@@ -76,9 +77,51 @@ async function handleManagementRequest(input: {
 				: { ok: false as const, error: { code: "UnknownTask", message: "Task not found in this owner" } };
 		return {
 			content: [{ type: "text", text: JSON.stringify(observed.ok ? observed.value : observed.error) }],
-			details: { mode: "management", results: [] },
+			details: {
+				mode: "management",
+				results: [],
+				...(observed.ok
+					? {
+							taskResponse: { kind: "admitted", observation: observed.value } as const,
+							taskRecords: taskResponseRecords(
+								{ kind: "admitted", observation: observed.value },
+								ctx.getAgentTaskHost?.(),
+							),
+						}
+					: { taskError: observed.error.message }),
+			},
 			...(!observed.ok ? { isError: true } : {}),
 		};
+	}
+	const targetTaskId = paramsWithResolvedCwd.id ?? paramsWithResolvedCwd.runId;
+	if ((action === "status" || action === "interrupt") && ctx.getAgentTaskHost && targetTaskId) {
+		const host = ctx.getAgentTaskHost();
+		const taskId = targetTaskId as import("@bastani/atomic").TaskId;
+		if (host.resolveTask(taskId).ok) {
+			if (action === "interrupt") {
+				const cancelled = await host.cancelTask(taskId, "user");
+				if (!cancelled.ok)
+					return {
+						content: [{ type: "text", text: cancelled.error.message }],
+						isError: true,
+						details: { mode: "management", results: [], taskError: cancelled.error.message },
+					};
+			}
+			const watched = host.watchOwnerTasks();
+			if (watched.ok) {
+				const records = watched.value.snapshot.tasks.filter((task) => task.ref.taskId === taskId);
+				watched.value.dispose();
+				return {
+					content: [{ type: "text", text: JSON.stringify(records) }],
+					details: { mode: "management", results: [], taskRecords: records },
+				};
+			}
+			return {
+				content: [{ type: "text", text: watched.error.message }],
+				isError: true,
+				details: { mode: "management", results: [], taskError: watched.error.message },
+			};
+		}
 	}
 	if (action === "status") {
 		const targetRunId = paramsWithResolvedCwd.id ?? paramsWithResolvedCwd.runId;

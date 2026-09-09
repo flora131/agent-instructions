@@ -1,6 +1,6 @@
 import type { Component, OverlayHandle, OverlayOptions, TUI } from "@earendil-works/pi-tui";
-import type { ExtensionUIContext } from "../../core/extensions/index.ts";
-import type { IsolatedInteractiveRuntime } from "./isolated-runtime.ts";
+import type { ExtensionUIContext } from "../../core/extensions/index.js";
+import type { IsolatedInteractiveRuntime } from "./isolated-runtime.js";
 import type { InteractiveEngineMessage, JsonValue, SerializableOverlayOptions } from "./protocol.ts";
 import { RemoteFrameWidthClamp } from "./remote-frame-clamp.ts";
 import { TerminalModeController } from "./terminal-mode-controller.ts";
@@ -315,6 +315,7 @@ export class RemoteComponentController {
 					message.handlesCtrlC === true,
 					message.handlesInternalUiAction === true,
 					message.reserveTranscriptRows === true,
+					message.purpose,
 				);
 				break;
 			case "engine_custom_close":
@@ -356,6 +357,7 @@ export class RemoteComponentController {
 		handlesCtrlC = false,
 		handlesInternalUiAction = false,
 		reserveTranscriptRows = false,
+		purpose?: "prompt" | "navigation",
 	): void {
 		if (this.mounted.has(componentId)) return;
 		if (widgetKey) {
@@ -407,6 +409,7 @@ export class RemoteComponentController {
 				},
 				{
 					overlay,
+					purpose,
 					deferInlineCustomUiFocus,
 					handlesInternalUiAction,
 					reserveTranscriptRows,

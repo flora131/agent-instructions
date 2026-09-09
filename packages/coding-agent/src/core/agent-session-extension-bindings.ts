@@ -3,18 +3,20 @@ import { resetApiProviders } from "@bastani/pi-ai/compat";
 import type { AgentSessionInternalSurface as AgentSession } from "./agent-session-methods.ts";
 import { recoverProtectedStreamingCustomMessages } from "./agent-session-persistent-custom-messages.ts";
 import type { AgentSessionReloadOptions, ExtensionBindings } from "./agent-session-types.ts";
-import { ExtensionRunner } from "./extensions/index.ts";
+import { ExtensionRunner } from "./extensions/index.js";
 import { emitSessionShutdownEvent } from "./extensions/runner.ts";
+import { bindExtensionContextPublication } from "./extensions/runner-context.ts";
 import { ModelRegistry } from "./model-registry.ts";
 import type { ExtensionProviderTransaction, ModelRuntime } from "./model-runtime.js";
 import type { PathMetadata } from "./package-manager.ts";
 import type { ResourceExtensionPaths, ResourceLoader } from "./resource-loader.ts";
 import { getSkillCatalog } from "./skill-catalog.ts";
-import type { SlashCommandInfo } from "./slash-commands.ts";
+import type { SlashCommandInfo } from "./slash-commands.js";
 
 class ExtensionPublicationGate {
 	readonly resourceLoader: ResourceLoader;
 	private readonly effects: Array<() => void | Promise<void>> = [];
+	private readonly startEffects: Array<() => void | Promise<void>> = [];
 	readonly providerTransaction: ExtensionProviderTransaction;
 	readonly providerIds = new Set<string>();
 	private readonly runner: ExtensionRunner;
@@ -35,6 +37,14 @@ class ExtensionPublicationGate {
 		if (!this.discarded) this.effects.push(effect);
 	}
 
+	stageStart(effect: () => void | Promise<void>): void {
+		if (!this.discarded) this.startEffects.push(effect);
+	}
+
+	async activateStarts(): Promise<void> {
+		await this.publish(this.startEffects);
+	}
+
 	async publishProviders(): Promise<void> {
 		await this.providerTransaction.commit();
 	}
@@ -42,11 +52,15 @@ class ExtensionPublicationGate {
 	discard(): void {
 		this.discarded = true;
 		this.effects.length = 0;
+		this.startEffects.length = 0;
 	}
 
 	async release(): Promise<void> {
-		const effects = this.effects.splice(0);
-		for (const effect of effects) {
+		await this.publish(this.effects);
+	}
+
+	private async publish(effects: Array<() => void | Promise<void>>): Promise<void> {
+		for (const effect of effects.splice(0)) {
 			try {
 				await effect();
 			} catch (error) {
@@ -198,6 +212,7 @@ export function _bindExtensionCore(
 	runner: ExtensionRunner,
 	publication?: ExtensionPublicationGate,
 ): void {
+	bindExtensionContextPublication(runner.createContext(), publication && ((effect) => publication.stageStart(effect)));
 	runner.bindTaskHost(() => this.getAgentTaskHost());
 	const getCommands = (): SlashCommandInfo[] => {
 		const extensionCommands: SlashCommandInfo[] = runner.getRegisteredCommands().map((command) => ({
@@ -487,7 +502,20 @@ export async function reload(this: AgentSession, options?: AgentSessionReloadOpt
 	this._extensionProviderIds = new Set(publication.providerIds);
 	extensionsResult.runtime.extensionProviderIds = new Set(publication.providerIds);
 	this.refreshCurrentModelFromRegistry();
-	this._buildRuntime({ activeToolNames, flagValues: previousFlagValues, includeAllExtensionTools: true });
+	// Keep the runner that received session_start: its resource leases belong to it,
+	// not to a third runner recreated at commit without a matching start event.
+	this._extensionRunner = candidateRunner;
+	if (this._extensionRunnerRef) this._extensionRunnerRef.current = candidateRunner;
+	this._bindExtensionCore(candidateRunner);
+	this._applyExtensionBindings(candidateRunner);
+	this._buildRuntime({
+		activeToolNames,
+		flagValues: previousFlagValues,
+		includeAllExtensionTools: true,
+		preserveRunner: true,
+	});
+	// Publish reporter claims only after fallible preparation, before old shutdown or queued user effects.
+	await publication.activateStarts();
 	if (reason === "reload") await emitSessionShutdownEvent(oldRunner, { type: "session_shutdown", reason: "reload" });
 	oldRunner.invalidate();
 	await publication.release();

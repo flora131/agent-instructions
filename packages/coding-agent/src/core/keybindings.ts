@@ -98,8 +98,8 @@ export const KEYBINDINGS = {
 	"app.clear": { defaultKeys: "ctrl+c", description: "Clear editor" },
 	"app.exit": { defaultKeys: "ctrl+d", description: "Exit when editor is empty" },
 	"app.suspend": {
-		defaultKeys: process.platform === "win32" ? [] : "ctrl+z",
-		description: "Suspend to background",
+		defaultKeys: process.platform === "win32" ? "alt+z" : "ctrl+z",
+		description: process.platform === "win32" ? "Open PowerShell subshell" : "Suspend to background",
 	},
 	"app.thinking.cycle": {
 		defaultKeys: "shift+tab",

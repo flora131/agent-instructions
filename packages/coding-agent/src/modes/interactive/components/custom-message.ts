@@ -3,7 +3,9 @@ import type { Component } from "@earendil-works/pi-tui";
 import { Box, Container, Markdown, type MarkdownTheme, Spacer, Text } from "@earendil-works/pi-tui";
 import type { MessageRenderer } from "../../../core/extensions/types.ts";
 import type { CustomMessage } from "../../../core/messages.ts";
+import { TASK_COMPLETION_MESSAGE_TYPE } from "../../../core/tasks/completion.js";
 import { getMarkdownTheme, theme } from "../theme/theme.js";
+import { completionNoticeFromDetails, TaskCompletionMessage } from "./task-completion-message.js";
 
 /**
  * Type guard ensuring a value returned by an extension's custom renderer is a
@@ -82,6 +84,16 @@ export class CustomMessageComponent extends Container {
 			this.spacer = undefined;
 		}
 		this.removeChild(this.box);
+		if (this.message.customType === TASK_COMPLETION_MESSAGE_TYPE) {
+			const notice = completionNoticeFromDetails(this.message.details);
+			if (notice) {
+				this.spacer = new Spacer(1);
+				this.customComponent = new TaskCompletionMessage(notice, this._expanded);
+				this.addChild(this.spacer);
+				this.addChild(this.customComponent);
+				return;
+			}
+		}
 
 		// Try custom renderer first - it handles its own styling
 		if (this.customRenderer) {

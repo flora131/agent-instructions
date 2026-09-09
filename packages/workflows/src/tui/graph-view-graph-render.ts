@@ -1,5 +1,5 @@
 import type { RunSnapshot } from "../shared/store-types.js";
-import { hexBg, hexToAnsi, RESET } from "./color-utils.js";
+import { DEFAULT_BG, hexToAnsi, RESET } from "./color-utils.js";
 import { GraphCanvas } from "./graph-canvas.js";
 import { PULSE_PERIOD_MS } from "./graph-view-constants.js";
 import { GraphViewRenderHelpers } from "./graph-view-render-helpers.js";
@@ -110,7 +110,7 @@ export abstract class GraphViewGraphRenderer extends GraphViewRenderHelpers {
 			}
 		}
 
-		const bg = hexBg(this.graphTheme.bg);
+		const bg = DEFAULT_BG;
 		const leftPad = `${bg}${" ".repeat(leftMargin)}${RESET}`;
 		const composed = Array.from({ length: safeRows }, () => "");
 		for (let localRow = 0; localRow < graphRows; localRow++) {

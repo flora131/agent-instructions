@@ -52,13 +52,13 @@ test("detail renders task metadata and configured action hints without inventing
 		const text = detail.render(48).map(stripVTControlCharacters).join("\n");
 		for (const expected of [
 			"Task first",
-			"running",
+			"Running",
 			"Owner owner",
 			"Task first",
 			"0 tools",
 			"Prompt",
 			"raw prompt",
-			"· bash checking",
+			"› bash checking",
 			"Inspect transcript",
 			"ctrl+x",
 			"Cancel task…",

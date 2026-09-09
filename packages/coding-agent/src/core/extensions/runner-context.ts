@@ -108,12 +108,38 @@ export function copyScopedModels(scoped: readonly ScopedModel[]): readonly Scope
 	return Object.freeze(scoped.map((entry) => deepFrozenCopy(entry)));
 }
 
+const contextOwners = new WeakMap<ExtensionContext, object>();
+
+/** Internal lifecycle identity; contexts themselves are recreated for every dispatch. */
+export function getExtensionContextOwner(context: ExtensionContext): object {
+	return contextOwners.get(context) ?? context;
+}
+
+type ContextEffect = () => void | Promise<void>;
+const contextPublications = new WeakMap<object, (effect: ContextEffect) => void>();
+
+/** Keep builtin lifecycle effects behind the host's transactional publication boundary. */
+export function bindExtensionContextPublication(
+	context: ExtensionContext,
+	stage: ((effect: ContextEffect) => void) | undefined,
+): void {
+	const owner = getExtensionContextOwner(context);
+	if (stage) contextPublications.set(owner, stage);
+	else contextPublications.delete(owner);
+}
+
+export async function publishExtensionContextEffect(context: ExtensionContext, effect: ContextEffect): Promise<void> {
+	const stage = contextPublications.get(getExtensionContextOwner(context));
+	if (stage) stage(effect);
+	else await effect();
+}
+
 /**
  * Create an ExtensionContext for use in event handlers and tool execution.
  * Context values are resolved at call time, so host changes are reflected.
  */
-export function createExtensionContext(source: ExtensionContextSource): ExtensionContext {
-	return {
+export function createExtensionContext(source: ExtensionContextSource, owner: object = source): ExtensionContext {
+	const context: ExtensionContext = {
 		getExtensionPaths: () => {
 			source.assertActive();
 			return source.getExtensionPaths?.() ?? [];
@@ -227,6 +253,8 @@ export function createExtensionContext(source: ExtensionContextSource): Extensio
 				}
 			: {}),
 	};
+	contextOwners.set(context, owner);
+	return context;
 }
 
 export function createExtensionCommandContext(source: ExtensionCommandContextSource): ExtensionCommandContext {

@@ -133,11 +133,7 @@ export function buildSystemPrompt(options: BuildSystemPromptOptions): string {
 	const hasPowerShell = tools.includes("powershell");
 	const hasFind = tools.includes("find");
 	const hasLs = tools.includes("ls");
-	const shouldIncludeAskUserFallbackGuidance =
-		selectedTools !== undefined &&
-		tools.length > 0 &&
-		!tools.includes("ask_user_question") &&
-		!explicitlyExcludedTools.has("ask_user_question");
+	const shouldIncludeAskUserFallbackGuidance = tools.length > 0 && !tools.includes("ask_user_question");
 
 	// File exploration guidelines
 	if ((hasBash || hasPowerShell) && !hasFind && !hasLs) {
@@ -151,7 +147,7 @@ export function buildSystemPrompt(options: BuildSystemPromptOptions): string {
 	}
 	if (shouldIncludeAskUserFallbackGuidance) {
 		addGuideline(
-			"Clarify ambiguous requirements using the ask_user_question tool if available. When it is unavailable and no human input channel exists, do not stall on a question: choose the interpretation best supported by the repository and the stated objective — mine git history, commits, PRs, issues, and the user's own comments to infer how they would decide — state the assumption in your response, and continue fully autonomously on best judgment.",
+			"If an equivalent user-question tool is available, use it for all questions to the user instead of plain text, including confirmations and approvals, following its supported schema. When no usable question tool or human-input channel exists, do not stall on a question: choose the interpretation best supported by the repository and the stated objective, state the assumption in your response, and continue fully autonomously on best judgment. Tool unavailability alone is not a blocker. Preserve safety and authorization constraints.",
 		);
 	}
 	if (hasBash || hasPowerShell) {
@@ -182,12 +178,14 @@ In addition to the tools above, you may have access to other custom tools depend
 Guidelines:
 ${guidelines}
 
-Atomic documentation (read only when the user asks about customizing Atomic itself, its SDK, creating workflows, packages, extensions, themes, skills, or TUI):
+Atomic documentation (read when the user asks about model choice, computer use or automation, or customizing Atomic itself, its SDK, creating workflows, packages, extensions, themes, skills, or TUI):
 - Main documentation: ${readmePath}
 - Additional docs: ${docsPath}
 - Examples: ${examplesPath} (extensions, custom tools, SDK)
 - Docs/examples references above must be resolved against these absolute roots; e.g. docs/foo.md means ${docsPath}/foo.md and examples/bar means ${examplesPath}/bar.
 - When asked about: atomic workflows (docs/workflows.md), extensions (docs/extensions.md, examples/extensions/), themes (docs/themes.md), skills (docs/skills.md), prompt templates (docs/prompt-templates.md), TUI components (docs/tui.md), keybindings (docs/keybindings.md), SDK integrations (docs/sdk.md), custom providers (docs/custom-provider.md), adding models (docs/models.md), atomic packages (docs/packages.md)
+- When the user asks which model to choose for a task, read ${docsPath}/models/model-selection.md and ${docsPath}/models/evals.md, then consult https://artificialanalysis.ai/ for the relevant benchmark charts and methodology. Match the task to individual evaluations rather than an aggregate winner. Cite the benchmark, source date, exact model/effort and cost or latency tradeoff; distinguish measured results from recommendations. If live evidence is unavailable, label the dated docs snapshot instead of claiming a refresh. Check the configured catalog before giving an exact provider/model or thinking setting; catalog presence is not proof of live access.
+- For computer use (CUA), use PyAutoGUI for desktop mouse, keyboard and screenshot automation; for browser automation use the playwright-cli skill. For terminal automation/testing, prefer herdr on macOS, Linux and Windows; install it if missing when network access and permissions permit, and fall back to tmux or native Windows psmux if installation or use is not possible. Load the matching skill and ${docsPath}/workflows/verification.md. Preserve the pinned herdr skill's explicit-request and HERDR_ENV=1 requirements; never control a focused session from outside Herdr. Check installed capabilities, use dedicated sessions, preserve desktop failsafes and permissions, and release held input on interruption. These CLIs are not interchangeable, and skills do not grant tools or authorization.
 - When working on Atomic topics, read the docs and examples, and follow .md cross-references before implementing
 - Always read Atomic .md files completely and follow links to related docs (e.g., tui.md for TUI API details)`;
 

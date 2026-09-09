@@ -103,6 +103,8 @@ export interface HostCustomUiState {
 	blockingInlineCustomUiActive: boolean;
 	/** True when the active inline custom UI is waiting behind an overlay that kept focus. */
 	blockingInlineCustomUiFocusDeferred?: boolean;
+	/** Distinguishes required prompts from navigation. Omitted when all mounts are prompts. */
+	blockingInlineCustomUiNeedsInput?: boolean;
 }
 
 export type HostCustomUiStateListener = (state: HostCustomUiState) => void;
@@ -282,6 +284,8 @@ export interface ExtensionUIContext {
 			done: (result: T) => void,
 		) => ExtensionCustomComponent | Promise<ExtensionCustomComponent>,
 		options?: {
+			/** Navigation does not emit approval-prompt events. Defaults to "prompt". */
+			purpose?: "prompt" | "navigation";
 			overlay?: boolean;
 			/** Keep host inline custom UI pending in the background while this overlay is visible. */
 			deferInlineCustomUiFocus?: boolean;

@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import type { ServerEntry } from "./types.ts";
+import type { ServerEntry } from "./types.js";
 
 export interface ConfigWritePreview {
   path: string;

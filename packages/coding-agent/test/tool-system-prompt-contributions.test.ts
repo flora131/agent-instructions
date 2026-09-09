@@ -1,5 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { Value } from "typebox/value";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { readTextSync } from "../../../test/helpers/runtime.js";
 import { buildSystemPrompt } from "../src/core/system-prompt.ts";
@@ -7,6 +8,8 @@ import {
 	askUserQuestionToolSystemPromptContribution,
 	createAskUserQuestionToolDefinition,
 } from "../src/core/tools/ask-user-question/ask-user-question.ts";
+import { QuestionParamsSchema } from "../src/core/tools/ask-user-question/tool/types.ts";
+import { validateQuestionnaire } from "../src/core/tools/ask-user-question/tool/validate-questionnaire.ts";
 import { bashToolSystemPromptContribution, createBashToolDefinition } from "../src/core/tools/bash.ts";
 import { createEditToolDefinition, editToolSystemPromptContribution } from "../src/core/tools/edit.ts";
 import { createFindToolDefinition, findToolSystemPromptContribution } from "../src/core/tools/find.ts";
@@ -110,6 +113,44 @@ describe("built-in tool system prompt contributions", () => {
 
 		expect(definition.promptGuidelines).toBeUndefined();
 	});
+
+	test("routes every user question through the tool, including approval and unavailable-input cases", () => {
+		const definition = createAskUserQuestionToolDefinition();
+		const guidelines = definition.promptGuidelines?.join("\n") ?? "";
+		for (const text of [definition.description, guidelines]) {
+			expect(text).toContain("When ask_user_question or an equivalent question tool is available");
+			expect(text).toContain("all questions to the user must use that tool instead of plain text");
+			expect(text).toContain("Prefer ask_user_question when available");
+			expect(text).toContain("Proceed?");
+			expect(text).toContain("explicit proceed and decline options");
+			expect(text).toContain("A cancelled or unanswered question is not approval");
+			expect(text).toContain("If no usable question tool is available, continue autonomously using best judgment");
+		}
+		expect(guidelines).toContain("do not seek approval again for already-authorized work");
+		expect(guidelines).toContain("Tool unavailability alone is not a blocker");
+		expect(definition.promptSnippet).toContain("Ask all user questions through this tool");
+	});
+
+	test.each(["LF", "CRLF"])(
+		"documents a schema-valid scoped approval with an explicit decline option (%s)",
+		(lineEnding) => {
+			const docs = readTextSync(join(dirname(fileURLToPath(import.meta.url)), "../docs/tools.md"), "utf8").replace(
+				/\r?\n/g,
+				lineEnding === "CRLF" ? "\r\n" : "\n",
+			);
+			const section = docs.split("## `ask_user_question`")[1]?.split("## Persisted tool output")[0] ?? "";
+			const example = section.match(/```json\r?\n([\s\S]*?)\r?\n```/)?.[1];
+			expect(example).toBeDefined();
+			const params = Value.Parse(QuestionParamsSchema, JSON.parse(example ?? "null"));
+			expect(validateQuestionnaire(params)).toEqual({ ok: true });
+			expect(params.questions[0]?.question).toContain(
+				"same seven PRs in dependency order without changing repository protections",
+			);
+			expect(params.questions[0]?.options.map((option) => option.label)).toEqual(["Proceed", "Do not proceed"]);
+			expect(section).toContain("identify the target PRs");
+			expect(section).toContain("A cancelled or unanswered question is not approval");
+		},
+	);
 
 	test("keeps ask_user_question machine-config guidance overriding the contribution", () => {
 		askUserQuestionConfig.guidance = {

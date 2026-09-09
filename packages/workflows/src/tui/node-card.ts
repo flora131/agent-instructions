@@ -25,9 +25,10 @@
  *     `Theme` when the overlay mounts.
  */
 
+import { stripTerminalSequences } from "@earendil-works/pi-tui";
 import type { StageSnapshot, StageStatus } from "../shared/store-types.js";
 import { elapsedStageMs } from "../shared/timing.js";
-import { BOLD, hexBg, hexToAnsi, lerpColor, paint, RESET } from "./color-utils.js";
+import { BOLD, DEFAULT_BG, hexToAnsi, lerpColor, paint, RESET } from "./color-utils.js";
 import type { GraphTheme } from "./graph-theme.js";
 import { NODE_H, NODE_W } from "./layout.js";
 import { wrapIdentifierLines } from "./run-identity-rows.js";
@@ -239,7 +240,9 @@ function buildTitleSlot(
 	compact = false,
 ): { slot: string; visibleWidth: number } {
 	const maxName = Math.max(2, compact ? innerWidth - 1 : innerWidth - 4);
-	const safeName = truncate(name, maxName);
+	// Labels are plain text. Remove the truncator's resets before styling the
+	// whole tab so its ellipsis keeps the same background, foreground and weight.
+	const safeName = stripTerminalSequences(truncate(name, maxName));
 	if (focused) {
 		// Flanking spaces sit on the accent tab so the pill reads as a
 		// single coloured run. Use `paint` to combine bg + fg + bold +
@@ -270,12 +273,9 @@ export function renderNodeCard(stage: StageSnapshot, opts: NodeCardOpts): string
 
 	const borderHex = pickBorder(stage.status, focused, phase, theme);
 	const bc = hexToAnsi(borderHex);
-	// Card stratum bg — painted explicitly on every cell so internal
-	// RESETs never let the terminal default leak through as a shadow
-	// strip on the right/bottom of the card. Per DESIGN.md the card
-	// background is `base` (same as the canvas), so this paints flush
-	// with the body bg and only the border outline reads visually.
-	const bg = hexBg(theme.bg);
+	// Node interiors share the unpainted canvas. Reset after the focused
+	// title tab so its accent background does not spill into the card.
+	const bg = DEFAULT_BG;
 	const innerWidth = Math.max(2, width - 2);
 
 	// Child workflow boundaries use the compact title path so their workflow

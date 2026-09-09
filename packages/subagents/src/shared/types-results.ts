@@ -3,6 +3,7 @@
  */
 
 import type { SessionStats } from "@bastani/atomic";
+import type { ChildIdentity } from "@bastani/atomic-natives";
 import type { Message } from "@bastani/pi-ai/compat";
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 
@@ -213,10 +214,19 @@ export interface SingleResult {
 	outputSaveError?: string;
 }
 
+/** Read-only control-plane snapshot for status cards; text output stays unchanged. */
+export interface SubagentStatusGroup {
+	parentPath: string;
+	children: Array<ChildIdentity & { sessionFile?: string; model?: string; thinking?: string }>;
+}
+
 export interface Details {
 	taskResponse?:
 		| import("../../../coding-agent/src/core/tasks/contracts.js").ModelSingleResponse
 		| import("../../../coding-agent/src/core/tasks/contracts.js").ModelParallelResponse;
+	taskRecords?: import("../../../coding-agent/src/core/tasks/contracts.js").TaskRecord[];
+	taskError?: string;
+	statusGroups?: SubagentStatusGroup[];
 	mode: SubagentRunMode | "management";
 	runId?: string;
 	context?: "fresh" | "fork";

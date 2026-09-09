@@ -354,9 +354,25 @@ describe("programmatic subagent tool boundary", () => {
 		);
 
 		const theme = { fg: (_color: string, text: string) => text, bold: (text: string) => text } as never;
-		for (const args of [{ agent: "worker" }, { tasks: [{ agent: "worker", task: "one" }] }]) {
-			const component = registered.renderCall?.(args as never, theme, {} as never);
-			assert.doesNotMatch(component?.render(120).join("\n") ?? "", /\[async\]/);
+		assert.ok(registered.renderCall);
+		for (const [index, args] of [{ agent: "worker" }, { tasks: [{ agent: "worker", task: "one" }] }].entries()) {
+			const component = registered.renderCall(args, theme, {
+				args,
+				toolCallId: `parent-render-${index}`,
+				invalidate: () => {},
+				lastComponent: undefined,
+				state: {},
+				cwd: process.cwd(),
+				executionStarted: false,
+				argsComplete: true,
+				isPartial: false,
+				expanded: false,
+				showImages: false,
+				isError: false,
+			});
+			const rendered = component.render(120).join("\n");
+			assert.match(rendered, /subagent /);
+			assert.doesNotMatch(rendered, /\[async\]/);
 		}
 		for (const shutdown of handlers.get("session_shutdown") ?? []) shutdown();
 	});

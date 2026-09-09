@@ -63,6 +63,34 @@ const prompt = { id: "prompt", kind: "confirm" as const, message: "Private promp
 const executing = { state: "working", reason: "executing", activeExecutionCount: 1 } as const;
 const waiting = { state: "blocked", reason: "awaiting_input", actionableBlockCount: 1, needsAttention: true } as const;
 
+test("settled failure needs attention without claiming a user decision wait", () => {
+	for (const status of ["failed", "blocked"] as const) {
+		const stopped = run({
+			status,
+			endedAt: 1,
+			resumable: true,
+			failureRecoverability: "recoverable",
+			failureDisposition: "active_blocked",
+		});
+		assert.deepEqual(project([stopped]), [activity({ needsAttention: true })]);
+		assert.deepEqual(project([stopped], { acknowledgedFailureRunIds: new Set(["root"]) }), [activity()]);
+		assert.deepEqual(project([{ ...stopped, pendingPrompt: prompt }]), [activity(waiting)]);
+		assert.equal(stopped.status, status, "pane activity must not rewrite the failed outcome");
+	}
+});
+
+test("settled budget stops still require approval while unrelated execution remains working", () => {
+	const stopped = run({ status: "blocked", endedAt: 1, budgetState: { systemOwnedStop: true } });
+	assert.deepEqual(project([stopped]), [
+		activity({ state: "blocked", reason: "manual_intervention", actionableBlockCount: 1, needsAttention: true }),
+	]);
+	const failed = run({ status: "failed", endedAt: 1 });
+	const sibling = run({ id: "child", parentRunId: "root", stages: [stage("live")] });
+	assert.deepEqual(
+		project([failed, sibling], { executingStageIds: new Set([workflowActivityNodeKey("child", "live")]) }),
+		[activity({ ...executing, needsAttention: true })],
+	);
+});
 // #2891: a tool-only workflow contributes execution without an agent stage.
 test("workflow activity projects owned tool-only execution", () => {
 	assert.deepEqual(

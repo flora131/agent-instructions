@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- Stage pause now cancels owned active and admitted queued agents and commands before acknowledging completion, including shells admitted during already-in-flight setup. It waits for cleanup without permanently closing message admission; resume releases queued user and Intercom messages and permits fresh work, without reviving cancelled executions or affecting sibling stages.
+
+### Changed
+
+- Reduced default workflow stage and authored parallel concurrency from 4 to 3, preserving explicit configuration and per-call overrides.
+
+## [0.9.19-alpha.2] - 2026-09-08
+
 ### Added
 
 - Added effective model and thinking identity to graph node cards, preserving thinking and canonical fast model suffixes in narrow rows and restoring identity through durable resume. Live fallback replacements update the model row; the `BACKGROUND` widget is unchanged ([#1859](https://github.com/bastani-inc/atomic/pull/1859) by [@sina85](https://github.com/sina85)).
@@ -16,7 +26,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Goal and Ralph orchestration, Ralph research, and Open Claude Design now use GPT-6 Astra at medium. Prompt refinement stays at high, and OpenRouter Grok fallbacks explicitly use xhigh.
 - `/tasks` in an attached stage chat opens the shared owner-bound inspector without entering model context, including during interrupt settlement. Task focus exits before the ordinary stage Escape action, and mounted human-input prompts retain input priority ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Stage chat now shows compact background-agent and shell counts below the composer instead of persistent task rows. Shared `/tasks` views retain background results, and completion notifications use shaded cards with readable outcomes and previews in the owning stage chat.
+- Workflow guidance now uses project CI/test timing history for critical-path scheduling and launch estimates, avoids redundant full-suite runs while preserving required gates, and compares estimated with actual elapsed time. Agent-authored user questions use `ask_user_question` or an equivalent tool when available; sessions without one continue autonomously using best judgment.
+- Workflow guidance treats requests to work "quickly" as task-scoped inline execution. Duration estimates appear before launch without confidence labels. Launches inherit configured limits without a routine budget-choice question; explicit user limits and approval before raising an exhausted budget remain enforced.
 
 ### Fixed
 
@@ -24,11 +38,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Skill autocomplete reuses the attached stage session without writing durable checkpoints per keystroke. Concurrent lazy discovery requests share one attachment.
 - Same-name prompt/tool nodes no longer cause valid duplicate agent matches to be refused as non-agents. Live `ask` retains ambiguity diagnostics and name-based `send` retains sticky agent delivery ([#2895](https://github.com/bastani-inc/atomic/pull/2895)).
 - Keep a bound task footer visible beside mounted stage questions within the existing viewport budget, and apply the host's expansion setting consistently to task rows.
+- Restored `/tasks` to stage slash suggestions and removed filled backgrounds from skill suggestions, including selected rows. Task status now follows MCP, retaining active counts and `/tasks` without collision with the graph-return shortcut on narrow terminals.
+- Stage pause keeps owned background agents and shells running. Closing the stage generation cancels that owner's remaining work without stopping sibling stages.
 - Preserve an ordinary stage's complete output artifact when a follow-up clarification arrives before completion. Completed answers from the same prompt generation remain ordered supplements, including executor continuations and close-time delivery, without copying earlier history or tool progress. Accepted answers survive context compaction and model fallback during a continuation; failed attempts cannot discard an earlier successful report. Tree navigation cannot import historical answers, and generation close stops capture of later retained-session chat. Completed artifact receipts stay stable under repeated finalization; structured output keeps its existing capture contract.
 - Discard provisional artifact answers from each failed same-model retry, preserving earlier accepted reports and only publishing the successful retry's answers.
 - Prevent workflow activity from briefly reporting idle between settled nodes and live author continuation. Historical, paused, blocked, and stopping runs do not gain continuation ownership ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).
 - Preserved workflow lifecycle `kill` events for already-aborted caller signals and report task-result checkpoint interrupts as `interrupt`, without changing their graceful paused outcome ([#2912](https://github.com/bastani-inc/atomic/pull/2912)).
 - Durable tool callbacks now wait for agent tasks they admit to reach terminal results before checkpointing. Yielded observations are replaced with terminal observations without changing the cancellation-before-persistence or commit-wins fences ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Workflow graph canvas and node interiors now use the terminal's background like main and stage chat, instead of painting a fixed dark palette. Themed chrome and focused title tabs remain unchanged.
+- Graph chrome and `/workflow connect` picker rows retain solid background fill across truncated names, filters, and hints. Truncated stage and child-workflow labels keep their focused tab's background, text color, and weight through the ellipsis. Skill, command, and file autocomplete retain terminal-default backgrounds, including selected rows.
+- Classified the workflow graph and run picker as navigation so `/workflow connect` no longer creates a false Herdr approval wait. Actual workflow input waits remain reported.
+- Workflow-stage `/tasks` now retains the shared compact picker and the stage's model, reasoning, cwd/branch, and MCP footer. Detail pages stay fullscreen. Task navigation no longer triggers the main-chat input notice, and pending-prompt notices clear when the graph hides, closes, or changes host.
+- Resume ended recoverable blocks through the existing continuation path rather than returning an unchanged snapshot as success. Non-resumable targets and unchanged blocked snapshots report no progress.
+- Settled failed or blocked runs retain attention without reporting an active user-decision wait to Herdr. Pending prompts and exhausted budgets remain blocked.
+- Stopped the workflow graph projection from retaining and deep-freezing a completed stage's structured result, and gave input defaulting a resolver-owned copy, so a stage's structured output can still be handed to a typed child workflow ([#2936](https://github.com/bastani-inc/atomic/issues/2936)).
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

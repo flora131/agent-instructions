@@ -1,6 +1,6 @@
 import type { ExtensionAPI, ExtensionContext } from "@bastani/atomic";
 import type { McpExtensionState } from "./state.js";
-import type { ToolMetadata } from "./types.ts";
+import type { ToolMetadata } from "./types.js";
 import { existsSync } from "node:fs";
 import { loadMcpConfig } from "./config.ts";
 import { ConsentManager } from "./consent-manager.js";

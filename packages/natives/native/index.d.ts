@@ -85,6 +85,8 @@ readTaskOutput(task: TaskLease, range: OutputRange): Promise<{ok:true,value:Outp
 /** Claim once after host dispatch setup; operation replay never grants a second runner. */
 claimTaskRunner(task: TaskLease): {ok:true,value:RunnerLease}|{ok:false,error:TaskFailure}
 taskReference(task: TaskLease): {ok:true,value:NativeTaskRef}|{ok:false,error:TaskFailure}
+/** Read the retained terminal receipt without registering an observation or replaying execution. */
+taskSettlement(task: TaskLease): {ok:true,value:SettlementReceipt}|{ok:false,error:TaskFailure}
 lookupTask(owner: OwnerLease, taskId: string): {ok:true,value:TaskLease}|{ok:false,error:TaskFailure}
 /**
  * Registers the observation before returning. Await observeTaskWait separately.
@@ -131,6 +133,7 @@ export declare class WaitLease {
 
 export type ActivityChange =
   | { kind: 'action', tool: string, text: string }
+  | { kind: 'model', model?: string, thinking?: string }
   | { kind: 'metrics', elapsedMs?: number, toolCount?: number, tokenCount?: number }
   | { kind: 'output', offset: string, bytesBase64: string }
   | { kind: 'attention-set', attention: Attention }
@@ -233,6 +236,9 @@ export interface CommandIntent {
   description?: string
   cwd?: string
   env?: Record<string,string>
+  shell?: CommandShell
+  /** Defaults to true; false makes env the complete child environment. */
+  inheritEnv?: boolean
   terminal: CommandTerminal
   executionTimeoutMs?: number
   parentTaskId?: string
@@ -248,6 +254,12 @@ export interface CommandResourceOptions {
   livePreviewBytes?: number
   foregroundSpillBytes?: number
   background?: boolean
+}
+
+/** Execute this program directly, appending command as one final argument. */
+export interface CommandShell {
+  program: string
+  args: string[]
 }
 
 export type CommandTaskKind =  'command';
@@ -798,8 +810,12 @@ export interface TaskRecord {
   kind: string
   title: string
   agentName?: string
+  model?: string
+  thinking?: string
   execution: Execution
   observation: HostObservation
+  /** True after a designated observation yields; retained after settlement and snapshot resets. */
+  wasBackground?: boolean
   attention: Attention
   cleanup: Cleanup
   currentAction?: CurrentAction

@@ -22,13 +22,13 @@ After the script is fetched, it enables TLS 1.2 for its own GitHub requests and 
 
 The installer adds the bin directory to the User PATH and the current PowerShell process. Restart the terminal when it finishes so other processes see the new PATH. A custom `ATOMIC_BIN_DIR` containing `;` cannot be one Windows PATH entry, so the installer leaves PATH untouched and prints a direct-run command for `atomic.cmd` instead. If the bin directory already holds a same-stem launcher that `PATHEXT` resolves before `atomic.cmd`, such as a stale `atomic.exe` from an older Node-based install, the installer reports it and stops before downloading anything; remove that entry and rerun. Because the shim is `atomic.cmd`, `PATHEXT` must include `.CMD` for bare `atomic` to resolve; if it does not, the installer says so and stops rather than reporting a success you could not use. An unexpected regular `current` entry under `ATOMIC_INSTALL_DIR`, or a regular `atomic-current` entry under `ATOMIC_BIN_DIR`, is reported and left untouched instead of being moved or deleted. A pinned `-Ref` is honored literally: if GitHub answers with a different release tag, the install stops before downloading anything. Package-manager installation remains available but requires Node.js; see the [Quickstart](/quickstart#package-managers).
 
-By default, Atomic uses a Bash shell for the `bash` tool and `!`/`!!` shortcuts. If you use those surfaces, Atomic checks these locations in order:
+Atomic uses a Bash shell for the `bash` tool. For that tool, Atomic checks these locations in order:
 
 1. Custom path from `~/.atomic/agent/settings.json` (legacy `~/.pi/agent/settings.json` also supported)
 2. Git Bash (`C:\Program Files\Git\bin\bash.exe`)
 3. `bash.exe` on PATH (Cygwin, MSYS2, WSL)
 
-For users who want the default Bash surfaces, [Git for Windows](https://git-scm.com/download/win) is sufficient. Native Windows users can instead enable the optional PowerShell tool described below; `!`/`!!` remain Bash-only.
+For the Bash tool, [Git for Windows](https://git-scm.com/download/win) is sufficient. Native Windows `!`/`!!` shortcuts instead use PowerShell, preferring `pwsh.exe` and falling back to `powershell.exe` on `PATH`. They do not use `shellPath`; any `shellCommandPrefix` must use PowerShell syntax. WSL remains Bash-based.
 
 ## Custom Shell Path
 
@@ -62,7 +62,7 @@ If Atomic cannot safely self-update the current installation, it exits with a cl
 
 ### PowerShell tool
 
-On native Windows, Atomic registers the `powershell` tool by default when PowerShell 7 (`pwsh.exe`) or Windows PowerShell (`powershell.exe`) is on `PATH`. If neither executable is available, the tool is omitted so the agent is not offered a command that cannot run. Add `powershell` to `defaultTools` to enable it explicitly when you want it active alongside a narrower built-in selection. The `bash` tool and `!`/`!!` shortcuts continue to use Bash. Both `ATOMIC_*` and legacy `PI_*` session variables are available.
+On native Windows, Atomic registers the `powershell` tool by default when PowerShell 7 (`pwsh.exe`) or Windows PowerShell (`powershell.exe`) is on `PATH`. If neither executable is available, the tool is omitted so the agent is not offered a command that cannot run. Add `powershell` to `defaultTools` to enable it explicitly when you want it active alongside a narrower built-in selection. The `bash` tool continues to use Bash; `!`/`!!` use PowerShell. Both `ATOMIC_*` and legacy `PI_*` session variables are available.
 
 PowerShell calls are rendered in the transcript with a `PS>` prompt so they are never mistaken for Bash, and truncated PowerShell output is spilled to its own `atomic-powershell-*` temp file rather than the Bash one.
 

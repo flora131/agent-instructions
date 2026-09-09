@@ -1,4 +1,4 @@
-import type { ServerDefinition } from "./types.ts";
+import type { ServerDefinition } from "./types.js";
 import type { McpServerManager } from "./server-manager.ts";
 import { logger } from "./logger.ts";
 

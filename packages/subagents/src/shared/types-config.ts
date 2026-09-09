@@ -99,11 +99,11 @@ export interface RunSyncOptions {
 	allowIntercomDetach?: boolean;
 	intercomEvents?: IntercomEventBus;
 	onDetachedExit?: (result: SingleResult) => void;
-	/** Shared foreground-group signal used to release sibling supervision after one exact child commits Intercom detach. */
+	/** Observation-only group yield after an exact child Intercom commit; never execution cancellation. */
 	intercomDetachSignal?: AbortSignal;
-	/** Releases every active foreground sibling only after this exact child accepts a detach commit. */
+	/** Releases foreground observations, including queued tasks, without ending any child execution. */
 	onIntercomDetachCommit?: () => void;
-	/** Claims a blocking ask from this exact child and ends it with a fresh-child handoff. */
+	/** Single-child only: claims an exact blocking ask and ends it with a fresh-child handoff. */
 	onParentAskHandoff?: (request: ParentAskHandoffRequest) => void;
 	onUpdate?: (r: AgentToolResult<Details>) => void;
 	onControlEvent?: (event: ControlEvent) => void;

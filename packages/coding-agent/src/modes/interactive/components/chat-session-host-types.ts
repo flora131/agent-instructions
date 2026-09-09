@@ -1,9 +1,9 @@
 import type { Component, EditorComponent, EditorTheme, MarkdownTheme, TUI } from "@earendil-works/pi-tui";
-import type { AgentSession } from "../../../core/agent-session.ts";
+import type { AgentSession } from "../../../core/agent-session.js";
 import type { BashResult } from "../../../core/bash-executor.ts";
 import type { ReadonlyFooterDataProvider } from "../../../core/footer-data-provider.ts";
 import type { ChatMessageEntry, ChatMessageRenderOptions } from "./chat-message-renderer.ts";
-import type { ChatTranscriptEntryLike } from "./chat-transcript.ts";
+import type { ChatTranscriptEntryLike } from "./chat-transcript.js";
 
 export interface ChatSessionHostStyle {
 	dim(text: string): string;
@@ -61,6 +61,8 @@ export interface ChatSessionHostOpts<TExtraEntry extends ChatTranscriptEntryLike
 	commands?: ChatSessionHostCommands;
 	requestRender?: () => void;
 	getAgentSession?: () => AgentSession | undefined;
+	/** Custom hosts may retain live task rows; interactive stage chat uses footer-only status. */
+	taskRowsInChat?: boolean;
 	isStreaming?: () => boolean;
 	isPaused?: () => boolean;
 	isDisabled?: () => boolean;

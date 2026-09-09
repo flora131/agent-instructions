@@ -31,7 +31,7 @@ export {
 	type RowWindowSegment,
 	ScrollableChatTranscriptComponent,
 	ScrollableComponentViewport,
-} from "./chat-transcript.ts";
+} from "./chat-transcript.js";
 export { CompactionBoundaryMessageComponent } from "./compaction-boundary-message.ts";
 export { CustomEditor, type CustomEditorOptions } from "./custom-editor.ts";
 export { CustomEntryComponent } from "./custom-entry.ts";

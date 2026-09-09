@@ -14,11 +14,10 @@ export function deferredTaskValue<T>() {
 	});
 	return { promise, resolve };
 }
-export function taskFixture() {
+export function taskFixture(scope: C.OwnerScope = { kind: "session", sessionId: randomUUID() }) {
 	const supervisor = new TaskSupervisor();
 	const runners: Array<{ context: FakeRunnerContext; result: ReturnType<typeof deferredTaskValue<C.TaskResult>> }> =
 		[];
-	const scope: C.OwnerScope = { kind: "session", sessionId: randomUUID() };
 	const host = supervisor.bindHostSession({
 		scope,
 		authorizeLaunch() {},
@@ -40,7 +39,7 @@ export function taskFixture() {
 		host,
 		store,
 		runners,
-		async start(task = "Inspect task projection", description?: string) {
+		async start(task = "Inspect task projection", description?: string, background = true) {
 			const lease = taskValue(
 				await supervisor.startAgentTask(
 					owner,
@@ -48,6 +47,7 @@ export function taskFixture() {
 					randomUUID() as C.OperationId,
 				),
 			);
+			if (background) taskValue(await supervisor.initialObservation(lease, { kind: "background" }));
 			store.drain();
 			return lease;
 		},

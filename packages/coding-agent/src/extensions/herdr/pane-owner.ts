@@ -63,13 +63,18 @@ export async function claimPaneReporting(
 	identity: PaneIdentity,
 	options: PaneReportingOptions = {},
 ): Promise<PaneOwner> {
-	while (owners.has(environment.paneId)) await releasePaneReporting(owners.get(environment.paneId)!);
+	let previous: PaneOwner | undefined;
+	do {
+		previous = owners.get(environment.paneId);
+		if (previous) await retirePaneReporting(previous);
+	} while (owners.get(environment.paneId) !== previous);
 	const owner: PaneOwner = {
 		environment,
 		identity,
 		options,
 		status: "active",
-		seq: 0,
+		// Inherit the registration even if recovery produces no successor report before quit.
+		seq: previous?.seq ?? 0,
 		identitySent: false,
 		async flush() {
 			await this.flight;
@@ -105,7 +110,16 @@ export function reportPaneActivity(owner: PaneOwner, activity: SessionActivity):
 	});
 }
 
+/** Fence and drain a local reporter without unregistering the still-running agent. */
+export function retirePaneReporting(owner: PaneOwner): Promise<void> {
+	return stopPaneReporting(owner, false);
+}
+
 export function releasePaneReporting(owner: PaneOwner): Promise<void> {
+	return stopPaneReporting(owner, true);
+}
+
+function stopPaneReporting(owner: PaneOwner, releaseRegistration: boolean): Promise<void> {
 	if (owner.release) return owner.release;
 	if (owners.get(owner.environment.paneId) !== owner || owner.status !== "active") {
 		diagnostic(owner, { kind: "stale_owner" });
@@ -116,12 +130,13 @@ export function releasePaneReporting(owner: PaneOwner): Promise<void> {
 	owner.release = (async () => {
 		await owner.flight;
 		// A failed command may still have claimed authority before its response was lost.
-		if (owner.seq > 0) {
+		if (releaseRegistration && owner.seq > 0) {
 			allocateSequence(owner);
 			await send(owner, argv(owner, "release-agent"));
 		}
 		owner.status = "retired";
-		if (owners.get(owner.environment.paneId) === owner) owners.delete(owner.environment.paneId);
+		if (releaseRegistration && owners.get(owner.environment.paneId) === owner)
+			owners.delete(owner.environment.paneId);
 	})();
 	return owner.release;
 }

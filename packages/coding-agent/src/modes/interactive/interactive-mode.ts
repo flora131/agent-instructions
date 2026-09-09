@@ -39,4 +39,8 @@ export { formatResumeCommand, isApiKeyLoginProvider } from "./interactive-mode-h
 export type { InteractiveModeOptions } from "./interactive-mode-types.ts";
 export { createInteractiveTui, createInteractiveTuiReference, type InteractiveTui } from "./interactive-tui.ts";
 
-export class InteractiveMode extends InteractiveModeBase {}
+export class InteractiveMode extends InteractiveModeBase {
+	get taskRowsInChat(): boolean {
+		return false;
+	}
+}

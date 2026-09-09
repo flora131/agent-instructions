@@ -116,7 +116,9 @@ Business and enterprise tokens sent to the individual host return `421 Misdirect
 
 Run `/login xai`, then select **Use a subscription**. `XAI_API_KEY` remains available through **Use an API key**.
 
-Atomic defaults xAI sessions to `grok-4.6`. Built-in workflow and subagent fallback chains use `xai/grok-4.6:xhigh`, `github-copilot/grok-4.6:xhigh`, and `openrouter/x-ai/grok-4.6`; GitHub Copilot also exposes Grok 4.6 when the account's model policy enables it. Network-backed catalogs refresh and cache these newer entries independently of the bundled catalog snapshot.
+Atomic defaults xAI sessions to `grok-4.6`. Built-in workflow and subagent fallback chains use `xai/grok-4.6:xhigh`, `github-copilot/grok-4.6:xhigh`, and `openrouter/x-ai/grok-4.6:xhigh`; GitHub Copilot also exposes Grok 4.6 when the account's model policy enables it. Network-backed catalogs refresh and cache these newer entries independently of the bundled catalog snapshot.
+
+The `codebase-locator`, `codebase-pattern-finder`, and `codebase-research-locator` agents use GPT-5.6 Luna at `xhigh` and Grok fallbacks at `medium` instead. Goal and Ralph orchestration, Ralph research, and Open Claude Design use GPT-6 Astra at `medium`; Ralph prompt refinement remains at `high`.
 
 ### Radius
 
@@ -142,45 +144,45 @@ On a remote or headless machine, paste the authorization code or final redirect 
 
 Remote pi.dev catalogs persist their ETag and are revalidated with `If-None-Match`; an empty `304` keeps the cached models and counts as a successful check. Atomic renders the cached snapshot immediately, preserves each provider's last usable catalog on refresh failure, and prefers newer bundled data over stale remote overlays. See [Custom Models](/models#catalog-freshness-and-precedence).
 
-| Provider | Environment Variable | `auth.json` key |
-|----------|----------------------|------------------|
-| Anthropic | `ANTHROPIC_API_KEY` or bearer-only `ANTHROPIC_AUTH_TOKEN` | `anthropic` |
-| Ant Ling | `ANT_LING_API_KEY` | `ant-ling` |
-| Azure OpenAI Responses | `AZURE_OPENAI_API_KEY` | `azure-openai-responses` |
-| OpenAI | `OPENAI_API_KEY` | `openai` |
-| DeepSeek | `DEEPSEEK_API_KEY` | `deepseek` |
-| NVIDIA NIM | `NVIDIA_API_KEY` | `nvidia` |
-| Google Gemini | `GEMINI_API_KEY` | `google` |
-| Google Vertex AI | `GOOGLE_CLOUD_API_KEY` | `google-vertex` |
-| Mistral | `MISTRAL_API_KEY` | `mistral` |
-| Groq | `GROQ_API_KEY` | `groq` |
-| Cerebras | `CEREBRAS_API_KEY` | `cerebras` |
-| Cloudflare AI Gateway | `CLOUDFLARE_API_KEY` (+ `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_GATEWAY_ID`) | `cloudflare-ai-gateway` |
-| Cloudflare Workers AI | `CLOUDFLARE_API_KEY` (+ `CLOUDFLARE_ACCOUNT_ID`) | `cloudflare-workers-ai` |
-| xAI | `XAI_API_KEY` | `xai` |
-| OpenRouter | `OPENROUTER_API_KEY` | `openrouter` |
-| Vercel AI Gateway | `AI_GATEWAY_API_KEY` | `vercel-ai-gateway` |
-| ZAI | `ZAI_API_KEY` | `zai` |
-| ZAI Coding Plan (China) | `ZAI_CODING_CN_API_KEY` | `zai-coding-cn` |
-| OpenCode Zen | `OPENCODE_API_KEY` | `opencode` |
-| OpenCode Go | `OPENCODE_API_KEY` | `opencode-go` |
-| Radius | `RADIUS_API_KEY` | `radius` |
-| Hugging Face | `HF_TOKEN` | `huggingface` |
-| Fireworks | `FIREWORKS_API_KEY` | `fireworks` |
-| Together AI | `TOGETHER_API_KEY` | `together` |
-| Baseten | `BASETEN_API_KEY` | `baseten` |
-| Kimi For Coding | `KIMI_API_KEY` | `kimi-coding` |
-| MiniMax | `MINIMAX_API_KEY` | `minimax` |
-| MiniMax (China) | `MINIMAX_CN_API_KEY` | `minimax-cn` |
-| Moonshot AI | `MOONSHOT_API_KEY` | `moonshotai` |
-| Moonshot AI (China) | `MOONSHOT_API_KEY` | `moonshotai-cn` |
-| Qwen Token Plan (existing catalog) | `QWEN_TOKEN_PLAN_API_KEY` | `qwen-token-plan` |
-| Qwen Token Plan (Individual) | `QWEN_TOKEN_PLAN_API_KEY` | `qwen-token-plan-individual` |
-| Qwen Token Plan (China) | `QWEN_TOKEN_PLAN_CN_API_KEY` | `qwen-token-plan-cn` |
-| Xiaomi MiMo | `XIAOMI_API_KEY` | `xiaomi` |
-| Xiaomi MiMo Token Plan (China) | `XIAOMI_TOKEN_PLAN_CN_API_KEY` | `xiaomi-token-plan-cn` |
-| Xiaomi MiMo Token Plan (Amsterdam) | `XIAOMI_TOKEN_PLAN_AMS_API_KEY` | `xiaomi-token-plan-ams` |
-| Xiaomi MiMo Token Plan (Singapore) | `XIAOMI_TOKEN_PLAN_SGP_API_KEY` | `xiaomi-token-plan-sgp` |
+| Provider                           | Environment Variable                                                      | `auth.json` key              |
+| ---------------------------------- | ------------------------------------------------------------------------- | ---------------------------- |
+| Anthropic                          | `ANTHROPIC_API_KEY` or bearer-only `ANTHROPIC_AUTH_TOKEN`                 | `anthropic`                  |
+| Ant Ling                           | `ANT_LING_API_KEY`                                                        | `ant-ling`                   |
+| Azure OpenAI Responses             | `AZURE_OPENAI_API_KEY`                                                    | `azure-openai-responses`     |
+| OpenAI                             | `OPENAI_API_KEY`                                                          | `openai`                     |
+| DeepSeek                           | `DEEPSEEK_API_KEY`                                                        | `deepseek`                   |
+| NVIDIA NIM                         | `NVIDIA_API_KEY`                                                          | `nvidia`                     |
+| Google Gemini                      | `GEMINI_API_KEY`                                                          | `google`                     |
+| Google Vertex AI                   | `GOOGLE_CLOUD_API_KEY`                                                    | `google-vertex`              |
+| Mistral                            | `MISTRAL_API_KEY`                                                         | `mistral`                    |
+| Groq                               | `GROQ_API_KEY`                                                            | `groq`                       |
+| Cerebras                           | `CEREBRAS_API_KEY`                                                        | `cerebras`                   |
+| Cloudflare AI Gateway              | `CLOUDFLARE_API_KEY` (+ `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_GATEWAY_ID`) | `cloudflare-ai-gateway`      |
+| Cloudflare Workers AI              | `CLOUDFLARE_API_KEY` (+ `CLOUDFLARE_ACCOUNT_ID`)                          | `cloudflare-workers-ai`      |
+| xAI                                | `XAI_API_KEY`                                                             | `xai`                        |
+| OpenRouter                         | `OPENROUTER_API_KEY`                                                      | `openrouter`                 |
+| Vercel AI Gateway                  | `AI_GATEWAY_API_KEY`                                                      | `vercel-ai-gateway`          |
+| ZAI                                | `ZAI_API_KEY`                                                             | `zai`                        |
+| ZAI Coding Plan (China)            | `ZAI_CODING_CN_API_KEY`                                                   | `zai-coding-cn`              |
+| OpenCode Zen                       | `OPENCODE_API_KEY`                                                        | `opencode`                   |
+| OpenCode Go                        | `OPENCODE_API_KEY`                                                        | `opencode-go`                |
+| Radius                             | `RADIUS_API_KEY`                                                          | `radius`                     |
+| Hugging Face                       | `HF_TOKEN`                                                                | `huggingface`                |
+| Fireworks                          | `FIREWORKS_API_KEY`                                                       | `fireworks`                  |
+| Together AI                        | `TOGETHER_API_KEY`                                                        | `together`                   |
+| Baseten                            | `BASETEN_API_KEY`                                                         | `baseten`                    |
+| Kimi For Coding                    | `KIMI_API_KEY`                                                            | `kimi-coding`                |
+| MiniMax                            | `MINIMAX_API_KEY`                                                         | `minimax`                    |
+| MiniMax (China)                    | `MINIMAX_CN_API_KEY`                                                      | `minimax-cn`                 |
+| Moonshot AI                        | `MOONSHOT_API_KEY`                                                        | `moonshotai`                 |
+| Moonshot AI (China)                | `MOONSHOT_API_KEY`                                                        | `moonshotai-cn`              |
+| Qwen Token Plan (existing catalog) | `QWEN_TOKEN_PLAN_API_KEY`                                                 | `qwen-token-plan`            |
+| Qwen Token Plan (Individual)       | `QWEN_TOKEN_PLAN_API_KEY`                                                 | `qwen-token-plan-individual` |
+| Qwen Token Plan (China)            | `QWEN_TOKEN_PLAN_CN_API_KEY`                                              | `qwen-token-plan-cn`         |
+| Xiaomi MiMo                        | `XIAOMI_API_KEY`                                                          | `xiaomi`                     |
+| Xiaomi MiMo Token Plan (China)     | `XIAOMI_TOKEN_PLAN_CN_API_KEY`                                            | `xiaomi-token-plan-cn`       |
+| Xiaomi MiMo Token Plan (Amsterdam) | `XIAOMI_TOKEN_PLAN_AMS_API_KEY`                                           | `xiaomi-token-plan-ams`      |
+| Xiaomi MiMo Token Plan (Singapore) | `XIAOMI_TOKEN_PLAN_SGP_API_KEY`                                           | `xiaomi-token-plan-sgp`      |
 
 Z.AI and Z.AI Coding Plan (China) default to `glm-5.3` (`zai/glm-5.3` and `zai-coding-cn/glm-5.3`), and both direct providers also expose the multimodal `glm-5.3-flash`. Baseten defaults to its directly selectable `zai-org/GLM-5.3` and also exposes `zai-org/GLM-5.3-Fast` and the multimodal `zai-org/GLM-5.3-Flash`; OpenRouter exposes `z-ai/glm-5.3` and `z-ai/glm-5.3-flash`. The full and Flash entries support `low`, `high`, and `max` reasoning; Baseten's Fast entry also supports `off`. Built-in workflow and subagent chains include the Z.AI, Z.AI Coding Plan, Baseten, and OpenRouter routes at `:high`. Use Baseten's `zai-org/GLM-5.2` or `zai-org/GLM-5.3-Fast` when fully disabled reasoning is required. Qwen Token Plan Individual defaults to `qwen3.8-max` and uses the international `QWEN_TOKEN_PLAN_API_KEY` shared with the existing Qwen Token Plan provider. These catalogs follow their upstream providers, so use `--list-models` for the current entries.
 
@@ -351,12 +353,12 @@ Routes to OpenAI, Anthropic, and Workers AI through Cloudflare AI Gateway. Worke
 
 AI Gateway authentication uses `CLOUDFLARE_API_KEY` as `cf-aig-authorization`. Upstream authentication can be one of:
 
-| Mode | Request auth | Upstream auth |
-|------|--------------|---------------|
-| Workers AI | Cloudflare token only | Cloudflare-native |
-| Unified billing | Cloudflare token only | Cloudflare handles upstream auth and deducts credits |
-| Stored BYOK | Cloudflare token only | Cloudflare injects provider keys stored in the AI Gateway dashboard |
-| Inline BYOK | Cloudflare token plus upstream `Authorization` header | The request supplies the upstream provider key |
+| Mode            | Request auth                                          | Upstream auth                                                       |
+| --------------- | ----------------------------------------------------- | ------------------------------------------------------------------- |
+| Workers AI      | Cloudflare token only                                 | Cloudflare-native                                                   |
+| Unified billing | Cloudflare token only                                 | Cloudflare handles upstream auth and deducts credits                |
+| Stored BYOK     | Cloudflare token only                                 | Cloudflare injects provider keys stored in the AI Gateway dashboard |
+| Inline BYOK     | Cloudflare token plus upstream `Authorization` header | The request supplies the upstream provider key                      |
 
 For normal Atomic usage, prefer unified billing or stored BYOK. Inline BYOK requires configuring an additional upstream `Authorization` header for the Cloudflare AI Gateway provider, for example via a `models.json` provider/model override.
 

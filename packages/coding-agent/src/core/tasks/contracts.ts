@@ -74,6 +74,10 @@ export type CommandIntent = {
 	description?: string;
 	cwd?: string;
 	env?: Record<string, string>;
+	/** Explicit executable and prefix arguments; command is appended as one argument. */
+	shell?: { program: string; args: string[] };
+	/** False replaces the inherited environment with env; omission preserves inheritance. */
+	inheritEnv?: boolean;
 	terminal: { kind: "pipe" } | { kind: "pty"; columns: number; rows: number };
 	executionTimeoutMs?: number;
 	parentTaskId?: TaskId;
@@ -126,8 +130,13 @@ export type TaskRecord = {
 	kind: "agent" | "command";
 	title: string;
 	agentName?: string;
+	/** Resolved execution settings, retained after completion. */
+	model?: string;
+	thinking?: string;
 	execution: Execution;
 	observation: HostObservation;
+	/** Retained native background membership, independent of the current wait. */
+	wasBackground?: boolean;
 	attention: Attention;
 	cleanup: Cleanup;
 	currentAction?: { tool: string; text: string };
@@ -143,6 +152,7 @@ export type ActivityReport = {
 	reportId: string;
 	change:
 		| { kind: "action"; tool: string; text: string }
+		| { kind: "model"; model?: string; thinking?: string }
 		| { kind: "metrics"; elapsedMs?: number; toolCount?: number; tokenCount?: number }
 		| { kind: "output"; offset: string; bytesBase64: string }
 		| { kind: "attention-set"; attention: Exclude<Attention, { kind: "none" }> }

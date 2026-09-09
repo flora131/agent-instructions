@@ -683,7 +683,7 @@ describe("manual compaction re-entrancy", () => {
 		assert.equal(result.cancelled, false);
 		assert.equal(harness.session.compactionReason, undefined);
 	});
-	test("preserves an outer automatic reason across overlapping branch navigation", async () => {
+	test("preserves an outer automatic reason when overlapping branch navigation is rejected", async () => {
 		const compactionGate = createGate();
 		const treeGate = createTreeGate();
 		const harness = await createHarnessWithExtensions({
@@ -699,17 +699,35 @@ describe("manual compaction re-entrancy", () => {
 
 		const targetId = harness.sessionManager.getTree()[0]?.entry.id;
 		assert.ok(targetId);
+		const originalLeafId = harness.sessionManager.getLeafId();
+		let treeHookStarted = false;
+		void treeGate.started.then(() => {
+			treeHookStarted = true;
+		});
+		try {
+			// PR #2939 deliberately rejects navigation before any tree hook runs.
+			await assert.rejects(harness.session.navigateTree(targetId, { summarize: false }), {
+				message: "Wait for the current compaction or tree navigation to finish before navigating the session tree.",
+			});
+			assert.equal(treeHookStarted, false);
+			assert.equal(harness.sessionManager.getLeafId(), originalLeafId);
+			assert.equal(harness.session.compactionReason, "threshold");
+		} finally {
+			compactionGate.release();
+			await automatic;
+		}
+		assert.equal(harness.session.compactionReason, undefined);
+
 		const navigation = harness.session.navigateTree(targetId, { summarize: false });
 		await treeGate.started;
-		assert.equal(harness.session.compactionReason, "threshold");
-
-		treeGate.release();
-		const result = await navigation;
-		assert.equal(result.cancelled, false);
-		assert.equal(harness.session.compactionReason, "threshold");
-
-		compactionGate.release();
-		await automatic;
+		try {
+			assert.equal(harness.session.compactionReason, "branchSummary");
+		} finally {
+			treeGate.release();
+		}
+		assert.equal((await navigation).cancelled, false);
+		// The first entry is a user message; navigation restores it to the editor.
+		assert.equal(harness.sessionManager.getLeafId(), harness.sessionManager.getEntry(targetId)?.parentId);
 		assert.equal(harness.session.compactionReason, undefined);
 	});
 });

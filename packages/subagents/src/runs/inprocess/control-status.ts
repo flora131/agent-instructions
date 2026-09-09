@@ -1,4 +1,4 @@
-import type { SubagentToolResult } from "../../shared/types.js";
+import type { SubagentStatusGroup, SubagentToolResult } from "../../shared/types.js";
 import { findSubagentControl, listSubagentControls } from "./control-registry.js";
 
 function canonicalChildren(control: NonNullable<ReturnType<typeof findSubagentControl>>) {
@@ -26,6 +26,24 @@ function childLines(control: ReturnType<typeof findSubagentControl>, id?: string
 		.map((child) => `${child.path} — ${child.status} (${child.loaded ? "loaded" : "cold"})`);
 }
 
+function statusGroup(control: NonNullable<ReturnType<typeof findSubagentControl>>, id?: string): SubagentStatusGroup {
+	return {
+		parentPath: control.parent.path,
+		children: canonicalChildren(control)
+			.filter((child) => !id || id === control.parent.path || child.path === id)
+			.map((child) => {
+				const delivered = control.getDeliveredResult(child.path);
+				const metadata = control.getChildMetadata(child.path) ?? delivered;
+				return {
+					...child,
+					sessionFile: delivered?.sessionFile,
+					...(metadata?.model === undefined ? {} : { model: metadata.model }),
+					...(metadata?.thinking === undefined ? {} : { thinking: metadata.thinking }),
+				};
+			}),
+	};
+}
+
 export function inspectInProcessChildStatus(id?: string): SubagentToolResult | undefined {
 	if (id) {
 		const control = findSubagentControl(id);
@@ -37,17 +55,15 @@ export function inspectInProcessChildStatus(id?: string): SubagentToolResult | u
 		if (!text) return undefined;
 		return {
 			content: [{ type: "text", text }],
-			details: { mode: "management", results: [] },
+			details: { mode: "management", results: [], statusGroups: [statusGroup(control, id)] },
 		};
 	}
-	const lines = listSubagentControls().flatMap((control) => [
-		`Parent: ${control.parent.path}`,
-		...childLines(control),
-	]);
+	const controls = listSubagentControls();
+	const lines = controls.flatMap((control) => [`Parent: ${control.parent.path}`, ...childLines(control)]);
 	if (lines.length === 0) return undefined;
 	return {
 		content: [{ type: "text", text: lines.join("\n") }],
-		details: { mode: "management", results: [] },
+		details: { mode: "management", results: [], statusGroups: controls.map((control) => statusGroup(control)) },
 	};
 }
 

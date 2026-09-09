@@ -771,22 +771,36 @@ export async function searchInternalSelector(
 		contextAfter,
 	).join("\n");
 }
-function shellQuote(value: string): string {
-	return `'${value.replace(/'/g, `'\\''`)}'`;
+function shellQuote(value: string, dialect: "posix" | "powershell"): string {
+	// PowerShell also treats U+2018–U+201B as single-quote delimiters.
+	return dialect === "powershell"
+		? `'${value.replace(/['\u2018-\u201b]/g, "$&$&")}'`
+		: `'${value.replace(/'/g, `'\\''`)}'`;
 }
 export async function expandShellInternalUrls(
 	text: string,
 	cwd: string,
 	context?: InternalResourceContext,
 	quote = false,
+	dialect: "posix" | "powershell" = "posix",
 ): Promise<string> {
-	let output = text;
-	const matches = [...new Set(text.match(/(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*:\/\/[^\s'"`$)]+/gi) ?? [])];
-	for (const match of matches) {
+	const pattern = /(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*:\/\/[^\s'"`$)]+/gi;
+	const replacements = new Map<string, string>();
+	for (const match of new Set(text.match(pattern) ?? [])) {
 		const resolved = await resolveViaRouter(match, cwd, context);
-		if (resolved) output = output.split(match).join(quote ? shellQuote(resolved) : resolved);
+		if (!resolved) continue;
+		// This is deliberately not a Bash parser. Only expand in plain shell
+		// words: quotes, escapes, substitutions and heredocs change how inserted
+		// quotes are interpreted. Leave arbitrary shell syntax without URLs alone.
+		if (quote && !/^[a-zA-Z0-9_ ./:%+=,@~;|&\t-]*$/.test(text)) {
+			throw new Error(
+				"Internal URL shell expansion requires plain unquoted words; use a filesystem path for quotes, substitutions, escapes or heredocs.",
+			);
+		}
+		replacements.set(match, quote ? shellQuote(resolved, dialect) : resolved);
 	}
-	return output;
+	// Replace original occurrences only; never reinterpret a router's result.
+	return text.replace(pattern, (match) => replacements.get(match) ?? match);
 }
 
 const ROW_COUNT_PROBE_CAP = 50_000;

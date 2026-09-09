@@ -19,7 +19,6 @@ import type {
 	SubagentParamsLike,
 } from "../../packages/subagents/src/runs/foreground/subagent-executor-types.js";
 import type {
-	ParentAskHandoffRequest,
 	SingleResult,
 	SubagentAttemptStatus,
 	SubagentToolResult,
@@ -1124,127 +1123,41 @@ test("routes later-first aggregate live data to each sibling without leakage", a
 	}
 });
 
-test("preserves parent ask handoff fields and projects text only to the asking route", async () => {
-	const harness = makeHarness({
-		runSync: async (_parentCwd, _agents, agentName, task, options) => {
-			const child = result(agentName, task);
-			if (task === "asking-child") {
-				assert.ok(options.onParentAskHandoff);
-				const request: ParentAskHandoffRequest = {
-					runId: options.runId,
-					index: options.index ?? 0,
-					agent: agentName,
-					childIntercomTarget: options.intercomSessionName ?? "child-target",
-					orchestratorTarget: options.orchestratorIntercomTarget ?? "orchestrator-target",
-					kind: "decision",
-					question: "Keep  this question\nverbatim.",
-					claimed: true,
-				};
-				options.onParentAskHandoff(request);
-				child.interrupted = true;
+for (const askingIndex of [0, 1]) {
+	test(`coalesced Intercom coordination preserves route-local completion when child ${askingIndex + 1} asks`, async () => {
+		const launches: number[] = [];
+		const harness = makeHarness({
+			runSync: async (_cwd, _agents, agent, task, options) => {
+				launches.push(options.index!);
+				assert.equal(options.onParentAskHandoff, undefined);
+				if (options.index === askingIndex) options.onIntercomDetachCommit?.();
+				return result(agent, task);
+			},
+		});
+		try {
+			const outputs = await Promise.all([
+				execute(harness, "first", { agent: "echo", task: "first-child" }),
+				execute(harness, "second", { agent: "echo", task: "second-child" }),
+			]);
+			assert.deepEqual(launches, [0, 1]);
+			assert.deepEqual(
+				outputs.map((output) => output.details?.results.map((child) => child.task)),
+				[["first-child"], ["second-child"]],
+			);
+			for (const [index, output] of outputs.entries()) {
+				assert.equal(output.details?.parentAskYielded, false);
+				const text = output.content[0]?.type === "text" ? output.content[0].text : "";
+				assert.match(text, new RegExp(`output:${index === 0 ? "first" : "second"}-child`));
+				assert.doesNotMatch(
+					text,
+					new RegExp(`${index === 0 ? "second" : "first"}-child|fresh subagent|TASK_CONTEXT`),
+				);
 			}
-			return child;
-		},
-	});
-	try {
-		const outputs = await Promise.all([
-			execute(harness, "parent-ask-first", { agent: "echo", task: "asking-child" }),
-			execute(harness, "parent-ask-second", { agent: "echo", task: "released-sibling" }),
-		]);
-
-		assert.deepEqual(
-			outputs.map((output) => output.details?.results.map((child) => child.task)),
-			[["asking-child"], ["released-sibling"]],
-		);
-		for (const output of outputs) {
-			assert.equal(Object.hasOwn(output.details!, "parentAskYielded"), true);
-			assert.equal(output.details?.parentAskYielded, true);
+		} finally {
+			harness.cleanup();
 		}
-		const ownerText = outputs[0]!.content[0]?.type === "text" ? outputs[0]!.content[0].text : "";
-		assert.match(ownerText, /Subagent yielded for parent input \(echo, child 1\)\./);
-		assert.match(ownerText, /Question:\nKeep {2}this question\nverbatim\./);
-		assert.match(ownerText, /Start a fresh subagent with a new run identity/);
-		assert.match(ownerText, /\[TASK_CONTEXT\]/);
-		assert.doesNotMatch(ownerText, /action.*resume/i);
-		assert.doesNotMatch(ownerText, /released-sibling/);
-		const siblingText = outputs[1]!.content[0]?.type === "text" ? outputs[1]!.content[0].text : "";
-		assert.doesNotMatch(siblingText, /Subagent yielded for parent input|Keep {2}this question|asking-child/);
-
-		const ownerContext = {
-			toolCallId: "parent-ask-first",
-			state: {},
-			invalidate: () => {},
-		} as Parameters<typeof renderSubagentToolCall>[2];
-		const rendered = [
-			...renderSubagentToolCall({ agent: "echo", task: "asking-child" }, theme, ownerContext).render(120),
-			...renderSubagentToolResult(outputs[0]!, { expanded: true, isPartial: false }, theme, ownerContext).render(
-				120,
-			),
-		].join("\n");
-		assert.match(rendered, /yielded parallel/);
-		assert.match(rendered, /Keep {2}this question/);
-		assert.match(rendered, /Start a fresh subagent/);
-	} finally {
-		harness.cleanup();
-	}
-});
-
-test("rebases later-route parent ask guidance without leaking it to sibling output", async () => {
-	const question = "Keep  this later question\nverbatim.";
-	const harness = makeHarness({
-		runSync: async (_parentCwd, _agents, agentName, task, options) => {
-			const child = result(agentName, task);
-			if (task === "later-asking-child") {
-				assert.ok(options.onParentAskHandoff);
-				const request: ParentAskHandoffRequest = {
-					runId: options.runId,
-					index: options.index ?? 0,
-					agent: agentName,
-					childIntercomTarget: options.intercomSessionName ?? "child-target",
-					orchestratorTarget: options.orchestratorIntercomTarget ?? "orchestrator-target",
-					kind: "decision",
-					question,
-					claimed: true,
-				};
-				options.onParentAskHandoff(request);
-				child.interrupted = true;
-			}
-			return child;
-		},
 	});
-	try {
-		const [first, later] = await Promise.all([
-			execute(harness, "parent-ask-earlier-route", { agent: "echo", task: "earlier-sibling" }),
-			execute(harness, "parent-ask-later-route", { agent: "echo", task: "later-asking-child" }),
-		]);
-
-		assert.deepEqual(
-			first.details?.results.map((child) => child.task),
-			["earlier-sibling"],
-		);
-		assert.deepEqual(
-			later.details?.results.map((child) => child.task),
-			["later-asking-child"],
-		);
-		const firstText = first.content[0]?.type === "text" ? first.content[0].text : "";
-		const laterText = later.content[0]?.type === "text" ? later.content[0].text : "";
-		assert.match(firstText, /output:earlier-sibling/);
-		assert.doesNotMatch(firstText, /Subagent yielded for parent input|this later question|later-asking-child/);
-
-		const runId = later.details?.runId;
-		assert.ok(runId);
-		assert.match(laterText, /Subagent yielded for parent input \(echo, child 1\)\./);
-		assert.match(laterText, new RegExp(`Previous run \\(terminal\\): ${runId}`));
-		assert.match(laterText, /Keep {2}this later question\nverbatim\./);
-		assert.match(laterText, /\[TASK_CONTEXT\]/);
-		assert.match(laterText, /Original delegated task and objective:\\nlater-asking-child/);
-		assert.doesNotMatch(laterText, /action.*resume/i);
-		assert.doesNotMatch(laterText, /child 2|earlier-sibling/);
-		assert.doesNotMatch(JSON.stringify(later.details), /earlier-sibling/);
-	} finally {
-		harness.cleanup();
-	}
-});
+}
 
 test("uses a matching call-level cwd as the shared worktree root", async () => {
 	const launches: Array<{ task: string; cwd: string; repoPrefix: string }> = [];

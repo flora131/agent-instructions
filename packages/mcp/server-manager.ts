@@ -11,8 +11,8 @@ import type {
   ServerDefinition,
   ServerStreamResultPatchNotification,
   Transport,
-} from "./types.ts";
-import { serverStreamResultPatchNotificationSchema } from "./types.ts";
+} from "./types.js";
+import { serverStreamResultPatchNotificationSchema } from "./types.js";
 import { resolveNpxBinary } from "./npx-resolver.ts";
 import { logger } from "./logger.ts";
 import { McpOAuthProvider } from "./mcp-oauth-provider.js";

@@ -1,5 +1,5 @@
 import type { BashResult } from "../../core/bash-executor.ts";
-import type { BashOutputChannel } from "../../core/tools/bash.ts";
+import type { BashOutputChannel } from "../../core/tools/bash.js";
 import type { RpcEvent, RpcResponse } from "./rpc-types.ts";
 
 export interface RpcEventSource {

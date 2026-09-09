@@ -78,6 +78,30 @@ describe("Mistral reasoning mode selection", () => {
 		expect(payload.promptMode).toBeUndefined();
 	});
 
+	// Regression for upstream #8700: Medium aliases use reasoning_effort, not prompt_mode.
+	describe.each(["mistral-medium-2604", "mistral-medium-latest"])("%s", (id) => {
+		it("uses reasoning_effort when thinking is enabled", async () => {
+			const model = { ...getModel("mistral", "mistral-small-2603"), id, reasoning: true };
+			const payload = await capturePayload(model, { reasoning: "medium" });
+			expect(payload.reasoningEffort).toBe("high");
+			expect(payload.promptMode).toBeUndefined();
+		});
+		it("omits reasoning controls when thinking is off", async () => {
+			const model = { ...getModel("mistral", "mistral-small-2603"), id, reasoning: true };
+			const payload = await capturePayload(model);
+			expect(payload.reasoningEffort).toBeUndefined();
+			expect(payload.promptMode).toBeUndefined();
+		});
+	});
+
+	// Regression for upstream #8700: respect the reasoning capability, not just the prefix.
+	it("omits reasoning controls for non-reasoning Medium models", async () => {
+		const model = { ...getModel("mistral", "mistral-small-2603"), id: "mistral-medium-2505", reasoning: false };
+		const payload = await capturePayload(model, { reasoning: "medium" });
+		expect(payload.reasoningEffort).toBeUndefined();
+		expect(payload.promptMode).toBeUndefined();
+	});
+
 	it("uses the session id as prompt cache key", async () => {
 		const payload = await capturePayload(getModel("mistral", "mistral-large-latest"), {
 			sessionId: "session-123",

@@ -4,11 +4,13 @@ import { APP_TITLE, chalk, killTrackedDetachedChildren } from "./interactive-mod
 import { formatResumeCommand, isDeadTerminalError } from "./interactive-mode-helpers.ts";
 import { pauseAndAbortInteractiveSession } from "./interactive-pause.ts";
 import { restoreFailedSubmissionDraft } from "./interactive-prompt-restore.ts";
+import { isWindowsSubshellActive, openWindowsSubshell } from "./interactive-windows-subshell.ts";
 
 const SHUTDOWN_INPUT_DRAIN_MAX_MS = 250;
 const SHUTDOWN_INPUT_DRAIN_IDLE_MS = 50;
 
 InteractiveModeBase.prototype.handleCtrlC = function (this: InteractiveModeBase): void {
+	if (isWindowsSubshellActive(this)) return;
 	// When the agent is doing work, Ctrl+C interrupts it (matching Escape and
 	// common CLI muscle memory) instead of clearing/exiting the editor. Only
 	// fall back to the clear / double-press-exit behavior when idle.
@@ -181,7 +183,9 @@ InteractiveModeBase.prototype.unregisterSignalHandlers = function (this: Interac
 
 InteractiveModeBase.prototype.handleCtrlZ = function (this: InteractiveModeBase): void {
 	if (process.platform === "win32") {
-		this.showStatus("Suspend to background is not supported on Windows");
+		void openWindowsSubshell(this).catch((error: Error) =>
+			this.showStatus(`PowerShell subshell failed: ${error.message}`),
+		);
 		return;
 	}
 

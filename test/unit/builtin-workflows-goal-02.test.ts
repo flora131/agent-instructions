@@ -343,7 +343,10 @@ describe("goal", () => {
 		assert.match(reviewerPrompt, /Verify correctness end-to-end whenever practical/);
 		assert.match(reviewerPrompt, /frontend changes whose correctness depends on backend\/API behavior/);
 		assert.match(reviewerPrompt, /skill: "playwright-cli"/);
-		assert.match(reviewerPrompt, /skill: "tmux"/);
+		// PR #2932 prefers Herdr while retaining tmux/psmux as the fallback.
+		assert.match(reviewerPrompt, /prefer the herdr skill on macOS, Linux and Windows/);
+		assert.match(reviewerPrompt, /fall back to the tmux skill or native Windows psmux/);
+		assert.match(reviewerPrompt, /explicit-request and HERDR_ENV=1 requirements/);
 	});
 
 	test("requires repeated same-blocker evidence before blocked status", async () => {

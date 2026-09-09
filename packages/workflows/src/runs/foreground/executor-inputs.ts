@@ -19,9 +19,16 @@ export function resolveInputs(
 		if (value !== undefined) resolved[key] = value as WorkflowSerializableValue;
 	}
 
+	// `Value.Default` writes defaults straight into the value it is handed,
+	// nested objects included, so it must never see caller-owned references —
+	// a graph observer may have deep-frozen them. `Value.Clone` deep-copies
+	// plain objects and arrays and returns anything else (Date, Map, class
+	// instances, functions) by reference, so non-serializable inputs still
+	// reach `validateInputs` unchanged and are still rejected there.
+	const ownedInputs = Value.Clone(resolved);
 	const withDefaults = Value.Default(
 		Type.Object(schema as Record<string, TSchema>, { additionalProperties: true }),
-		resolved,
+		ownedInputs,
 	) as Record<string, WorkflowSerializableValue>;
 	for (const [key, value] of Object.entries(withDefaults)) {
 		if (value !== undefined) resolved[key] = value;

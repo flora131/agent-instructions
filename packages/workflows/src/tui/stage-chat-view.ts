@@ -112,6 +112,17 @@ export class StageChatView implements Component, Focusable {
 
 	render(width: number): string[] {
 		const ctx = this._ctx();
+		if (this.chatHost.hasTaskInspector) {
+			const taskWidth = Math.max(1, width);
+			const rows = viewLineCount(ctx);
+			const footer = this.chatHost.taskInspectorFullscreen ? [] : this.chatHost.renderFooter(taskWidth);
+			const visibleFooter = footer.slice(0, Math.max(0, rows - 1));
+			return fitStageChatFrame(
+				[...this.chatHost.renderBody(taskWidth, rows - visibleFooter.length), ...visibleFooter],
+				rows,
+				blankLine(taskWidth),
+			);
+		}
 		const w = Math.max(40, width);
 		const stage = currentStage(ctx);
 		const blocked = isBlocked(ctx);

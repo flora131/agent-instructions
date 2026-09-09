@@ -126,7 +126,7 @@ export type {
 	WorkflowStageOrchestrationContext,
 	WorkingIndicatorOptions,
 	WriteToolCallEvent,
-} from "./core/extensions/index.ts";
+} from "./core/extensions/index.js";
 export {
 	createExtensionRuntime,
 	decideReactiveWidgetAction,
@@ -147,5 +147,5 @@ export {
 	STALE_EXTENSION_CONTEXT_MARKER,
 	wrapRegisteredTool,
 	wrapRegisteredTools,
-} from "./core/extensions/index.ts";
+} from "./core/extensions/index.js";
 export type * from "./core/extensions/workflow-events.js";

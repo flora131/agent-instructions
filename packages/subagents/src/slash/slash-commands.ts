@@ -1,5 +1,31 @@
 import type { ExtensionAPI } from "@bastani/atomic";
+import { discoverAgents } from "../agents/agents.js";
 import type { SubagentState } from "../shared/types.js";
+import { AgentBrowser } from "../tui/agent-browser.js";
 
-/** Human `/run` and `/parallel` commands are gone. Launch children with `subagent`. */
-export function registerSlashCommands(_pi: ExtensionAPI, _state: SubagentState): void {}
+/** The human catalog is separate from model-driven subagent execution. */
+export function registerSlashCommands(pi: ExtensionAPI, _state: SubagentState): void {
+	pi.registerCommand("agents", {
+		description: "Browse available subagents and inspect their configuration",
+		handler: async (args, ctx) => {
+			if (!ctx.hasUI) {
+				ctx.ui.notify("Use subagent action=list to list agents outside interactive mode.", "info");
+				return;
+			}
+			const { agents } = discoverAgents(ctx.cwd, "both");
+			await ctx.ui.custom<void>(
+				(tui, theme, _keys, done) => {
+					const browser = new AgentBrowser(
+						agents,
+						theme,
+						() => done(),
+						() => tui.terminal.rows,
+						args.trim(),
+					);
+					return browser;
+				},
+				{ purpose: "navigation" },
+			);
+		},
+	});
+}

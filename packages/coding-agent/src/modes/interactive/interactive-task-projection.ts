@@ -7,6 +7,7 @@ type InteractiveTaskHost = {
 	session: object;
 	chatContainer: Container;
 	toolOutputExpanded: boolean;
+	taskRowsInChat?: boolean;
 	ui: Pick<TUI, "requestRender">;
 };
 
@@ -32,6 +33,10 @@ export function refreshInteractiveTasks(mode: InteractiveTaskHost): void {
 	if (!store) return;
 	const mounted = new Map<TaskId, Component>();
 	const update = () => {
+		if (mode.taskRowsInChat === false) {
+			mode.ui.requestRender();
+			return;
+		}
 		for (const task of store.tasks) {
 			const anchor = mounted.get(task.ref.taskId);
 			if (anchor && mode.chatContainer.children.includes(anchor)) continue;

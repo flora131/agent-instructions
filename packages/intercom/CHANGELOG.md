@@ -4,15 +4,21 @@ All notable changes to the `pi-intercom` extension will be documented in this fi
 
 ## [Unreleased]
 
+## [0.9.19-alpha.2] - 2026-09-08
+
 ### Breaking Changes
 
 - Removed the model-facing `retryToken` parameter and result field. Callers must stop carrying tokens between calls; Intercom now owns bounded reconnect retries. Each new call remains a distinct operation, including identical messages.
 
 ### Fixed
 
+- Reject asks to terminal noninteractive subagent children with an explicit error instead of waiting on retained idle registrations. Termination also settles exact pending asks, including socket-write races; live interactive idle asks, workflow post-mortem conversations, and send delivery remain unchanged.
 - Excluded internal workflow route-owner/control connections, model-less `ctx.ui` prompts, and `ctx.tool` nodes from recipient discovery. Broker checks refuse known non-agent targets before delivery or queueing, including retained completed prompts. Genuine agents busy in tools or awaiting human input remain eligible, and connected aliases survive pending-capability changes and completion without same-name controls changing agent ambiguity diagnostics.
 - Reject malformed session/roster recipient purposes while preserving omitted-purpose legacy agents. Workflow roster updates now wait for broker processing before reporting completion, preventing stale discovery across connections ([#2895](https://github.com/bastani-inc/atomic/pull/2895)).
 - `send`, `ask`, and `reply` now retry recoverable disconnects inside one tool invocation, preserving delivery identity and reply correlation for up to three retries. Cancellation stops retries, unresolved outcomes warn against automatic resending, and client retry state is released on exit. Broker deduplication and durable acceptance safeguards remain unchanged.
+- Busy non-interactive recipients now return correlated delivery errors instead of a stale "still working" auto-reply. Unclaimed refusals bypass the parent's idle queue as timestamped delivery feedback without starting another turn; waiting asks retain exact error correlation.
+- Owner-bound subagent task completion now participates in same-child message ordering, preserving unrelated queued messages and retrying failed delivery without repeating task execution.
+- Parallel child-to-parent requests now use correlated replies instead of terminal fresh-child handoffs, preserving accepted empty parent questions, omitted decision notes, and ordered attachments. Sends and progress updates remain nonblocking; single-child claimed handoffs are unchanged.
 
 ## [0.9.18] - 2026-09-05
 

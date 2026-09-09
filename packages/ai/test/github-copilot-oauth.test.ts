@@ -247,7 +247,9 @@ describe("GitHub Copilot OAuth device flow", () => {
 		assert.deepEqual(
 			provider.filterModels?.([regularModel, suffixOnly], {
 				type: "oauth",
-				accessToken: "token",
+				access: "token",
+				refresh: "refresh-token",
+				expires: Date.now() + 60_000,
 				availableModelIds: [regularModel.id, suffixOnly.id],
 				fastModelIds: [],
 			}),

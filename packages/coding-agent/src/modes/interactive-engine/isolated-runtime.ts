@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { type Api, clampThinkingLevel, type Model } from "@bastani/pi-ai/compat";
-import type { AgentSession, CompactionReason } from "../../core/agent-session.ts";
+import type { AgentSession, CompactionReason } from "../../core/agent-session.js";
 import { AgentSessionRuntime, type CreateAgentSessionRuntimeFactory } from "../../core/agent-session-runtime.ts";
 import type { ModelMutationOptions, PromptOptions } from "../../core/agent-session-types.ts";
 import type { ResourceOverlap } from "../../core/diagnostics.ts";
@@ -178,6 +178,9 @@ export class IsolatedInteractiveRuntime extends AgentSessionRuntime {
 		const session = super.session;
 		this.patchSession(session);
 		return session;
+	}
+	async openTaskInspector(taskId?: string): Promise<void> {
+		await this.client.requestInternal({ type: "open_task_inspector", ...(taskId ? { taskId } : {}) });
 	}
 	async initializeFromEngine(generation = this.client.getGeneration?.()): Promise<void> {
 		const run = this.initializationTail

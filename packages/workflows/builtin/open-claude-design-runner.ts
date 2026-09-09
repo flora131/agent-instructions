@@ -102,13 +102,13 @@ export async function runOpenClaudeDesignWorkflow(ctx: OpenClaudeDesignContext):
     }
   };
 
-  // Astra high leads the design stages, followed by Fable 5.1 high.
+  // Astra medium leads the design stages, followed by Fable 5.1 high.
   // Keep the design-specific ordering of the older model fallbacks.
   const designModelConfig = {
-    model: "openai-codex/gpt-6-astra:high",
+    model: "openai-codex/gpt-6-astra:medium",
     fallbackModels: [
-      "github-copilot/gpt-6-astra:high",
-      "openai/gpt-6-astra:high",
+      "github-copilot/gpt-6-astra:medium",
+      "openai/gpt-6-astra:medium",
       "anthropic/claude-fable-5-1:high",
       "github-copilot/claude-fable-5-1:high",
       "anthropic/claude-opus-5:high",
@@ -131,7 +131,7 @@ export async function runOpenClaudeDesignWorkflow(ctx: OpenClaudeDesignContext):
       "zai-coding-cn/glm-5.3-flash:high",
       "baseten/zai-org/GLM-5.3:high",
       "baseten/zai-org/GLM-5.3-Flash:high",
-      "openrouter/openai/gpt-6-astra:high",
+      "openrouter/openai/gpt-6-astra:medium",
       "openrouter/anthropic/claude-fable-5-1:high",
       "openrouter/anthropic/claude-opus-5:high",
       "openrouter/anthropic/claude-fable-5:high",
@@ -139,7 +139,7 @@ export async function runOpenClaudeDesignWorkflow(ctx: OpenClaudeDesignContext):
       "openrouter/moonshotai/kimi-k3:max",
       "openrouter/openai/gpt-5.6-sol:xhigh",
       "openrouter/sakana/fugu-ultra:high",
-      "openrouter/x-ai/grok-4.6",
+      "openrouter/x-ai/grok-4.6:xhigh",
       "openrouter/z-ai/glm-5.3:high",
       "openrouter/z-ai/glm-5.3-flash:high",
     ],

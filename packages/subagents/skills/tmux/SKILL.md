@@ -52,7 +52,7 @@ metadata:
 
 # tmux
 
-Use for existing interactive tmux sessions. For one-shot commands, use normal shell. When a command must outlive a tool call, start it inside an interactive tmux session; Atomic tools do not provide background execution.
+Use tmux for interactive terminal sessions and terminal UI verification. For ordinary commands, use `bash`: supported owner-bound calls can run in the background explicitly with `wait: { kind: "background" }` or automatically after their foreground observation budget expires. Use tmux when you need a separate interactive terminal, not merely because a command outlives a tool call. Background tasks remain bound to their owning Atomic session.
 
 On Windows, use [psmux](https://github.com/psmux/psmux), the native Windows tmux-compatible multiplexer. psmux automatically provides the `tmux` alias, so keep using the `tmux` commands below; no command changes are needed.
 

@@ -3,7 +3,7 @@ import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 import { ResourceFetchError, ResourceParseError } from "./errors.ts";
 import { logger } from "./logger.ts";
 import type { McpServerManager } from "./server-manager.ts";
-import type { UiResourceContent, UiResourceMeta } from "./types.ts";
+import type { UiResourceContent, UiResourceMeta } from "./types.js";
 
 interface ResourceContentRecord {
   uri?: string;

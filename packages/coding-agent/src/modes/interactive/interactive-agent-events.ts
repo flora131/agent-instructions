@@ -1,5 +1,5 @@
 import { CACHE_TTL_MS, detectCacheMiss } from "../../core/cache-stats.ts";
-import { IsolatedInteractiveRuntime } from "../interactive-engine/isolated-runtime.ts";
+import { IsolatedInteractiveRuntime } from "../interactive-engine/isolated-runtime.js";
 import { RemoteToolExecutionComponent } from "../interactive-engine/remote-renderer.ts";
 import type { JsonAgentSessionEvent } from "../json-event.ts";
 import { AtomicWorkingLoader } from "./components/atomic-working-status.ts";
@@ -448,9 +448,9 @@ InteractiveModeBase.prototype.handleEvent = async function (
 			this.retryCountdown?.dispose();
 			const retryMessage = (seconds: number) =>
 				`Retrying (${event.attempt}/${event.maxAttempts}) in ${seconds}s... (${keyText("app.interrupt")} Cancel)`;
-			this.retryLoader = new Loader(
+			this.retryLoader = new AtomicWorkingLoader(
 				this.ui,
-				(spinner) => theme.fg("warning", spinner),
+				undefined,
 				(text) => theme.fg("muted", text),
 				retryMessage(Math.ceil(event.delayMs / 1000)),
 			);

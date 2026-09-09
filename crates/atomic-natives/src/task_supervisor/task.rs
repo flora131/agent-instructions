@@ -246,8 +246,14 @@ pub struct TaskRecord {
 	pub title: JsString,
 	#[napi(ts_type = "string")]
 	pub agent_name: Option<JsString>,
+	#[napi(ts_type = "string")]
+	pub model: Option<JsString>,
+	#[napi(ts_type = "string")]
+	pub thinking: Option<JsString>,
 	pub execution: Execution,
 	pub observation: HostObservation,
+	/// True after a designated observation yields; retained after settlement and snapshot resets.
+	pub was_background: Option<bool>,
 	pub attention: Attention,
 	pub cleanup: Cleanup,
 	pub current_action: Option<CurrentAction>,
@@ -262,6 +268,12 @@ pub enum ActivityChange {
 		tool: JsString,
 		#[napi(ts_type = "string")]
 		text: JsString,
+	},
+	Model {
+		#[napi(ts_type = "string")]
+		model: Option<JsString>,
+		#[napi(ts_type = "string")]
+		thinking: Option<JsString>,
 	},
 	Metrics {
 		elapsed_ms: Option<f64>,
@@ -288,6 +300,10 @@ impl PartialEq for ActivityChange {
 			(Self::Action { tool, text }, Self::Action { tool: other_tool, text: other_text }) => {
 				tool == other_tool && text == other_text
 			},
+			(
+				Self::Model { model, thinking },
+				Self::Model { model: other_model, thinking: other_thinking },
+			) => model == other_model && thinking == other_thinking,
 			(
 				Self::Metrics { elapsed_ms, tool_count, token_count },
 				Self::Metrics {
@@ -361,6 +377,8 @@ pub(super) struct Task {
 	pub claimed: bool,
 	pub activities: VecDeque<([u8; 32], ReportReceipt)>,
 	pub terminal: Option<(OutcomeReport, SettlementReceipt)>,
+	// Every terminal path retains its authentic journal receipt, including cancellation.
+	pub settlement: Option<SettlementReceipt>,
 	pub cancel_cause: Option<CancelCause>,
 	// Rejected late outcomes supply output evidence, never terminal authority.
 	pub cancellation_output: Option<OutputRef>,
@@ -443,8 +461,11 @@ impl Actor {
 			kind: "agent".into(),
 			title,
 			agent_name: Some(intent.agent.clone()),
+			model: None,
+			thinking: None,
 			execution: Execution::Queued {},
 			observation: HostObservation::Background { reason: "not-observed".into() },
+			was_background: None,
 			attention: Attention::None {},
 			cleanup: Cleanup::Active {},
 			current_action: None,
@@ -458,6 +479,7 @@ impl Actor {
 			claimed: false,
 			activities: VecDeque::new(),
 			terminal: None,
+			settlement: None,
 			cancel_cause: None,
 			cancellation_output: None,
 			command: None,
@@ -485,6 +507,11 @@ impl Actor {
 		let s = self.state.lock().unwrap();
 		let (oi, ti) = s.task(self.id, &task.cap, "UnknownTask")?;
 		Ok(s.owners[oi].tasks[ti].record.reference.clone())
+	}
+	pub(super) fn task_settlement(&self, task: &TaskLease) -> Door<SettlementReceipt> {
+		let s = self.state.lock().unwrap();
+		let (oi, ti) = s.task(self.id, &task.cap, "UnknownTask")?;
+		s.owners[oi].tasks[ti].settlement.clone().ok_or_else(|| fail("TaskNotSettled"))
 	}
 	pub(super) fn activity(
 		&self,
@@ -521,6 +548,10 @@ impl Actor {
 				if matches!(t.record.attention, Attention::NoRecentActivity { .. }) {
 					t.record.attention = Attention::None {};
 				}
+			},
+			ActivityChange::Model { model, thinking } => {
+				t.record.model = model.clone();
+				t.record.thinking = thinking.clone();
 			},
 			ActivityChange::Metrics { elapsed_ms, tool_count, token_count } => {
 				let m = t.record.metrics.get_or_insert_default();
@@ -754,6 +785,8 @@ impl State {
 			}
 		}
 		self.finish_close(oi);
-		SettlementReceipt { task_id: reference.task_id, cursor, result, completion_id }
+		let receipt = SettlementReceipt { task_id: reference.task_id, cursor, result, completion_id };
+		self.owners[oi].tasks[ti].settlement = Some(receipt.clone());
+		receipt
 	}
 }

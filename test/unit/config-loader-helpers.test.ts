@@ -23,8 +23,8 @@ describe("withWorkflowDefaults — empty config applies all defaults", () => {
 		assert.equal(withWorkflowDefaults({}).maxDepth, WORKFLOW_CONFIG_DEFAULTS.maxDepth);
 	});
 
-	test("defaultConcurrency defaults to 4", () => {
-		assert.equal(withWorkflowDefaults({}).defaultConcurrency, WORKFLOW_CONFIG_DEFAULTS.defaultConcurrency);
+	test("defaultConcurrency defaults to 3", () => {
+		assert.equal(withWorkflowDefaults({}).defaultConcurrency, 3);
 	});
 
 	test("persistRuns defaults to true", () => {
@@ -154,8 +154,8 @@ describe("withWorkflowDefaults — WORKFLOW_CONFIG_DEFAULTS constants", () => {
 		assert.equal(WORKFLOW_CONFIG_DEFAULTS.maxDepth, 4);
 	});
 
-	test("WORKFLOW_CONFIG_DEFAULTS.defaultConcurrency is 4", () => {
-		assert.equal(WORKFLOW_CONFIG_DEFAULTS.defaultConcurrency, 4);
+	test("WORKFLOW_CONFIG_DEFAULTS.defaultConcurrency is 3", () => {
+		assert.equal(WORKFLOW_CONFIG_DEFAULTS.defaultConcurrency, 3);
 	});
 
 	test("WORKFLOW_CONFIG_DEFAULTS.persistRuns is true", () => {

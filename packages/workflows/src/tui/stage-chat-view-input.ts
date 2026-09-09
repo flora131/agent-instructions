@@ -20,6 +20,14 @@ import { PROMPT_SCROLL_STEP_ROWS, type StageChatViewContext } from "./stage-chat
 import { Key, matchesKey } from "./text-helpers.js";
 
 export function handleStageChatInput(ctx: StageChatViewContext, data: string): boolean {
+	// Task inspection is modal: neither parent transcript scrolling nor the
+	// stage composer may receive input hidden behind the inspector.
+	if (ctx.chatHost.hasTaskInspector) {
+		if (matchesKey(data, Key.ctrl("c"))) ctx.chatHost.closeTasks();
+		else if (matchesKey(data, Key.ctrl("x"))) ctx.onDetach();
+		else ctx.chatHost.handleTaskInput(data);
+		return true;
+	}
 	if (data === TRANSCRIPT_JUMP_TO_END_URL) return handleStageChatJumpToBottom(ctx, data);
 	const keybindings = isKeybindingsLike(ctx.piKeybindings) ? ctx.piKeybindings : undefined;
 	// Only the default physical Ctrl+T belongs to the host thinking action. A
@@ -51,7 +59,6 @@ export function handleStageChatInput(ctx: StageChatViewContext, data: string): b
 		return true;
 	}
 	if (handleToolsExpandInput(ctx, data)) return true;
-	if (ctx.chatHost.handleTaskInput(data)) return true;
 	if (readOnlyPromptArchive && handlePromptScrollInput(ctx, data, true)) {
 		return true;
 	}

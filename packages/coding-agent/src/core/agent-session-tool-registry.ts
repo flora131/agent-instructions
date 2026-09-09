@@ -1,11 +1,13 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import type { AgentSessionInternalSurface as AgentSession } from "./agent-session-methods.ts";
 import type { ToolDefinitionEntry } from "./agent-session-types.ts";
-import { ExtensionRunner, type ToolDefinition, wrapRegisteredTools } from "./extensions/index.ts";
+import { ExtensionRunner, type ToolDefinition, wrapRegisteredTools } from "./extensions/index.js";
 import { isMandatoryRuntimeTool, isTrustedMandatoryRuntimeTool } from "./mandatory-runtime-tools.ts";
 import { ModelRegistry } from "./model-registry.ts";
 import { createSyntheticSourceInfo } from "./source-info.ts";
+import { createLocalBashOperations } from "./tools/bash.js";
 import { createAllToolDefinitions, getDefaultToolNames } from "./tools/index.ts";
+import { createLocalPowerShellOperations } from "./tools/powershell.ts";
 import { resolveSessionTempDirPath } from "./tools/session-temp-dir.ts";
 import { createToolDefinitionFromAgentTool } from "./tools/tool-definition-wrapper.ts";
 
@@ -147,6 +149,17 @@ export function _buildRuntime(
 				bash: {
 					commandPrefix: shellCommandPrefix,
 					shellPath,
+					...(!(this._subagentPolicy?.depth && this._subagentPolicy.depth >= 1)
+						? {
+								operations: {
+									exec: (command, cwd, options) =>
+										createLocalBashOperations({
+											shellPath,
+											taskOwner: this.getAgentTaskHost().ownerBinding,
+										}).exec(command, cwd, options),
+								},
+							}
+						: {}),
 					interceptorEnabled: () => this.settingsManager.getBashInterceptorEnabled(),
 					availableTools: activeBuiltinTools,
 					// Resolved per execution so bash spill files follow the live
@@ -161,6 +174,18 @@ export function _buildRuntime(
 						});
 						return result;
 					},
+				},
+				powershell: {
+					...(!(this._subagentPolicy?.depth && this._subagentPolicy.depth >= 1)
+						? {
+								operations: {
+									exec: (command, cwd, options) =>
+										createLocalPowerShellOperations({
+											taskOwner: this.getAgentTaskHost().ownerBinding,
+										}).exec(command, cwd, options),
+								},
+							}
+						: {}),
 				},
 				search: {
 					contextBefore: this.settingsManager.getSearchContextBefore(),

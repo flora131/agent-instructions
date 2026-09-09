@@ -231,6 +231,23 @@ describe("buildSystemPrompt", () => {
 		});
 	});
 
+	test("routes model advice and automation requests to evidence and domain-specific tools", () => {
+		const prompt = buildSystemPrompt({ cwd: process.cwd(), contextFiles: [], skills: [] });
+		assert.match(prompt, /When the user asks which model to choose for a task/);
+		assert.match(prompt, /models\/model-selection\.md/);
+		assert.match(prompt, /models\/evals\.md/);
+		assert.match(prompt, /https:\/\/artificialanalysis\.ai\//);
+		assert.match(prompt, /relevant benchmark charts and methodology/);
+		assert.match(prompt, /If live evidence is unavailable, label the dated docs snapshot/);
+		assert.match(prompt, /CUA\), use PyAutoGUI/);
+		assert.match(prompt, /browser automation use the playwright-cli skill/);
+		assert.match(prompt, /terminal automation\/testing, prefer herdr on macOS, Linux and Windows/);
+		assert.match(prompt, /install it if missing/);
+		assert.match(prompt, /fall back to tmux or native Windows psmux/);
+		assert.match(prompt, /explicit-request and HERDR_ENV=1 requirements/);
+		assert.match(prompt, /skills do not grant tools or authorization/);
+	});
+
 	describe("skills", () => {
 		test.each([
 			{ name: "default prompt", customPrompt: undefined },
@@ -286,16 +303,25 @@ describe("buildSystemPrompt", () => {
 	});
 
 	describe("ask_user_question fallback", () => {
-		test("instructs autonomous continuation when ask_user_question is unavailable", () => {
+		test.each([
+			{ selectedTools: ["read", "bash"] },
+			{ selectedTools: ["read", "ask_question"] },
+			{ selectedTools: ["read", "ask_question", "ask_user_question"], excludedTools: ["ask_user_question"] },
+			{ excludedTools: ["ask_user_question"] },
+		])("uses equivalent question tools or autonomous best judgment: %j", (tools) => {
 			const prompt = buildSystemPrompt({
-				selectedTools: ["read", "bash"],
+				...tools,
 				contextFiles: [],
 				skills: [],
 				cwd: process.cwd(),
 			});
 
-			expect(prompt).toContain("Clarify ambiguous requirements using the ask_user_question tool if available.");
+			expect(prompt).toContain("If an equivalent user-question tool is available, use it for all questions");
+			expect(prompt).toContain("instead of plain text, including confirmations and approvals");
+			expect(prompt).toContain("When no usable question tool or human-input channel exists, do not stall");
 			expect(prompt).toContain("continue fully autonomously on best judgment");
+			expect(prompt).toContain("Tool unavailability alone is not a blocker");
+			expect(prompt).not.toContain("ask_user_question");
 		});
 
 		test("omits the fallback guideline when ask_user_question is selected", () => {
@@ -306,7 +332,7 @@ describe("buildSystemPrompt", () => {
 				cwd: process.cwd(),
 			});
 
-			expect(prompt).not.toContain("Clarify ambiguous requirements");
+			expect(prompt).not.toContain("If an equivalent user-question tool is available");
 		});
 	});
 });

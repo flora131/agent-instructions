@@ -408,9 +408,11 @@ export function _schedulePostAutoCompactionContinuationProbe(
 }
 
 export async function _awaitPendingPostCompactionContinuation(this: AgentSession): Promise<void> {
-	const pending = this._pendingPostCompactionContinuation;
-	if (pending === undefined) return;
-	await pending;
+	// A continuation can schedule another probe (for example a second output-cap
+	// stop). Keep the owning prompt alive until the whole automatic chain drains.
+	while (this._pendingPostCompactionContinuation !== undefined) {
+		await this._pendingPostCompactionContinuation;
+	}
 }
 
 /**

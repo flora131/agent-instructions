@@ -20,7 +20,7 @@ export interface TerminalOrderingBarrier {
   runId: string;
   terminalId: string;
   terminalAt: number;
-  source: "detached-notify" | "result-relay";
+  source: "detached-notify" | "result-relay" | "owner-task";
   owner?: object;
   sourceSessionTargets: string[];
   dispatch?(prefix: OrderedTerminalPreludeMessage[]): unknown;
@@ -39,7 +39,7 @@ function parseBarrier(value: unknown): TerminalOrderingBarrier | null {
   const record = value as Record<string, unknown>;
   if (typeof record.runId !== "string" || !record.runId) return null;
   if (typeof record.terminalAt !== "number" || !Number.isFinite(record.terminalAt)) return null;
-  if (record.source !== "detached-notify" && record.source !== "result-relay") return null;
+  if (record.source !== "detached-notify" && record.source !== "result-relay" && record.source !== "owner-task") return null;
   if (!Array.isArray(record.sourceSessionTargets)) return null;
   const sourceSessionTargets = record.sourceSessionTargets
     .filter((target): target is string => typeof target === "string")
@@ -125,10 +125,18 @@ export function registerTerminalOrderingBarrier(
     const terminalKey = `${terminalOwnerId(barrier.owner)}:${barrier.runId}\0${barrier.terminalId}`;
     const currentOwner = inFlightByTerminal.get(terminalKey);
     if (currentOwner) { envelope.completion = currentOwner; return; }
-    const drainedTargets = drainedTargetsByTerminal.get(terminalKey) ?? new Set<string>();
+    // Owner-task calls drain only preludes; the outbox publishes the terminal
+    // afterward and may retry it. Rescan on retry for newly queued messages.
+    const drainedTargets = barrier.source === "owner-task" ? new Set<string>() : drainedTargetsByTerminal.get(terminalKey) ?? new Set<string>();
     const pendingTargets = barrier.sourceSessionTargets.filter((target) => !drainedTargets.has(target));
     if (pendingTargets.length === 0) return;
     const claim = options.queue.claimOrdinarySourceTargets(barrier.runId, pendingTargets, barrier.terminalAt);
+    const deliverPrelude = (entry: InboundMessageEntry): unknown => {
+      if (!claim.isCurrent() || options.isCurrent?.() === false) {
+        throw new Error("Intercom terminal delivery owner retired");
+      }
+      return options.deliver(entry, "prelude");
+    };
     const ownership = Promise.withResolvers<void>();
     void ownership.promise.catch(() => {});
     inFlightByTerminal.set(terminalKey, ownership.promise);
@@ -137,7 +145,7 @@ export function registerTerminalOrderingBarrier(
       ownership.reject(error);
     };
     const finish = (): void => {
-      if ((barrier.dispatch && options.toMessage) || claim.entries.length > 0) {
+      if (barrier.source !== "owner-task" && ((barrier.dispatch && options.toMessage) || claim.entries.length > 0)) {
         for (const target of pendingTargets) drainedTargets.add(target);
         drainedTargetsByTerminal.set(terminalKey, drainedTargets);
       }
@@ -184,7 +192,7 @@ export function registerTerminalOrderingBarrier(
       let delivered: unknown;
       let deliveredAsync: boolean;
       try {
-        delivered = options.deliver(claim.entries[index]!, "prelude");
+        delivered = deliverPrelude(claim.entries[index]!);
         deliveredAsync = isPromiseLike(delivered);
       } catch (error) {
         // Owned producers follow the event path with the global fallback. Keep the failed
@@ -200,7 +208,7 @@ export function registerTerminalOrderingBarrier(
         try {
           await delivered;
           for (current = index + 1; current < claim.entries.length; current++) {
-            await options.deliver(claim.entries[current]!, "prelude");
+            await deliverPrelude(claim.entries[current]!);
           }
           finish();
         } catch (error) {

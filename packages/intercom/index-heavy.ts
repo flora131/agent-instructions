@@ -1,3 +1,4 @@
+import { registerSubagentReplyCapability } from "./subagent-reply-capability.js";
 import { APP_NAME, type ExtensionAPI, type ExtensionContext } from "@bastani/atomic";
 import { appendFileSync } from "node:fs";
 import {
@@ -26,6 +27,8 @@ import { readSubagentMessageSource } from "./source-ownership.js";
 import {
   buildIncomingCustomMessage,
   createIncomingMessageSender,
+  frameDeliveryFeedback,
+  isDeliveryFeedback,
   framePreStartPendingStageMessage,
 } from "./incoming-message-delivery.js";
 import { InboundIdleQueue } from "./inbound-idle-queue.js";
@@ -130,6 +133,7 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
   };
   let client: IntercomClient | null = null;
   let clientRegistrationGroup: string | null = null;
+  const replyCapability = registerSubagentReplyCapability(pi, () => client);
   const config: IntercomConfig = loadConfig();
   const legacyChildOrchestratorMetadata = readChildOrchestratorMetadata();
   let runtimeContext: ExtensionContext | null = null;
@@ -231,6 +235,7 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
       startedAt: sessionStartedAt,
       lastActivity: Date.now(),
       status: currentStatus(),
+      replyCapability: replyCapability(),
       groups: [...currentIntercomGroups()],
       group: currentIntercomGroup(),
     };
@@ -342,7 +347,8 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
       ? `intercom({ action: "reply", message: "..." })`
       : undefined;
     const rawEntry = { from, message, replyCommand, bodyText, ...(channel ? { channel } : {}) };
-    const entry = receivedBeforeStageStart ? framePreStartPendingStageMessage(rawEntry) : rawEntry;
+    const framedEntry = isDeliveryFeedback(message) ? frameDeliveryFeedback(rawEntry) : rawEntry;
+    const entry = receivedBeforeStageStart ? framePreStartPendingStageMessage(framedEntry) : framedEntry;
     if (receivedBeforeStageStart) {
       return sendIncomingMessage(entry, "prelude", messageGeneration, false);
     }
@@ -353,7 +359,7 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
     if (stageClosed) {
       routeClosedWorkflowStageMessage(
         entry, inboundDeliveries, replyTracker, replyWaiters.pending(),
-        () => sendIncomingMessage(entry, "trigger", messageGeneration, false),
+        () => sendIncomingMessage(entry, isDeliveryFeedback(message) ? "prelude" : "trigger", messageGeneration, false),
         () => client,
         () => Boolean(getLiveContext(liveContext, messageGeneration)),
         (runId) => stageAdmission.boundary.ownsSubagentRun(runId),
@@ -366,6 +372,17 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
     if (routeIncomingReply(replyWaiters.pending(), from, message)) {
       inboundDeliveries.commit(reservation);
       return;
+    }
+    if (isDeliveryFeedback(message)) {
+      // Correlated asks were resolved above. A refusal of a fire-and-forget
+      // send is feedback, not a new conversation to queue until parent idle.
+      return retryStableDelivery({
+        deliver: () => sendIncomingMessage(entry, "prelude", messageGeneration, false),
+        isCurrent: () => Boolean(getLiveContext(liveContext, messageGeneration)),
+      }).then(
+        () => inboundDeliveries.commit(reservation),
+        (error) => inboundDeliveries.release(reservation, toError(error)),
+      );
     }
     const replyContext = replyTracker.recordIncomingMessage(from, message);
     const commit = (): void => { inboundDeliveries.commit(reservation); };
@@ -406,9 +423,11 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
             const activeClient = client;
             if (!message.replyTo && activeClient?.isConnected()) {
               try {
+                const refusal = "Message not accepted: recipient was busy in non-interactive mode. Its task was not interrupted.";
                 const result = await activeClient.send(from.id, {
-                  text: "This agent is running in non-interactive mode and cannot respond to intercom messages while it is working. It will continue its current task and exit when done.",
+                  text: refusal,
                   replyTo: message.id,
+                  replyError: refusal,
                 });
                 if (result.delivered && getLiveContext(liveContext, messageGeneration)) {
                   replyTracker.markReplied(message.id);
@@ -843,15 +862,16 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
       let connectFailed = false;
       await ownershipRecorded.promise;
 		const nextClient = new IntercomClient(currentSessionId);
-      const registration = buildRegistration();
       client = nextClient;
       attachClientHandlers(nextClient);
       try {
         await testOverrides.beforeConnectAttempt?.(reason);
         await spawnBrokerIfNeeded(config.brokerCommand, config.brokerArgs);
         const childMetadata = currentChildOrchestratorMetadata();
+        // Snapshot after startup awaits: execution may have ended while disconnected.
+        // connect writes registration synchronously, so no abort can interleave before that write.
         await nextClient.connect(
-          registration,
+          buildRegistration(),
           childMetadata?.supervisor,
           supervisorAuthorizations.ownerToken,
           readSubagentMessageSource(runtimeContext?.subagentPolicy),
@@ -859,6 +879,8 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
           resolveSessionHomeGroup(),
         );
         clientRegistrationGroup = resolveSessionHomeGroup();
+        // Termination may have won while registration was in flight.
+        if (replyCapability() === "terminal") nextClient.updatePresence({ replyCapability: "terminal" });
         await supervisorAuthorizations.restore(nextClient);
         for (const [runId, route] of pendingStageRoutes) {
           await registerPendingStageRoute(nextClient, runId, route);

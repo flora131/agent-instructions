@@ -3,12 +3,12 @@ import type { Api, ImageContent, Model, TextContent } from "@bastani/pi-ai/compa
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { KeyId } from "@earendil-works/pi-tui";
 import type { TSchema } from "typebox";
-import type { EventBus } from "../event-bus.ts";
+import type { EventBus } from "../event-bus.js";
 import type { ExecOptions, ExecResult } from "../exec.ts";
 import type { CustomMessage } from "../messages.ts";
 import type { ResolvedResource } from "../package-manager.ts";
 import type { DefaultResourceLoaderInheritanceSnapshot } from "../resource-loader.ts";
-import type { SlashCommandInfo } from "../slash-commands.ts";
+import type { SlashCommandInfo } from "../slash-commands.js";
 import type {
 	AfterProviderResponseEvent,
 	AgentEndEvent,
