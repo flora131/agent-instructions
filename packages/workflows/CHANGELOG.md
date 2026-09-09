@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Added effective model and thinking identity to graph node cards, preserving thinking and canonical fast model suffixes in narrow rows and restoring identity through durable resume. Live fallback replacements update the model row; the `BACKGROUND` widget is unchanged ([#1859](https://github.com/bastani-inc/atomic/pull/1859) by [@sina85](https://github.com/sina85)).
+
 ### Fixed
 
 - Stage pause now cancels owned active and admitted queued agents and commands before acknowledging completion, including shells admitted during already-in-flight setup. It waits for cleanup without permanently closing message admission; resume releases queued user and Intercom messages and permits fresh work, without reviving cancelled executions or affecting sibling stages.
@@ -18,7 +22,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Added effective model and thinking identity to graph node cards, preserving thinking and canonical fast model suffixes in narrow rows and restoring identity through durable resume. Live fallback replacements update the model row; the `BACKGROUND` widget is unchanged ([#1859](https://github.com/bastani-inc/atomic/pull/1859) by [@sina85](https://github.com/sina85)).
 - Connected workflow activity to the host extension observer stream, independently of lifecycle-notification settings and attribution filters. Root activity is projected from workflow snapshots plus run-qualified runtime execution ownership: nested runs fold into full root replacements; independent execution is distinguished from human waits; runnable handoffs, retries, stop draining, pauses, and acknowledged failures are accounted for without treating historical running stages as execution. Tool-only execution, parallel human-input waits, pause, cancellation drain, and unresolved failures publish root activity replacements; late attachment receives current state, and durable hydration announces recovering before ready. Typed lifecycle hooks cover run, stage, tool, prompt, and control transitions with canonical nested identities; successful-stage completion hooks exclude failed/skipped outcomes, explicit execution replay is tagged, and restored history creates no synthetic completions. Heartbeat hooks follow the existing configured cadence without adding timers or graph nodes. Because the workflows extension publishes root activity to the host, Atomic's built-in Herdr reporter reflects workflow execution and human-input waits in the owning pane; the end-to-end path is covered by an integration test against a fake Herdr CLI ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).
 - Attached stage chats now suggest stage-local `/skill:` commands with source metadata, qualified selectors, and refreshed catalogs after resource reload. Idle, steering, and follow-up submissions reuse session expansion once, retain stage admission and HIL ownership, and show skill diagnostics locally. Explicit editable post-mortem chats can invoke skills without reopening workflow execution.
 - `StageSendUserMessageOptions.expandPromptTemplates` opts native stage-session delivery into existing command and skill/template expansion; ordinary programmatic messages remain literal by default.
