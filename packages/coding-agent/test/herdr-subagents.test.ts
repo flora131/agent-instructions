@@ -73,7 +73,10 @@ test("Herdr observes overlapping owner tasks and reattaches without losing runni
 		await runner.emit({ type: "agent_settled" });
 		await runner.emit({ type: "session_shutdown", reason: "reload" });
 		const beforeReload = (await fake.calls()).filter((call) => call.phase === "end");
-		assert.equal(beforeReload.at(-1)?.args[1], "release-agent");
+		assert.equal(
+			beforeReload.some((call) => call.args[1] === "release-agent"),
+			false,
+		);
 		await runner.emit({ type: "session_start" });
 		const reloadCalls = await fake.waitFor(beforeReload.length + 1);
 		assert.equal(reloadCalls[beforeReload.length].args[1], "report-agent");

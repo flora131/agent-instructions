@@ -11,6 +11,7 @@ import {
 	type PaneReportingOptions,
 	releasePaneReporting,
 	reportPaneActivity,
+	retirePaneReporting,
 } from "./pane-owner.js";
 import type { HerdrDiagnostic } from "./transport.js";
 
@@ -205,7 +206,10 @@ export function createHerdrExtension(options: HerdrExtensionOptions = {}): Exten
 			// Clear before awaiting transport: a successor can bind while retirement drains,
 			// and this shutdown's completion must never clear that newer binding.
 			boundSessionManager = undefined;
-			if (previous) await releasePaneReporting(previous);
+			if (previous) {
+				if (event.reason === "quit") await releasePaneReporting(previous);
+				else await retirePaneReporting(previous);
+			}
 		});
 	};
 }

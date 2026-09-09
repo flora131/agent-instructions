@@ -36,8 +36,8 @@ test("reactivating a reporter resets prompt state and retires the previous obser
 		await fake.waitFor(2);
 		await runner.emit({ type: "session_shutdown", reason: "reload" });
 		await runner.emit({ type: "session_start", reason: "reload" });
-		const calls = await fake.waitFor(4);
-		assert.equal(arg(calls[3].args, "--state"), "idle");
+		const calls = await fake.waitFor(3);
+		assert.equal(arg(calls[2].args, "--state"), "idle");
 		assert.equal(
 			runtime.workflowActivityHub.diagnostics().filter((item) => item.kind === "ObserverDisposed").length,
 			1,
@@ -177,7 +177,7 @@ test("extension reload and engine replacement fence late predecessor callbacks a
 			runners.push(runner);
 			await runner.emit({ type: "session_start", reason: generation ? "reload" : "startup" });
 			await runner.emit({ type: "agent_start" });
-			await fake.waitFor(generation * 2 + 1);
+			await fake.waitFor(generation + 1);
 			const previous = runners[generation - 1];
 			if (previous) {
 				await previous.emit({ type: "agent_start" });
@@ -189,7 +189,7 @@ test("extension reload and engine replacement fence late predecessor callbacks a
 		const calls = (await fake.calls()).filter((call) => call.phase === "start");
 		assert.deepEqual(
 			calls.map((call) => call.args[1]),
-			["report-agent", "release-agent", "report-agent", "release-agent", "report-agent", "release-agent"],
+			["report-agent", "report-agent", "report-agent", "release-agent"],
 		);
 		const seq = calls.map((call) => Number(arg(call.args, "--seq")));
 		// Every admitted command, release included, takes a strictly increasing sequence across reload and replacement.
