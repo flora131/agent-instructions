@@ -4,6 +4,8 @@ This package is a Bastani fork of `@earendil-works/pi-ai`. Upstream history at t
 
 ## [Unreleased]
 
+## [0.9.19-alpha.2] - 2026-09-08
+
 ### Fixed
 
 - Fixed Anthropic Messages tool requests advertising root object-union parameter schemas without fields by projecting their branch fields into Anthropic-compatible object schemas ([#2190](https://github.com/bastani-inc/atomic/pull/2190) by [@elefthei](https://github.com/elefthei)).

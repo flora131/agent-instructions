@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.19-alpha.2] - 2026-09-08
+
 ### Added
 
 - Added `/agents` to browse and filter effective agent definitions by source, with model, tool, description, and prompt details.
