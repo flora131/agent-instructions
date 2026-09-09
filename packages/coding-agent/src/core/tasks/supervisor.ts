@@ -859,6 +859,7 @@ export class TaskSupervisor {
 		owner: OwnerLease,
 		taskId: C.TaskId,
 		budgetMs?: number,
+		onRegistered?: (wait: WaitLease) => void,
 	): Promise<C.Result<C.WaitOutcome, C.WaitError>> {
 		const found = mapped(this.#native.lookupTask(this.#owner(owner).native, taskId), (lease) => lease, waitErrors);
 		if (!found.ok) return found;
@@ -875,7 +876,9 @@ export class TaskSupervisor {
 			(lease) => this.#register(lease),
 			waitErrors,
 		);
-		return registered.ok ? this.observeTaskWait(registered.value) : registered;
+		if (!registered.ok) return registered;
+		onRegistered?.(registered.value);
+		return this.observeTaskWait(registered.value);
 	}
 	async foregroundTask(task: TaskLease, budgetMs?: number): Promise<C.Result<C.WaitOutcome, C.ForegroundError>> {
 		const state = this.#task(task);

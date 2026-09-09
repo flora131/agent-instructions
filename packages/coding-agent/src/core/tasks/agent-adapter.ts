@@ -9,6 +9,7 @@ import {
 	type TaskLease,
 	TaskSupervisor,
 	type TrustedTaskHost,
+	type WaitLease,
 } from "./supervisor.js";
 
 export type AgentTaskRunnerFactory = (context: FakeRunnerContext, intent: C.AgentIntent) => FakeExecution;
@@ -22,6 +23,7 @@ export class AgentTaskHost {
 	private readonly supervisor = new TaskSupervisor();
 	private readonly owner;
 	private binding: AgentTaskHostBinding;
+	private readonly messageWaits = new Set<WaitLease>();
 	/** Stage replacement updates callbacks, never native identity or ownership. */
 	updateBinding(binding: Omit<AgentTaskHostBinding, "scope">): void {
 		this.binding = { ...this.binding, ...binding };
@@ -85,13 +87,25 @@ export class AgentTaskHost {
 		const task = this.resolveTask(taskId);
 		return task.ok
 			? this.supervisor.initialObservation(task.value, policy, (wait) => {
+					if (policy?.kind === "foreground") this.trackMessageWait(wait);
 					onRegistered?.((reason) => this.supervisor.yieldTaskWait(wait, reason));
 				})
 			: Promise.resolve(task);
 	}
 
 	waitForTask(taskId: C.TaskId, budgetMs?: number) {
-		return this.supervisor.waitForTaskId(this.owner, taskId, budgetMs);
+		return this.supervisor.waitForTaskId(this.owner, taskId, budgetMs, (wait) => this.trackMessageWait(wait));
+	}
+
+	/** Incoming owner messages release observation only, never the child execution. */
+	yieldTaskWaits(reason: C.YieldReason): void {
+		for (const wait of this.messageWaits) this.supervisor.yieldTaskWait(wait, reason);
+	}
+
+	private trackMessageWait(wait: WaitLease): void {
+		this.messageWaits.add(wait);
+		const remove = () => this.messageWaits.delete(wait);
+		void this.supervisor.observeTaskWait(wait).then(remove, remove);
 	}
 
 	cancelTask(taskId: C.TaskId, cause: C.CancelCause) {

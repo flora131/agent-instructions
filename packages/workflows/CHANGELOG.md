@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Stage pause now cancels owned active and admitted queued agents and commands before acknowledging completion, including shells admitted during already-in-flight setup. It waits for cleanup without permanently closing message admission; resume releases queued user and Intercom messages and permits fresh work, without reviving cancelled executions or affecting sibling stages.
 
+### Changed
+
+- Reduced default workflow stage and authored parallel concurrency from 4 to 3, preserving explicit configuration and per-call overrides.
+
 ## [0.9.19-alpha.2] - 2026-09-08
 
 ### Added
