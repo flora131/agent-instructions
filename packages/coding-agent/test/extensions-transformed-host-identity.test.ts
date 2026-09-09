@@ -6,8 +6,8 @@ import { Type } from "typebox";
 import { expect, it } from "vitest";
 import { bunExecutable, moduleDir, spawnSyncCollect } from "../../../test/helpers/runtime.js";
 import { createEventBus } from "../src/core/event-bus.js";
-import { createExtensionRuntime, loadExtensionFromFactory } from "../src/core/extensions/loader.ts";
-import { clearExtensionCache, extensionLoaderTestHooks } from "../src/core/extensions/loader-virtual-modules.ts";
+import { createExtensionRuntime, loadExtensionFromFactory } from "../src/core/extensions/loader.js";
+import { clearExtensionCache, extensionLoaderTestHooks } from "../src/core/extensions/loader-virtual-modules.js";
 import { SessionManager } from "../src/core/session-manager.js";
 
 const REAL_EXTENSION_LOADER_TEST_TIMEOUT_MS = 120_000;
