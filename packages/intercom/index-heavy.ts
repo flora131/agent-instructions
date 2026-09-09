@@ -862,15 +862,16 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
       let connectFailed = false;
       await ownershipRecorded.promise;
 		const nextClient = new IntercomClient(currentSessionId);
-      const registration = buildRegistration();
       client = nextClient;
       attachClientHandlers(nextClient);
       try {
         await testOverrides.beforeConnectAttempt?.(reason);
         await spawnBrokerIfNeeded(config.brokerCommand, config.brokerArgs);
         const childMetadata = currentChildOrchestratorMetadata();
+        // Snapshot after startup awaits: execution may have ended while disconnected.
+        // connect writes registration synchronously, so no abort can interleave before that write.
         await nextClient.connect(
-          registration,
+          buildRegistration(),
           childMetadata?.supervisor,
           supervisorAuthorizations.ownerToken,
           readSubagentMessageSource(runtimeContext?.subagentPolicy),
