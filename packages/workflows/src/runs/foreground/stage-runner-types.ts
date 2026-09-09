@@ -54,6 +54,10 @@ export interface StageSessionRuntime {
 	pauseQueuedMessages?(): void;
 	/** Optional native release; calls `beforeRelease` at the final synchronous boundary. */
 	resumeQueuedMessages?(beforeRelease?: () => void): boolean | Promise<boolean>;
+	/** Optional owned-execution hold: block launches synchronously, cancel and drain before resolving. */
+	pauseTasks?(): Promise<void>;
+	/** Reopen launches only; cancelled executions must never restart. */
+	resumeTasks?(): void;
 	steer(text: string): Promise<void>;
 	followUp(text: string): Promise<void>;
 	subscribe(listener: (event: StageSessionEvent) => void): () => void;

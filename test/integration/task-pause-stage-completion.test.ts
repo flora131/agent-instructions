@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { fauxAssistantMessage } from "@bastani/pi-ai/compat";
 import { test, vi } from "vitest";
 import type { AgentSession } from "../../packages/coding-agent/src/core/agent-session.js";
 import type { AgentTaskHost } from "../../packages/coding-agent/src/core/tasks/agent-adapter.js";
-import type { OperationId, TaskResult } from "../../packages/coding-agent/src/core/tasks/contracts.js";
+import type { Cleanup, OperationId, TaskResult } from "../../packages/coding-agent/src/core/tasks/contracts.js";
 import type { TaskLease, TaskSupervisor } from "../../packages/coding-agent/src/core/tasks/supervisor.js";
 import { WorkflowStageAdmissionBoundary } from "../../packages/coding-agent/src/core/workflow-stage-admission.js";
 import { createHarness } from "../../packages/coding-agent/test/suite/harness.js";
@@ -164,7 +165,7 @@ test.runIf(process.platform !== "win32")(
 );
 
 test.runIf(process.platform !== "win32")(
-	"paused stage generation close cancels remaining owned work and disposes without resume",
+	"paused stage generation closes and disposes without resume after owned work is cancelled",
 	async () => {
 		const fixture = await createStageSkillFixture();
 		const sibling = await createStageSkillFixture();
@@ -187,13 +188,13 @@ test.runIf(process.platform !== "win32")(
 			const siblingPid = await waitPid(siblingPidFile);
 			await fixture.handle.pause();
 			assert.equal(fixture.stage.session.queuedMessagesPaused, true);
-			assert.equal(alive(pid), true);
+			assert.equal(alive(pid), false);
 			const waiting = shell.supervisor.waitForTask(shell.lease);
 			await (fixture.stage.session as StageGenerationSession).closeWorkflowStageGeneration();
 			const settled = await waiting;
 			assert.ok(settled.ok && settled.value.kind === "settled", JSON.stringify(settled));
 			assert.equal(settled.value.result.kind, "cancelled");
-			assert.equal(settled.value.result.kind === "cancelled" && settled.value.result.cause, "owner-close");
+			assert.equal(settled.value.result.kind === "cancelled" && settled.value.result.cause, "user");
 			await vi.waitFor(() => assert.equal(alive(pid), false));
 			assert.equal(executionKind(siblingShell.host, siblingShell.taskId), "running");
 			assert.equal(alive(siblingPid), true, "paused stage completion must not cancel a sibling");
@@ -234,7 +235,7 @@ test.runIf(process.platform !== "win32")(
 );
 
 test.runIf(process.platform !== "win32")(
-	"workflow-node pause leaves background work running and stage completion cancels only that owner",
+	"workflow-node pause cancels owned shells, preserves siblings, and permits fresh work on resume",
 	async () => {
 		const fixture = await createStageSkillFixture();
 		const sibling = await createStageSkillFixture();
@@ -245,7 +246,7 @@ test.runIf(process.platform !== "win32")(
 		try {
 			const shell = await startBackgroundShell(
 				fixture.stage.session,
-				`printf $$ > ${quote(pidFile)}; read value; printf 'STAGE PAUSE SURVIVED\\n'`,
+				`printf $$ > ${quote(pidFile)}; read value; printf 'STAGE STOPPED\n'`,
 				"Stage pause shell",
 			);
 			const siblingShell = await startBackgroundShell(
@@ -256,14 +257,24 @@ test.runIf(process.platform !== "win32")(
 			const pid = await waitPid(pidFile);
 			const siblingPid = await waitPid(siblingPidFile);
 			await fixture.handle.pause();
-			assert.equal(alive(pid), true, "stage pause must not kill owned background shells");
+			assert.equal(alive(pid), false, "completed stage pause must reap owned background shells");
 			assert.equal(alive(siblingPid), true);
-			assert.equal(executionKind(shell.host, shell.taskId), "running");
-			const result = await completeShell(shell.supervisor, shell.lease);
-			assert.equal(result.kind, "completed");
+			assert.equal(executionKind(shell.host, shell.taskId), "settled");
+			const result = await shell.supervisor.waitForTask(shell.lease);
+			assert.ok(result.ok && result.value.kind === "settled");
+			assert.equal(result.value.result.kind, "cancelled");
 			assert.equal(shell.host.resolveTask(shell.taskId).ok, true);
+			await assert.rejects(startBackgroundShell(fixture.stage.session, "printf REFUSED", "Paused launch"), /paused/);
 			await fixture.handle.resume();
 			assert.equal(alive(siblingPid), true);
+			const fresh = await startBackgroundShell(
+				fixture.stage.session,
+				"read value; printf FRESH",
+				"Fresh after resume",
+			);
+			assert.notEqual(fresh.taskId, shell.taskId);
+			assert.equal((await completeShell(fresh.supervisor, fresh.lease)).kind, "completed");
+			assert.equal(executionKind(shell.host, shell.taskId), "settled", "resume never revives cancelled executions");
 			await (fixture.stage.session as StageGenerationSession).closeWorkflowStageGeneration();
 			assert.equal(executionKind(siblingShell.host, siblingShell.taskId), "running");
 			assert.equal(alive(siblingPid), true, "completing one stage must not cancel a sibling stage owner");
@@ -338,5 +349,140 @@ test("closing one workflow-stage admission cancels only that owner's remaining t
 		resultA.resolve({ kind: "cancelled", cause: "user" });
 		resultB.resolve({ kind: "cancelled", cause: "user" });
 		await second.close();
+	}
+});
+
+test("stage pause cancels queued agents before active slots free, awaits cleanup, and preserves queued messages", async () => {
+	const fixture = await createStageSkillFixture();
+	const boundary = bindStageAdmission(fixture.stage.session, fixture.runId, fixture.stageId);
+	const host = fixture.stage.session.getAgentTaskHost();
+	const mainHost = fixture.main.session.getAgentTaskHost();
+	const cleanup = Promise.withResolvers<Cleanup>();
+	const never = Promise.withResolvers<TaskResult>();
+	const queued: Array<() => Promise<void>> = [];
+	const responseStarted = Promise.withResolvers<void>();
+	const finishResponse = Promise.withResolvers<void>();
+	let queuedStarts = 0;
+	let activeSignal: AbortSignal | undefined;
+	let mainSignal: AbortSignal | undefined;
+	try {
+		const active = await host.startAgentTask(
+			{ kind: "agent", agent: "worker", task: "Active stage agent" },
+			randomUUID() as OperationId,
+			({ signal }) => {
+				activeSignal = signal;
+				// Releasing a slot immediately on abort must not start admitted queued agents.
+				signal.addEventListener(
+					"abort",
+					() => {
+						for (const dispatch of queued) void dispatch();
+					},
+					{ once: true },
+				);
+				return { result: never.promise, cleanup: cleanup.promise };
+			},
+		);
+		assert.ok(active.ok);
+		for (let index = 0; index < 2; index++) {
+			const admitted = await host.startAgentTask(
+				{ kind: "agent", agent: "worker", task: `Queued stage agent ${index}` },
+				randomUUID() as OperationId,
+				() => {
+					queuedStarts++;
+					return { result: never.promise, cleanup: cleanup.promise };
+				},
+				(dispatch) => queued.push(dispatch),
+			);
+			assert.ok(admitted.ok);
+			assert.equal(executionKind(host, admitted.value.taskId), "queued");
+		}
+		const main = await mainHost.startAgentTask(
+			{ kind: "agent", agent: "worker", task: "Unrelated main agent" },
+			randomUUID() as OperationId,
+			({ signal }) => {
+				mainSignal = signal;
+				return { result: never.promise, cleanup: Promise.resolve({ kind: "reaped" }) };
+			},
+		);
+		assert.ok(main.ok);
+		await fixture.stage.session.followUp("user queued before pause");
+		let paused = false;
+		const pause = fixture.handle.pause().then(() => {
+			paused = true;
+		});
+		assert.equal(activeSignal?.aborted, true);
+		await fixture.stage.session.sendCustomMessage(
+			{ customType: "intercom", content: "Intercom held during pause", display: true },
+			{ deliverAs: "followUp", triggerTurn: true },
+		);
+		await fixture.stage.session.followUp("user queued during pause");
+		assert.equal(paused, false, "abort is not cleanup evidence");
+		assert.equal(queuedStarts, 0);
+		assert.equal(mainSignal?.aborted, false);
+		await assert.rejects(
+			host.startAgentTask({ kind: "agent", agent: "worker", task: "Refused" }, randomUUID() as OperationId, () => {
+				throw new Error("paused runner reached");
+			}),
+			/paused/,
+		);
+		cleanup.resolve({ kind: "reaped" });
+		await pause;
+		assert.equal(boundary.isOpen(), true, "pause must not seal the stage message generation");
+		const watched = host.watchOwnerTasks();
+		assert.ok(watched.ok);
+		assert.equal(watched.value.snapshot.state, "open");
+		assert.equal(watched.value.snapshot.tasks.length, 3);
+		assert.ok(
+			watched.value.snapshot.tasks.every(
+				(task) =>
+					task.execution.kind === "settled" &&
+					task.execution.result.kind === "cancelled" &&
+					task.cleanup.kind === "reaped",
+			),
+		);
+		watched.value.dispose();
+		assert.deepEqual(fixture.stage.session.getFollowUpMessages(), [
+			"user queued before pause",
+			"user queued during pause",
+		]);
+		fixture.stage.setResponses([
+			async () => {
+				responseStarted.resolve();
+				await finishResponse.promise;
+				return fauxAssistantMessage("Queued message handled");
+			},
+			...Array.from({ length: 5 }, () => fauxAssistantMessage("Queued message handled")),
+		]);
+		const resume = fixture.handle.resume();
+		await responseStarted.promise;
+		// Keep the resumed objective live until fresh launch authorization is exercised.
+		const replay = await host.startAgentTask(
+			{ kind: "agent", agent: "worker", task: "Fresh resumed agent" },
+			randomUUID() as OperationId,
+			() => ({ result: never.promise, cleanup: Promise.resolve({ kind: "reaped" }) }),
+		);
+		assert.ok(replay.ok);
+		assert.equal(executionKind(host, replay.value.taskId), "running");
+		finishResponse.resolve();
+		await resume;
+		await vi.waitFor(() => {
+			assert.ok(fixture.userTexts().includes("user queued before pause"));
+			assert.ok(fixture.userTexts().includes("user queued during pause"));
+			assert.ok(
+				fixture.stage.session.messages.some(
+					(message) =>
+						message.role === "custom" &&
+						message.customType === "intercom" &&
+						message.content === "Intercom held during pause",
+				),
+			);
+		});
+		assert.equal(queuedStarts, 0, "resume never resurrects queued executions");
+		assert.equal(mainSignal?.aborted, false);
+	} finally {
+		finishResponse.resolve();
+		cleanup.resolve({ kind: "reaped" });
+		await mainHost.close("session-close");
+		await fixture.cleanup();
 	}
 });

@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type * as C from "./contracts.js";
 import { trackAdmittedAgentTask } from "./execution-scope.js";
+import { cancelPausedOwnerTasks } from "./pause.js";
 import {
 	type FakeExecution,
 	type FakeRunnerContext,
@@ -36,7 +37,14 @@ export class AgentTaskHost {
 		this.binding = binding;
 		const host = this.supervisor.bindHostSession({
 			...binding,
-			authorizeLaunch: (intent) => this.binding.authorizeLaunch(intent),
+			authorizeLaunch: (intent) => {
+				this.authorizeTaskLaunch();
+				this.binding.authorizeLaunch(intent);
+			},
+			authorizeCommandLaunch: (intent) => {
+				this.authorizeTaskLaunch();
+				this.binding.authorizeCommandLaunch?.(intent);
+			},
 			onTaskSettled: (ref, receipt) => this.binding.onTaskSettled?.(ref, receipt),
 			createRunner: (context, intent) => {
 				const runner = runners.getStore();
@@ -111,5 +119,18 @@ export class AgentTaskHost {
 
 	close(cause: C.OwnerCloseCause) {
 		return this.supervisor.closeTaskOwner(this.owner, cause);
+	}
+
+	private tasksPaused = false;
+	/** Reversible execution hold; message admission and owner identity remain open. */
+	pauseTasks(): Promise<void> {
+		this.tasksPaused = true;
+		return cancelPausedOwnerTasks(this);
+	}
+	resumeTasks(): void {
+		this.tasksPaused = false;
+	}
+	private authorizeTaskLaunch(): void {
+		if (this.tasksPaused) throw new Error("Workflow stage tasks are paused");
 	}
 }

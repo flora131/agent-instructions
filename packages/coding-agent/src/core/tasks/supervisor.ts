@@ -74,6 +74,7 @@ type OwnerState = {
 	tasks: Map<C.TaskId, TaskLease>;
 	watches: Set<TaskSubscription>;
 	settledTasks: Set<C.TaskId>;
+	commandAdmissions: Set<Promise<void>>;
 };
 type TaskState = {
 	native: native.TaskLease;
@@ -577,6 +578,7 @@ export class TaskSupervisor {
 					tasks: new Map(),
 					watches: new Set(),
 					settledTasks: new Set(),
+					commandAdmissions: new Set(),
 				};
 				this.#owners.set(owner, ownerState);
 				this.#ownerIds.set(id, owner);
@@ -642,27 +644,42 @@ export class TaskSupervisor {
 	): Promise<C.Result<TaskLease, C.StartFailure>> {
 		const state = this.#owner(owner);
 		state.host.binding.authorizeCommandLaunch?.(intent);
-		const admitted = mapped(
-			await this.#native.startCommandTask(state.native, intent, operation),
-			(lease) => lease,
-			startErrors,
-		);
-		if (!admitted.ok) return admitted;
-		const ref = this.#native.taskReference(admitted.value);
-		if (!ref.ok) throw new Error(ref.error.message);
-		const id = ref.value.taskId as C.TaskId;
-		const existing = state.tasks.get(id);
-		if (existing) return { ok: true, value: existing };
-		const task = new TaskCapability();
-		this.#tasks.set(task, {
-			native: admitted.value,
-			owner: state,
-			ref: reference(ref.value),
-			controller: new AbortController(),
-			kind: "command",
+		// Native command setup can be admitted before its task lease is visible in JS.
+		let finishAdmission!: () => void;
+		const admission = new Promise<void>((resolve) => {
+			finishAdmission = resolve;
 		});
-		state.tasks.set(id, task);
-		return { ok: true, value: task };
+		state.commandAdmissions.add(admission);
+		try {
+			const admitted = mapped(
+				await this.#native.startCommandTask(state.native, intent, operation),
+				(lease) => lease,
+				startErrors,
+			);
+			if (!admitted.ok) return admitted;
+			const ref = this.#native.taskReference(admitted.value);
+			if (!ref.ok) throw new Error(ref.error.message);
+			const id = ref.value.taskId as C.TaskId;
+			const existing = state.tasks.get(id);
+			if (existing) return { ok: true, value: existing };
+			const task = new TaskCapability();
+			this.#tasks.set(task, {
+				native: admitted.value,
+				owner: state,
+				ref: reference(ref.value),
+				controller: new AbortController(),
+				kind: "command",
+			});
+			state.tasks.set(id, task);
+			return { ok: true, value: task };
+		} finally {
+			state.commandAdmissions.delete(admission);
+			finishAdmission();
+		}
+	}
+	/** Caller must hold launch authorization closed while this snapshot drains. */
+	async drainCommandAdmissions(owner: OwnerLease): Promise<void> {
+		await Promise.all([...this.#owner(owner).commandAdmissions]);
 	}
 	taskStdin(task: TaskLease): C.Result<StdinLease, C.InputError> {
 		return mapped(
