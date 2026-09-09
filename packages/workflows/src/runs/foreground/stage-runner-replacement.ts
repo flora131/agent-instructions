@@ -7,6 +7,11 @@ export class StageSessionReplacement {
 	private previous: StageSessionRuntime | undefined;
 	private readonly cleanups = new Set<Promise<void>>();
 
+	/** Generation-owned work remains live while the replacement is being created. */
+	get retiringSession(): StageSessionRuntime | undefined {
+		return this.previous;
+	}
+
 	retire(session: StageSessionRuntime | undefined): void {
 		this.previous = session;
 	}

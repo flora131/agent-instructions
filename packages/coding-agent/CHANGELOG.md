@@ -6,6 +6,7 @@
 
 - Fixed `Failed to initialize class constructor` when npm-installed Node sessions create multiple task supervisors, preventing shell commands and subagent launches from failing during task-host initialization.
 - Fixed PowerShell internal-URL path quoting so apostrophes and smart single quotes in resolved paths remain literal instead of allowing injected commands. Bash quoting, deliberate shell commands, and balanced command prefixes are unchanged.
+- Workflow-stage pause now blocks new task launches, cancels active and admitted queued agents and commands, and waits for in-flight command admission and resource cleanup. Main-chat and sibling tasks stay unaffected; queued user and Intercom messages survive, and resume permits fresh work without restarting cancelled executions.
 
 ## [0.9.19-alpha.2] - 2026-09-08
 

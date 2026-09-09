@@ -134,4 +134,13 @@ export async function closeSessionTasks(this: AgentSession): Promise<void> {
 	if (closed && !closed.ok) throw new Error(`${closed.error.code}: ${closed.error.message}`);
 }
 
-export const agentSessionTaskMethods = { getAgentTaskHost, closeSessionTasks };
+/** Workflow controller only: main-chat message pause does not stop owned tasks. */
+export async function pauseTasks(this: AgentSession): Promise<void> {
+	await this.getAgentTaskHost().pauseTasks();
+}
+
+export function resumeTasks(this: AgentSession): void {
+	this._agentTaskHost?.resumeTasks();
+}
+
+export const agentSessionTaskMethods = { getAgentTaskHost, closeSessionTasks, pauseTasks, resumeTasks };

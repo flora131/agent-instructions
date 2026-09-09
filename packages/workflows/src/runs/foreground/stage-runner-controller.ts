@@ -238,7 +238,7 @@ export class StageSessionController {
 	private pendingThinkingLevel: Parameters<StageContext["setThinkingLevel"]>[0] | undefined;
 	private readonly pendingListeners = new Set<(event: StageSessionEvent) => void>();
 	private readonly listenerUnsubscribes = new Map<(event: StageSessionEvent) => void, () => void>();
-	private readonly pauseControl = new StageSessionPause(() => this.session);
+	private readonly pauseControl = new StageSessionPause(() => this.session ?? this.replacement.retiringSession);
 	private readonly hasExplicitModelFallbackConfig: boolean;
 	private candidatesPromise: Promise<WorkflowResolvedModelCandidate[]> | undefined;
 	private activeCandidateIndex: number | undefined;

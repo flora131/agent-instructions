@@ -158,6 +158,9 @@ export interface AgentSessionMethodSurface extends AgentSessionQueuePauseControl
 	dispose(): void;
 	getAgentTaskHost(): import("./tasks/agent-adapter.js").AgentTaskHost;
 	closeSessionTasks(): Promise<void>;
+	/** Internal workflow pause: cancel owned execution without closing message admission. */
+	pauseTasks(): Promise<void>;
+	resumeTasks(): void;
 
 	getActiveToolNames(): string[];
 	getAllTools(): ToolInfo[];

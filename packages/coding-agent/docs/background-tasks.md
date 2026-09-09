@@ -174,7 +174,11 @@ Bash calls inside subagent sessions retain their existing execution paths. Witho
 
 ## Lifetime and scope
 
-Background means independent of the current observation, not independent of its owner. Pausing main chat or a workflow-node chat aborts the foreground turn only; already-running background agents and shells keep their identities, output, and later completion. Closing a session cancels its session-owned work. Workflow-stage tasks belong to the stage generation: detaching a pane, pausing, or ending a single model turn does not cancel them. Closing that generation does, without cancelling sibling stages. Closing `/tasks` only disposes the view. Explicit `/tasks` stop and declared execution timeouts remain separate controls.
+Background means independent of the current observation, not independent of its owner. **Pausing main chat** aborts the foreground turn only; its background agents and shells keep running. Detaching a workflow pane, ending a model turn, or closing `/tasks` also leaves owned background work alone.
+
+**Pausing a workflow stage** blocks new task launches immediately and cancels that stage generation's active and admitted queued agents and commands. Queued agents are cancelled before active cancellations free execution slots. Command setup already in flight may briefly start a shell during the pause transition; pause waits for those admissions, cancels the resulting shells, and confirms resource cleanup before completing. A successful pause leaves no owned active or queued executions. Cancellation or cleanup failures are reported instead of confirming pause. Main-chat tasks, sibling stages, and future stage generations are unaffected by a stage-scoped pause.
+
+Pause does not close the stage's message generation: queued user and Intercom messages remain held for resume. Resume permits fresh launches but never resurrects cancelled executions; retained task results remain inspectable. Closing a session or stage generation still cancels its remaining owned work. Explicit `/tasks` stop and declared execution timeouts remain separate controls.
 
 On native Windows, Suspend opens a PowerShell subshell rather than freezing Atomic. Exit the subshell to restore the same session; owned background tasks continue while it is open.
 
