@@ -26,7 +26,7 @@ import {
 	rmSync as nodeRmSync,
 	writeFileSync as nodeWriteFileSync,
 } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { Readable } from "node:stream";
@@ -51,6 +51,9 @@ export const readDirectorySync = nodeReaddirSync;
 export const readTextSync = nodeReadFileSync;
 export const removePathSync = nodeRmSync;
 export const writeTextSync = nodeWriteFileSync;
+
+/** Asynchronous removal re-enumerates directories during recursive retries. */
+export const removePath = rm;
 
 /** `Bun.sleep(ms)`. */
 export function sleep(milliseconds: number): Promise<void> {
