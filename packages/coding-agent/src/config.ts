@@ -415,3 +415,8 @@ export function getSessionsDir(): string {
 export function getDebugLogPath(): string {
 	return join(getAgentDir(), `${APP_NAME}-debug.log`);
 }
+
+/** Get path to the interactive engine child's stderr log */
+export function getEngineStderrLogPath(): string {
+	return join(getAgentDir(), `${APP_NAME}-engine-stderr.log`);
+}

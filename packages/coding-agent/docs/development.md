@@ -49,6 +49,15 @@ Never use `__dirname` directly for package assets.
 - Last messages sent to the LLM
 
 For startup measurements, see the [Windows startup benchmark](https://github.com/bastani-inc/atomic/blob/main/scripts/perf/windows-startup/README.md). Internal timing marks do not prove terminal first paint.
+## Engine stderr log
+
+The interactive host paints pi-tui's alternate screen on fd 2, so it never echoes its RPC
+engine child's stderr there. Those bytes go to `~/.atomic/agent/atomic-engine-stderr.log`
+instead, truncated once it exceeds 1 MiB. Read that file when diagnosing a child that dies
+or complains without surfacing an error; failure paths still carry the bounded stderr tail
+in their own messages. A plain `RpcClient` with no `interactiveEngine` owns no screen and
+keeps writing child stderr to the terminal.
+
 
 ## Testing
 

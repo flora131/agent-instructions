@@ -26,6 +26,7 @@ import {
 	restartCliArgs,
 	spawnRpcClientProcess,
 	terminateRpcClientProcess,
+	writeEngineStderrLog,
 } from "./rpc-client-process.ts";
 import { collectRpcEvents, runUserBashWithUpdates, waitForRpcIdle } from "./rpc-client-waits.ts";
 import { DEFAULT_REQUEST_TIMEOUT_MS, LONG_LIVED_COMMANDS, RESTART_CANCELLED_MESSAGE } from "./rpc-command-timeouts.ts";
@@ -166,7 +167,10 @@ export class RpcClient extends RpcClientApi {
 		childProcess.stderr?.on("data", (data) => {
 			if (generation !== this.generation) return;
 			this.stderr = appendBoundedStderr(this.stderr, data.toString());
-			process.stderr.write(data);
+			// fd 2 is the host's alternate screen whenever an interactive engine is
+			// attached; only a plain RPC client (tests, embedders) may echo the child.
+			if (this.options.interactiveEngine === undefined) process.stderr.write(data);
+			else writeEngineStderrLog(data);
 		});
 		const readerOptions = createInteractiveJsonlOptions(this.engineMonitor !== undefined);
 		let markStdoutDrained!: () => void;
