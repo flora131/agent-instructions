@@ -29,6 +29,8 @@ If live results cannot be retrieved, use the dated docs snapshot and say it was 
 
 The thinking level in brackets in the chart is the **measurement configuration used for that benchmark result**, not a universal workflow default. A score measured at `max` does not mean every stage using that model should use `max`; benchmark model identity and production thinking effort are separate choices. When authoring a workflow, choose effort from the stage role and cost of being wrong, then check the returned `availableThinkingLevels` for the configured catalog model.
 
+In practice, `max` reasoning is usually overkill and is not the preferred workflow default. Start with `medium` for routine work and `high` for demanding analysis or coding, subject to catalog support. Treat `max` as an exception for high-cost-of-error judgments or an explicit user request, not a general quality upgrade. Compare task success, latency and cost on representative work before adopting it more broadly; a higher effort level does not guarantee a better result.
+
 ## Pin model identity
 
 When a workflow needs an exact model, call `workflow({ action: "models" })` and pin a returned `fullId`. Do not pin a

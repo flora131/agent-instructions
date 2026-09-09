@@ -22,6 +22,8 @@ No single benchmark is the source of truth. Validate these inputs against Atomic
 
 Start here when a stage needs a model. Each row names a relevant benchmark and selected candidates, not a universal winner or a guarantee that the cheaper option stays close. "Measured" means the exact configuration named; a different effort level or agent is a different experiment.
 
+For practical workflow selection, `max` reasoning is usually overkill and is not the preferred default. Start with `medium` for routine work and `high` for demanding analysis or coding, where the configured model supports those levels. Reserve `max` for exceptional high-cost-of-error judgments or an explicit user request. The `max` rows below record benchmark settings, not production recommendations; more effort can add cost and latency without improving task success. See [role-based thinking effort](/models/model-selection#role-based-thinking-effort).
+
 | Task type | Benchmark to read | Selected measured candidates | Cost-conscious alternative |
 | --- | --- | --- | --- |
 | Implementing features and fixing bugs | September 3 Datacurve DeepSWE | Astra xhigh, Gemini 3.8 Flash high and Opus 5 max display 74% | Luna max 67% / $0.61; GLM-5.3-Flash max 63% / $0.24 |
