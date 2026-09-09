@@ -94,7 +94,7 @@ export async function loadVirtualModules(): Promise<Record<string, object>> {
 
 export const loaderHostModulesTestHooks = { loadOptionalAtomicNatives };
 
-/** Modules shared with extensions in Bun single-file builds. */
+/** Live host modules shared with single-file builds and transformed extension reloads. */
 export async function getVirtualModules(): Promise<Record<string, object>> {
 	if (virtualModules) return virtualModules;
 	virtualModulesPromise ??= loadVirtualModules().then(

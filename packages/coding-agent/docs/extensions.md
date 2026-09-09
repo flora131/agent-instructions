@@ -248,6 +248,8 @@ export default function (pi: ExtensionAPI) {
 
 Editable user, project, and package extensions and user workflows are loaded through [jiti](https://github.com/unjs/jiti), so TypeScript works without compilation. `/reload` uses content-hash invalidation across the complete imported file graph: an unchanged graph can reuse its evaluated factory, while a direct edit or a transitive dependency edit re-evaluates that extension's modules.
 
+Imports from Atomic's supplied core packages keep the running host's classes and shared state across `/reload`, including on Windows. Edits to your extension and its imported local helpers still take effect; restart Atomic after updating Atomic itself.
+
 In Bun compiled or bundled single-file builds, Atomic's five fixed installed builtin extension bundles (workflows, subagents, MCP, web access, and Intercom) take a separate startup path. Atomic installs its live host-module bridge, imports each precompiled bundle natively once, and reuses the evaluated factory across `/reload`. This avoids jiti source reads, transforms, hashing, and graph manifests for immutable shipped code. A builtin bundle's module-scoped state is therefore **not** re-evaluated by `/reload` in those builds. This optimization is limited to exact installed entries of identity-verified Atomic packages; editable extensions and workflows retain the dynamic behavior above.
 
 If the factory returns a `Promise`, Atomic awaits it before continuing startup. That means async initialization completes before `session_start`, before `resources_discover`, and before provider registrations queued via `pi.registerProvider()` are flushed.

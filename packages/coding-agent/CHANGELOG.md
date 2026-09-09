@@ -12,6 +12,7 @@
 - Workflow-stage pause now blocks new task launches, cancels active and admitted queued agents and commands, and waits for in-flight command admission and resource cleanup. Main-chat and sibling tasks stay unaffected; queued user and Intercom messages survive, and resume permits fresh work without restarting cancelled executions.
 - Fixed npm-installed Node startup failing with a missing upstream AI package after the retry-policy update. Core retry imports now use Atomic's declared AI dependency.
 - Fixed an unhandled rejection when session cancellation interrupts an in-flight stage-chat pause, while preserving pause error reporting and rejection for callers awaiting completion.
+- Fixed Windows extension reloads re-evaluating Atomic's host modules, avoiding duplicate host classes and long reload delays while preserving edits to extension dependencies.
 
 ## [0.9.19-alpha.2] - 2026-09-08
 
