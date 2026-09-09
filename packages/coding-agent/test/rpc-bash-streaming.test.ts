@@ -8,6 +8,7 @@ import { createRpcInputLineHandler } from "../src/modes/rpc/rpc-input.ts";
 import { createRpcInputScheduler } from "../src/modes/rpc/rpc-input-scheduler.ts";
 import { RpcSessionBinding } from "../src/modes/rpc/rpc-session-binding.ts";
 import type { RpcResponse } from "../src/modes/rpc/rpc-types.ts";
+import { delayedOutputCommand, outputCommand } from "./helpers/rpc-shell-commands.js";
 import { createHarness } from "./suite/harness.ts";
 
 function runtimeFor(session: Awaited<ReturnType<typeof createHarness>>["session"]): AgentSessionRuntime {
@@ -72,13 +73,19 @@ describe("correlated RPC bash streaming", () => {
 		const response = await handle({
 			id: "rpc-direct",
 			type: "bash",
-			command: "printf 'stdout'; printf 'stderr' >&2",
+			command: `${outputCommand("stdout")}; ${outputCommand("stderr", "stderr")}`,
 		});
 		expect(updates.map(({ id, channel, delta }) => ({ id, channel, delta }))).toEqual([
 			{ id: "rpc-direct", channel: "stdout", delta: "stdout" },
 			{ id: "rpc-direct", channel: "stderr", delta: "stderr" },
 		]);
-		expect(response).toMatchObject({ id: "rpc-direct", type: "response", command: "bash", success: true });
+		expect(response).toMatchObject({
+			id: "rpc-direct",
+			type: "response",
+			command: "bash",
+			success: true,
+			data: { output: "stdoutstderr", exitCode: 0, cancelled: false },
+		});
 		harness.cleanup();
 	});
 
@@ -93,12 +100,12 @@ describe("correlated RPC bash streaming", () => {
 		const first = handle({
 			id: "rpc-cancel",
 			type: "bash",
-			command: "printf 'cancel-start'; sleep 1; printf 'cancel-end'",
+			command: delayedOutputCommand("cancel-start", 1, "cancel-end"),
 		});
 		const second = handle({
 			id: "rpc-keep",
 			type: "bash",
-			command: "printf 'keep-start'; sleep 0.1; printf 'keep-end'",
+			command: delayedOutputCommand("keep-start", 0.1, "keep-end"),
 		});
 		while (!updates.some((event) => event.id === "rpc-cancel") || !updates.some((event) => event.id === "rpc-keep")) {
 			await new Promise((resolve) => setTimeout(resolve, 5));
@@ -159,7 +166,11 @@ describe("correlated RPC bash streaming", () => {
 			output: (event) => output.push(event),
 		});
 
-		const bash = handle({ id: "replacement-bash", type: "bash", command: "printf before; sleep 0.1; printf after" });
+		const bash = handle({
+			id: "replacement-bash",
+			type: "bash",
+			command: delayedOutputCommand("before", 0.1, "after"),
+		});
 		await waitFor(() =>
 			output.some(
 				(event) =>

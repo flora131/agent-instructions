@@ -233,6 +233,8 @@ const proseNames = new Set([
 	"edit",
 	// PR #2920 names the question tool in prompt guidance, not a package-root export.
 	"ask_user_question",
+	// `/tasks` cancellation key, not a package-root export.
+	"x",
 	// Terminal UI copy, not a symbol: the interactive working-status label.
 	"Working",
 ]);
