@@ -223,9 +223,12 @@ The model emits numbered line ranges only; Atomic reconstructs retained text mec
 | `retry.enabled` | boolean | `true` | Enable automatic agent-level retry on transient errors |
 | `retry.maxRetries` | number | `3` | Maximum agent-level retry attempts |
 | `retry.baseDelayMs` | number | `2000` | Base delay for agent-level exponential backoff (2s, 4s, 8s) |
+| `retry.maxAgentDelayMs` | number | `60000` | Maximum agent-level backoff delay (60s); `0` retries immediately |
 | `retry.provider.timeoutMs` | number | SDK default | Provider/SDK request timeout in milliseconds |
 | `retry.provider.maxRetries` | number | `0` | Provider/SDK retry attempts. Leave unset/`0` to let Atomic's agent-level retry handle transient failures |
 | `retry.provider.maxRetryDelayMs` | number | `60000` | Max server-requested delay before failing (60s) |
+
+Agent-level retries use exponential backoff capped by `retry.maxAgentDelayMs`, including the shared main-chat and workflow retry policy and summary calls. This is independent of provider retry limits. Legacy `retry.maxDelayMs` still migrates to `retry.provider.maxRetryDelayMs`, not the agent cap.
 
 When a provider requests a retry delay longer than `retry.provider.maxRetryDelayMs` (e.g., Google's "quota will reset after 5h"), the request fails immediately with an informative error instead of waiting silently. Set to `0` to disable the cap.
 
@@ -237,6 +240,7 @@ When a provider requests a retry delay longer than `retry.provider.maxRetryDelay
     "enabled": true,
     "maxRetries": 3,
     "baseDelayMs": 2000,
+    "maxAgentDelayMs": 60000,
     "provider": {
       "timeoutMs": 3600000,
       "maxRetries": 0,

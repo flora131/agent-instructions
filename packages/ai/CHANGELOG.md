@@ -4,6 +4,10 @@ This package is a Bastani fork of `@earendil-works/pi-ai`. Upstream history at t
 
 ## [Unreleased]
 
+### Fixed
+
+- Capped shared assistant retry backoff with `RetryPolicy.maxAgentDelayMs` (60 seconds by default), including summary calls ([#8826](https://github.com/earendil-works/pi/issues/8826)).
+
 ## [0.9.19-alpha.2] - 2026-09-08
 
 ### Fixed

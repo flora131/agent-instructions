@@ -2234,6 +2234,8 @@ async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
 
 ### Tool Definition
 
+`parameters` is required, including for no-argument tools (use `Type.Object({})`). Registration rejects missing, null, array, and primitive schema values before they can break a provider request. This checks the schema container, not its JSON Schema `type`: object-valued union and non-object-type schemas remain accepted and unchanged.
+
 ```typescript
 import { Type } from "typebox";
 import { StringEnum } from "@bastani/atomic";

@@ -9,10 +9,13 @@
  * handling, sleeping, and whether the chain may advance afterwards.
  */
 
+import { retryDelayMs } from "@earendil-works/pi-ai";
+
 export interface RetryPolicySettings {
 	readonly enabled: boolean;
 	readonly maxRetries: number;
 	readonly baseDelayMs: number;
+	readonly maxAgentDelayMs?: number;
 }
 
 export interface RetryDecision {
@@ -38,5 +41,5 @@ export function nextRetryDecision(
 		return undefined;
 	}
 	const attempt = retriesSpent + 1;
-	return { attempt, delayMs: settings.baseDelayMs * 2 ** (attempt - 1) };
+	return { attempt, delayMs: retryDelayMs(settings, attempt) };
 }

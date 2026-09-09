@@ -18,7 +18,10 @@ type WorkflowPendingStageDelivery = NonNullable<
 type AgentStageSessionEvent = Parameters<AgentSession["subscribe"]>[0] extends (event: infer T) => void ? T : never;
 export type StageSessionEvent = AgentStageSessionEvent & { readonly turnId?: string | number };
 
-export type WorkflowRetrySettings = ReturnType<SettingsManager["getRetrySettings"]>;
+// External Pi hosts may predate the optional agent retry cap.
+export type WorkflowRetrySettings = Omit<ReturnType<SettingsManager["getRetrySettings"]>, "maxAgentDelayMs"> & {
+	readonly maxAgentDelayMs?: number;
+};
 
 export type WorkflowSettingsManager = {
 	getRetrySettings?(): WorkflowRetrySettings;
