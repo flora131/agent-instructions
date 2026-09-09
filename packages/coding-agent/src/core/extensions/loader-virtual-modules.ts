@@ -483,7 +483,10 @@ async function importExtensionModule(
 			: isWindows
 				? { fsCache: getTranspileCacheDir() }
 				: {}),
-		...(isSingleFileBuild ? { virtualModules: await getVirtualModules() } : { alias: getAliases() }),
+		// Share the running host on transformed reloads too: aliasing its source
+		// re-evaluates the host graph and duplicates host classes/singletons.
+		...(isSingleFileBuild || forceTransformedImports ? { virtualModules: await getVirtualModules() } : {}),
+		...(!isSingleFileBuild ? { alias: getAliases() } : {}),
 	});
 	const specifier = extensionImportSpecifier(extensionPath, cacheToken);
 	// Transformed evaluations are the loads whose repeat cost is the Windows
