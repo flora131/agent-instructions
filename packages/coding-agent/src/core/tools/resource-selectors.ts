@@ -771,14 +771,18 @@ export async function searchInternalSelector(
 		contextAfter,
 	).join("\n");
 }
-function shellQuote(value: string): string {
-	return `'${value.replace(/'/g, `'\\''`)}'`;
+function shellQuote(value: string, dialect: "posix" | "powershell"): string {
+	// PowerShell also treats U+2018–U+201B as single-quote delimiters.
+	return dialect === "powershell"
+		? `'${value.replace(/['\u2018-\u201b]/g, "$&$&")}'`
+		: `'${value.replace(/'/g, `'\\''`)}'`;
 }
 export async function expandShellInternalUrls(
 	text: string,
 	cwd: string,
 	context?: InternalResourceContext,
 	quote = false,
+	dialect: "posix" | "powershell" = "posix",
 ): Promise<string> {
 	const pattern = /(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*:\/\/[^\s'"`$)]+/gi;
 	const replacements = new Map<string, string>();
@@ -793,7 +797,7 @@ export async function expandShellInternalUrls(
 				"Internal URL shell expansion requires plain unquoted words; use a filesystem path for quotes, substitutions, escapes or heredocs.",
 			);
 		}
-		replacements.set(match, quote ? shellQuote(resolved) : resolved);
+		replacements.set(match, quote ? shellQuote(resolved, dialect) : resolved);
 	}
 	// Replace original occurrences only; never reinterpret a router's result.
 	return text.replace(pattern, (match) => replacements.get(match) ?? match);

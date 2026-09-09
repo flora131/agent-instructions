@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- Reduced default workflow stage and authored parallel concurrency from 4 to 3, preserving explicit configuration and per-call overrides.
+
 ## [0.9.19-alpha.2] - 2026-09-08
 
 ### Added

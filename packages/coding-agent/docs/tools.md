@@ -32,6 +32,10 @@ When explicitly enabled in settings, built-in bash interceptor rules block commo
 
 Shell internal-URL expansion is intentionally conservative: commands containing a resolved URL must use only plain unquoted words, spaces/tabs, and basic `;`, `|`, or `&` operators. For example, `printf %s local://notes.txt` is supported and the resolved path is shell-quoted automatically, including paths containing spaces or shell metacharacters. Quotes anywhere in such a command, substitutions, escapes, newlines, redirections and heredocs are rejected before execution; use a filesystem path instead for those forms. Commands without resolved internal URLs retain normal shell syntax. URL expansion in structured `cwd` and `env` values is unchanged.
 
+The `powershell` tool uses PowerShell single-quoted literals for resolved paths, doubling both ASCII apostrophes and PowerShell's smart single-quote delimiters (U+2018–U+201B). Bash keeps POSIX quoting, including when Bash runs on Windows. SDK adapters using `createBashToolDefinition` with custom PowerShell operations can set `shellDialect: "powershell"` for generated path literals; this option does not select the executable or rewrite deliberate shell code.
+
+Configured command prefixes and SDK `spawnHook` rewrites remain executable shell syntax, not a sandbox. Balanced setup commands such as quoted exports remain supported. A prefix that leaves a quote, substitution, or heredoc open across the following command can invalidate the generated path quoting; automatic URL expansion does not validate that composed shell context. Do not combine URL expansion with such wrappers. Use structured `cwd` and `env` for path data instead.
+
 ```json
 {
   "bashInterceptor": { "enabled": true }
