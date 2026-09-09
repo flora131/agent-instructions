@@ -61,7 +61,7 @@ npm run test:scripts             # Repository script tests under Node
 npm run test --workspace=@bastani/atomic -- test/specific.test.ts
 ```
 
-CI runs root unit and integration suites on Linux and Windows. Keep test isolation, concurrency, and shared timeout budgets unchanged. See [CI documentation](https://github.com/bastani-inc/atomic/blob/main/docs/ci.md) for job details and release procedures.
+CI runs root unit and integration suites on Linux and Windows. See [CI documentation](https://github.com/bastani-inc/atomic/blob/main/docs/ci.md) for job details and release procedures.
 
 ### Installed package smoke test
 
@@ -71,7 +71,7 @@ After building, run:
 ATOMIC_REQUIRE_INSTALLED_NODE_SMOKE=1 npx vitest --run --project integration test/integration/installed-package-node-extensions.test.ts
 ```
 
-This checks Node startup and builtin extension loading outside the checkout. It excludes the checkout-only `@earendil-works/pi-ai` alias; core imports must use the declared `@bastani/pi-ai` dependency.
+This checks Node startup and builtin extension loading outside the checkout.
 
 Atomic ships an npm shrinkwrap. After dependency changes, regenerate it with `npm run shrinkwrap:coding-agent` and validate with `npm run check`.
 
