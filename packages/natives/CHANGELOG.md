@@ -2,12 +2,17 @@
 
 ## [Unreleased]
 
+## [0.9.19-alpha.2] - 2026-09-08
+
 ### Added
 
+- Added replay-safe model and reasoning activity reports and retained model and thinking fields on task snapshots, including settled tasks.
 - Added an environment-local `TaskSupervisor` actor with owner-sealed admission, stable task/attempt identities, replay-safe reports, observation waits, cancellation and independently acknowledged cleanup. Generated bindings expose atomic snapshot subscriptions with a byte-bounded event journal; total task/report history and output storage are not bounded by this journal ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added supervised Unix pipe/PTY commands with process-group cleanup, observation-independent execution deadlines, replay-safe byte-credit stdin, resize and retained output paging. Drained output stays live beyond its cap; background file-spool overflow settles `OutputLimitExceeded` ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added Windows pipe task containment with suspended launch, explicit inherited handles and kill-on-close Job Objects. Assignment failure refuses execution and confirms suspended-process cleanup; failed cleanup retains diagnostic resources. Supervised Windows PTY remains unavailable ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Added a read-only `taskSettlement` query for authentic terminal receipts, including cancellation, so hosts can recover completion delivery after journal resets without registering another wait. Task snapshots retain `wasBackground` after a designated wait yields, including after settlement.
+- Added supervised Windows ConPTY commands with suspended launch, Job Object containment before resume, retained output and confirmed cleanup. Containment failure refuses execution without an unsupervised fallback.
+- Added optional `CommandIntent.shell: { program, args }` for direct executable launch with the command as one final argv argument, and `inheritEnv` (default `true`; `false` uses exactly the supplied environment). Both participate in operation replay identity; the default native pipe shell is unchanged.
 
 ### Changed
 
@@ -23,6 +28,7 @@
 - Bounded S1 activity replay identity to the latest 256 accepted IDs with SHA-256 payload hashes instead of retaining full report history. Evicted IDs are fresh reports subject to lifecycle guards; terminal reports and receipts remain retained for the task record's lifetime ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Allocated trusted S1 runner terminal identities atomically against the bounded activity window, so caller report IDs cannot consume the runner's settlement identity. Caller outcome conflicts, immutable terminal replay and cancellation precedence remain unchanged ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Prevented accepted `NaN` task wait budgets from panicking the native timer. Such waits use bounded sleep chunks until another observation or lifecycle action finishes them; finite budgets and infinities retain their existing behavior ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
+- Retry transient macOS permission errors while checking whether a terminated process group has disappeared, within the existing cleanup deadline. Unreaped zombies no longer cause immediate cleanup failure; persistent refusals still fail closed.
 
 ## [0.9.16] - 2026-08-29
 

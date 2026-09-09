@@ -1,5 +1,5 @@
 import type { Component, Focusable } from "@earendil-works/pi-tui";
-import type { AgentSessionEvent, CompactionReason } from "../../../core/agent-session.ts";
+import type { AgentSessionEvent, CompactionReason } from "../../../core/agent-session.js";
 import { repairOrphanToolResults } from "../../../core/messages.ts";
 import { SessionManager } from "../../../core/session-manager.ts";
 import type { TaskId } from "../../../core/tasks/contracts.js";
@@ -44,7 +44,7 @@ import type {
 	ChatSessionHostOpts,
 	ChatSessionSubmitMode,
 } from "./chat-session-host-types.ts";
-import type { ChatTranscriptEntryLike } from "./chat-transcript.ts";
+import type { ChatTranscriptEntryLike } from "./chat-transcript.js";
 import { TaskInspector } from "./task-inspector.js";
 import { renderTaskFooter } from "./task-list.js";
 
@@ -110,6 +110,9 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	}
 	get hasTaskInspector(): boolean {
 		return this.taskInspector !== undefined;
+	}
+	get taskInspectorFullscreen(): boolean {
+		return this.taskInspector?.fullscreen === true;
 	}
 	closeTasks(): void {
 		this.taskInspector?.dispose();
@@ -232,7 +235,13 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 	}
 
 	renderBody(width: number, budget: number): string[] {
-		if (this.taskInspector) return this.taskInspector.renderViewport(width, budget);
+		if (this.taskInspector) {
+			if (this.taskInspector.fullscreen) return this.taskInspector.renderViewport(width, budget);
+			const picker = this.taskInspector.renderPicker(width, budget);
+			const remaining = Math.max(0, budget - picker.length);
+			const body = remaining ? renderChatSessionBody(this.state, width, remaining) : [];
+			return [...body, ...Array.from({ length: Math.max(0, remaining - body.length) }, () => ""), ...picker];
+		}
 		return renderChatSessionBody(this.state, width, budget);
 	}
 
@@ -288,7 +297,7 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 		return renderTaskFooter(this.taskStore?.backgroundTasks ?? [], width);
 	}
 	renderFooter(width: number): string[] {
-		const footer = renderChatSessionFooter(this.state, width);
+		const footer = renderChatSessionFooter(this.state, width, this.hasTaskInspector && !this.taskInspectorFullscreen);
 		return footer.length ? footer : renderTaskFooter(this.taskStore?.backgroundTasks ?? [], width);
 	}
 
@@ -300,8 +309,9 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 		return handleChatSessionInput(this.state, data, this.editorCallbacks());
 	}
 
-	async interrupt(options?: { restoreQueuedMessages?: boolean }): Promise<void> {
-		await interruptChatSession(this.state, options);
+	interrupt(options?: { restoreQueuedMessages?: boolean }): Promise<void> {
+		// Keep the observed settlement: an async wrapper would orphan rejections from Escape callers.
+		return interruptChatSession(this.state, options);
 	}
 
 	async submit(mode: ChatSessionSubmitMode = "auto", submittedText?: string): Promise<void> {

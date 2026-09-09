@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { test } from "vitest";
-import { DEFAULT_PROMPT_GUIDANCE } from "../../packages/workflows/src/extension/workflow-prompts.js";
+import {
+	DEFAULT_PROMPT_GUIDANCE,
+	WORKFLOW_TOOL_DESCRIPTION,
+} from "../../packages/workflows/src/extension/workflow-prompts.js";
 import { moduleDir, readText } from "../helpers/runtime.js";
 
 const root = resolve(moduleDir(import.meta.url), "../..");
@@ -37,14 +40,23 @@ const contracts = [
 		],
 	},
 	{
-		name: "reports source-backed launch estimates and actual duration without changing budgets",
+		name: "reports source-backed estimates before launch without confidence markers",
 		phrases: [
-			"Immediately after a successful workflow launch",
-			"estimated wall-clock completion range before ending the turn",
+			"Before launching a workflow, give the user an estimated wall-clock completion range",
+			"without confidence labels or scores",
 			"critical path",
-			"low-confidence",
+			"If history is missing, state that briefly rather than inventing metrics",
 			"An estimate is not a `budget` override or a promise",
 			"actual elapsed time against the estimate",
+		],
+	},
+	{
+		name: "inherits limits without a routine budget question and honors explicit overrides",
+		phrases: [
+			"Proceed with inherited budget limits without asking the user to choose a budget before each launch",
+			"preserve existing budget limits and approval gates",
+			"When the user does state a limit, pass only the fields they named",
+			"Never convert an estimate into a cap",
 		],
 	},
 ];
@@ -75,4 +87,23 @@ test("uses available question tools and continues autonomously when none is usab
 		assert.ok(guidance.includes(phrase), `model guidance missing: ${phrase}`);
 	}
 	assert.ok(!guidance.includes("prefer the `ask_user_question` tool"));
+});
+
+test("removes contradictory post-launch estimate and unanswered-question fallback instructions", async () => {
+	const docs = await readText(resolve(root, "packages/coding-agent/docs/workflows/reliable-design.md"));
+	for (const text of [guidance, docs]) {
+		assert.ok(!text.includes("Immediately after a successful workflow launch"));
+		assert.ok(!text.includes("estimate as low-confidence"));
+		assert.ok(!text.includes("or nobody answers, do not stall"));
+		assert.ok(!text.includes("assuming no budget is always the correct default"));
+		assert.ok(!text.includes("ask whether the user wants an explicit budget"));
+		assert.ok(!text.includes('Offer "Proceed with inherited limits"'));
+		assert.ok(guidance.includes("resume with a raised `budget` only after approval"));
+	}
+});
+
+test("tool description inherits limits without offering a routine budget choice", () => {
+	assert.ok(WORKFLOW_TOOL_DESCRIPTION.includes("Proceed with inherited budget limits without asking"));
+	assert.ok(WORKFLOW_TOOL_DESCRIPTION.includes("Pass budget only for a user-specified limit"));
+	assert.ok(!WORKFLOW_TOOL_DESCRIPTION.includes("ask whether the user wants an explicit budget"));
 });

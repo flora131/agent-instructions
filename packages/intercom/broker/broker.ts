@@ -138,6 +138,7 @@ function isSessionRegistration(value: unknown): value is Omit<SessionInfo, "id">
     return false;
   }
 
+  if (session.replyCapability !== undefined && session.replyCapability !== "live" && session.replyCapability !== "terminal") return false;
   if (session.recipientPurpose !== undefined &&
     session.recipientPurpose !== "agent" && session.recipientPurpose !== "control") {
     return false;
@@ -1597,6 +1598,7 @@ class IntercomBroker {
           currentId,
           this.sessions,
           (target, message) => writeMessageIfOpen(target, message),
+          this.pendingQuestions,
         );
         break;
       }

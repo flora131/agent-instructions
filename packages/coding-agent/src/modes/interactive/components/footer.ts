@@ -1,6 +1,6 @@
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { type Component, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import type { AgentSession } from "../../../core/agent-session.ts";
+import type { AgentSession } from "../../../core/agent-session.js";
 import { areExperimentalFeaturesEnabled } from "../../../core/experimental.ts";
 import type { ReadonlyFooterDataProvider } from "../../../core/footer-data-provider.ts";
 import { getOwnerTaskStore } from "../../../core/tasks/owner-store.js";
@@ -183,18 +183,29 @@ export class FooterComponent implements Component {
 	private declare session: AgentSession;
 	private declare footerData: ReadonlyFooterDataProvider;
 	private declare readonly renderStyle: FooterRenderStyle;
+	private readonly navigationActive: () => boolean;
+	private branchCwd: string | undefined;
+	private releaseBranch: (() => void) | undefined;
+	private disposed = false;
 
 	constructor(
 		session: AgentSession,
 		footerData: ReadonlyFooterDataProvider,
 		renderStyle: FooterRenderStyle = defaultFooterRenderStyle,
+		navigationActive: () => boolean = () => false,
 	) {
 		this.session = session;
 		this.footerData = footerData;
 		this.renderStyle = renderStyle;
+		this.navigationActive = navigationActive;
 	}
 
 	setSession(session: AgentSession): void {
+		if (this.session !== session) {
+			this.releaseBranch?.();
+			this.releaseBranch = undefined;
+			this.branchCwd = undefined;
+		}
 		this.session = session;
 	}
 
@@ -210,18 +221,25 @@ export class FooterComponent implements Component {
 		// No-op: git branch is cached/invalidated by provider
 	}
 
-	/**
-	 * Clean up resources.
-	 * Git watcher cleanup now handled by provider.
-	 */
+	/** Release this viewer's branch subscription without disposing shared footer data. */
 	dispose(): void {
-		// Git watcher cleanup handled by provider
+		this.disposed = true;
+		this.releaseBranch?.();
+		this.releaseBranch = undefined;
 	}
 
 	render(width: number): string[] {
+		if (this.disposed) return [];
 		const state = this.session.state;
-		let pwd = replaceHome(this.session.sessionManager.getCwd());
-		const branch = this.footerData.getGitBranch();
+		const cwd = this.session.sessionManager.getCwd();
+		if (this.branchCwd !== cwd) {
+			this.releaseBranch?.();
+			// Repaints are requested by the host's existing shared branch subscription.
+			this.releaseBranch = this.footerData.onBranchChange(() => {}, cwd);
+			this.branchCwd = cwd;
+		}
+		let pwd = replaceHome(cwd);
+		const branch = this.footerData.getGitBranch(cwd);
 		if (branch) pwd += ` (${branch})`;
 		const sessionName =
 			typeof this.session.sessionManager.getSessionName === "function"
@@ -239,7 +257,8 @@ export class FooterComponent implements Component {
 			modelLabel = `(${state.model.provider}) ${modelLabel}`;
 		}
 
-		const liveState = this.session.isStreaming ? this.renderStyle.muted("esc to interrupt") : undefined;
+		const liveState =
+			this.session.isStreaming && !this.navigationActive() ? this.renderStyle.muted("esc to interrupt") : undefined;
 		let statusText =
 			liveState ?? `${this.renderStyle.dim(modelLabel)} ${this.renderStyle.dim("•")} ${this.renderStyle.muted(pwd)}`;
 		if (areExperimentalFeaturesEnabled()) statusText += ` ${this.renderStyle.warning("xp")}`;

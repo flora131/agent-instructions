@@ -44,7 +44,7 @@ import type {
 	SessionStartEvent,
 	ToolDefinition,
 	ToolInfo,
-} from "./extensions/index.ts";
+} from "./extensions/index.js";
 import type { BashExecutionMessage, CustomMessage } from "./messages.ts";
 import type { ExtensionProviderTransaction, ModelRuntime } from "./model-runtime.js";
 import type { PathMetadata } from "./package-manager.ts";
@@ -53,7 +53,7 @@ import type { ResourceLoader } from "./resource-loader.ts";
 import type { BranchSummaryEntry, SessionManager } from "./session-manager.ts";
 import type { SettingsManager } from "./settings-manager.ts";
 import type { BuildSystemPromptOptions } from "./system-prompt.ts";
-import type { BashOperations } from "./tools/bash.ts";
+import type { BashOperations } from "./tools/bash.js";
 
 export interface VerbatimCompactionApplyOptions {
 	/** Per-model planner credentials; a borrowed fallback uses its own, never the session model's. */
@@ -108,7 +108,7 @@ export interface AgentSessionQueuePauseControl {
 }
 
 export interface AgentSessionMethodSurface extends AgentSessionQueuePauseControl {
-	readonly orchestrationContext: import("./extensions/index.ts").OrchestrationContext | undefined;
+	readonly orchestrationContext: import("./extensions/index.js").OrchestrationContext | undefined;
 	readonly modelRuntime: ModelRuntime;
 	readonly state: AgentState;
 	readonly model: Model<Api> | undefined;
@@ -158,6 +158,9 @@ export interface AgentSessionMethodSurface extends AgentSessionQueuePauseControl
 	dispose(): void;
 	getAgentTaskHost(): import("./tasks/agent-adapter.js").AgentTaskHost;
 	closeSessionTasks(): Promise<void>;
+	/** Internal workflow pause: cancel owned execution without closing message admission. */
+	pauseTasks(): Promise<void>;
+	resumeTasks(): void;
 
 	getActiveToolNames(): string[];
 	getAllTools(): ToolInfo[];
@@ -175,8 +178,8 @@ export interface AgentSessionMethodSurface extends AgentSessionQueuePauseControl
 	_continueQueuedAgentMessages(): Promise<void>;
 	_tryExecuteExtensionCommand(text: string): Promise<boolean>;
 	_expandSkillCommand(text: string): string;
-	steer(text: string, images?: ImageContent[]): Promise<void>;
-	followUp(text: string, images?: ImageContent[]): Promise<void>;
+	steer(text: string, images?: ImageContent[], options?: Pick<PromptOptions, "source">): Promise<void>;
+	followUp(text: string, images?: ImageContent[], options?: Pick<PromptOptions, "source">): Promise<void>;
 	sendUserMessage(
 		content: string | (TextContent | ImageContent)[],
 		options?: { deliverAs?: "steer" | "followUp"; expandPromptTemplates?: boolean },
@@ -493,7 +496,7 @@ export interface AgentSessionInternalSurface extends AgentSessionMethodSurface, 
 	_baseToolsOverride?: Record<string, AgentTool>;
 	_sessionStartEvent: SessionStartEvent;
 	_orchestrationContext?: OrchestrationContext;
-	_subagentPolicy?: import("./extensions/index.ts").SubagentChildPolicy;
+	_subagentPolicy?: import("./extensions/index.js").SubagentChildPolicy;
 	_extensionUIContext?: ExtensionUIContext;
 	_extensionMode: ExtensionMode;
 	_disposed: boolean;

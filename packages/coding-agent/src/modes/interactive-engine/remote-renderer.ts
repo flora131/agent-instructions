@@ -1,7 +1,7 @@
 import type { Component } from "@earendil-works/pi-tui";
 import type { CustomMessage } from "../../core/messages.ts";
 import type { ToolExecutionComponent } from "../interactive/components/tool-execution.ts";
-import type { IsolatedInteractiveRuntime } from "./isolated-runtime.ts";
+import type { IsolatedInteractiveRuntime } from "./isolated-runtime.js";
 import type { InteractiveEngineCommand, JsonObject, JsonValue } from "./protocol.ts";
 import { RemoteFrameWidthClamp } from "./remote-frame-clamp.ts";
 

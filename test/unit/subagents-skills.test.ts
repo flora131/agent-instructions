@@ -68,6 +68,18 @@ describe("subagent skill resolution", () => {
 		);
 	});
 
+	test("resolves builtin herdr beside tmux and preserves its upstream safety contract", () => {
+		const result = resolveSkills(["herdr", "tmux"], repoRoot);
+		assert.deepEqual(result.missing, []);
+		const herdr = result.resolved.find((skill) => skill.name === "herdr");
+		assert.equal(herdr?.source, "builtin");
+		assert.equal(herdr?.path, join(builtinSubagentsSkillsRoot, "herdr", "SKILL.md"));
+		assert.match(herdr?.content ?? "", /If the check fails.*stop/);
+		assert.match(herdr?.content ?? "", /HERDR_ENV/);
+		assert.match(herdr?.content ?? "", /Do not run bare `herdr` for discovery/);
+		assert.match(buildSkillInjection(result.resolved), /<skill name="herdr">/);
+	});
+
 	test("builds skill injection for builtin skills without YAML frontmatter", () => {
 		const result = resolveSkills(["tdd", "playwright-cli"], repoRoot);
 		const injection = buildSkillInjection(result.resolved);

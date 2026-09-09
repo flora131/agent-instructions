@@ -1,13 +1,13 @@
 import { type KeyId, matchesKey } from "@earendil-works/pi-tui";
 import type { AgentSessionRuntime } from "../../core/agent-session-runtime.ts";
 import type { ResourceOverlap } from "../../core/diagnostics.ts";
-import type { ExtensionUIContext } from "../../core/extensions/index.ts";
+import type { ExtensionUIContext } from "../../core/extensions/index.js";
 import type { KeybindingsManager } from "../../core/keybindings.ts";
 import type { RpcAutocompleteItem, RpcResourceExtension, RpcSlashCommand } from "../rpc/rpc-types.ts";
 import type { ActivityWatchdogDiagnostic } from "./activity-watchdog.ts";
 import { EngineDialogHostController } from "./engine-dialog-host.ts";
 import { InputFormHostController } from "./input-form-host.ts";
-import { IsolatedInteractiveRuntime } from "./isolated-runtime.ts";
+import { IsolatedInteractiveRuntime } from "./isolated-runtime.js";
 import type { EngineExtensionShortcut, EngineKeybindingState, InteractiveEngineMessage } from "./protocol.ts";
 import { RemoteComponentController, type TuiRendererLifecycle } from "./remote-component.ts";
 import { registerRemoteProxyOwnership } from "./remote-input-ownership.ts";

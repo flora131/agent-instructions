@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { UiProxyRequestBody, UiProxyResult } from "./types.ts";
+import type { UiProxyRequestBody, UiProxyResult } from "./types.js";
 
 const MAX_BODY_SIZE = 2 * 1024 * 1024;
 

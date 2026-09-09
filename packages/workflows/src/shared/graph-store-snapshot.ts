@@ -128,6 +128,11 @@ function compactStage(stage: StageSnapshot): StageSnapshot {
 		// for status surfaces while the bounded full payload below backs the
 		// read-only detail view.
 		result: _result,
+		// `structured` aliases the object the executor handed back to author
+		// code, and this projection is deep-frozen below. Re-exporting it would
+		// freeze execution-owned state that a later stage still has to mutate.
+		// `store.snapshot()` and durable checkpoints keep the complete value.
+		structured: _structured,
 		...metadata
 	} = stage;
 	return {

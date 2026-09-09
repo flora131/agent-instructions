@@ -281,7 +281,10 @@ describe("ralph", () => {
 			assert.match(prompt, /Verify correctness end-to-end whenever practical/, label);
 			assert.match(prompt, /frontend changes whose correctness depends on backend\/API behavior/, label);
 			assert.match(prompt, /skill: "playwright-cli"/, label);
-			assert.match(prompt, /skill: "tmux"/, label);
+			// PR #2932 prefers Herdr while retaining tmux/psmux as the fallback.
+			assert.match(prompt, /prefer the herdr skill on macOS, Linux and Windows/, label);
+			assert.match(prompt, /fall back to the tmux skill or native Windows psmux/, label);
+			assert.match(prompt, /explicit-request and HERDR_ENV=1 requirements/, label);
 			assert.match(prompt, /Choose tools from observed environment capabilities/i, label);
 			assert.match(prompt, /Known offline\/restricted installation is sufficient evidence/i, label);
 		}

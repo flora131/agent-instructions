@@ -8,7 +8,6 @@ import { satisfies } from "semver";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "..");
 const codingAgentDir = join(repoRoot, "packages/coding-agent");
-const codingAgentLockPrefix = "packages/coding-agent/";
 const rootLockfilePath = join(repoRoot, "package-lock.json");
 const shrinkwrapPath = join(codingAgentDir, "npm-shrinkwrap.json");
 const internalPackageNames = new Set(["@bastani/atomic-natives", "@bastani/pi-ai"]);
@@ -17,8 +16,9 @@ const embeddedPostgresSymlinkReason =
 	"postinstall rehydrates Postgres native/lib symlinks that npm tarballs cannot contain; Atomic also hydrates them at runtime for script-less installs";
 const allowedInstallScriptPackages = new Map([
 	["@google/genai@1.52.0", "preinstall is a no-op in the published package"],
+	["@google/genai@2.21.0", "preinstall is a no-op in the published package"],
 	["esbuild@0.28.1", "postinstall selects the platform binary required by @earendil-works/chord facet bundling"],
-	["protobufjs@7.6.5", "postinstall only warns about protobufjs version scheme mismatches"],
+	["protobufjs@7.6.6", "postinstall only warns about protobufjs version scheme mismatches"],
 	["@embedded-postgres/darwin-arm64@18.4.0-beta.17", embeddedPostgresSymlinkReason],
 	["@embedded-postgres/darwin-x64@18.4.0-beta.17", embeddedPostgresSymlinkReason],
 	["@embedded-postgres/linux-arm@18.4.0-beta.17", embeddedPostgresSymlinkReason],
@@ -231,8 +231,16 @@ function getInternalWorkspaces(lockPackages) {
 	return workspaces;
 }
 
-function publishedLockPath(lockPath) {
-	return lockPath.startsWith(codingAgentLockPrefix) ? lockPath.slice(codingAgentLockPrefix.length) : lockPath;
+function publishedLockPath(lockPath, sourceToOutput) {
+	let parent = posix.dirname(lockPath);
+	while (parent !== ".") {
+		const outputParent = sourceToOutput.get(parent);
+		if (outputParent !== undefined) {
+			return posix.join(outputParent, lockPath.slice(parent.length + 1));
+		}
+		parent = posix.dirname(parent);
+	}
+	return lockPath;
 }
 
 function choosePublishedPath(lockPath, packageName, outputFrom, addedPaths, sourceToOutput) {
@@ -241,7 +249,7 @@ function choosePublishedPath(lockPath, packageName, outputFrom, addedPaths, sour
 		return existingOutputPath;
 	}
 
-	const baseOutputPath = publishedLockPath(lockPath);
+	const baseOutputPath = publishedLockPath(lockPath, sourceToOutput);
 	if (!addedPaths.has(baseOutputPath)) {
 		return baseOutputPath;
 	}
@@ -304,13 +312,13 @@ function resolveExternalDependency(lockPackages, packageName, fromLockPath) {
 	);
 }
 
-function addGeneratedInternalPackage(shrinkwrapPackages, addedPaths, queue, name, entry) {
+function addGeneratedInternalPackage(shrinkwrapPackages, addedPaths, queue, name, entry, workspaceLockPath) {
 	const outputPath = `node_modules/${name}`;
 	shrinkwrapPackages[outputPath] = sortedPackageEntry(entry);
 	addedPaths.add(outputPath);
 
 	for (const dependencyName of Object.keys(packageDependencies(entry))) {
-		queue.push({ name: dependencyName, from: outputPath, outputFrom: outputPath });
+		queue.push({ name: dependencyName, from: workspaceLockPath ?? outputPath, outputFrom: outputPath });
 	}
 }
 
@@ -433,7 +441,11 @@ async function generateShrinkwrap() {
 		"": copyPackageJsonEntry(codingAgentPackage, { includeName: true }),
 	};
 	const addedPaths = new Set([""]);
-	const sourceToOutput = new Map();
+	// Preserve source workspace locations for resolution, and their published locations for placement.
+	const sourceToOutput = new Map([
+		["packages/coding-agent", ""],
+		...[...internalWorkspaces].map(([name, workspace]) => [workspace.lockPath, `node_modules/${name}`]),
+	]);
 	const internalNames = new Set();
 	const queue = Object.keys(packageDependencies(codingAgentPackage)).map((name) => ({
 		name,
@@ -452,7 +464,14 @@ async function generateShrinkwrap() {
 			internalNames.add(item.name);
 			const outputPath = `node_modules/${item.name}`;
 			if (!addedPaths.has(outputPath)) {
-				addGeneratedInternalPackage(shrinkwrapPackages, addedPaths, queue, item.name, generatedInternalPackage);
+				addGeneratedInternalPackage(
+					shrinkwrapPackages,
+					addedPaths,
+					queue,
+					item.name,
+					generatedInternalPackage,
+					internalWorkspaces.get(item.name)?.lockPath,
+				);
 			}
 			continue;
 		}

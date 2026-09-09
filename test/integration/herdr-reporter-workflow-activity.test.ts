@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "vitest";
+import { test, vi } from "vitest";
 import { createEventBus } from "../../packages/coding-agent/src/core/event-bus.js";
 import {
 	createExtensionRuntime,
@@ -165,6 +165,82 @@ test("reporter reports working, blocked, working, idle for a real workflow with 
 			await execution;
 		} finally {
 			observation?.dispose();
+			runner.invalidate();
+			await fake.dispose();
+		}
+	}
+});
+
+test("reporter returns to idle after a blocked workflow executor stops without a prompt", async () => {
+	const fake = await fakeHerdr();
+	const runtime = createExtensionRuntime();
+	const extension = await loadExtensionFromFactory(
+		createHerdrExtension({ env: fake.env, enabled: () => true }),
+		fake.dir,
+		createEventBus(),
+		runtime,
+		"herdr",
+	);
+	const runner = new ExtensionRunner([extension], runtime, fake.dir, SessionManager.inMemory(), {} as never);
+	runner.setUIContext({ ...noOpUIContext }, "tui");
+	const store = createStore();
+	const release = Promise.withResolvers<void>();
+	const controller = new AbortController();
+	const observation = createWorkflowObservation(
+		store,
+		runtime.workflowActivityHub.registerWorkflowActivityPublisher(),
+		"owner",
+	);
+	let execution: ReturnType<typeof run> | undefined;
+	try {
+		await runner.emit({ type: "session_start", reason: "startup" });
+		await fake.waitFor(1);
+		execution = run(
+			workflow({
+				name: "stopped-reviewer",
+				description: "",
+				inputs: {},
+				outputs: {},
+				run: async (ctx) => {
+					await ctx.tool("review", {}, async () => {
+						await release.promise;
+						return "done";
+					});
+					return ctx.exit({ status: "blocked", reason: "Reviewer cleanup failed" });
+				},
+			}),
+			{},
+			{ store, signal: controller.signal, durableBackend: new InMemoryDurableBackend() },
+		);
+		const working = await fake.waitFor(2);
+		assert.equal(arg(working.at(-1)!.args, "--state"), "working");
+		release.resolve();
+		assert.equal((await execution).status, "blocked");
+		await vi.waitFor(
+			async () => {
+				const reports = (await fake.calls()).filter(
+					(call) => call.phase === "end" && call.args[1] === "report-agent",
+				);
+				assert.equal(arg(reports.at(-1)!.args, "--state"), "idle");
+				assert.equal(arg(reports.at(-1)!.args, "--message"), "Workflow needs attention");
+			},
+			{ timeout: 5_000 },
+		);
+		await runner.emit({ type: "session_shutdown", reason: "quit" });
+		const calls = await fake.calls();
+		const reports = calls.filter((call) => call.phase === "start" && call.args[1] === "report-agent");
+		assert.equal(arg(reports.at(-1)!.args, "--state"), "idle");
+		assert.equal(arg(reports.at(-1)!.args, "--message"), "Workflow needs attention");
+		assert.equal(calls.at(-1)!.args[1], "release-agent");
+		assert.equal(store.runs()[0].status, "blocked", "reporting does not acknowledge or discard the failure");
+	} finally {
+		controller.abort();
+		release.resolve();
+		try {
+			await execution;
+		} finally {
+			observation.dispose();
+			await runner.emit({ type: "session_shutdown", reason: "quit" });
 			runner.invalidate();
 			await fake.dispose();
 		}

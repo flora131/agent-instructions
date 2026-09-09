@@ -103,6 +103,8 @@ export interface HostCustomUiState {
 	blockingInlineCustomUiActive: boolean;
 	/** True when the active inline custom UI is waiting behind an overlay that kept focus. */
 	blockingInlineCustomUiFocusDeferred?: boolean;
+	/** Distinguishes required prompts from navigation. Omitted when all mounts are prompts. */
+	blockingInlineCustomUiNeedsInput?: boolean;
 }
 
 export type HostCustomUiStateListener = (state: HostCustomUiState) => void;

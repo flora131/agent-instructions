@@ -1,6 +1,6 @@
-import type { ExtensionUIContext, HostInputFormRequest } from "../../core/extensions/index.ts";
+import type { ExtensionUIContext, HostInputFormRequest } from "../../core/extensions/index.js";
 import { type HostInputFormMount, mountHostInputForm } from "../interactive/components/host-input-form-mount.ts";
-import type { IsolatedInteractiveRuntime } from "./isolated-runtime.ts";
+import type { IsolatedInteractiveRuntime } from "./isolated-runtime.js";
 import type { InteractiveEngineMessage } from "./protocol.ts";
 
 /** Host-side controller that keeps form input/state entirely in the terminal process. */

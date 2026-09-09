@@ -10,7 +10,7 @@ export {
 	type ModelCycleResult,
 	type PromptOptions,
 	type SessionStats,
-} from "./agent-session.ts";
+} from "./agent-session.js";
 export {
 	AgentSessionRuntime,
 	type CreateAgentSessionRuntimeFactory,
@@ -27,7 +27,7 @@ export {
 } from "./agent-session-services.ts";
 export { type BashExecutorOptions, type BashResult, executeBashWithOperations } from "./bash-executor.ts";
 export type { VerbatimCompactionResult } from "./compaction/index.ts";
-export { createEventBus, type EventBus, type EventBusController } from "./event-bus.ts";
+export { createEventBus, type EventBus, type EventBusController } from "./event-bus.js";
 export { areExperimentalFeaturesEnabled } from "./experimental.ts";
 // Extensions system
 export {
@@ -75,5 +75,5 @@ export {
 	type TurnEndEvent,
 	type TurnStartEvent,
 	type WorkingIndicatorOptions,
-} from "./extensions/index.ts";
+} from "./extensions/index.js";
 export { createSyntheticSourceInfo } from "./source-info.ts";

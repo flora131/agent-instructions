@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { CONFIG_DIR_NAME, getProjectConfigPaths } from "@bastani/atomic";
 import { getAgentPath, getAgentPaths } from "./agent-dir.ts";
-import type { McpConfig, ServerEntry, McpSettings, ImportKind, ServerProvenance } from "./types.ts";
+import type { McpConfig, ServerEntry, McpSettings, ImportKind, ServerProvenance } from "./types.js";
 import { buildConfigWritePreview, getServersObject, readRawConfigObject, setServersObject, writeRawConfigObject, type ConfigWritePreview } from "./config-write-utils.ts";
 import { MCP_TIMEOUT_MS_CONFIG_ERROR, McpTimeoutConfigError, validateMcpServerTimeouts } from "./tool-call-timeout.js";
 export { MCP_TIMEOUT_MS_CONFIG_ERROR };

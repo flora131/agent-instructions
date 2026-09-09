@@ -5,6 +5,10 @@ export { type AdmittedAgentTask, collectAgentTasks } from "./core/tasks/executio
 export { bindOwnerTaskStore, getOwnerTaskStore, OwnerTaskStore } from "./core/tasks/owner-store.js";
 export { renderTaskFooter, TaskList, taskListSections } from "./modes/interactive/components/task-list.js";
 export { TaskRow } from "./modes/interactive/components/task-row.js";
+export {
+	applyAssistantMessageDelta,
+	beginStreamingAssistantMessage,
+} from "./modes/interactive/streaming-assistant-message.ts";
 // Core session management
 
 export { type Args, parseArgs } from "./cli/args.ts";
@@ -54,7 +58,7 @@ export {
 	type PromptOptions,
 	parseSkillBlock,
 	type SessionStats,
-} from "./core/agent-session.ts";
+} from "./core/agent-session.js";
 // Auth and model runtime
 export { AuthStorage, readStoredCredential } from "./core/auth-storage.ts";
 export {
@@ -116,7 +120,7 @@ export {
 	type VerbatimCompactionPreparation,
 	type VerbatimCompactionResult,
 } from "./core/compaction/index.ts";
-export { createEventBus, type EventBus, type EventBusController } from "./core/event-bus.ts";
+export { createEventBus, type EventBus, type EventBusController } from "./core/event-bus.js";
 export { areExperimentalFeaturesEnabled } from "./core/experimental.ts";
 export { sessionScopedExtensionState } from "./core/extension-session-state.ts";
 export {

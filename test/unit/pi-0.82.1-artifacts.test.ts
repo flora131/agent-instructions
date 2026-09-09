@@ -181,26 +181,26 @@ test("Pi v0.85.1 source declarations and lockfiles stay synchronized", async () 
 	assert.equal(npmLock.packages["node_modules/@bastani/pi-ai"]?.resolved, "packages/ai");
 });
 
-test("protobufjs 7.6.5 is pinned in source and every packaged lock", async () => {
+test("protobufjs 7.6.6 is pinned in source and every packaged lock", async () => {
 	const rootManifest = await readJson<Manifest>(join(root, "package.json"));
 	const codingAgentManifest = await readJson<Manifest>(join(root, "packages/coding-agent/package.json"));
-	assert.equal(rootManifest.overrides?.protobufjs, "7.6.5");
-	assert.equal(codingAgentManifest.overrides?.protobufjs, "7.6.5");
+	assert.equal(rootManifest.overrides?.protobufjs, "7.6.6");
+	assert.equal(codingAgentManifest.overrides?.protobufjs, "7.6.6");
 
 	for (const path of ["package-lock.json", "packages/coding-agent/npm-shrinkwrap.json"]) {
 		const lock = await readJson<Lockfile>(join(root, path));
 		const entry = lock.packages["node_modules/protobufjs"];
-		assert.equal(entry.version, "7.6.5", path);
+		assert.equal(entry.version, "7.6.6", path);
 		assert.equal(
 			entry.integrity,
-			"sha512-/FPD0nUc9jH6rfFjji9IBqOz4pcSE3CsT1m7Ep6Mdb0LxSUMj8hgl6GomOvZzpNpAqqGaXA0P3VSrZLFzIhQrw==",
+			"sha512-dYDWdjSl5RNb7SgPxGQcRU+GtvP7s2fpkrY0r432PcOIaZ0/rBcxEZnQN67iJhFuQiVw754JDoPruPCNdGsbjg==",
 		);
 	}
 	// The bun.lock half of this assertion went with the file; the two locks above
 	// already cover every published surface.
 	const generator = await readText(join(root, "scripts/generate-coding-agent-shrinkwrap.mjs"));
-	assert.ok(generator.includes('"protobufjs@7.6.5"'));
-	assert.equal(generator.includes("protobufjs@7.6.4"), false);
+	assert.ok(generator.includes('"protobufjs@7.6.6"'));
+	assert.equal(generator.includes("protobufjs@7.6.5"), false);
 });
 
 // pi-ai 0.84.2 replaced the Mistral SDK with a native HTTP transport (upstream

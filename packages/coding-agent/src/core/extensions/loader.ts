@@ -7,7 +7,7 @@ export {
 	loadExtensionFromFactory,
 	loadExtensions,
 	loadExtensionsCached,
-} from "./loader-core.ts";
+} from "./loader-core.js";
 export { discoverAndLoadExtensions } from "./loader-discovery.ts";
 export type {
 	ResourceLoaderInheritanceSnapshotProvider,

@@ -7,7 +7,7 @@ import type { CustomMessage } from "../messages.ts";
 import type { ScopedModel } from "../model-resolver.ts";
 import type { SessionManager } from "../session-manager.ts";
 import type { SkillCatalog } from "../skill-catalog.ts";
-import type { SlashCommandInfo } from "../slash-commands.ts";
+import type { SlashCommandInfo } from "../slash-commands.js";
 import type { SourceInfo } from "../source-info.ts";
 import type { BuildSystemPromptOptions } from "../system-prompt.ts";
 import type { RegisteredCommand } from "./command-types.ts";

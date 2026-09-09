@@ -18,7 +18,7 @@ import {
 	type InterruptQueueHold,
 	normalizeInterruptAbortMessage,
 } from "./agent-session-types.ts";
-import type { SendMessageOptions, SendMessagesOptions } from "./extensions/index.ts";
+import type { SendMessageOptions, SendMessagesOptions } from "./extensions/index.js";
 import type { CustomMessage, StageAdmittedCustomMessage } from "./messages.ts";
 
 export { transferWorkflowStageDeliveriesTo };
@@ -324,13 +324,12 @@ export function _queueAgentMessage(this: AgentSession, message: AgentMessage, de
 		} else {
 			hold.steering.push(message);
 		}
-		return;
-	}
-	if (delivery === "followUp") {
+	} else if (delivery === "followUp") {
 		this.agent.followUp(message);
 	} else {
 		this.agent.steer(message);
 	}
+	this._agentTaskHost?.yieldTaskWaits(message.role === "user" ? "input-needed" : "intercom-coordination");
 }
 
 export function _drainQueuedAgentMessages(this: AgentSession): DrainedAgentQueues {

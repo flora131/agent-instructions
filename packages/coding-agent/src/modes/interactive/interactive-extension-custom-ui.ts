@@ -56,6 +56,7 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 		done: (result: T) => void,
 	) => (Component & { dispose?(): void }) | Promise<Component & { dispose?(): void }>,
 	options?: {
+		purpose?: "prompt" | "navigation";
 		overlay?: boolean;
 		deferInlineCustomUiFocus?: boolean;
 		handlesInternalUiAction?: boolean;
@@ -83,10 +84,12 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 		let closed = false;
 		let mounted = false;
 		let overlayHandle: OverlayHandle | undefined;
+		let inlineMount: { component: Component } | undefined;
 		let releaseHostInlineCustomUi: (() => void) | undefined;
 		let releaseOverlayInlineCustomUiFocusDeferral: (() => void) | undefined;
 		let transcriptReserveCoordinator: TranscriptOverlayReserve | undefined;
 		let releaseTranscriptReserveRegistration: (() => void) | undefined;
+		let releaseOverlayFocusListener: (() => void) | undefined;
 
 		const disposeComponent = () => {
 			try {
@@ -124,6 +127,9 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 		const closeMountedUi = () => {
 			if (!mounted) return;
 			if (isOverlay) {
+				const ownedInput = overlayHandle?.isFocused();
+				releaseOverlayFocusListener?.();
+				releaseOverlayFocusListener = undefined;
 				releaseOverlayInlineCustomUiFocusDeferral?.();
 				releaseOverlayInlineCustomUiFocusDeferral = undefined;
 				releaseTranscriptReserve();
@@ -132,8 +138,31 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 				// generic top-overlay call would close that instead.
 				if (overlayHandle) overlayHandle.hide();
 				else this.ui.hideOverlay();
-			} else {
-				restoreEditor(!this.shouldDeferInlineCustomUiFocus() && this.pendingInlineCustomUiFocus !== component);
+				if (options?.reserveTranscriptRows && ownedInput && !this.ui.hasOverlay()) {
+					// Navigation may have closed while this prompt waited; its preFocus is stale.
+					this.ui.setFocus(this.editorContainer.children.at(-1) ?? this.editor);
+				}
+			} else if (inlineMount) {
+				const stack = this.inlineCustomUiStack;
+				const ownsSlot =
+					stack.at(-1) === inlineMount && this.editorContainer.children.includes(inlineMount.component);
+				stack.splice(stack.indexOf(inlineMount), 1);
+				// An older completion must not clear a newer prompt's editor slot.
+				if (!ownsSlot) return;
+				const previous = stack.at(-1)?.component;
+				if (previous) {
+					this.editorContainer.clear();
+					this.editorContainer.addChild(previous);
+					if (this.shouldDeferInlineCustomUiFocus()) {
+						this.pendingInlineCustomUiFocus = previous;
+						this.notifyHostCustomUiStateListeners();
+					} else if (!this.ui.hasOverlay()) {
+						this.ui.setFocus(previous);
+					}
+					this.ui.requestRender();
+				} else {
+					restoreEditor(!this.shouldDeferInlineCustomUiFocus() && this.pendingInlineCustomUiFocus !== component);
+				}
 			}
 		};
 
@@ -165,7 +194,7 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 			abortCustomUi();
 			return;
 		}
-		releaseHostInlineCustomUi = isOverlay ? undefined : this.beginHostInlineCustomUi();
+		releaseHostInlineCustomUi = isOverlay ? undefined : this.beginHostInlineCustomUi(options?.purpose);
 		if (options?.signal?.aborted) {
 			abortCustomUi();
 			return;
@@ -277,12 +306,24 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 						releaseTranscriptReserveRegistration = coordinator.register(pendingReserve);
 					}
 					let releaseDeferral: (() => void) | undefined;
+					let hiddenByCaller = false;
+					let hiddenForNavigation = false;
 					if (options?.deferInlineCustomUiFocus) {
 						releaseDeferral = this.beginInlineCustomUiFocusDeferral();
 						releaseOverlayInlineCustomUiFocusDeferral = () => {
 							releaseDeferral?.();
 							releaseDeferral = undefined;
 						};
+					}
+					if (pendingReserve && !options?.deferInlineCustomUiFocus) {
+						// Register before onHandle: caller code may synchronously close this mount.
+						const syncNavigationFocus = () => {
+							hiddenForNavigation =
+								this.navigationInlineCustomUiDepth > 0 || this.shouldDeferInlineCustomUiFocus();
+							handle.setHidden(hiddenByCaller || hiddenForNavigation);
+						};
+						releaseOverlayFocusListener = this.onHostCustomUiStateChange(syncNavigationFocus);
+						syncNavigationFocus();
 					}
 					if (options?.deferInlineCustomUiFocus || pendingReserve) {
 						const release = () => {
@@ -291,13 +332,16 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 						};
 						const wrappedHandle: OverlayHandle = {
 							hide: () => {
+								releaseOverlayFocusListener?.();
+								releaseOverlayFocusListener = undefined;
 								release();
 								releaseTranscriptReserve();
 								handle.hide();
 							},
 							setHidden: (hidden) => {
+								hiddenByCaller = hidden;
 								if (hidden) release();
-								handle.setHidden(hidden);
+								handle.setHidden(hidden || hiddenForNavigation);
 								if (!hidden && options?.deferInlineCustomUiFocus && releaseDeferral === undefined) {
 									releaseDeferral = this.beginInlineCustomUiFocusDeferral();
 									releaseOverlayInlineCustomUiFocusDeferral = () => {
@@ -319,6 +363,9 @@ InteractiveModeBase.prototype.showExtensionCustom = async function <T>(
 					}
 				} else {
 					this.disposeActiveSelector();
+					inlineMount = { component };
+					this.inlineCustomUiStack ??= [];
+					this.inlineCustomUiStack.push(inlineMount);
 					this.editorContainer.clear();
 					this.editorContainer.addChild(component);
 					if (this.shouldDeferInlineCustomUiFocus()) {

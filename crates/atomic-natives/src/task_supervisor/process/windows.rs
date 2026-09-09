@@ -1,11 +1,12 @@
 //! Suspended Windows launch and kill-on-close job ownership. No breakaway flags.
+use super::windows_pty::PseudoConsole;
 use super::*;
-use std::os::windows::ffi::OsStrExt;
 use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
 use std::ptr::{null, null_mut};
 use windows_sys::Win32::{
 	Foundation::{
-		ERROR_BROKEN_PIPE, HANDLE, HANDLE_FLAG_INHERIT, SetHandleInformation, WAIT_OBJECT_0,
+		ERROR_BROKEN_PIPE, HANDLE, HANDLE_FLAG_INHERIT, INVALID_HANDLE_VALUE, SetHandleInformation,
+		WAIT_OBJECT_0,
 	},
 	Security::SECURITY_ATTRIBUTES,
 	System::{
@@ -19,9 +20,10 @@ use windows_sys::Win32::{
 		Threading::{
 			CREATE_NO_WINDOW, CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT, CreateProcessW,
 			DeleteProcThreadAttributeList, EXTENDED_STARTUPINFO_PRESENT, GetExitCodeProcess,
-			InitializeProcThreadAttributeList, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, PROCESS_INFORMATION,
-			ResumeThread, STARTF_USESTDHANDLES, STARTUPINFOEXW, TerminateProcess,
-			UpdateProcThreadAttribute, WaitForSingleObject,
+			InitializeProcThreadAttributeList, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+			PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, PROCESS_INFORMATION, ResumeThread,
+			STARTF_USESTDHANDLES, STARTUPINFOEXW, TerminateProcess, UpdateProcThreadAttribute,
+			WaitForSingleObject,
 		},
 	},
 };
@@ -29,6 +31,7 @@ use windows_sys::Win32::{
 pub(super) struct WindowsProcess {
 	process: OwnedHandle,
 	job: OwnedHandle,
+	pty: Option<PseudoConsole>,
 }
 struct LaunchFailure {
 	error: TaskFailure,
@@ -39,18 +42,16 @@ impl From<TaskFailure> for LaunchFailure {
 		Self { error, cleanup: Cleanup::Reaped {} }
 	}
 }
-type PreparedHandles = (OwnedHandle, File, File, File, File, ProcessReader, ProcessReader);
+type PreparedHandles =
+	(OwnedHandle, Option<(File, File, File)>, File, ProcessReader, ProcessReader);
 struct WindowsLaunch {
 	resource: WindowsProcess,
 	stdin: File,
 	stdout: ProcessReader,
 	stderr: ProcessReader,
 }
-fn raw(handle: &impl AsRawHandle) -> HANDLE {
+pub(super) fn raw(handle: &impl AsRawHandle) -> HANDLE {
 	handle.as_raw_handle()
-}
-fn wide(text: &std::ffi::OsStr) -> Vec<u16> {
-	text.encode_wide().chain(Some(0)).collect()
 }
 struct RetainedWindows {
 	resource: WindowsProcess,
@@ -58,8 +59,12 @@ struct RetainedWindows {
 }
 static FAILED_WINDOWS: Mutex<Vec<RetainedWindows>> = Mutex::new(Vec::new());
 pub(super) fn poll_failed_windows() {
+	super::windows_pty::poll_failed_consoles();
 	FAILED_WINDOWS.lock().unwrap().retain_mut(|failed| {
 		let _ = failed.resource.kill();
+		if let Some(pty) = &mut failed.resource.pty {
+			pty.begin_close();
+		}
 		if !failed.resource.exited().unwrap_or(false) {
 			unsafe {
 				TerminateProcess(raw(&failed.resource.process), 1);
@@ -68,6 +73,7 @@ pub(super) fn poll_failed_windows() {
 		if failed.resource.exited().unwrap_or(false)
 			&& matches!(failed.resource.active(), Ok(0))
 			&& failed.writer.as_ref().is_none_or(std::thread::JoinHandle::is_finished)
+			&& failed.resource.pty.as_mut().is_none_or(PseudoConsole::reaped)
 		{
 			if let Some(writer) = failed.writer.take() {
 				let _ = writer.join();
@@ -78,20 +84,20 @@ pub(super) fn poll_failed_windows() {
 		}
 	});
 }
-fn pipe() -> io::Result<(File, File)> {
+pub(super) fn pipe() -> io::Result<(File, File)> {
 	let mut read = null_mut();
 	let mut write = null_mut();
 	let attributes = SECURITY_ATTRIBUTES {
 		nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
 		lpSecurityDescriptor: null_mut(),
-		bInheritHandle: 1,
+		bInheritHandle: 0,
 	};
 	if unsafe { CreatePipe(&mut read, &mut write, &attributes, 65536) } == 0 {
 		return Err(io::Error::last_os_error());
 	}
 	Ok(unsafe { (File::from_raw_handle(read), File::from_raw_handle(write)) })
 }
-struct PipeReader(File);
+pub(super) struct PipeReader(pub(super) File);
 impl Read for PipeReader {
 	fn read(&mut self, bytes: &mut [u8]) -> io::Result<usize> {
 		let mut available = 0;
@@ -150,7 +156,42 @@ impl WindowsProcess {
 		}
 	}
 }
-fn spawn(command: &CommandTask, refuse_assignment: bool) -> Result<WindowsLaunch, LaunchFailure> {
+fn spawn(
+	command: &Arc<CommandTask>,
+	refuse_assignment: bool,
+) -> Result<WindowsLaunch, LaunchFailure> {
+	let mut pty = None;
+	let result = spawn_inner(command, refuse_assignment, &mut pty);
+	match result {
+		Ok(mut launch) => {
+			launch.resource.pty = pty;
+			Ok(launch)
+		},
+		Err(mut failure) => {
+			if let Some(console) = &mut pty
+				&& (!console.close_until(Instant::now() + PROCESS_DRAIN_GRACE)
+					|| console.failure().is_some())
+			{
+				failure.cleanup = Cleanup::Failed {
+					resources: vec![ResourceFailure {
+						resource: "conpty".into(),
+						code: "CleanupFailed".into(),
+						message: "ConPTY setup cleanup was not confirmed".into(),
+					}],
+				};
+			}
+			Err(failure)
+		},
+	}
+}
+fn spawn_inner(
+	command: &Arc<CommandTask>,
+	refuse_assignment: bool,
+	pty: &mut Option<PseudoConsole>,
+) -> Result<WindowsLaunch, LaunchFailure> {
+	let super::windows_command::ProcessCommand { application, mut line, cwd, environment } =
+		super::windows_command::prepare(&command.intent)
+			.map_err(|error| TaskFailure { code: "SpawnFailed".into(), message: error.to_string() })?;
 	if command.file_spool() {
 		let mut store = command.output.lock().unwrap();
 		store.background();
@@ -161,7 +202,7 @@ fn spawn(command: &CommandTask, refuse_assignment: bool) -> Result<WindowsLaunch
 			);
 		}
 	}
-	let prepare = || -> io::Result<PreparedHandles> {
+	let mut prepare = || -> io::Result<PreparedHandles> {
 		let job = unsafe { CreateJobObjectW(null(), null()) };
 		if job.is_null() {
 			return Err(io::Error::last_os_error());
@@ -180,20 +221,27 @@ fn spawn(command: &CommandTask, refuse_assignment: bool) -> Result<WindowsLaunch
 		{
 			return Err(io::Error::last_os_error());
 		}
+		if let CommandTerminal::Pty { columns, rows } = command.intent.terminal {
+			let stdin = PseudoConsole::create(command, columns, rows, pty)?;
+			return Ok((job, None, stdin, Box::new(io::empty()), Box::new(io::empty())));
+		}
 		let (stdin_read, stdin_write) = pipe()?;
 		let (out_read, stdout) = pipe()?;
 		let (err_read, stderr) = pipe()?;
 		let stdout_read: ProcessReader = Box::new(PipeReader(out_read));
 		let stderr_read: ProcessReader = Box::new(PipeReader(err_read));
-		Ok((job, stdin_read, stdin_write, stdout, stderr, stdout_read, stderr_read))
+		Ok((job, Some((stdin_read, stdout, stderr)), stdin_write, stdout_read, stderr_read))
 	};
-	let (job, stdin_read, stdin_write, stdout, stderr, stdout_read, stderr_read) = prepare()
-		.map_err(|error| TaskFailure {
+	let (job, child_handles, stdin_write, stdout_read, stderr_read) =
+		prepare().map_err(|error| TaskFailure {
 			code: "ContainmentUnavailable".into(),
 			message: error.to_string(),
 		})?;
-	let inherited = [raw(&stdin_read), raw(&stdout), raw(&stderr)];
-	for handle in inherited {
+	let inherited = child_handles
+		.as_ref()
+		.map(|(stdin, stdout, stderr)| [raw(stdin), raw(stdout), raw(stderr)])
+		.unwrap_or([null_mut(); 3]);
+	for handle in inherited.into_iter().filter(|handle| !handle.is_null()) {
 		if unsafe { SetHandleInformation(handle, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT) } == 0 {
 			return Err(fail("ContainmentUnavailable").into());
 		}
@@ -211,9 +259,19 @@ fn spawn(command: &CommandTask, refuse_assignment: bool) -> Result<WindowsLaunch
 		UpdateProcThreadAttribute(
 			attribute_list,
 			0,
-			PROC_THREAD_ATTRIBUTE_HANDLE_LIST as usize,
-			inherited.as_ptr().cast(),
-			std::mem::size_of_val(&inherited),
+			if pty.is_some() {
+				PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE
+			} else {
+				PROC_THREAD_ATTRIBUTE_HANDLE_LIST
+			} as usize,
+			pty.as_ref().map_or(inherited.as_ptr().cast(), |console| {
+				console.handle() as *const std::ffi::c_void
+			}),
+			if pty.is_some() {
+				std::mem::size_of::<isize>()
+			} else {
+				std::mem::size_of_val(&inherited)
+			},
 			null_mut(),
 			null(),
 		)
@@ -226,36 +284,19 @@ fn spawn(command: &CommandTask, refuse_assignment: bool) -> Result<WindowsLaunch
 	}
 	let mut startup = STARTUPINFOEXW::default();
 	startup.StartupInfo.cb = std::mem::size_of::<STARTUPINFOEXW>() as u32;
-	startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
-	startup.StartupInfo.hStdInput = raw(&stdin_read);
-	startup.StartupInfo.hStdOutput = raw(&stdout);
-	startup.StartupInfo.hStdError = raw(&stderr);
+	if child_handles.is_some() {
+		startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+		startup.StartupInfo.hStdInput = inherited[0];
+		startup.StartupInfo.hStdOutput = inherited[1];
+		startup.StartupInfo.hStdError = inherited[2];
+	} else {
+		// Redirected host stdio otherwise leaks into the child despite inherit=false.
+		startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+		startup.StartupInfo.hStdInput = INVALID_HANDLE_VALUE;
+		startup.StartupInfo.hStdOutput = INVALID_HANDLE_VALUE;
+		startup.StartupInfo.hStdError = INVALID_HANDLE_VALUE;
+	}
 	startup.lpAttributeList = attribute_list;
-	let shell =
-		std::env::var_os("COMSPEC").unwrap_or_else(|| "C:\\Windows\\System32\\cmd.exe".into());
-	let application = wide(&shell);
-	let mut line = wide(std::ffi::OsStr::new(&format!(
-		"\"{}\" /D /S /C \"{}\"",
-		shell.to_string_lossy(),
-		command.intent.command.process_text()
-	)));
-	let cwd =
-		command.intent.cwd.as_ref().map(|value| wide(std::ffi::OsStr::new(&value.process_text())));
-	let mut env: BTreeMap<std::ffi::OsString, std::ffi::OsString> = std::env::vars_os().collect();
-	if let Some(overrides) = &command.intent.env {
-		for (key, value) in overrides {
-			env.retain(|existing, _| !existing.to_string_lossy().eq_ignore_ascii_case(key));
-			env.insert(key.into(), value.process_text().into());
-		}
-	}
-	let mut environment = Vec::new();
-	for (key, value) in env {
-		environment.extend(key.encode_wide());
-		environment.push(b'=' as u16);
-		environment.extend(value.encode_wide());
-		environment.push(0);
-	}
-	environment.push(0);
 	let mut info = PROCESS_INFORMATION::default();
 	let created = unsafe {
 		CreateProcessW(
@@ -263,10 +304,10 @@ fn spawn(command: &CommandTask, refuse_assignment: bool) -> Result<WindowsLaunch
 			line.as_mut_ptr(),
 			null(),
 			null(),
-			1,
+			i32::from(child_handles.is_some()),
 			CREATE_SUSPENDED
 				| CREATE_UNICODE_ENVIRONMENT
-				| CREATE_NO_WINDOW
+				| if pty.is_some() { 0 } else { CREATE_NO_WINDOW }
 				| EXTENDED_STARTUPINFO_PRESENT,
 			environment.as_ptr().cast(),
 			cwd.as_ref().map_or(null(), |value| value.as_ptr()),
@@ -295,10 +336,10 @@ fn spawn(command: &CommandTask, refuse_assignment: bool) -> Result<WindowsLaunch
 		if reaped {
 			return Err(fail("ContainmentUnavailable").into());
 		}
-		FAILED_WINDOWS
-			.lock()
-			.unwrap()
-			.push(RetainedWindows { resource: WindowsProcess { process, job }, writer: None });
+		FAILED_WINDOWS.lock().unwrap().push(RetainedWindows {
+			resource: WindowsProcess { process, job, pty: pty.take() },
+			writer: None,
+		});
 		return Err(LaunchFailure {
 			error: fail("ContainmentUnavailable"),
 			cleanup: Cleanup::Failed {
@@ -311,11 +352,9 @@ fn spawn(command: &CommandTask, refuse_assignment: bool) -> Result<WindowsLaunch
 		});
 	}
 	drop(thread);
-	drop(stdin_read);
-	drop(stdout);
-	drop(stderr);
+	drop(child_handles);
 	Ok(WindowsLaunch {
-		resource: WindowsProcess { process, job },
+		resource: WindowsProcess { process, job, pty: None },
 		stdin: stdin_write,
 		stdout: stdout_read,
 		stderr: stderr_read,
@@ -341,7 +380,7 @@ impl Actor {
 				return;
 			},
 		};
-		let WindowsLaunch { resource, stdin, mut stdout, mut stderr } = launch;
+		let WindowsLaunch { mut resource, stdin, mut stdout, mut stderr } = launch;
 		let stop_input = Arc::new(AtomicBool::new(false));
 		let stopped = stop_input.clone();
 		let input_command = command.clone();
@@ -357,14 +396,24 @@ impl Actor {
 			Ok(writer) => writer,
 			Err(error) => {
 				let _ = resource.kill();
+				if let Some(pty) = &mut resource.pty {
+					pty.begin_close();
+				}
 				let deadline = Instant::now() + PROCESS_DRAIN_GRACE;
 				while Instant::now() < deadline
-					&& !(resource.exited().unwrap_or(false) && matches!(resource.active(), Ok(0)))
+					&& !(resource.exited().unwrap_or(false)
+						&& matches!(resource.active(), Ok(0))
+						&& resource.pty.as_mut().is_none_or(PseudoConsole::reaped))
 				{
 					std::thread::sleep(PROCESS_POLL);
 				}
-				let reaped = resource.exited().unwrap_or(false) && matches!(resource.active(), Ok(0));
+				let reaped = resource.exited().unwrap_or(false)
+					&& matches!(resource.active(), Ok(0))
+					&& resource.pty.as_mut().is_none_or(|pty| pty.reaped() && pty.failure().is_none());
 				let message = error.to_string();
+				drop(stdout);
+				drop(stderr);
+				command.input.lock().unwrap().close();
 				let _ = self.runner_outcome(
 					runner,
 					TaskResult::Failed {
@@ -375,6 +424,7 @@ impl Actor {
 					},
 				);
 				let cleanup = if reaped {
+					drop(resource);
 					Cleanup::Reaped {}
 				} else {
 					FAILED_WINDOWS.lock().unwrap().push(RetainedWindows { resource, writer: None });
@@ -407,6 +457,17 @@ impl Actor {
 		let mut stderr_eof = false;
 		let mut failure = None;
 		loop {
+			if let Some(pty) = &mut resource.pty {
+				if stopping.is_none()
+					&& let Some((columns, rows)) = command.resize.lock().unwrap().take()
+					&& let Err(error) = pty.resize(columns, rows)
+				{
+					failure = Some(error.to_string());
+				}
+				if let Some(error) = pty.failure() {
+					failure = Some(error);
+				}
+			}
 			for result in [
 				drain_pipe(&mut stdout, command, &mut stdout_eof),
 				drain_pipe(&mut stderr, command, &mut stderr_eof),
@@ -446,11 +507,21 @@ impl Actor {
 				if let Err(error) = resource.kill() {
 					failure = Some(error.to_string());
 				}
+				stop_input.store(true, Ordering::Release);
+				if let Some(pty) = &mut resource.pty {
+					pty.begin_close();
+				}
 				stopping = Some(Instant::now());
 			}
 			if let Some(stopped) = stopping {
 				match resource.active() {
-					Ok(0) if exited && stdout_eof && stderr_eof => break,
+					Ok(0)
+						if exited
+							&& stdout_eof && stderr_eof
+							&& resource.pty.as_mut().is_none_or(PseudoConsole::reaped) =>
+					{
+						break;
+					},
 					Ok(_) => {},
 					Err(error) => {
 						failure = Some(error.to_string());
@@ -478,6 +549,14 @@ impl Actor {
 		} else {
 			failure = Some("Windows stdin worker stop was not confirmed".into());
 		}
+		// A reader can finish during the final reaped() probe; preserve its error too.
+		if let Some(pty) = &mut resource.pty
+			&& let Some(error) = pty.failure()
+		{
+			failure = Some(error);
+		}
+		drop(stdout);
+		drop(stderr);
 		if let Some(message) = failure {
 			FAILED_WINDOWS.lock().unwrap().push(RetainedWindows { resource, writer });
 			let _ = self.runner_outcome(
@@ -515,10 +594,9 @@ impl Actor {
 				.collect(),
 		};
 		drop(store);
-		let _ = self.runner_outcome(
-			runner,
-			TaskResult::Completed { output, exit_code: resource.exit_code().ok().map(f64::from) },
-		);
+		let exit_code = resource.exit_code().ok().map(f64::from);
+		drop(resource);
+		let _ = self.runner_outcome(runner, TaskResult::Completed { output, exit_code });
 		let _ = self.acknowledge_cleanup(runner, Cleanup::Reaped {});
 	}
 }
@@ -533,6 +611,8 @@ mod tests {
 			description: None,
 			cwd: None,
 			env: None,
+			shell: None,
+			inherit_env: None,
 			terminal: CommandTerminal::Pipe {},
 			execution_timeout_ms: None,
 			parent_task_id: None,
@@ -542,7 +622,7 @@ mod tests {
 	#[test]
 	fn assignment_failure_reaps_suspended_command_without_side_effects() {
 		let path = std::env::temp_dir().join(format!("atomic-job-refusal-{}", std::process::id()));
-		let command = CommandTask {
+		let command = Arc::new(CommandTask {
 			intent: intent(&format!("echo UNSUPERVISED > \"{}\"", path.display())),
 			options: CommandResourceOptions {
 				sink: Some(CommandOutputSink::Drained),
@@ -561,7 +641,7 @@ mod tests {
 			setup_changed: Condvar::new(),
 			worker: Mutex::new(None),
 			finished: AtomicBool::new(false),
-		};
+		});
 		let error = match spawn(&command, true) {
 			Ok(_) => panic!("assignment failure launched command"),
 			Err(error) => error,
@@ -606,3 +686,7 @@ mod tests {
 		std::fs::remove_file(identities).unwrap();
 	}
 }
+
+#[cfg(test)]
+#[path = "windows_tests.rs"]
+mod conpty_tests;

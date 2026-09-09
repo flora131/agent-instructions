@@ -1,5 +1,5 @@
 import { type AutocompleteProvider, CombinedAutocompleteProvider, type SlashCommand } from "@earendil-works/pi-tui";
-import type { AgentSession } from "../../core/agent-session.ts";
+import type { AgentSession } from "../../core/agent-session.js";
 import { getSkillCatalog } from "../../core/skill-catalog.ts";
 import { BUILTIN_SLASH_COMMANDS } from "../../core/slash-commands.js";
 import type { SourceInfo } from "../../core/source-info.ts";

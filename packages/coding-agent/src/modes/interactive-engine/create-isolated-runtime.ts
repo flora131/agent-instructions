@@ -10,7 +10,7 @@ import type { SessionManager } from "../../core/session-manager.ts";
 import { RpcClient } from "../rpc/rpc-client.ts";
 import type { ActivityWatchdogDiagnostic } from "./activity-watchdog.ts";
 import { buildInteractiveEngineArgs, type InteractiveEngineResourcePaths } from "./engine-args.ts";
-import { IsolatedInteractiveRuntime } from "./isolated-runtime.ts";
+import { IsolatedInteractiveRuntime } from "./isolated-runtime.js";
 
 export async function createIsolatedInteractiveRuntime(options: {
 	localRuntime: AgentSessionRuntime;

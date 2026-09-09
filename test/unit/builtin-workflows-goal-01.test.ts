@@ -210,7 +210,10 @@ describe("goal", () => {
 		assert.match(prompt, /Evidence for every explicit clause/);
 		assert.match(prompt, /Verify correctness end-to-end whenever practical/);
 		assert.match(prompt, /skill: "playwright-cli"/);
-		assert.match(prompt, /skill: "tmux"/);
+		// PR #2932 prefers Herdr while retaining tmux/psmux as the fallback.
+		assert.match(prompt, /prefer the herdr skill on macOS, Linux and Windows/);
+		assert.match(prompt, /fall back to the tmux skill or native Windows psmux/);
+		assert.match(prompt, /explicit-request and HERDR_ENV=1 requirements/);
 		assert.match(prompt, /same blocker must repeat for at least 3 controller observations/);
 	});
 

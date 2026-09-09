@@ -4,6 +4,21 @@ This package is a Bastani fork of `@earendil-works/pi-ai`. Upstream history at t
 
 ## [Unreleased]
 
+### Fixed
+
+- Capped shared assistant retry backoff with `RetryPolicy.maxAgentDelayMs` (60 seconds by default), including summary calls ([#8826](https://github.com/earendil-works/pi/issues/8826)).
+
+## [0.9.19-alpha.2] - 2026-09-08
+
+### Fixed
+
+- Fixed Anthropic Messages tool requests advertising root object-union parameter schemas without fields by projecting their branch fields into Anthropic-compatible object schemas ([#2190](https://github.com/bastani-inc/atomic/pull/2190) by [@elefthei](https://github.com/elefthei)).
+- Fixed Anthropic object-union tool projection dropping own property names such as `__proto__` and incorrectly projecting explicitly nonobject branches with `properties` metadata; authored schemas and runtime validation remain unchanged ([#2190](https://github.com/bastani-inc/atomic/pull/2190), [#2189](https://github.com/bastani-inc/atomic/issues/2189)).
+- Updated Anthropic, Bedrock, Google and HTTP proxy SDKs to upstream Pi's current versions, and mapped Google's consecutive tool-call limit to an error stop reason.
+- Routed all GitHub Copilot GPT model IDs through the Responses API ([#9209](https://github.com/earendil-works/pi/issues/9209)).
+- Fixed quadratic CPU usage when draining buffered `EventStream` events ([#9055](https://github.com/earendil-works/pi/issues/9055)).
+- Fixed reasoning-capable Mistral Medium aliases using unsupported `prompt_mode` instead of `reasoning_effort` ([#8700](https://github.com/earendil-works/pi/issues/8700)).
+
 ## [0.9.18] - 2026-09-05
 
 Cumulative release of the `0.9.18-alpha.5` through `0.9.18-alpha.7` prereleases. Per-change details remain in the unchanged prerelease sections below.

@@ -15,6 +15,22 @@ describeModelRegistry((context) => {
 	const { providerConfig, getModelsForProvider, openAiModel, emptyContext } = context;
 
 	describe("dynamic provider lifecycle", () => {
+		test("extension registry streaming uses its registered provider", async () => {
+			// Upstream #8964: the facade must not fall back to global providers.
+			const registry = await createModelRegistry(context.authStorage, context.modelsJsonPath);
+			registry.registerProvider("registry-stream", {
+				...providerConfig,
+				apiKey: "test-key",
+				api: openAiModel.api,
+				streamSimple: () => {
+					throw new Error("registry-stream-selected");
+				},
+			});
+			const model = { ...openAiModel, provider: "registry-stream" };
+			const result = await registry.streamSimple(model, emptyContext).result();
+			expect(result.stopReason).toBe("error");
+			expect(result.errorMessage).toContain("registry-stream-selected");
+		});
 		describe("dynamic provider override persistence", () => {
 			test("one registry cannot erase another registry's API or OAuth registrations", async () => {
 				const first = await createModelRegistry(context.authStorage, context.modelsJsonPath);

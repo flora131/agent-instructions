@@ -12,7 +12,6 @@ import { dirname, join } from "path";
 import { type Static, Type } from "typebox";
 import { parenthesizedKeyHint } from "../../modes/interactive/components/keybinding-hints.js";
 import { getLanguageFromPath, highlightCode } from "../../modes/interactive/theme/theme.js";
-import { experimentalToolSamplingProperty } from "../experimental.ts";
 import type { ExtensionContext, ToolDefinition, ToolRenderResultOptions } from "../extensions/types.ts";
 import { type ConflictBlock, getRegisteredConflictBlocks, parseConflictBlocks } from "./conflict-registry.ts";
 import {
@@ -382,7 +381,7 @@ export function createWriteToolDefinition(
 			"Create or overwrite a file, writable internal resource, archive entry, SQLite row, or merge-conflict resolution.",
 		promptSnippet: writeToolSystemPromptContribution.snippet,
 		promptGuidelines: [...writeToolSystemPromptContribution.guidelines],
-		...experimentalToolSamplingProperty(),
+		constrainedSampling: { type: "json_schema", strict: "prefer" },
 		parameters: writeSchema,
 		async execute(
 			toolCallId,

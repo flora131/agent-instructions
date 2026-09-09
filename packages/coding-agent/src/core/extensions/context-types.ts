@@ -146,6 +146,8 @@ export interface SubagentChildPolicy {
 	readonly fanoutAuthorized: boolean;
 	readonly inheritProjectContext: boolean;
 	readonly inheritSkills: boolean;
+	/** Host-owned signal fired when this noninteractive execution ends, before disposal. */
+	readonly executionEnded?: AbortSignal;
 	/** Current admitted in-process nesting depth; absent for top-level sessions. */
 	readonly depth?: number;
 	/** Undefined preserves MCP configuration defaults; [] explicitly disables direct tools. */

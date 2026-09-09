@@ -1,5 +1,5 @@
 import type { Credential } from "@bastani/pi-ai";
-import type { AgentSession } from "../../core/agent-session.ts";
+import type { AgentSession } from "../../core/agent-session.js";
 import type { HostInputFormRequest } from "../../core/extensions/ui-types.ts";
 import { CredentialSynchronizationError } from "../../core/model-runtime.js";
 import { createAuthInteraction, isOAuthLoginCancelled } from "../../core/oauth-login.ts";

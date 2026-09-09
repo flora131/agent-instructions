@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -13,7 +13,7 @@ const repository = fileURLToPath(new URL("..", import.meta.url));
 // as builtin workflows. Alias only the host export to its real implementation;
 // no package resolver/importer or filesystem behavior is mocked.
 test("compiled Bun resolves relocated archive, nested native leaf and legacy disk payloads", async () => {
-	const root = mkdtempSync(join(tmpdir(), "atomic-pg-compiled-"));
+	const root = realpathSync(mkdtempSync(join(tmpdir(), "atomic-pg-compiled-")));
 	try {
 		const disk = join(root, "installation with spaces", "builtin", "workflows", "resolver.mjs");
 		mkdirSync(dirname(disk), { recursive: true });

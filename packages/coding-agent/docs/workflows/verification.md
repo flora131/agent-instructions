@@ -4,13 +4,15 @@ Use executable verification appropriate to the changed behavior. Workflow author
 
 ## Execution mode
 
-An explicit request to work `inline`, `do this directly`, `don't use a workflow`, or equivalent overrides workflow-first defaults for that task, including complex implementation and review loops. Do not create or launch a hidden or nested replacement workflow, or ask the user to reapprove the choice. Keep appropriate testing, review and evidence inline. Safety and authorization requirements do not change.
+An explicit request to work `quickly`, `inline`, `do this directly`, `don't use a workflow`, or equivalent overrides workflow-first defaults for that task, including complex implementation and review loops. Treat "quickly" as an inline execution choice, not a request for a faster workflow. Do not create or launch a hidden or nested replacement workflow, or ask the user to reapprove the choice. Keep appropriate testing, review and evidence inline. Safety and authorization requirements do not change.
 
-Apply the preference only to its stated task. Quoted examples and questions about inline code are not execution-mode instructions. Without an opt-out, normal workflow fit defaults apply.
+Apply the preference only to its stated task. Quoted examples and questions about inline code are not execution-mode instructions; neither are descriptions of software that should run quickly. Without an opt-out, normal workflow fit defaults apply.
 
 If the user switches during an active workflow, safely hold or stop the affected run using its available lifecycle controls. Reconcile completed work and in-flight side effects before continuing inline so commands and external writes are not duplicated. Stages notify the controlling session rather than launching a replacement. Already-completed work remains completed; do not claim it was undone.
 
 ## Select the verification environment
+
+The same routing applies when a user asks for automation outside a verification workflow. Use PyAutoGUI for desktop computer use, also called CUA, and the playwright-cli skill for browser automation. Prefer herdr for terminal automation/testing on macOS, Linux and Windows. Install it if missing when network access and permissions permit; fall back to tmux or native Windows psmux when installation or use is not possible. Load the matching skill before acting. The pinned upstream herdr skill still requires an explicit user mention or request and `HERDR_ENV=1`; preference does not authorize control from outside a Herdr-managed pane. Keep desktop failsafes enabled and release held keys/buttons after interruption.
 
 Inspect installed tools, cached runtimes, existing sessions and safe test configuration first. Install missing tools/plugins when online access and permissions permit. Known offline or restricted installation is enough reason not to attempt a prohibited download. Otherwise make a reasonable capability check or one bounded setup attempt, not an endless installation retry loop.
 
@@ -19,11 +21,13 @@ When a mechanism cannot run, continue available authoritative repository checks,
 | Changed behavior | Verification and evidence |
 | --- | --- |
 | Browser/frontend, including API-dependent flows | Use the playwright-cli skill. Exercise the real user flow and assert its result. Retain current screenshots, video, DOM snapshots or network evidence as appropriate. |
-| TUI/terminal | Use tmux on supported hosts, native Windows psmux, or herdr where available and appropriate. Exercise actual interactive input and inspect pane output or a terminal recording. These tools do not have interchangeable CLIs. |
-| Desktop/simulator/emulator | Use suitable PyAutoGUI or native platform tools against a real visible app scenario. Capture screenshots/video from that environment, not a browser recording labeled as desktop or iOS proof. |
+| TUI/terminal | Prefer the herdr skill on macOS, Linux and Windows under its explicit-request and managed-pane requirements. Install if missing when permitted; fall back to the tmux skill or native Windows psmux if unavailable or unusable. Exercise actual interactive input and inspect pane output or a terminal recording. These tools do not have interchangeable CLIs. |
+| Desktop/simulator/emulator | Use PyAutoGUI for desktop CUA, with native platform tools where they provide safer input or better assertions. Capture screenshots/video from a real visible app scenario, not a browser recording labeled as desktop or iOS proof. |
 | Non-UI | Run relevant unit, integration, build, type or command-line scenarios. Do not manufacture a UI or video requirement. |
 
 ### Terminal contracts
+
+Herdr supports macOS, Linux and Windows. Check `herdr --version` and, inside a managed pane, `herdr status` before installing or relying on server features. If missing, use the [official installation instructions](https://github.com/herdrdev/herdr/tree/v0.9.0#install): `brew install herdr` on macOS, the reviewed `https://herdr.dev/install.sh` installer on macOS/Linux, or `https://herdr.dev/install.ps1` on Windows. Inspect downloaded installer code before executing it, follow host permissions and use a bounded setup attempt. Do not stop or replace a running server to make a test work. If installation is blocked or no eligible Herdr session is available, record the constraint and use tmux/psmux rather than taking over the focused session.
 
 [psmux](https://github.com/psmux/psmux) is a native Windows ConPTY multiplexer using tmux-style commands. Its [scripting guide](https://github.com/psmux/psmux/blob/master/docs/scripting.md) documents `psmux capture-pane -p -t %0` for stdout capture. Verify installed help and use the actual pane identifier rather than assuming `%0` belongs to the test.
 

@@ -427,7 +427,7 @@ test("task hooks retain the live result through tool activity and exact Intercom
 		const bus = eventBus(new EventEmitter());
 		let execution: Parameters<TaskExecutionHooks["onExecution"]>[0] | undefined;
 		const tools: string[] = [];
-		const reports: string[] = [];
+		const reports: Parameters<TaskExecutionHooks["reportActivity"]>[0][] = [];
 		let yields = 0;
 		let launches = 0;
 		const pending = runSync(dir, [bridgedAgent()], "fake-worker", "task", {
@@ -442,7 +442,7 @@ test("task hooks retain the live result through tool activity and exact Intercom
 					launches++;
 				},
 				reportActivity: (report) => {
-					reports.push(report.reportId);
+					reports.push(report);
 					if (report.change.kind === "action") tools.push(report.change.tool);
 				},
 				yieldTaskWait: (reason) => {
@@ -490,7 +490,12 @@ test("task hooks retain the live result through tool activity and exact Intercom
 		assert.equal((await original).status, "ok");
 		assert.equal((await pending).status, "ok");
 		assert.deepEqual(tools, ["read", "intercom", "bash"]);
-		assert.equal(new Set(reports).size, 3);
+		assert.equal(new Set(reports.map((report) => report.reportId)).size, reports.length);
+		const metrics = reports.map((report) => report.change).filter((change) => change.kind === "metrics");
+		assert.ok(metrics.length > 0);
+		assert.equal(metrics.at(-1)?.toolCount, tools.length);
+		assert.equal(metrics.at(-1)?.tokenCount, 0);
+		assert.ok(metrics.every((change) => typeof change.elapsedMs === "number" && change.elapsedMs >= 0));
 		assert.equal(launches, 1);
 		let cleaned = false;
 		void execution.cleanup.then(() => {

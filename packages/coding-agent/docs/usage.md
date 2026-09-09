@@ -37,6 +37,10 @@ While ordinary agent work is active, the exact one-cell `∀` remains visible an
 
 See [Keybindings](/keybindings) for all shortcuts and customization.
 
+On native Windows, `!` and `!!` execute PowerShell (preferring `pwsh.exe`, then `powershell.exe` on `PATH`). Linux, macOS, and WSL use Bash. Extension-provided execution operations still take precedence. `shellCommandPrefix` is still prepended, so use syntax matching the selected shell; `shellPath` configures Bash, not Windows interactive PowerShell. Escape or Ctrl+C cancels a running command. `!!` output remains excluded from model context.
+
+On Windows, ALT+Z lends the terminal to an interactive PowerShell subshell. Type `exit` to return to the same Atomic session; owned background tasks keep running. CTRL+Z remains editor undo. On POSIX systems, CTRL+Z suspends Atomic and `fg` resumes it.
+
 ## Slash Commands
 
 Type `/` in the editor to open command completion. Extensions can register custom commands, skills are available as `/skill:name`, and prompt templates expand via `/templatename`.

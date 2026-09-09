@@ -1,5 +1,4 @@
-//! Owned Unix pipe commands and bounded output retention (RFC #2884).
-// PTY, Windows pipe, and input/output doors follow in later S2 milestones.
+//! Owned pipe/PTY commands with process-tree containment and bounded output retention (RFC #2884).
 #![allow(dead_code)]
 use super::*;
 use std::sync::Condvar;
@@ -15,6 +14,10 @@ pub use input::*;
 mod resource;
 #[cfg(windows)]
 mod windows;
+#[cfg(windows)]
+mod windows_command;
+#[cfg(windows)]
+mod windows_pty;
 #[cfg(unix)]
 use resource::ProcessResource;
 type ProcessReader = Box<dyn Read + Send>;
@@ -36,6 +39,16 @@ pub enum CommandTerminal {
 	Pty { columns: u16, rows: u16 },
 }
 
+/// Execute this program directly, appending command as one final argument.
+#[napi(object)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CommandShell {
+	#[napi(ts_type = "string")]
+	pub program: JsString,
+	#[napi(ts_type = "string[]")]
+	pub args: Vec<JsString>,
+}
+
 #[napi(object)]
 #[derive(Clone, Debug)]
 pub struct CommandIntent {
@@ -48,6 +61,9 @@ pub struct CommandIntent {
 	pub cwd: Option<JsString>,
 	#[napi(ts_type = "Record<string,string>")]
 	pub env: Option<std::collections::HashMap<String, JsString>>,
+	pub shell: Option<CommandShell>,
+	/// Defaults to true; false makes env the complete child environment.
+	pub inherit_env: Option<bool>,
 	pub terminal: CommandTerminal,
 	pub execution_timeout_ms: Option<f64>,
 	#[napi(ts_type = "string")]
@@ -60,6 +76,8 @@ impl PartialEq for CommandIntent {
 			&& self.description == other.description
 			&& self.cwd == other.cwd
 			&& self.env == other.env
+			&& self.shell == other.shell
+			&& self.inherit_env == other.inherit_env
 			&& self.terminal == other.terminal
 			&& self.parent_task_id == other.parent_task_id
 			&& self.execution_timeout_ms.map(f64::to_bits)
@@ -214,7 +232,7 @@ impl Actor {
 			return Ok(lease);
 		}
 		// Unsupported platforms refuse before executing any part of the command.
-		#[cfg(not(unix))]
+		#[cfg(not(any(unix, windows)))]
 		if !matches!(intent.terminal, CommandTerminal::Pipe {}) {
 			return Err(fail("ContainmentUnavailable"));
 		}
@@ -278,6 +296,8 @@ impl Actor {
 					intent.command.first_nonblank_line().unwrap_or_else(|| intent.command.clone())
 				}),
 			agent_name: None,
+			model: None,
+			thinking: None,
 			execution: Execution::Queued {},
 			observation: HostObservation::Background { reason: "not-observed".into() },
 			was_background: None,
@@ -371,9 +391,16 @@ impl Actor {
 					Ok((ProcessResource::Pty(pty), Some(writer), reader, Box::new(io::empty()), None))
 				},
 				CommandTerminal::Pipe {} => {
-					let mut spawn = Command::new("/bin/sh");
+					let mut spawn = if let Some(shell) = &command.intent.shell {
+						let mut spawn = Command::new(shell.program.process_text());
+						spawn.args(shell.args.iter().map(JsString::process_text));
+						spawn
+					} else {
+						let mut spawn = Command::new("/bin/sh");
+						spawn.arg("-c");
+						spawn
+					};
 					spawn
-						.arg("-c")
 						.arg(command.intent.command.process_text())
 						.process_group(0)
 						.stdin(Stdio::piped())
@@ -388,6 +415,9 @@ impl Actor {
 					}
 					if let Some(cwd) = &command.intent.cwd {
 						spawn.current_dir(cwd.process_text());
+					}
+					if command.intent.inherit_env == Some(false) {
+						spawn.env_clear();
 					}
 					if let Some(env) = &command.intent.env {
 						spawn.envs(env.iter().map(|(key, value)| (key, value.process_text())));
@@ -521,9 +551,10 @@ impl Actor {
 			if let Some(stop) = stopping {
 				if !killed && stop.elapsed() >= PROCESS_TERM_GRACE {
 					// The direct child has not been reaped: its PID, and therefore our PGID, cannot be reused.
-					if let Err(error) = command.signal_group(pid, libc::SIGKILL) {
-						cleanup_failure = Some(error.to_string());
-					}
+					// A successful escalation can resolve an earlier TERM refusal;
+					// reaping and group disappearance must still be confirmed below.
+					cleanup_failure =
+						command.signal_group(pid, libc::SIGKILL).err().map(|error| error.to_string());
 					killed = true;
 				}
 				if killed {
@@ -546,6 +577,17 @@ impl Actor {
 							Ok(true) if (stdout_eof && stderr_eof) || setup_failure.is_some() => break,
 							Ok(_) => {},
 							Err(error) => {
+								// Darwin also returns EPERM for zombie-only groups after the
+								// leader is reaped. Other parents may still be reaping members.
+								// Retry only this read-only probe within the existing bound:
+								// ESRCH is still required, and persistent refusal stays a failure.
+								#[cfg(target_os = "macos")]
+								if error.raw_os_error() == Some(libc::EPERM)
+									&& stop.elapsed() < PROCESS_TERM_GRACE + PROCESS_DRAIN_GRACE
+								{
+									std::thread::sleep(PROCESS_POLL);
+									continue;
+								}
 								cleanup_failure = Some(error.to_string());
 								break;
 							},
@@ -992,6 +1034,8 @@ mod tests {
 			cwd: None,
 			env: None,
 			terminal: CommandTerminal::Pipe {},
+			shell: None,
+			inherit_env: None,
 			execution_timeout_ms: None,
 			parent_task_id: None,
 		}
@@ -1033,7 +1077,7 @@ mod tests {
 	}
 
 	// #2884: unsupported terminal modes must never execute as a different backend.
-	#[cfg(not(unix))]
+	#[cfg(not(any(unix, windows)))]
 	#[test]
 	fn unsupported_pty_refuses_before_execution() {
 		let (actor, owner) = command_owner();
@@ -1085,6 +1129,98 @@ mod tests {
 		assert!(!still_exists, "native child {pid} survived normal shutdown");
 		assert!(matches!(actor.snapshot(&owner).unwrap().tasks[0].cleanup, Cleanup::Reaped {}));
 	}
+	// Darwin's group probe can return EPERM while another parent still owns a zombie.
+	#[cfg(target_os = "macos")]
+	#[test]
+	fn externally_terminated_group_waits_for_unreaped_member() {
+		assert_external_termination_cleanup(true);
+	}
+	#[cfg(target_os = "macos")]
+	#[test]
+	fn externally_terminated_group_keeps_persistent_probe_refusal_as_failure() {
+		assert_external_termination_cleanup(false);
+	}
+	#[cfg(target_os = "macos")]
+	fn assert_external_termination_cleanup(reap_within_grace: bool) {
+		use std::os::unix::process::CommandExt;
+		use std::process::{Command, Stdio};
+		let (actor, owner) = command_owner();
+		let path = std::env::temp_dir().join(format!(
+			"atomic-external-term-{}-{}",
+			std::process::id(),
+			actor.id
+		));
+		actor
+			.start_command_configured(
+				&owner,
+				pipe_intent(&format!("echo $$ > '{}'; exec sleep 30", path.display())),
+				"external-term".into(),
+				CommandResourceOptions { background: Some(true), ..Default::default() },
+			)
+			.unwrap();
+		let pid: libc::pid_t = wait_for_file(&path).trim().parse().unwrap();
+		std::fs::remove_file(path).unwrap();
+		// Keep a group member waitable here to deterministically model a descendant
+		// awaiting reaping by another parent after an external killpg(SIGTERM).
+		let mut member = Command::new("/bin/sleep")
+			.arg("30")
+			.process_group(pid)
+			.stdin(Stdio::null())
+			.stdout(Stdio::null())
+			.stderr(Stdio::null())
+			.spawn()
+			.unwrap();
+		let started = Instant::now();
+		assert_eq!(unsafe { libc::kill(-pid, libc::SIGTERM) }, 0);
+		actor.begin_close(&owner).unwrap();
+		let command = actor.state.lock().unwrap().owners[0].tasks[0].command.clone().unwrap();
+		// Wait for the supervisor to reap its leader, without taking its wait authority.
+		loop {
+			if let Err(error) = child_exited_without_reaping(pid) {
+				assert_eq!(error.raw_os_error(), Some(libc::ECHILD));
+				break;
+			}
+			assert!(started.elapsed() < PROCESS_SHUTDOWN_GRACE, "leader was not reaped");
+			std::thread::sleep(PROCESS_POLL);
+		}
+		// Hold the zombie through several post-reap probes, or through the entire
+		// drain bound. It cannot disappear until this test explicitly waits for it.
+		let observation =
+			if reap_within_grace { Duration::from_millis(100) } else { PROCESS_SHUTDOWN_GRACE };
+		let finished = command.join_until(Instant::now() + observation);
+		let before_reap = actor.snapshot(&owner).unwrap();
+		let probe = unsafe { libc::kill(-pid, 0) };
+		let probe_error = io::Error::last_os_error().raw_os_error();
+		let member_exited = child_exited_without_reaping(member.id() as libc::pid_t).unwrap();
+		member.wait().unwrap();
+		assert!(command.join_until(Instant::now() + PROCESS_SHUTDOWN_GRACE));
+		let receipt = actor.close_receipt(&owner);
+		actor.shutdown();
+		assert_eq!(probe, -1);
+		assert_eq!(probe_error, Some(libc::EPERM));
+		assert!(member_exited, "fixture must be an unreaped zombie, not a live process");
+		std::fs::remove_file(&command.output.lock().unwrap().path).unwrap();
+		if reap_within_grace {
+			assert!(!finished, "cleanup settled before the zombie was reaped: {before_reap:?}");
+			assert!(matches!(before_reap.tasks[0].cleanup, Cleanup::Draining {}));
+			assert!(receipt.unwrap().is_some());
+			assert!(matches!(actor.snapshot(&owner).unwrap().tasks[0].cleanup, Cleanup::Reaped {}));
+		} else {
+			assert!(finished, "persistent refusal must settle within the shutdown bound");
+			assert!(started.elapsed() >= PROCESS_TERM_GRACE + PROCESS_DRAIN_GRACE);
+			let error = receipt.unwrap_err();
+			assert_eq!(error.code, "CleanupFailed");
+			assert!(error.message.contains("Operation not permitted (os error 1)"), "{error:?}");
+			assert!(matches!(before_reap.tasks[0].cleanup, Cleanup::Failed { .. }));
+		}
+		assert_eq!(unsafe { libc::kill(-pid, 0) }, -1);
+		assert_eq!(io::Error::last_os_error().raw_os_error(), Some(libc::ESRCH));
+		assert_eq!(
+			*command.signals.lock().unwrap(),
+			vec![(pid, libc::SIGTERM), (pid, libc::SIGKILL)]
+		);
+	}
+
 	// #2884: EOF and the shell's exit are not proof that a closed-stdio descendant exited.
 	#[cfg(unix)]
 	#[test]

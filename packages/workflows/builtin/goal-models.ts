@@ -3,10 +3,10 @@ import { reviewDecisionSchema } from "./goal-schemas.js";
 // Keep this model list identical to Ralph's orchestrator while preserving a
 // locally contained Goal configuration.
 export const orchestratorModelConfig = {
-    model: "openai-codex/gpt-6-astra:high",
+    model: "openai-codex/gpt-6-astra:medium",
     fallbackModels: [
-      "github-copilot/gpt-6-astra:high",
-      "openai/gpt-6-astra:high",
+      "github-copilot/gpt-6-astra:medium",
+      "openai/gpt-6-astra:medium",
       "anthropic/claude-fable-5-1:high",
       "github-copilot/claude-fable-5-1:high",
       "anthropic/claude-opus-5:high",
@@ -32,7 +32,7 @@ export const orchestratorModelConfig = {
       "zai-coding-cn/glm-5.3-flash:high",
       "baseten/zai-org/GLM-5.3:high",
       "baseten/zai-org/GLM-5.3-Flash:high",
-      "openrouter/openai/gpt-6-astra:high",
+      "openrouter/openai/gpt-6-astra:medium",
       "openrouter/anthropic/claude-fable-5-1:high",
       "openrouter/anthropic/claude-opus-5:high",
       "openrouter/openai/gpt-5.6-sol:xhigh",
@@ -41,7 +41,7 @@ export const orchestratorModelConfig = {
       "openrouter/sakana/fugu-ultra:high",
       "openrouter/openai/gpt-5.5:xhigh",
       "openrouter/anthropic/claude-opus-4-8:high",
-      "openrouter/x-ai/grok-4.6",
+      "openrouter/x-ai/grok-4.6:xhigh",
       "openrouter/z-ai/glm-5.3:high",
       "openrouter/z-ai/glm-5.3-flash:high",
     ],
@@ -89,7 +89,7 @@ export const reviewerModelConfig = {
       "openrouter/sakana/fugu-ultra:high",
       "openrouter/openai/gpt-5.5:xhigh",
       "openrouter/anthropic/claude-opus-4-8:high",
-      "openrouter/x-ai/grok-4.6",
+      "openrouter/x-ai/grok-4.6:xhigh",
       "openrouter/z-ai/glm-5.3:high",
       "openrouter/z-ai/glm-5.3-flash:high",
     ],

@@ -98,7 +98,7 @@ describe("SDK tool exclusions", () => {
 		session.dispose();
 	});
 
-	it("preserves static ask_user_question guidance for allowlisted sessions when excludedTools is omitted", async () => {
+	it("preserves question-tool fallback guidance for allowlisted sessions when excludedTools is omitted", async () => {
 		const session = await createSession({
 			tools: ["read"],
 		});
@@ -112,7 +112,13 @@ describe("SDK tool exclusions", () => {
 		expect(session.getActiveToolNames()).toEqual(["read", "intercom"]);
 		expect(session.systemPrompt).toContain("- read: Read a path selector.");
 		expect(session.systemPrompt).not.toContain("- ask_user_question:");
-		expect(session.systemPrompt).toContain("using the ask_user_question tool if available");
+		expect(session.systemPrompt).toContain(
+			"If an equivalent user-question tool is available, use it for all questions",
+		);
+		expect(session.systemPrompt).toContain("including confirmations and approvals, following its supported schema");
+		expect(session.systemPrompt).toContain("When no usable question tool or human-input channel exists");
+		expect(session.systemPrompt).toContain("continue fully autonomously on best judgment");
+		expect(session.systemPrompt).toContain("Preserve safety and authorization constraints");
 
 		session.dispose();
 	});

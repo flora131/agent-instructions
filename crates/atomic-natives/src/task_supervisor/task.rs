@@ -246,6 +246,10 @@ pub struct TaskRecord {
 	pub title: JsString,
 	#[napi(ts_type = "string")]
 	pub agent_name: Option<JsString>,
+	#[napi(ts_type = "string")]
+	pub model: Option<JsString>,
+	#[napi(ts_type = "string")]
+	pub thinking: Option<JsString>,
 	pub execution: Execution,
 	pub observation: HostObservation,
 	/// True after a designated observation yields; retained after settlement and snapshot resets.
@@ -264,6 +268,12 @@ pub enum ActivityChange {
 		tool: JsString,
 		#[napi(ts_type = "string")]
 		text: JsString,
+	},
+	Model {
+		#[napi(ts_type = "string")]
+		model: Option<JsString>,
+		#[napi(ts_type = "string")]
+		thinking: Option<JsString>,
 	},
 	Metrics {
 		elapsed_ms: Option<f64>,
@@ -290,6 +300,10 @@ impl PartialEq for ActivityChange {
 			(Self::Action { tool, text }, Self::Action { tool: other_tool, text: other_text }) => {
 				tool == other_tool && text == other_text
 			},
+			(
+				Self::Model { model, thinking },
+				Self::Model { model: other_model, thinking: other_thinking },
+			) => model == other_model && thinking == other_thinking,
 			(
 				Self::Metrics { elapsed_ms, tool_count, token_count },
 				Self::Metrics {
@@ -447,6 +461,8 @@ impl Actor {
 			kind: "agent".into(),
 			title,
 			agent_name: Some(intent.agent.clone()),
+			model: None,
+			thinking: None,
 			execution: Execution::Queued {},
 			observation: HostObservation::Background { reason: "not-observed".into() },
 			was_background: None,
@@ -532,6 +548,10 @@ impl Actor {
 				if matches!(t.record.attention, Attention::NoRecentActivity { .. }) {
 					t.record.attention = Attention::None {};
 				}
+			},
+			ActivityChange::Model { model, thinking } => {
+				t.record.model = model.clone();
+				t.record.thinking = thinking.clone();
 			},
 			ActivityChange::Metrics { elapsed_ms, tool_count, token_count } => {
 				let m = t.record.metrics.get_or_insert_default();

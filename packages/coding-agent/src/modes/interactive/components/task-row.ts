@@ -22,6 +22,14 @@ export function taskLabel(task: TaskRecord): string {
 export function taskTitle(task: TaskRecord): string {
 	return task.title || taskLabel(task);
 }
+export function taskModelText(task: Pick<TaskRecord, "kind" | "model" | "thinking">): string {
+	if (task.kind !== "agent") return "";
+	return taskDisplayText(
+		[task.model ?? "model unavailable", task.thinking ? `thinking ${task.thinking}` : "thinking unavailable"].join(
+			" · ",
+		),
+	);
+}
 export function taskShortId(task: TaskRecord): string {
 	return createHash("sha256").update(task.ref.taskId).digest("hex").slice(0, 6);
 }
@@ -109,6 +117,7 @@ export class TaskRow implements Component {
 			theme.bold(taskDisplayText(taskLabel(task))) +
 			theme.fg("muted", `: ${taskDisplayText(taskTitle(task))}`);
 		const lines = [truncateToWidth(title, Math.max(1, rowWidth - suffix.length)) + theme.fg("dim", suffix)];
+		if (task.kind === "agent") lines.push(theme.fg("dim", truncateToWidth(`  ${taskModelText(task)}`, rowWidth)));
 		const action =
 			live && task.currentAction
 				? ` · ${taskDisplayText(task.currentAction.tool)} ${taskDisplayText(task.currentAction.text)}`

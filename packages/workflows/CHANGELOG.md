@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- Stage pause now cancels owned active and admitted queued agents and commands before acknowledging completion, including shells admitted during already-in-flight setup. It waits for cleanup without permanently closing message admission; resume releases queued user and Intercom messages and permits fresh work, without reviving cancelled executions or affecting sibling stages.
+
+### Changed
+
+- Reduced default workflow stage and authored parallel concurrency from 4 to 3, preserving explicit configuration and per-call overrides.
+
+## [0.9.19-alpha.2] - 2026-09-08
+
 ### Added
 
 - Connected workflow activity to the host extension observer stream, independently of lifecycle-notification settings and attribution filters. Root activity is projected from workflow snapshots plus run-qualified runtime execution ownership: nested runs fold into full root replacements; independent execution is distinguished from human waits; runnable handoffs, retries, stop draining, pauses, and acknowledged failures are accounted for without treating historical running stages as execution. Tool-only execution, parallel human-input waits, pause, cancellation drain, and unresolved failures publish root activity replacements; late attachment receives current state, and durable hydration announces recovering before ready. Typed lifecycle hooks cover run, stage, tool, prompt, and control transitions with canonical nested identities; successful-stage completion hooks exclude failed/skipped outcomes, explicit execution replay is tagged, and restored history creates no synthetic completions. Heartbeat hooks follow the existing configured cadence without adding timers or graph nodes. Because the workflows extension publishes root activity to the host, Atomic's built-in Herdr reporter reflects workflow execution and human-input waits in the owning pane; the end-to-end path is covered by an integration test against a fake Herdr CLI ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).
@@ -15,9 +25,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Goal and Ralph orchestration, Ralph research, and Open Claude Design now use GPT-6 Astra at medium. Prompt refinement stays at high, and OpenRouter Grok fallbacks explicitly use xhigh.
 - `/tasks` in an attached stage chat opens the shared owner-bound inspector without entering model context, including during interrupt settlement. Task focus exits before the ordinary stage Escape action, and mounted human-input prompts retain input priority ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Stage chat now shows compact background-agent and shell counts below the composer instead of persistent task rows. Shared `/tasks` views retain background results, and completion notifications use shaded cards with readable outcomes and previews in the owning stage chat.
 - Workflow guidance now uses project CI/test timing history for critical-path scheduling and launch estimates, avoids redundant full-suite runs while preserving required gates, and compares estimated with actual elapsed time. Agent-authored user questions use `ask_user_question` or an equivalent tool when available; sessions without one continue autonomously using best judgment.
+- Workflow guidance treats requests to work "quickly" as task-scoped inline execution. Duration estimates appear before launch without confidence labels. Launches inherit configured limits without a routine budget-choice question; explicit user limits and approval before raising an exhausted budget remain enforced.
 
 ### Fixed
 
@@ -35,6 +47,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Workflow graph canvas and node interiors now use the terminal's background like main and stage chat, instead of painting a fixed dark palette. Themed chrome and focused title tabs remain unchanged.
 - Graph chrome and `/workflow connect` picker rows retain solid background fill across truncated names, filters, and hints. Truncated stage and child-workflow labels keep their focused tab's background, text color, and weight through the ellipsis. Skill, command, and file autocomplete retain terminal-default backgrounds, including selected rows.
 - Classified the workflow graph and run picker as navigation so `/workflow connect` no longer creates a false Herdr approval wait. Actual workflow input waits remain reported.
+- Workflow-stage `/tasks` now retains the shared compact picker and the stage's model, reasoning, cwd/branch, and MCP footer. Detail pages stay fullscreen. Task navigation no longer triggers the main-chat input notice, and pending-prompt notices clear when the graph hides, closes, or changes host.
+- Resume ended recoverable blocks through the existing continuation path rather than returning an unchanged snapshot as success. Non-resumable targets and unchanged blocked snapshots report no progress.
+- Settled failed or blocked runs retain attention without reporting an active user-decision wait to Herdr. Pending prompts and exhausted budgets remain blocked.
+- Stopped the workflow graph projection from retaining and deep-freezing a completed stage's structured result, and gave input defaulting a resolver-owned copy, so a stage's structured output can still be handed to a typed child workflow ([#2936](https://github.com/bastani-inc/atomic/issues/2936)).
 
 ## [0.9.19-alpha.1] - 2026-09-06
 

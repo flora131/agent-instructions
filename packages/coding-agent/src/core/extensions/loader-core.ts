@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import { yieldToEventLoop } from "../../utils/event-loop.ts";
 import { resolvePath } from "../../utils/paths.ts";
-import { createEventBus, type EventBus } from "../event-bus.ts";
+import { createEventBus, type EventBus } from "../event-bus.js";
 import { createSyntheticSourceInfo } from "../source-info.ts";
 import { endTimingSpan, startTimingSpan } from "../timings.ts";
 import { createExtensionAPI } from "./loader-api.ts";

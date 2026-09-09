@@ -1,7 +1,7 @@
 import type { Terminal } from "@earendil-works/pi-tui";
 import { type TUI, TuiMainScreen } from "@earendil-works/pi-tui";
 import { getAgentDir } from "../../config.js";
-import type { AgentSession } from "../../core/agent-session.ts";
+import type { AgentSession } from "../../core/agent-session.js";
 import { runCallback } from "../../core/callback-activity.ts";
 import type { CustomMessage } from "../../core/messages.ts";
 import { CustomMessageComponent } from "../interactive/components/custom-message.ts";

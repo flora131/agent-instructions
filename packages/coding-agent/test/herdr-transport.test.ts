@@ -32,12 +32,12 @@ test("pane ownership serializes and coalesces reports across replacement and clo
 		const lifetime = await fake.calls();
 		assert.deepEqual(
 			lifetime.map((call) => call.phase),
-			Array.from({ length: 5 }, () => ["start", "end"]).flat(),
+			Array.from({ length: 4 }, () => ["start", "end"]).flat(),
 		);
 		const calls = lifetime.filter((call) => call.phase === "start").map((call) => call.args);
 		assert.deepEqual(
 			calls.map((args) => args[1]),
-			["report-agent", "report-agent", "release-agent", "report-agent", "release-agent"],
+			["report-agent", "report-agent", "report-agent", "release-agent"],
 		);
 		assert.deepEqual(
 			calls.filter((args) => args[1] === "report-agent").map((args) => arg(args, "--state")),
@@ -54,7 +54,7 @@ test("pane ownership serializes and coalesces reports across replacement and clo
 		// reused the last report's sequence would leave the pane claimed after quit.
 		for (let index = 1; index < seq.length; index += 1) assert.ok(seq[index]! > seq[index - 1]!);
 		assert.equal(calls.filter((args) => args.includes("--agent-session-id")).length, 2);
-		assert.equal(arg(calls[3], "--agent-session-path"), undefined);
+		assert.equal(arg(calls[2], "--agent-session-path"), undefined);
 		assert.ok(diagnostics.some((value) => value.kind === "stale_owner"));
 	} finally {
 		await releasePaneReporting(owner);

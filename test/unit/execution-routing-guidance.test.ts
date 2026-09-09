@@ -169,8 +169,10 @@ describe("workflow-first execution routing", () => {
 		for (const phrase of [
 			"measurement configuration used for that benchmark result",
 			"not a universal workflow default",
-			"| Security, identity, adversarial challenge, final approval | `max`",
-			"| Codebase mapping, lifecycle analysis, compatibility, planning, synthesis, triage, repair | `high`",
+			"`max` is usually overkill and is not preferred in practice.",
+			"| Coding, implementation, routine fixes | `low` or `medium` |",
+			"| Code review, test design, failure analysis, security, identity, adversarial challenge, final approval | `high` or `xhigh` |",
+			"| Codebase mapping, lifecycle analysis, compatibility, planning, synthesis, triage | `high` |",
 			"| User-impact review and final reporting | `medium`",
 			"| Deterministic checks | No model call",
 		]) {
@@ -199,9 +201,11 @@ describe("workflow-first execution routing", () => {
 		}
 
 		for (const phrase of [
-			"Reserve `max` for a high-cost-of-error role or an explicit user request",
-			"For each primary and fallback, choose a level for the same stage role independently",
-			"A fallback is not a reason to inherit `max` mechanically",
+			"`max` is an exception, not a role default.",
+			"Consider it only when task-specific evidence justifies the extra effort or the user explicitly requests it.",
+			"An explicit request wins over these defaults, but the requested level still must appear in the configured catalog; do not invent an unsupported suffix.",
+			"For each primary and fallback, choose a supported level for the same stage role independently.",
+			"If `xhigh` is unavailable, use `high` rather than automatically promoting to `max`; choose another catalog model or leave the stage unpinned if neither is supported.",
 		]) {
 			expect(modelSelection).toContain(phrase);
 		}
@@ -1003,9 +1007,8 @@ describe("workflow-first execution routing", () => {
 		for (const phrase of [
 			"Do not pass a `budget` unless the user asked for a limit",
 			"omitting `budget` inherits the workflow declaration and config",
-			"assuming no budget is always the correct default",
 			"pass only the fields they named",
-			"Pass budget only when the user asked for a limit",
+			"Pass budget only for a user-specified limit",
 			"Heartbeat cadence is 15 minutes by default",
 			"Keep that interval unless the user explicitly asks for a different cadence",
 			"A heartbeat is a periodic alignment check",

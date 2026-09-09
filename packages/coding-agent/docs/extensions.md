@@ -633,7 +633,7 @@ Inside `before_agent_start`, `event.systemPrompt` and `ctx.getSystemPrompt()` bo
 
 #### agent_start / agent_end / agent_settled
 
-`agent_start` begins a low-level run. `agent_end` fires when that run ends, but Atomic may still retry, compact and retry, or deliver queued follow-ups. Use `agent_settled` when a status integration needs to know Atomic has no automatic continuation left.
+`agent_start` begins a low-level run. `agent_end` fires when that run ends, but Atomic may still retry, compact and retry, or deliver queued follow-ups. Use `agent_settled` when a status integration needs to know Atomic has no automatic continuation left, including a chain of repeated output-cap continuations. Silence during a provider request or between these runs is not settlement.
 
 ```typescript
 pi.on("agent_start", async (_event, ctx) => {});
@@ -659,7 +659,7 @@ Interactive resume trust dialogs use the outgoing session's live extension conte
 
 Atomic coalesces nested or overlapping prompts, including mixed reasons, into one shared outer span. The end event retains the original outer prompt's reason, kind, and title and fires after every prompt in the span settles, including rejected promises and synchronous failures. Cancelling or disposing the `/trust` selector ends its wait. Rebinding the host UI context closes an active span before a prompt from the new context can begin. Notifications are not replayed to a replacement engine if the engine exits while a host selector is open.
 
-At session replacement, Atomic waits up to 1,000 ms for a snapshot of pending prompt notification deliveries before shutdown. Prompt display and answers never await observers, and start and end dispatch independently. If an observer hangs, Atomic warns and continues replacement; its context is not guaranteed to remain valid after that finite boundary.
+At session replacement, Atomic waits up to 1,000 ms for a snapshot of pending prompt notification deliveries before shutdown. Prompt display and answers never await observers. Start and end dispatch independently, invoking each observer in notification order without awaiting other observers; an earlier slow observer cannot make later subscribers receive an end before its start. An observer's own asynchronous start and end work can overlap, so update lifecycle state before awaiting unrelated work. If an observer hangs, Atomic warns and continues replacement; its context is not guaranteed to remain valid after that finite boundary.
 
 Handlers run best-effort from the microtask queue. Atomic does not await them before opening or closing the prompt, so notifications do not block the UI.
 
@@ -1002,6 +1002,8 @@ pi.on("user_bash", (event, ctx) => {
 
 Fired when user input is received, after extension commands are checked but before skill and template expansion. The event sees the raw input text, so `/skill:foo` and `/template` are not yet expanded.
 
+Direct `session.steer()` and `session.followUp()` calls also run input handlers before skill/template expansion and queue admission. A handled input is not queued; transformed text and images are queued instead. Their optional third argument sets `source`, defaulting to `interactive`; RPC queue commands use `rpc`.
+
 **Processing order:**
 1. Extension commands (`/cmd`) checked first - if found, handler runs and input event is skipped
 2. `input` event fires - can intercept, transform, or handle
@@ -1179,6 +1181,8 @@ ctx.sessionManager.getLeafId()        // Current leaf entry ID
 Access models, auth state, and provider-aware requests.
 
 Use `ctx.modelRegistry.complete()` for an extension model request that must use Atomic's provider composition. It dispatches through the active `ModelRuntime`, retaining registered custom providers and resolved request auth: the credential-specific `baseUrl`, headers (including `null` suppression markers), and environment values.
+
+For streaming requests, use `ctx.modelRegistry.streamSimple(model, context, options)` with provider-neutral options, or `stream()` with API-specific options. Both use configured providers and request-time authentication, including extension registrations. Iterate the returned `AssistantMessageEventStream` for events and await `.result()` for the final message. Setup failures produce error events and error results. The global compatibility streaming functions do not see extension provider registrations.
 
 ```typescript
 const model = ctx.modelRegistry.find("github-copilot", "gpt-5.5");
@@ -1418,7 +1422,7 @@ Options:
 
 ### ctx.navigateTree(targetId, options?)
 
-Navigate to a different point in the session tree:
+Navigate to a different point in the session tree. Navigation rejects while a response, compaction, or branch summarization is active, even with `summarize: false`. Rejection leaves the active branch unchanged. Wait for the active operation to finish and retry.
 
 ```typescript
 const result = await ctx.navigateTree("entry-id-456", {
@@ -2230,6 +2234,8 @@ async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
 
 ### Tool Definition
 
+`parameters` is required, including for no-argument tools (use `Type.Object({})`). Registration rejects missing, null, array, and primitive schema values before they can break a provider request. This checks the schema container, not its JSON Schema `type`: object-valued union and non-object-type schemas remain accepted and unchanged.
+
 ```typescript
 import { Type } from "typebox";
 import { StringEnum } from "@bastani/atomic";
@@ -2326,6 +2332,8 @@ Exact modes:
 - `{ type: "json_schema", strict: "require" }` fails the request rather than silently weakening the constraint.
 - `{ type: "grammar", variants: { openai_lark?: string, openai_regex?: string } }` requests an OpenAI custom grammar tool; Lark wins when both non-empty variants are present.
 - `false` explicitly opts out. Its runtime effect matches omission, but public tool inspection preserves `false` as a present property.
+
+Built-in `read`, `edit`, `write`, `bash`, and its Windows PowerShell variant request strict JSON-schema sampling with `prefer` by default. This is a provider hint, not a schema rewrite or a sandbox. Unsupported providers retain ordinary tool calling. Other experimental tool hints still follow the experimental environment flag.
 
 Atomic preserves the optional property's exact own-key state across wrappers, active-session inspection, staged extension inspection, bundled tools, and isolated transport: omission stays absent; explicitly present `undefined` stays present; `false` and config objects remain unchanged. This distinction matters to SDK/extension code that uses `Object.hasOwn()` rather than an ordinary property read.
 

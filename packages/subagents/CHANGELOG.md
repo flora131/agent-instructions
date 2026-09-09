@@ -2,21 +2,36 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Reduced default top-level parallel subagent concurrency from 4 to 3. Explicit configuration and per-call overrides remain honored; the separate per-parent native turn cap remains 4.
+
+## [0.9.19-alpha.2] - 2026-09-08
+
 ### Added
 
 - Added `/agents` to browse and filter effective agent definitions by source, with model, tool, description, and prompt details.
+- Added the builtin herdr skill from upstream v0.9.0 beside tmux, preserving its managed-pane safety checks and CLI guidance.
 
 ### Fixed
 
+- Publish noninteractive execution termination before session disposal so completed, failed, interrupted, and cancelled children no longer accept Intercom asks they cannot answer. Follow-up work requires a fresh child; live asks and send behavior are preserved.
 - Already-admitted in-process task callers now yield each active foreground sibling's observation on an exact Intercom group commit without ending or replacing the original executions ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Status and interrupt now accept owner-bound task IDs returned by launches, and wait results use readable observation summaries. Corrected foreground-only claims in orchestrator guidance, the bundled delegation and terminal skills, and the README. Agents can choose foreground-first or background observation; automatic yielding preserves the original execution.
 - Bound task transcript sources now retain the trusted run and actual Intercom target so queued child messages are delivered before owner-bound completion notices, without guessing from task or SDK session IDs.
+- Parallel Intercom asks and supervisor decisions/interviews now wait in the original requester without ending siblings. Foreground coordination releases observations, not execution slots; queued siblings survive and start once capacity is free. Targeted interruption and owner/batch cancellation remain separate.
+- Fixed parallel worktree cleanup after a queued child is cancelled or its session/workflow-stage owner closes. Cleanup now includes never-started children without removing live siblings' worktrees early, for both foreground and background observations.
+- Background launch cards now show the concrete model and known reasoning level already selected at admission, including inherited defaults, before child session startup. Unresolved settings are not guessed, and later session and fallback updates remain authoritative.
+- Marked the read-only `/agents` catalog as navigation so browsing no longer creates a false approval wait or Herdr blocked status.
 
 ### Changed
 
+- Locator and pattern-finding agents now use GPT-5.6 Luna at xhigh with Grok fallbacks at medium. Other bundled agents explicitly select xhigh for OpenRouter Grok fallbacks.
+- Owner-bound task reports and foreground/background result receipts now retain resolved model and reasoning settings across fallback and completion. Live transcript viewers subscribe to session events without publishing high-frequency task-status updates.
 - Session-bound launches now return task observations immediately by default. Independent parallel launches admit queued slots under their concurrency limit; explicit foreground groups retain Intercom yielding. Owner-scoped `action:"wait"` observes the same child; terminal completion uses a nonvisual persisted envelope ([#2884](https://github.com/bastani-inc/atomic/pull/2884)).
 - Subagent tool results now summarize launch observations and agent discovery instead of displaying raw task receipts or full catalog dumps by default. Parallel receipts show numbered sibling rows and errors; expanded results retain task identities. Owner-task progress includes recorded elapsed time, tool/token counts, and concise current-tool arguments.
 - In-process status cards now show compact, theme-aware agent rows with state symbols instead of repeated run IDs and raw residency text. Expanding reveals all children and diagnostic metadata; narrow terminals preserve readable status labels.
+- Orchestration guidance honors requests to work "quickly" as inline execution, without spawning a hidden or nested workflow or dropping validation requirements.
 
 ## [0.9.18] - 2026-09-05
 

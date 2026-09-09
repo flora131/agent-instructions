@@ -1,6 +1,8 @@
 import { AsyncResource } from "node:async_hooks";
 import type * as native from "@bastani/atomic-natives";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { createModuleRequire } from "../../utils/module-require.ts";
+import type { AgentSessionEvent } from "../agent-session.js";
 import type { SessionManager } from "../session-manager.ts";
 import { COMMAND_FOREGROUND_BUDGET_MS } from "./command-output.js";
 import type { TaskCompletionSource } from "./completion-ordering.js";
@@ -8,6 +10,9 @@ import type * as C from "./contracts.js";
 
 export type TaskTranscriptSource = Pick<SessionManager, "getSessionId" | "getEntries"> & {
 	readonly completionSource?: TaskCompletionSource;
+	/** Viewer-only subscription; updates never publish task lifecycle events. */
+	subscribe?(listener: (event: AgentSessionEvent) => void): () => void;
+	getStreamingMessage?(): AgentMessage | undefined;
 };
 
 export const DEFAULT_AGENT_WAIT_BUDGET_MS = 30000;
@@ -68,6 +73,8 @@ type OwnerState = {
 	host: HostState;
 	tasks: Map<C.TaskId, TaskLease>;
 	watches: Set<TaskSubscription>;
+	settledTasks: Set<C.TaskId>;
+	commandAdmissions: Set<Promise<void>>;
 };
 type TaskState = {
 	native: native.TaskLease;
@@ -212,6 +219,8 @@ function record(value: native.TaskRecord): C.TaskRecord {
 		kind: value.kind,
 		title: value.title,
 		...(value.agentName === undefined ? {} : { agentName: value.agentName }),
+		...(value.model === undefined ? {} : { model: value.model }),
+		...(value.thinking === undefined ? {} : { thinking: value.thinking }),
 		execution: execution(value.execution),
 		observation: observation(value.observation),
 		...(value.wasBackground === undefined ? {} : { wasBackground: value.wasBackground }),
@@ -367,6 +376,10 @@ function applyEvent(current: C.OwnerSnapshot, value: C.NativeEvent): C.OwnerSnap
 				case "action":
 					task.currentAction = { tool: activity.tool, text: activity.text };
 					if (task.attention.kind === "no-recent-activity") task.attention = { kind: "none" };
+					break;
+				case "model":
+					task.model = activity.model;
+					task.thinking = activity.thinking;
 					break;
 				case "metrics":
 					task.metrics = {
@@ -525,8 +538,15 @@ export class TaskSubscription {
 	}
 }
 
+function createNativeSupervisor(): native.TaskSupervisor {
+	// Keep loading separate from `new`: type-assertion erasure in the build
+	// must not move construction onto createModuleRequire instead of the class.
+	const binding = createModuleRequire(import.meta.url)("@bastani/atomic-natives") as typeof native;
+	return new binding.TaskSupervisor();
+}
+
 export class TaskSupervisor {
-	#native = new (createModuleRequire(import.meta.url)("@bastani/atomic-natives") as typeof native).TaskSupervisor();
+	#native = createNativeSupervisor();
 	#hosts = environment.hosts;
 	#owners = environment.owners;
 	#tasks = environment.tasks;
@@ -552,11 +572,18 @@ export class TaskSupervisor {
 				if (existing) return existing;
 				const owner = new OwnerCapability();
 				Object.freeze(owner);
-				this.#owners.set(owner, { native: lease, host: state, tasks: new Map(), watches: new Set() });
+				const ownerState: OwnerState = {
+					native: lease,
+					host: state,
+					tasks: new Map(),
+					watches: new Set(),
+					settledTasks: new Set(),
+					commandAdmissions: new Set(),
+				};
+				this.#owners.set(owner, ownerState);
 				this.#ownerIds.set(id, owner);
 				const watched = this.watchOwnerTasks(owner);
 				if (!watched.ok) throw new Error(watched.error.message);
-				const settledCommands = new Set<C.TaskId>();
 				watched.value.onReconcile = (projection) => {
 					if (projection.state === "closed") this.#ownerIds.delete(projection.ownerId);
 					for (const record of projection.tasks) {
@@ -573,27 +600,19 @@ export class TaskSupervisor {
 					let failure: Error | undefined;
 					for (const record of projection.tasks) {
 						if (
-							record.kind !== "command" ||
 							record.execution.kind !== "settled" ||
-							settledCommands.has(record.ref.taskId) ||
+							ownerState.settledTasks.has(record.ref.taskId) ||
 							!state.binding.onTaskSettled
 						)
 							continue;
 						try {
-							// The journal may have reset, and native setup may finish before its JS lease exists.
+							// Cancellation settles at cleanup (or while queued), without a runner outcome.
+							// Recover its authentic receipt even when the bounded journal has reset.
 							const task = this.#native.lookupTask(lease, record.ref.taskId);
 							if (!task.ok) throw new Error(task.error.message);
 							const settled = this.#native.taskSettlement(task.value);
 							if (!settled.ok) throw new Error(settled.error.message);
-							const receipt = settled.value;
-							// Mark before entering host code: reentrant drains and callback failures must not redeliver.
-							settledCommands.add(record.ref.taskId);
-							state.binding.onTaskSettled(record.ref, {
-								taskId: receipt.taskId as C.TaskId,
-								cursor: cursor(receipt.cursor),
-								result: taskResult(receipt.result),
-								completionId: receipt.completionId,
-							});
+							this.#notifyTaskSettled(ownerState, record.ref, settled.value);
 						} catch (error) {
 							failure ??= new Error(rejectionMessage(error));
 						}
@@ -606,6 +625,18 @@ export class TaskSupervisor {
 			ownerErrors,
 		);
 	}
+	#notifyTaskSettled(state: OwnerState, ref: C.NativeTaskRef, receipt: native.SettlementReceipt): void {
+		if (!state.host.binding.onTaskSettled || state.settledTasks.has(ref.taskId)) return;
+		// Runner outcomes and snapshot recovery share one delivery door. Mark before
+		// host code so reentrant drains or callback failures cannot redeliver.
+		state.settledTasks.add(ref.taskId);
+		state.host.binding.onTaskSettled(ref, {
+			taskId: receipt.taskId as C.TaskId,
+			cursor: cursor(receipt.cursor),
+			result: taskResult(receipt.result),
+			completionId: receipt.completionId,
+		});
+	}
 	async startCommandTask(
 		owner: OwnerLease,
 		intent: C.CommandIntent,
@@ -613,27 +644,42 @@ export class TaskSupervisor {
 	): Promise<C.Result<TaskLease, C.StartFailure>> {
 		const state = this.#owner(owner);
 		state.host.binding.authorizeCommandLaunch?.(intent);
-		const admitted = mapped(
-			await this.#native.startCommandTask(state.native, intent, operation),
-			(lease) => lease,
-			startErrors,
-		);
-		if (!admitted.ok) return admitted;
-		const ref = this.#native.taskReference(admitted.value);
-		if (!ref.ok) throw new Error(ref.error.message);
-		const id = ref.value.taskId as C.TaskId;
-		const existing = state.tasks.get(id);
-		if (existing) return { ok: true, value: existing };
-		const task = new TaskCapability();
-		this.#tasks.set(task, {
-			native: admitted.value,
-			owner: state,
-			ref: reference(ref.value),
-			controller: new AbortController(),
-			kind: "command",
+		// Native command setup can be admitted before its task lease is visible in JS.
+		let finishAdmission!: () => void;
+		const admission = new Promise<void>((resolve) => {
+			finishAdmission = resolve;
 		});
-		state.tasks.set(id, task);
-		return { ok: true, value: task };
+		state.commandAdmissions.add(admission);
+		try {
+			const admitted = mapped(
+				await this.#native.startCommandTask(state.native, intent, operation),
+				(lease) => lease,
+				startErrors,
+			);
+			if (!admitted.ok) return admitted;
+			const ref = this.#native.taskReference(admitted.value);
+			if (!ref.ok) throw new Error(ref.error.message);
+			const id = ref.value.taskId as C.TaskId;
+			const existing = state.tasks.get(id);
+			if (existing) return { ok: true, value: existing };
+			const task = new TaskCapability();
+			this.#tasks.set(task, {
+				native: admitted.value,
+				owner: state,
+				ref: reference(ref.value),
+				controller: new AbortController(),
+				kind: "command",
+			});
+			state.tasks.set(id, task);
+			return { ok: true, value: task };
+		} finally {
+			state.commandAdmissions.delete(admission);
+			finishAdmission();
+		}
+	}
+	/** Caller must hold launch authorization closed while this snapshot drains. */
+	async drainCommandAdmissions(owner: OwnerLease): Promise<void> {
+		await Promise.all([...this.#owner(owner).commandAdmissions]);
 	}
 	taskStdin(task: TaskLease): C.Result<StdinLease, C.InputError> {
 		return mapped(
@@ -741,14 +787,7 @@ export class TaskSupervisor {
 				.then((result) => {
 					return mapped(
 						this.#native.reportRunnerOutcome(runner.value, result),
-						(receipt) => {
-							state.host.binding.onTaskSettled?.(taskState.ref, {
-								taskId: receipt.taskId as C.TaskId,
-								cursor: cursor(receipt.cursor),
-								result: taskResult(receipt.result),
-								completionId: receipt.completionId,
-							});
-						},
+						(receipt) => this.#notifyTaskSettled(state, taskState.ref, receipt),
 						reportErrors,
 					);
 				});
@@ -820,6 +859,7 @@ export class TaskSupervisor {
 		owner: OwnerLease,
 		taskId: C.TaskId,
 		budgetMs?: number,
+		onRegistered?: (wait: WaitLease) => void,
 	): Promise<C.Result<C.WaitOutcome, C.WaitError>> {
 		const found = mapped(this.#native.lookupTask(this.#owner(owner).native, taskId), (lease) => lease, waitErrors);
 		if (!found.ok) return found;
@@ -836,7 +876,9 @@ export class TaskSupervisor {
 			(lease) => this.#register(lease),
 			waitErrors,
 		);
-		return registered.ok ? this.observeTaskWait(registered.value) : registered;
+		if (!registered.ok) return registered;
+		onRegistered?.(registered.value);
+		return this.observeTaskWait(registered.value);
 	}
 	async foregroundTask(task: TaskLease, budgetMs?: number): Promise<C.Result<C.WaitOutcome, C.ForegroundError>> {
 		const state = this.#task(task);

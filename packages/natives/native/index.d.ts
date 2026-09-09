@@ -133,6 +133,7 @@ export declare class WaitLease {
 
 export type ActivityChange =
   | { kind: 'action', tool: string, text: string }
+  | { kind: 'model', model?: string, thinking?: string }
   | { kind: 'metrics', elapsedMs?: number, toolCount?: number, tokenCount?: number }
   | { kind: 'output', offset: string, bytesBase64: string }
   | { kind: 'attention-set', attention: Attention }
@@ -235,6 +236,9 @@ export interface CommandIntent {
   description?: string
   cwd?: string
   env?: Record<string,string>
+  shell?: CommandShell
+  /** Defaults to true; false makes env the complete child environment. */
+  inheritEnv?: boolean
   terminal: CommandTerminal
   executionTimeoutMs?: number
   parentTaskId?: string
@@ -250,6 +254,12 @@ export interface CommandResourceOptions {
   livePreviewBytes?: number
   foregroundSpillBytes?: number
   background?: boolean
+}
+
+/** Execute this program directly, appending command as one final argument. */
+export interface CommandShell {
+  program: string
+  args: string[]
 }
 
 export type CommandTaskKind =  'command';
@@ -800,6 +810,8 @@ export interface TaskRecord {
   kind: string
   title: string
   agentName?: string
+  model?: string
+  thinking?: string
   execution: Execution
   observation: HostObservation
   /** True after a designated observation yields; retained after settlement and snapshot resets. */

@@ -231,6 +231,23 @@ describe("buildSystemPrompt", () => {
 		});
 	});
 
+	test("routes model advice and automation requests to evidence and domain-specific tools", () => {
+		const prompt = buildSystemPrompt({ cwd: process.cwd(), contextFiles: [], skills: [] });
+		assert.match(prompt, /When the user asks which model to choose for a task/);
+		assert.match(prompt, /models\/model-selection\.md/);
+		assert.match(prompt, /models\/evals\.md/);
+		assert.match(prompt, /https:\/\/artificialanalysis\.ai\//);
+		assert.match(prompt, /relevant benchmark charts and methodology/);
+		assert.match(prompt, /If live evidence is unavailable, label the dated docs snapshot/);
+		assert.match(prompt, /CUA\), use PyAutoGUI/);
+		assert.match(prompt, /browser automation use the playwright-cli skill/);
+		assert.match(prompt, /terminal automation\/testing, prefer herdr on macOS, Linux and Windows/);
+		assert.match(prompt, /install it if missing/);
+		assert.match(prompt, /fall back to tmux or native Windows psmux/);
+		assert.match(prompt, /explicit-request and HERDR_ENV=1 requirements/);
+		assert.match(prompt, /skills do not grant tools or authorization/);
+	});
+
 	describe("skills", () => {
 		test.each([
 			{ name: "default prompt", customPrompt: undefined },

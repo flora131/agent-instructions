@@ -1,5 +1,5 @@
 import type { ChatSessionHostEntry } from "./chat-session-host-types.ts";
-import type { ChatTranscriptEntryLike } from "./chat-transcript.ts";
+import type { ChatTranscriptEntryLike } from "./chat-transcript.js";
 
 type ToolEntry = Extract<ChatSessionHostEntry<ChatTranscriptEntryLike>, { kind: "tool" }>;
 type ToolResult = NonNullable<ToolEntry["result"]>;

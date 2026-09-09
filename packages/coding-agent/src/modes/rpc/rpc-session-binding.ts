@@ -1,7 +1,7 @@
 import { setCapabilityOverrides } from "@earendil-works/pi-tui";
-import type { AgentSession } from "../../core/agent-session.ts";
+import type { AgentSession } from "../../core/agent-session.js";
 import type { AgentSessionRuntime } from "../../core/agent-session-runtime.ts";
-import type { ProjectTrustContext } from "../../core/extensions/index.ts";
+import type { ProjectTrustContext } from "../../core/extensions/index.js";
 import { FooterDataProvider } from "../../core/footer-data-provider.ts";
 import { waitForRawStdoutBackpressure } from "../../core/output-guard.ts";
 import type { EngineCustomUiService } from "../interactive-engine/engine-custom-ui.ts";

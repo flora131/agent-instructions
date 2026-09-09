@@ -2,7 +2,7 @@ import type { ExtensionContext } from "@bastani/atomic";
 import type { ConsentManager } from "./consent-manager.js";
 import type { McpLifecycleManager } from "./lifecycle.ts";
 import type { McpServerManager } from "./server-manager.ts";
-import type { ToolMetadata, McpConfig, UiSessionMessages, UiStreamSummary } from "./types.ts";
+import type { ToolMetadata, McpConfig, UiSessionMessages, UiStreamSummary } from "./types.js";
 import type { UiResourceHandler } from "./ui-resource-handler.ts";
 import type { UiServerHandle } from "./ui-server.ts";
 

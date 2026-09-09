@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, test } from "vitest";
 import { makeMockCtx, normalizePathSeparators, readPaths } from "./builtin-workflows-helpers.js";
 import {
 	orchestratorFallbacks,
+	promptEngineerFallbacks,
 	researchFallbacks,
 	reviewerAFallbacks,
 	reviewerFallbacks,
@@ -251,9 +252,9 @@ describe("ralph", () => {
 		const reviewerBOptions = ctx.calls.taskOptions["reviewer-b"]?.[0];
 		assert.equal(reviewerBOptions?.model, "openai-codex/gpt-6-astra:xhigh");
 		for (const [name, model, fallbacks] of [
-			["research-prompt-refinement-1", "openai-codex/gpt-6-astra:high", researchFallbacks],
-			["research-1", "openai-codex/gpt-6-astra:high", researchFallbacks],
-			["orchestrator-1", "openai-codex/gpt-6-astra:high", orchestratorFallbacks],
+			["research-prompt-refinement-1", "openai-codex/gpt-6-astra:high", promptEngineerFallbacks],
+			["research-1", "openai-codex/gpt-6-astra:medium", researchFallbacks],
+			["orchestrator-1", "openai-codex/gpt-6-astra:medium", orchestratorFallbacks],
 			["reviewer-a", "anthropic/claude-fable-5-1:high", reviewerAFallbacks],
 			["reviewer-b", "openai-codex/gpt-6-astra:xhigh", reviewerFallbacks],
 		] as const) {

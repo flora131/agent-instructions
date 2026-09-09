@@ -157,6 +157,7 @@ export function buildGraphOverlayAdapter(
 	function updateTerminalAutowrap(visible: boolean): void {
 		if (overlayVisible === visible) return;
 		overlayVisible = visible;
+		updateMainChatInputHint(readHostCustomUiActive());
 		if (remoteTerminalControl) {
 			if (terminalOutput.platform === "win32") remoteTerminalControl.setAutowrap(!visible);
 			return;
@@ -166,12 +167,16 @@ export function buildGraphOverlayAdapter(
 
 	function readHostCustomUiActive(ui: OverlayUISurface | undefined = observedUi): boolean {
 		const state = ui?.getHostCustomUiState?.();
-		if (state) hostInlineCustomUiActive = state.blockingInlineCustomUiActive;
+		if (state)
+			hostInlineCustomUiActive = state.blockingInlineCustomUiNeedsInput ?? state.blockingInlineCustomUiActive;
 		return hostInlineCustomUiActive;
 	}
 
 	function updateMainChatInputHint(active: boolean): void {
-		observedUi?.setStatus?.(MAIN_CHAT_INPUT_STATUS_KEY, active ? MAIN_CHAT_INPUT_STATUS : undefined);
+		observedUi?.setStatus?.(
+			MAIN_CHAT_INPUT_STATUS_KEY,
+			active && overlayVisible ? MAIN_CHAT_INPUT_STATUS : undefined,
+		);
 	}
 
 	function clearHostCustomUiObservation(): void {
@@ -184,13 +189,12 @@ export function buildGraphOverlayAdapter(
 
 	function observeHostCustomUi(ui: OverlayUISurface | undefined): void {
 		if (observedUi !== ui) {
-			unsubscribeHostCustomUi?.();
-			unsubscribeHostCustomUi = null;
+			clearHostCustomUiObservation();
 			observedUi = ui;
 			hostInlineCustomUiActive = false;
 			if (typeof ui?.onHostCustomUiStateChange === "function") {
 				unsubscribeHostCustomUi = ui.onHostCustomUiStateChange((state) => {
-					hostInlineCustomUiActive = state.blockingInlineCustomUiActive;
+					hostInlineCustomUiActive = state.blockingInlineCustomUiNeedsInput ?? state.blockingInlineCustomUiActive;
 					updateMainChatInputHint(hostInlineCustomUiActive);
 				});
 			}
@@ -278,6 +282,7 @@ export function buildGraphOverlayAdapter(
 			invalidate: () => tui.requestRender?.(),
 			dispose: () => {
 				updateTerminalAutowrap(false);
+				if (currentView === view) clearHostCustomUiObservation();
 				remoteTerminalControl = null;
 				requestMountedRender = null;
 				unsubscribe();

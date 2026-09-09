@@ -152,13 +152,6 @@ export function registerContactSupervisorTool(pi: ExtensionAPI, deps: ContactSup
 				};
 			}
 
-			if (reason === "need_decision" && typeof params.message !== "string") {
-				return {
-					content: [{ type: "text", text: `Missing 'message' parameter for reason '${reason}'.` }],
-					isError: true,
-					details: { error: true },
-				};
-			}
 			let connectedClient: IntercomClient;
 		try {
 			connectedClient = await ensureConnected("tool");
@@ -257,7 +250,7 @@ export function registerContactSupervisorTool(pi: ExtensionAPI, deps: ContactSup
           wait = admission.wait;
           const requestText = reason === "interview_request"
             ? formatChildOrchestratorMessage("interview", metadata, formatSupervisorInterviewRequest(supervisorInterview!, typeof params.message === "string" ? params.message : undefined))
-            : formatChildOrchestratorMessage("ask", metadata, params.message as string);
+            : formatChildOrchestratorMessage("ask", metadata, typeof params.message === "string" ? params.message : "");
           const sendResult = await connectedClient.sendToSupervisor(sendTo, {
             messageId: questionId,
             text: requestText,

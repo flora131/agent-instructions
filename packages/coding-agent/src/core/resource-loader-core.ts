@@ -1,7 +1,7 @@
 import type { Theme } from "../modes/interactive/theme/theme.js";
 import { resolvePath } from "../utils/paths.ts";
 import type { ResourceDiagnostic, ResourceOverlap } from "./diagnostics.ts";
-import { createEventBus, createStagedEventBus, type EventBus } from "./event-bus.ts";
+import { createEventBus, createStagedEventBus, type EventBus } from "./event-bus.js";
 import { createExtensionRuntime } from "./extensions/loader.ts";
 import type { InlineExtension, LoadExtensionsResult } from "./extensions/types.ts";
 import { DefaultPackageManager, type PathMetadata, type ResolvedResource } from "./package-manager.ts";

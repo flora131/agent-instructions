@@ -302,6 +302,8 @@ export async function handleRunControlCommand(
 							}
 							if (result.ok && result.mode === "partial") {
 								fail(result.message ?? `Partially resumed ${result.runId}.`);
+							} else if (result.ok && result.mode === "not_resumable") {
+								fail(result.message ?? `Workflow ${result.runId} is not resumable.`);
 							} else {
 								if (result.ok && policy.allowInputPicker)
 									deps.overlay.open(result.runId, overlaySurfaceFromContext(ctx));
@@ -530,6 +532,10 @@ export async function handleRunControlCommand(
 		}
 		if (!result.ok) {
 			fail(`Run not found: ${stageRunId}`);
+			return true;
+		}
+		if (result.mode === "not_resumable") {
+			fail(result.message ?? `Workflow ${result.runId} is not resumable.`);
 			return true;
 		}
 		if (result.mode === "partial") {

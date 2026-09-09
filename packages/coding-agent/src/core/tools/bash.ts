@@ -18,7 +18,6 @@ import {
 	untrackDetachedChildPid,
 } from "../../utils/shell.ts";
 import type { BashResult } from "../bash-executor.ts";
-import { experimentalToolSamplingProperty } from "../experimental.ts";
 import type { ExtensionContext, ToolDefinition, ToolRenderResultOptions } from "../extensions/types.ts";
 import type { WaitPolicy } from "../tasks/contracts.js";
 import {
@@ -95,7 +94,7 @@ export interface BashToolDetails {
 }
 const DEFAULT_TIMEOUT_SECONDS = 300,
 	MAX_TIMEOUT_SECONDS = 3600;
-function validateExplicitTimeoutSeconds(timeout: number): void {
+export function validateExplicitTimeoutSeconds(timeout: number): void {
 	if (!Number.isFinite(timeout) || timeout <= 0 || timeout > MAX_TIMEOUT_SECONDS)
 		throw new Error(
 			`Invalid timeout ${String(timeout)}: timeout must be a finite number greater than 0 and no more than ${MAX_TIMEOUT_SECONDS} seconds`,
@@ -127,7 +126,7 @@ export function createLocalBashOperations(options?: {
 }): BashOperations {
 	return {
 		exec: async (command, cwd, { onData, signal, timeout, wait, env, pty }) => {
-			validateBashWait(wait, !!options?.taskOwner && process.platform !== "win32");
+			validateBashWait(wait, !!options?.taskOwner);
 			if (timeout !== undefined) validateExplicitTimeoutSeconds(timeout);
 			if (pty && process.env.PI_NO_PTY !== "1" && process.env.ATOMIC_NO_PTY !== "1") {
 				try {
@@ -241,6 +240,8 @@ export interface BashToolOptions {
 	commandPrefix?: string;
 	/** Override shell executable resolution for local bash operations. */
 	shellPath?: string;
+	/** Dialect for generated internal-URL path literals. Defaults to POSIX; does not select the executable. */
+	shellDialect?: "posix" | "powershell";
 	/** Last-mile hook for rewriting the command/cwd/env spawn context. */
 	spawnHook?: BashSpawnHook;
 	/** Optional command interceptor used by extensions and parity tests. */
@@ -435,17 +436,14 @@ export function createBashToolDefinition(
 		description:
 			"Execute a shell command with optional PTY handling and foreground/background observation. Choose the observation mode without asking the user; omitted wait auto-yields per owner configuration (default 10s). Observation does not change execution timeout. Background requires a supported task owner; unbound foreground waits until completion.",
 		promptSnippet: bashToolSystemPromptContribution.snippet,
-		...experimentalToolSamplingProperty(),
+		constrainedSampling: { type: "json_schema", strict: "prefer" },
 		promptGuidelines: exposeSessionEnvironment ? [...bashToolSystemPromptContribution.guidelines] : undefined,
 		parameters: bashSchema,
 		maxResultSizeChars: Infinity,
 		async execute(_toolCallId, bashCommand: BashToolInput, signal?: AbortSignal, onUpdate?, ctx?: ExtensionContext) {
 			const { command } = bashCommand;
 			const timeout = normalizeTimeoutSeconds(bashCommand.timeout);
-			validateBashWait(
-				bashCommand.wait,
-				!!options?.operations || (!!options?.taskOwner && process.platform !== "win32"),
-			);
+			validateBashWait(bashCommand.wait, !!options?.operations || !!options?.taskOwner);
 			const sessionEnvironment = snapshotBashSessionEnvironment(ctx, exposeSessionEnvironment);
 			const resourceCtx = ctx as InternalResourceContext | undefined;
 			const executionCwd = ctx?.cwd || cwd;
@@ -458,7 +456,13 @@ export function createBashToolDefinition(
 					? await expandShellInternalUrls(bashCommand.cwd!, executionCwd, resourceCtx)
 					: executionCwd,
 				requestedCwd = resolvePath(executionCwd, cwdInput);
-			const expandedCommand = await expandShellInternalUrls(command, executionCwd, resourceCtx, true);
+			const expandedCommand = await expandShellInternalUrls(
+				command,
+				executionCwd,
+				resourceCtx,
+				true,
+				options?.shellDialect,
+			);
 			const strippedExpandedContext = hasExplicitCwd
 				? undefined
 				: stripLeadingCdCommand(expandedCommand, requestedCwd);
