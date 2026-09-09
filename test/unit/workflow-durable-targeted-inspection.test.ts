@@ -139,6 +139,13 @@ describe("targeted durable workflow inspection", () => {
 		assert.equal(transcript.runId, CHILD_ID);
 		assert.equal(transcript.source, "snapshot");
 		assert.equal(transcript.sessionFile, "/tmp/retained-phase-6.jsonl");
+		const canonicalId = stages.stages[0]!.id;
+		assert.equal(canonicalId, `${CHILD_ID}:draft`);
+		assert.deepEqual(await execute({ action: "stage", runId: ROOT_ID, stageId: canonicalId }, {} as never), stage);
+		assert.deepEqual(
+			await execute({ action: "transcript", runId: ROOT_ID, stageId: canonicalId }, {} as never),
+			transcript,
+		);
 		assert.deepEqual(store.runs(), [], "targeted durable inspection must not add foreign runs to session status");
 		assert.deepEqual(sdk.state.resumes, [], "inspection must not resume DBOS execution");
 		assert.deepEqual(sdk.state.cancels, [], "inspection must not transition DBOS execution");

@@ -4,6 +4,10 @@ All notable changes to the `pi-intercom` extension will be documented in this fi
 
 ## [Unreleased]
 
+### Fixed
+
+- Session listings display host-provided live/terminal reply capability separately from idle activity. Closed workflow generations publish `closed` with post-mortem-only or unavailable reply routing rather than remaining misleadingly idle; group isolation and ask rejection rules are unchanged.
+
 ## [0.9.19-alpha.2] - 2026-09-08
 
 ### Breaking Changes

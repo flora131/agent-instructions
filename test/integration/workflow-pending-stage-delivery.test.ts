@@ -63,6 +63,7 @@ interface TestContext {
 		workflowStageId?: string;
 		workflowStageName?: string;
 		pendingStageDelivery?: ReturnType<typeof createWorkflowPendingStageDelivery>;
+		lateMessageRouter?: NonNullable<CreateAgentSessionOptions["orchestrationContext"]>["lateMessageRouter"];
 		messageAdmission?: {
 			readonly boundary: WorkflowStageAdmissionBoundary;
 			readonly extensionState: Map<string, object>;
@@ -510,6 +511,42 @@ afterAll(async () => {
 	if (previousLegacyAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
 	else process.env.PI_CODING_AGENT_DIR = previousLegacyAgentDir;
 	rmSync(agentDir, { recursive: true, force: true });
+});
+
+test("public Intercom list reports closed workflow generations instead of idle reply capability", async () => {
+	for (const hasRouter of [false, true]) {
+		const boundary = new StageAdmissionBoundary();
+		const target = extensionFixture(`closed-stage-${hasRouter}`, `closed-stage-${hasRouter}`, undefined, GROUP, {
+			kind: "workflow-stage",
+			workflowRunId: RUN_ID,
+			workflowStageId: `closed-${hasRouter}`,
+			workflowStageName: "retained reviewer",
+			intercomGroup: GROUP,
+			messageAdmission: { boundary, extensionState: new Map(), isOpen: () => boundary.isOpen() },
+			...(hasRouter ? { lateMessageRouter: { routeMessage() {}, routeMessages() {} } } : {}),
+		});
+		const observer = vi.spyOn(IntercomClient.prototype, "updatePresence");
+		intercomHeavy(target.pi as never);
+		try {
+			await target.start();
+			const live = await executeIntercom(target, { action: "list" });
+			assert.equal(live.isError, false);
+			assert.match(live.content[0]?.text ?? "", /idle/);
+			observer.mockClear();
+			await boundary.close();
+			const expected = hasRouter ? "closed · reply: post-mortem only" : "closed · reply: unavailable";
+			assert.ok(
+				observer.mock.calls.some(([updates]) => updates.status === expected),
+				"close must publish presence without another model turn or tool call",
+			);
+			const closed = await executeIntercom(target, { action: "list" });
+			assert.equal(closed.isError, false);
+			assert.ok(closed.content[0]?.text.includes(expected), closed.content[0]?.text);
+		} finally {
+			await target.shutdown();
+			observer.mockRestore();
+		}
+	}
 });
 
 test("the real two-session route owner is hidden and rejects ordinary messages while its agent stays reachable", async () => {

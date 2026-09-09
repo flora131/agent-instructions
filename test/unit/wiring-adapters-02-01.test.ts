@@ -22,6 +22,7 @@ import type {
 } from "../../packages/workflows/src/extension/wiring.js";
 import { buildRuntimeAdapters } from "../../packages/workflows/src/extension/wiring.js";
 import type { StageSessionRuntime } from "../../packages/workflows/src/runs/foreground/stage-runner.js";
+import { stripWorkflowOnlyOptions } from "../../packages/workflows/src/runs/foreground/stage-runner-options.js";
 
 function fakeSession(): StageSessionRuntime {
 	let last = "";
@@ -274,6 +275,63 @@ describe("buildRuntimeAdapters — SDK AgentSession adapter", () => {
 			display: true,
 		});
 		assert.deepEqual(externallyRouted, ["late result"]);
+	});
+
+	test("runner-created stage context retains pending delivery and receives the host late-message route", async () => {
+		const meta = {
+			runId: "nested-run",
+			stageId: "reviewer-id",
+			stageName: "reviewer",
+			workflowIntercomGroup: "workflow:root",
+		};
+		const pending = {
+			routeCapability: "capability",
+			deliverPending: async () => {},
+			ready: () => undefined,
+			fail() {},
+		};
+		const options = stripWorkflowOnlyOptions({ group: "reviewers" }, undefined, meta, pending);
+		let orchestration: CreateAgentSessionOptions["orchestrationContext"];
+		const routed: Array<{ workflowRunId: string; workflowStageId: string; messages: Array<{ content: string }> }> =
+			[];
+		const adapters = buildRuntimeAdapters(
+			{
+				events: {
+					emit(_name, payload) {
+						payload.handled = true;
+						routed.push(payload as (typeof routed)[number]);
+					},
+				},
+			},
+			{
+				createAgentSession: async (createdOptions) => {
+					orchestration = createdOptions?.orchestrationContext;
+					return { session: fakeSession() };
+				},
+			},
+		);
+		await adapters.agentSession!.create(options, meta);
+		assert.equal(orchestration?.pendingStageDelivery, pending);
+		assert.equal(orchestration?.intercomGroup, "workflow:root/reviewers");
+		assert.ok(orchestration?.lateMessageRouter, "completed runner-created stages need the host post-mortem route");
+		await orchestration.lateMessageRouter.routeMessage({
+			customType: "intercom_message",
+			content: "  exact ask\n",
+			display: true,
+			details: { message: { expectsReply: true } },
+		});
+		assert.equal(routed.length, 1);
+		assert.equal(routed[0]?.workflowRunId, meta.runId);
+		assert.equal(routed[0]?.workflowStageId, meta.stageId);
+		assert.equal(routed[0]?.messages[0]?.content, "  exact ask\n");
+		await adapters.agentSession!.create(
+			{ ...options, orchestrationContext: { ...options.orchestrationContext, lateMessageRouter: undefined } },
+			meta,
+		);
+		assert.ok(orchestration?.lateMessageRouter, "explicit undefined also needs the host route");
+		const retained = orchestration;
+		await adapters.agentSession!.create(options, { ...meta, orchestrationContext: retained });
+		assert.equal(orchestration, retained, "fallback sessions retain an already-wired context by identity");
 	});
 
 	test("late Intercom traffic is handed to the parent extension event before generic routing", async () => {

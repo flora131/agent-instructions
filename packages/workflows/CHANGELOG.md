@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Local `workflow stages` now uses the same expanded nested graph as exact stage/transcript lookup, matching retained durable inspection instead of listing hidden import boundaries.
+- Runner-created workflow sessions retain their pending-delivery context while receiving the host late-message route, so completed-stage Intercom asks can reopen the exact retained conversation without re-running the workflow.
 - Stage pause now cancels owned active and admitted queued agents and commands before acknowledging completion, including shells admitted during already-in-flight setup. It waits for cleanup without permanently closing message admission; resume releases queued user and Intercom messages and permits fresh work, without reviving cancelled executions or affecting sibling stages.
 
 ### Changed

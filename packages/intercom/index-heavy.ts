@@ -197,7 +197,10 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
   }
   function currentStatus(): string {
     const activeToolName = activeTools.values().next().value;
-    const lifecycleStatus = activeToolName ? `tool:${activeToolName}` : agentRunning ? "thinking" : "idle";
+    const stage = getLiveContext()?.orchestrationContext;
+    const lifecycleStatus = stage?.kind === "workflow-stage" && stage.messageAdmission?.isOpen() === false
+      ? `closed · reply: ${stage.lateMessageRouter === undefined ? "unavailable" : "post-mortem only"}`
+      : activeToolName ? `tool:${activeToolName}` : agentRunning ? "thinking" : "idle";
     return config.status ? `${lifecycleStatus} · ${config.status}` : lifecycleStatus;
   }
   function resolveSessionHomeGroup(): string {
