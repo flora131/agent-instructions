@@ -76,6 +76,26 @@ describe("subagent result intercom helpers", () => {
 		assert.doesNotMatch(empty.message, /Status: cancelled/);
 	});
 
+	// PR #2974: parent cancellation takes precedence without erasing the killed child's result.
+	test("a killed child and parent-cancelled sibling report grouped cancellation in either order", () => {
+		const children: SubagentResultIntercomChild[] = [
+			{ agent: "worker", status: "killed", summary: "Killed. This child cannot be resumed." },
+			{ agent: "reviewer", status: "interrupted", cause: "abort", summary: "Run cancelled by parent." },
+		];
+		for (const ordered of [children, [...children].reverse()]) {
+			const payload = buildSubagentResultIntercomPayload({
+				to: "orchestrator",
+				runId: "mixed-kill-cancel",
+				mode: "parallel",
+				children: ordered,
+			});
+			assert.equal(payload.status, "interrupted");
+			assert.match(payload.message, /^Status: cancelled$/m);
+			assert.match(payload.message, /Children: 1 cancelled, 1 killed \(non-resumable\)/);
+			assert.deepEqual(payload.children, ordered);
+		}
+	});
+
 	test("a mixed completed and parent-cancelled set reports Status: cancelled", () => {
 		const payload = buildSubagentResultIntercomPayload({
 			to: "orchestrator",

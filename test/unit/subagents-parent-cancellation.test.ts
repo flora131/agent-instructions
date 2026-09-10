@@ -205,7 +205,7 @@ test("parent abort is an interrupted cancellation, not a failed error", async ()
 			testSession: abortSession(root, gate.promise),
 		});
 		await waitForPrompt(root);
-		controller.abort();
+		controller.abort("user");
 		const result = await pending;
 		assert.equal(result.status, "interrupted");
 		assert.equal(result.interrupted, true);

@@ -226,7 +226,7 @@ test("parallel executor fall-through reports cancelled children instead of inter
 			.filter((item): item is { type: "text"; text: string } => item.type === "text")
 			.map((item) => item.text)
 			.join("\n");
-		assert.doesNotMatch(text, /Parallel run ended after interrupt/);
+		assert.doesNotMatch(text, /Parallel run ended before completion|Parallel child killed/);
 		assert.match(text, /CANCELLED/);
 		assert.match(text, /Run cancelled by parent/);
 		assert.deepEqual(
@@ -300,7 +300,7 @@ test("a mixed interrupt and parent-cancelled parallel set keeps recovered cancel
 			.filter((item): item is { type: "text"; text: string } => item.type === "text")
 			.map((item) => item.text)
 			.join("\n");
-		assert.doesNotMatch(text, /Parallel run ended after interrupt/);
+		assert.doesNotMatch(text, /Parallel run ended before completion|Parallel child killed/);
 		assert.match(text, /CANCELLED/);
 		assert.match(text, /This is incomplete/);
 		assert.deepEqual(
@@ -379,7 +379,7 @@ test("an error whose cause is abort does not hide a sibling user interrupt", asy
 			.filter((item): item is { type: "text"; text: string } => item.type === "text")
 			.map((item) => item.text)
 			.join("\n");
-		assert.match(text, /Parallel run ended after interrupt/);
+		assert.match(text, /Parallel run ended before completion/);
 	} finally {
 		clearSubagentControls();
 		removeTempDirectory(root);

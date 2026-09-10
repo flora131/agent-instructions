@@ -133,6 +133,30 @@ function metaText(stage: StageSnapshot): string {
 	return dependencyText;
 }
 
+/**
+ * Compact model label for the card's dedicated model row (~22 cells): the
+ * provider prefix is dropped, the thinking level is appended when set (omitted
+ * when off). On overflow the model name is truncated first, preserving the
+ * canonical `-fast` identity suffix and the complete thinking level.
+ * `—` when no model is resolved yet.
+ */
+function modelText(stage: StageSnapshot, innerWidth: number): string {
+	const model = stage.model;
+	if (model === undefined || model === "") return "—";
+	const slash = model.lastIndexOf("/");
+	const short = slash >= 0 ? model.slice(slash + 1) : model;
+	const level = stage.thinkingLevel;
+	const showLevel = level !== undefined && level !== "" && level !== "off";
+	const suffix = showLevel ? ` · ${level}` : "";
+	const full = `${short}${suffix}`;
+	if (visibleWidth(full) <= innerWidth) return full;
+	// #1859: preserve identity text, without inferring routing from the suffix.
+	const modelSuffix = short.endsWith("-fast") ? "-fast" : "";
+	const name = modelSuffix ? short.slice(0, -modelSuffix.length) : short;
+	const room = Math.max(1, innerWidth - visibleWidth(modelSuffix + suffix));
+	return `${truncateToWidth(name, room, "…")}${modelSuffix}${suffix}`;
+}
+
 function workflowChildRunRows(stage: StageSnapshot, width: number): string[] {
 	const child = stage.workflowChild ?? stage.workflowChildRun;
 	if (child === undefined) return [];
@@ -299,6 +323,7 @@ export function renderNodeCard(stage: StageSnapshot, opts: NodeCardOpts): string
 
 	const contentRows = Math.max(0, height - 2);
 	const metaLine = `${bg}${bc}│${RESET}${centreColored(metaText(stage), innerWidth, theme.dim, bg)}${bg}${bc}│${RESET}`;
+	const modelLine = `${bg}${bc}│${RESET}${centreColored(modelText(stage, innerWidth), innerWidth, theme.textMuted, bg)}${bg}${bc}│${RESET}`;
 	const childRunLines = workflowChildRunRows(stage, innerWidth).map(
 		(row) => `${bg}${bc}│${RESET}${centreColored(row, innerWidth, theme.dim, bg)}${bg}${bc}│${RESET}`,
 	);
@@ -327,9 +352,10 @@ export function renderNodeCard(stage: StageSnapshot, opts: NodeCardOpts): string
 					`${bg}${bc}│${RESET}` +
 						centreColored("↵ enter to respond", innerWidth, theme.dim, bg) +
 						`${bg}${bc}│${RESET}`,
+					modelLine,
 				]
 			: childSummaryLine === undefined
-				? [durLine, statusLine, metaLine]
+				? [durLine, statusLine, modelLine, metaLine]
 				: [...childRunLines, childSummaryLine];
 
 	// A queued steer/follow-up is invisible once the user leaves the stage chat,

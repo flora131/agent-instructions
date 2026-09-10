@@ -39,7 +39,7 @@ test("compact rows show states, zero counts and display-only truncation", async 
 						? { kind, code: "failure", message: "failure" }
 						: { kind, cause: "user" as const };
 			const text = plain(new TaskRow({ ...task, execution: { kind: "settled", result } }).render(80));
-			assert.match(text, new RegExp(kind));
+			assert.match(text, new RegExp(kind === "cancelled" ? "killed \\(non-resumable\\)" : kind));
 			assert.doesNotMatch(text, /background|foreground/);
 		}
 		assert.match(plain(new TaskRow({ ...task, execution: { kind: "queued" } }).render(80)), /queued/);

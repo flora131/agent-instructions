@@ -33,10 +33,10 @@ test("completion content is readable, bounded and leaves structured identity unc
 	assert.equal(JSON.stringify(envelope), before);
 });
 
-test("restored and stopped completions report only known context", () => {
+test("restored and killed completions report only known context", () => {
 	assert.match(formatTaskCompletion(envelope), /^Background task completed/);
 	const stopped = formatTaskCompletion({ ...envelope, result: { kind: "cancelled", cause: "user" } }, task);
-	assert.match(stopped, /stopped/);
+	assert.match(stopped, /killed \(non-resumable\)/);
 	assert.match(stopped, /Stop reason: user/);
 	assert.doesNotMatch(stopped, /completed|Result excerpt/);
 });

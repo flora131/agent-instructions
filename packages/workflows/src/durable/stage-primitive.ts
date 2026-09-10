@@ -387,6 +387,9 @@ function completeTaskResult(
 			? { artifacts: [...(base.artifacts ?? checkpoint.artifacts ?? [])] }
 			: {}),
 		...(base.model !== undefined || checkpoint.model !== undefined ? { model: base.model ?? checkpoint.model } : {}),
+		...(base.thinkingLevel !== undefined || checkpoint.thinkingLevel !== undefined
+			? { thinkingLevel: base.thinkingLevel ?? checkpoint.thinkingLevel }
+			: {}),
 		...(base.attemptedModels !== undefined || checkpoint.attemptedModels !== undefined
 			? { attemptedModels: [...(base.attemptedModels ?? checkpoint.attemptedModels ?? [])] }
 			: {}),
@@ -510,6 +513,7 @@ function taskCheckpointMetadata(result: WorkflowTaskResult): Partial<DurableStag
 		...(result.sessionId !== undefined ? { sessionId: result.sessionId } : {}),
 		...(result.sessionFile !== undefined ? { sessionFile: result.sessionFile } : {}),
 		...(result.model !== undefined ? { model: result.model } : {}),
+		...(result.thinkingLevel !== undefined ? { thinkingLevel: result.thinkingLevel } : {}),
 		...(result.attemptedModels !== undefined ? { attemptedModels: [...result.attemptedModels] } : {}),
 		...(result.modelAttempts !== undefined ? { modelAttempts: [...result.modelAttempts] } : {}),
 		...(result.structured !== undefined ? { structured: result.structured } : {}),
@@ -558,6 +562,7 @@ function mergeCheckpointHydrationMetadata(
 		...(replayValueCheckpoint.sessionId === undefined ? metadataValue(checkpoints, "sessionId") : {}),
 		...(replayValueCheckpoint.sessionFile === undefined ? metadataValue(checkpoints, "sessionFile") : {}),
 		...(replayValueCheckpoint.model === undefined ? metadataValue(checkpoints, "model") : {}),
+		...(replayValueCheckpoint.thinkingLevel === undefined ? metadataValue(checkpoints, "thinkingLevel") : {}),
 		...(replayValueCheckpoint.attemptedModels === undefined ? metadataValue(checkpoints, "attemptedModels") : {}),
 		...(replayValueCheckpoint.modelAttempts === undefined ? metadataValue(checkpoints, "modelAttempts") : {}),
 		...(replayValueCheckpoint.structured === undefined ? metadataValue(checkpoints, "structured") : {}),
@@ -671,6 +676,7 @@ export function recordCachedStageIntoStore(
 		...(checkpoint?.sessionId !== undefined ? { sessionId: checkpoint.sessionId } : {}),
 		...(checkpoint?.sessionFile !== undefined ? { sessionFile: checkpoint.sessionFile } : {}),
 		...(checkpoint?.model !== undefined ? { model: checkpoint.model } : {}),
+		...(checkpoint?.thinkingLevel !== undefined ? { thinkingLevel: checkpoint.thinkingLevel } : {}),
 		...(checkpoint?.attemptedModels !== undefined ? { attemptedModels: checkpoint.attemptedModels } : {}),
 		...(checkpoint?.modelAttempts !== undefined ? { modelAttempts: checkpoint.modelAttempts } : {}),
 		...(checkpoint?.structured !== undefined ? { structured: checkpoint.structured } : {}),

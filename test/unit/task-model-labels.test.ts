@@ -113,3 +113,40 @@ for (const background of [false, true]) {
 		}
 	});
 }
+
+test("user-killed subagent notices and task rows preserve raw cancellation without relabeling parent or shell stops", async () => {
+	initTheme("dark");
+	const fixture = taskFixture();
+	try {
+		await fixture.start("Kill receipt");
+		const task = fixture.store.tasks[0];
+		for (const kind of ["agent", "command"] as const) {
+			for (const cause of ["user", "owner-close"] as const) {
+				const result = { kind: "cancelled" as const, cause };
+				const stopped = { ...task, kind, execution: { kind: "settled" as const, result } };
+				const notice = taskCompletionNotice(
+					{
+						completionId: "kill",
+						ownerId: task.ref.ownerId,
+						taskId: task.ref.taskId,
+						terminalSequence: "1" as import("../../packages/coding-agent/src/core/tasks/contracts.js").Sequence,
+						result,
+						display: false,
+					},
+					stopped,
+				);
+				assert.equal(notice.status, "cancelled");
+				const row = stripVTControlCharacters(new TaskRow(stopped).render(160).join("\n"));
+				if (kind === "agent" && cause === "user") {
+					assert.match(notice.title, /killed \(non-resumable\)/);
+					assert.match(row, /killed \(non-resumable\)/i);
+				} else {
+					assert.match(notice.title, /stopped/);
+					assert.doesNotMatch(row, /killed/i);
+				}
+			}
+		}
+	} finally {
+		await fixture.dispose();
+	}
+});

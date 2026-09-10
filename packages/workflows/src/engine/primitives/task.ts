@@ -98,6 +98,7 @@ function createTaskPrimitive(runtime: EngineRuntime): WorkflowTaskPrimitive {
 				...(sessionId !== undefined ? { sessionId } : {}),
 				...(stage.sessionFile !== undefined ? { sessionFile: stage.sessionFile } : {}),
 				...(stageMeta.model !== undefined ? { model: stageMeta.model } : {}),
+				...(stageMeta.thinkingLevel !== undefined ? { thinkingLevel: stageMeta.thinkingLevel } : {}),
 				...(stageMeta.attemptedModels !== undefined ? { attemptedModels: stageMeta.attemptedModels } : {}),
 				...(stageMeta.modelAttempts !== undefined ? { modelAttempts: stageMeta.modelAttempts } : {}),
 				...(stageMeta.warnings !== undefined ? { warnings: stageMeta.warnings } : {}),
