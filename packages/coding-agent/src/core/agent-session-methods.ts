@@ -204,7 +204,7 @@ export interface AgentSessionMethodSurface extends AgentSessionQueuePauseControl
 	_sendInterruptCustomMessageNow<T>(message: CustomMessage<T>, options?: SendMessageOptions): Promise<void>;
 	_ensureActiveInterruptQueueHold(): InterruptQueueHold;
 	_restoreAndClearActiveInterruptQueueHold(): void;
-	_queueAgentMessage(message: AgentMessage, delivery: "steer" | "followUp"): void;
+	_queueAgentMessage(message: AgentMessage, delivery: "steer" | "followUp" | "interrupt"): void;
 	_drainQueuedAgentMessages(): DrainedAgentQueues;
 	_restoreQueuedAgentMessages(queues: DrainedAgentQueues): void;
 	clearQueue(options?: ClearQueueOptions): { steering: string[]; followUp: string[] };
@@ -453,6 +453,8 @@ export interface AgentSessionInternalSurface extends AgentSessionMethodSurface, 
 	_terminatingToolCallIds: Set<string>;
 	_stopAfterTurnBlockedContinuation: boolean;
 	_pendingInterruptDeliveries: number;
+	_priorityInterruptPending: boolean;
+	_activePromptCount: number;
 	_activeInterruptQueueHold: InterruptQueueHold | undefined;
 	_queuedMessagesPaused: boolean;
 	_queuedMessagesPauseAbortBoundary: Promise<void> | undefined;

@@ -13,6 +13,7 @@ import { createHarness, getMessageText } from "../../packages/coding-agent/test/
 import intercomHeavy from "../../packages/intercom/index-heavy.js";
 import type { IntercomExtensionTestOverrides } from "../../packages/intercom/intercom-test-seams.js";
 import type { Message, SessionInfo } from "../../packages/intercom/types.js";
+import { createDispatchCounter } from "../helpers/intercom-interrupt-probe.js";
 
 const sender: SessionInfo = {
 	id: "peer-session",
@@ -77,7 +78,9 @@ async function childHarness(
 	};
 }
 
-test("Intercom steers the working child after its active tool without aborting or starting a duplicate task", async () => {
+// Superseded by the cancellation amendment: the active tool is now cancelled when
+// it supports the signal. Task, session, and tool-execution identity still hold.
+test("Intercom interrupts the working child's active tool and steers it without starting a duplicate task", async () => {
 	const started = Promise.withResolvers<void>();
 	const release = Promise.withResolvers<void>();
 	let toolSignal: AbortSignal | undefined;
@@ -98,27 +101,31 @@ test("Intercom steers the working child after its active tool without aborting o
 	const current = await childHarness([tool]);
 	const sessionId = current.sessionManager.getSessionId();
 	let nextModelContext: string[] = [];
-	current.setResponses([
-		fauxAssistantMessage(fauxToolCall("working", {}), { stopReason: "toolUse" }),
+	const dispatches = createDispatchCounter([
+		() => fauxAssistantMessage(fauxToolCall("working", {}), { stopReason: "toolUse" }),
 		(context) => {
 			nextModelContext = context.messages.map(getMessageText);
 			return fauxAssistantMessage("amended result");
 		},
 	]);
+	current.setResponses(dispatches.steps(4));
 	const execution = current.session.prompt("original task");
 	try {
 		await started.promise;
 		assert.equal(current.session.isStreaming, true);
 		await current.deliver();
-		assert.equal(toolSignal?.aborted, false);
+		await vi.waitFor(() => assert.equal(toolSignal?.aborted, true));
 		release.resolve();
 		await execution;
 		assert.equal(nextModelContext.filter((text) => text.includes(amendment.content.text)).length, 1);
 		assert.equal(current.sessionManager.getSessionId(), sessionId);
 		assert.equal(toolStarts, 1);
-		assert.equal(current.eventsOfType("agent_start").length, 1);
-		assert.equal(current.eventsOfType("agent_end").length, 1);
-		assert.equal(current.getPendingResponseCount(), 0);
+		assert.equal(dispatches.counts.valid, 2);
+		assert.equal(
+			current.session.messages.filter((m) => m.role === "user" && getMessageText(m) === "original task").length,
+			1,
+		);
+		assert.equal(getMessageText(current.session.messages.at(-1)), "amended result");
 	} finally {
 		release.resolve();
 		await execution;
@@ -293,11 +300,15 @@ test("multiple arrivals stay FIFO and deduplicated across the active-tool to mod
 		contexts.push(context.messages.map(getMessageText));
 		return fauxAssistantMessage("amended result");
 	};
-	current.setResponses([
-		fauxAssistantMessage(fauxToolCall("working", {}), { stopReason: "toolUse" }),
+	// The amendment cancels the run at the first arrival; this tool ignores its
+	// signal, so FIFO/dedup must still hold across the natural tool completion.
+	const dispatches = createDispatchCounter([
+		() => fauxAssistantMessage(fauxToolCall("working", {}), { stopReason: "toolUse" }),
+		response,
 		response,
 		response,
 	]);
+	current.setResponses(dispatches.steps(8));
 	const execution = current.session.prompt("original task");
 	try {
 		await started.promise;
@@ -322,6 +333,14 @@ test("multiple arrivals stay FIFO and deduplicated across the active-tool to mod
 		assert.ok(
 			finalContext.findIndex((text) => text.includes(first.content.text)) <
 				finalContext.findIndex((text) => text.includes(second.content.text)),
+		);
+		assert.ok(
+			dispatches.counts.valid >= 2 && dispatches.counts.valid <= 3,
+			`valid dispatches ${dispatches.counts.valid}`,
+		);
+		assert.equal(
+			current.session.messages.filter((m) => m.role === "user" && getMessageText(m) === "original task").length,
+			1,
 		);
 	} finally {
 		releaseEvent.resolve();
@@ -412,12 +431,16 @@ test("an explicit native stop holds child steering instead of spinning or restar
 	const started = Promise.withResolvers<void>();
 	const release = Promise.withResolvers<void>();
 	const current = await childHarness([], [], () => true);
+	// The priority arrival cancels the original model call; the host stop then
+	// applies to the amended turn, so the child settles instead of spinning.
+	const dispatches = createDispatchCounter([() => fauxAssistantMessage("amended terminal result")]);
 	current.setResponses([
 		async () => {
 			started.resolve();
 			await release.promise;
 			return fauxAssistantMessage("terminal result");
 		},
+		...dispatches.steps(4),
 	]);
 	const execution = current.session.prompt("original task");
 	try {
@@ -425,7 +448,12 @@ test("an explicit native stop holds child steering instead of spinning or restar
 		await current.deliver();
 		release.resolve();
 		await execution;
-		assert.equal(current.eventsOfType("agent_start").length, 1);
+		assert.equal(dispatches.counts.valid, 1);
+		assert.equal(current.session.isStreaming, false);
+		await Promise.resolve(current.deliver({ id: "after-stop", timestamp: 3, content: { text: "LATE" } }));
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		assert.equal(dispatches.counts.valid, 1, "terminal work is not restarted by later input");
+		assert.equal(current.session.isStreaming, false);
 	} finally {
 		release.resolve();
 		await execution;

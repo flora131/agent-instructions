@@ -25,6 +25,9 @@ export { transferWorkflowStageDeliveriesTo };
 
 const interruptMutationQueues = new WeakMap<AgentSession, Promise<void>>();
 
+/** Leading steering entries of a hold reserved for priority input, in arrival order. */
+const priorityHoldCounts = new WeakMap<InterruptQueueHold, number>();
+
 function serializeInterruptMutation(owner: AgentSession, operation: () => Promise<void>): Promise<void> {
 	const previous = interruptMutationQueues.get(owner) ?? Promise.resolve();
 	const delivery = previous.then(operation);
@@ -32,20 +35,6 @@ function serializeInterruptMutation(owner: AgentSession, operation: () => Promis
 		owner,
 		delivery.catch(() => undefined),
 	);
-	return delivery;
-}
-
-const subagentDeliveryQueues = new WeakMap<AgentSession, Promise<void>>();
-
-/** Reserve in the caller's boundary first, then commit child deliveries in arrival order. */
-function serializeSubagentDelivery(owner: AgentSession, operation: () => Promise<void>): Promise<void> {
-	const previous = subagentDeliveryQueues.get(owner);
-	const delivery = previous ? previous.then(operation) : operation();
-	const settled = delivery.catch(() => undefined);
-	subagentDeliveryQueues.set(owner, settled);
-	void settled.then(() => {
-		if (subagentDeliveryQueues.get(owner) === settled) subagentDeliveryQueues.delete(owner);
-	});
 	return delivery;
 }
 
@@ -144,7 +133,10 @@ export async function sendCustomMessage<T = unknown>(
 		if (boundary && options?.stageAdmissionBarrier) await options.stageAdmissionBarrier();
 		await commitAdmittedCustomMessage(this, appMessage, options);
 	};
-	const deliver = () => (this._subagentMessageAdmission ? serializeSubagentDelivery(this, commit) : commit());
+	// Event hooks may await non-triggering writes while protected input awaits the
+	// event writer. Those local writes must not queue behind that external input.
+	const deliver = () =>
+		boundary && options?.triggerTurn === true ? boundary.serializeMessageDelivery(commit) : commit();
 	if (boundary === undefined) return deliver();
 	await boundary.admit(options?.stageAdmissionKey, deliver, () => {
 		if (this._subagentMessageAdmission) throw new Error("Subagent execution is terminal and cannot accept messages");
@@ -182,7 +174,8 @@ export async function sendCustomMessages<T = unknown>(
 		if (boundary && options?.stageAdmissionBarrier) await options.stageAdmissionBarrier();
 		await commitAdmittedCustomMessages(this, appMessages, options);
 	};
-	const deliver = () => (this._subagentMessageAdmission ? serializeSubagentDelivery(this, commit) : commit());
+	const deliver = () =>
+		boundary && options?.triggerTurn === true ? boundary.serializeMessageDelivery(commit) : commit();
 	if (boundary === undefined) return deliver();
 	await boundary.admit(options?.stageAdmissionKey, deliver, () => {
 		if (this._subagentMessageAdmission) throw new Error("Subagent execution is terminal and cannot accept messages");
@@ -329,16 +322,24 @@ export function _restoreAndClearActiveInterruptQueueHold(this: AgentSession): vo
 	this._activeInterruptQueueHold = undefined;
 }
 
-export function _queueAgentMessage(this: AgentSession, message: AgentMessage, delivery: "steer" | "followUp"): void {
+export function _queueAgentMessage(
+	this: AgentSession,
+	message: AgentMessage,
+	delivery: "steer" | "followUp" | "interrupt",
+): void {
 	const owner = resolveWorkflowStageDeliveryTarget(this);
 	if (owner !== this) {
 		owner._queueAgentMessage(message, delivery);
 		return;
 	}
-	const hold = this._activeInterruptQueueHold;
+	const hold = delivery === "interrupt" ? this._ensureActiveInterruptQueueHold() : this._activeInterruptQueueHold;
 	if (hold !== undefined) {
 		if (delivery === "followUp") {
 			hold.followUp.push(message);
+		} else if (delivery === "interrupt") {
+			const index = priorityHoldCounts.get(hold) ?? 0;
+			hold.steering.splice(index, 0, message);
+			priorityHoldCounts.set(hold, index + 1);
 		} else {
 			hold.steering.push(message);
 		}
@@ -387,6 +388,7 @@ export function clearQueue(
 	if (hold !== undefined) {
 		removed.steering.push(...hold.steering.splice(0));
 		removed.followUp.push(...hold.followUp.splice(0));
+		priorityHoldCounts.delete(hold);
 	}
 	restoreProtectedStreamingCustomMessages(this, removed);
 	if (options?.preserveUnprotectedCustomMessages && hold !== undefined) {

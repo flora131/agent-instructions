@@ -33,6 +33,9 @@ export class WorkflowStageAdmissionBoundary {
 	private readonly stageAttemptId = randomUUID();
 	private taskScope: Extract<OwnerScope, { kind: "workflow-stage" }> | undefined;
 	private taskHost: AgentTaskHost | undefined;
+	private readonly messageDeliveryContext = new AsyncLocalStorage<boolean>();
+	private readonly messageDeliveries = new Set<Promise<void>>();
+	private messageDeliveryTail: Promise<void> | undefined;
 	private taskClose: ReturnType<AgentTaskHost["close"]> | undefined;
 
 	/** Called by the actual stage session; replacement sessions retain the original identity. */
@@ -75,6 +78,40 @@ export class WorkflowStageAdmissionBoundary {
 					: [],
 			),
 		);
+	}
+
+	/** One FIFO position for an external operation, including its retry waits. */
+	runMessageDelivery(deliver: () => void | Promise<void>, routeLate?: () => void | Promise<void>): Promise<void> {
+		const late =
+			routeLate ??
+			(() => {
+				throw new Error("Message admission is closed");
+			});
+		return this.admit(undefined, () => this.serializeMessageDelivery(deliver), late).completion;
+	}
+
+	/** Reentrant SDK commits stay inside their producer's FIFO position. */
+	serializeMessageDelivery(deliver: () => void | Promise<void>): Promise<void> {
+		if (this.messageDeliveryContext.getStore()) return this.invoke(deliver);
+		const invoke = () => this.messageDeliveryContext.run(true, () => this.invoke(deliver));
+		const delivery = this.messageDeliveryTail ? this.messageDeliveryTail.then(invoke) : invoke();
+		const settled = delivery.catch(() => undefined);
+		this.messageDeliveryTail = settled;
+		this.messageDeliveries.add(settled);
+		void settled.then(() => {
+			this.messageDeliveries.delete(settled);
+			if (this.messageDeliveryTail === settled) this.messageDeliveryTail = undefined;
+		});
+		return delivery;
+	}
+
+	/** Excludes tracked model turns: joining those from a native poll would deadlock. */
+	async waitForMessageDeliveries(): Promise<void> {
+		while (this.messageDeliveries.size > 0) await Promise.all([...this.messageDeliveries]);
+	}
+
+	hasMessageDeliveries(): boolean {
+		return this.messageDeliveries.size > 0;
 	}
 
 	admit(

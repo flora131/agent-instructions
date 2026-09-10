@@ -31,17 +31,32 @@ function appendDurableDisplayCard(
 ): { readonly card: CustomMessage & { excludeFromContext: true }; readonly intentEntryId: string } {
 	const card = { ...message, excludeFromContext: true } satisfies CustomMessage & { excludeFromContext: true };
 	const admitted = message as StageAdmittedCustomMessage;
+	// A retry after a failed flush must complete the already-appended occurrence
+	// rather than append a second visible card for the same stable key.
+	const partial =
+		admitted.stageAdmissionKey === undefined
+			? undefined
+			: session.sessionManager
+					.getBranch()
+					.find(
+						(entry) =>
+							entry.type === "custom_message" &&
+							entry.stageAdmissionKey === admitted.stageAdmissionKey &&
+							protectedDelivery(entry.protectedReconciliation) !== undefined,
+					);
 	// The card and recovery marker share one append, so either both survive a
 	// process exit or neither does.
-	const intentEntryId = session.sessionManager.appendCustomMessageEntry(
-		card.customType,
-		card.content,
-		card.display,
-		card.details,
-		true,
-		{ delivery },
-		admitted.stageAdmissionKey,
-	);
+	const intentEntryId =
+		partial?.id ??
+		session.sessionManager.appendCustomMessageEntry(
+			card.customType,
+			card.content,
+			card.display,
+			card.details,
+			true,
+			{ delivery },
+			admitted.stageAdmissionKey,
+		);
 	if (admitted.stageAdmissionKey !== undefined) session.sessionManager.flush();
 	session.agent.state.messages.push(card);
 	return { card, intentEntryId };
@@ -174,9 +189,10 @@ export async function queueProtectedStreamingCustomMessage(
 	session: AgentSession,
 	message: CustomMessage,
 	delivery: ProtectedDelivery,
+	priority = false,
 ): Promise<void> {
 	const admission = await prepareProtectedAdmission(session, [message], delivery);
-	admission.owner._queueAgentMessage(admission.reconciliations[0]!, delivery);
+	admission.owner._queueAgentMessage(admission.reconciliations[0]!, priority ? "interrupt" : delivery);
 	emitProtectedAdmission(admission);
 }
 

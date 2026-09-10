@@ -11,6 +11,7 @@ import { afterAll, beforeAll, test, vi } from "vitest";
 import type { ExtensionContext, ToolDefinition } from "../../packages/coding-agent/src/core/extensions/index.js";
 import type { Attachment } from "../../packages/intercom/types.js";
 import { IntercomBrokerFixture } from "../helpers/intercom-broker-fixture.js";
+import { createDispatchCounter } from "../helpers/intercom-interrupt-probe.js";
 
 const root = resolve(import.meta.dirname, "../..");
 const brokerFixture = new IntercomBrokerFixture(mkdtempSync(join(tmpdir(), "intercom-active-child-")));
@@ -110,7 +111,9 @@ async function endpoint(name: string, child = false, tools: AgentTool[] = []) {
 	};
 }
 
-test("public same-group asks steer a busy child and correlate concurrent replies without changing its execution", async () => {
+// Amended contract: public asks are priority input that cancels the child's
+// active cancellable tool; correlation and execution identity remain exact.
+test("public same-group asks interrupt a busy child and correlate concurrent replies without changing its execution identity", async () => {
 	const started = Promise.withResolvers<void>();
 	const release = Promise.withResolvers<void>();
 	let activeSignal: AbortSignal | undefined;
@@ -140,7 +143,12 @@ test("public same-group asks steer a busy child and correlate concurrent replies
 		assert.notEqual(reply.isError, true, JSON.stringify(reply));
 		return fauxAssistantMessage(`handled-${replyNumber}`);
 	};
-	child.setResponses([fauxAssistantMessage(fauxToolCall("working", {}), { stopReason: "toolUse" }), respond, respond]);
+	const dispatches = createDispatchCounter([
+		() => fauxAssistantMessage(fauxToolCall("working", {}), { stopReason: "toolUse" }),
+		respond,
+		respond,
+	]);
+	child.setResponses(dispatches.steps(6));
 	const execution = child.session.prompt("original child task");
 	const asks = new AbortController();
 	try {
@@ -162,7 +170,7 @@ test("public same-group asks steer a busy child and correlate concurrent replies
 				1,
 			),
 		);
-		assert.equal(activeSignal?.aborted, false);
+		await vi.waitFor(() => assert.equal(activeSignal?.aborted, true, "the priority ask cancels the active tool"));
 		release.resolve();
 		const [firstReply, secondReply] = await Promise.all([first, second]);
 		await execution;
@@ -170,8 +178,11 @@ test("public same-group asks steer a busy child and correlate concurrent replies
 		assert.notEqual(secondReply.isError, true, JSON.stringify(secondReply));
 		assert.match(getMessageText(firstReply), /answer-1/);
 		assert.match(getMessageText(secondReply), /answer-2/);
-		assert.equal(child.eventsOfType("agent_start").length, 1);
-		assert.equal(child.eventsOfType("agent_end").length, 1);
+		assert.equal(dispatches.counts.valid, 3);
+		assert.equal(
+			child.session.messages.filter((m) => m.role === "user" && getMessageText(m) === "original child task").length,
+			1,
+		);
 		assert.equal(replyNumber, 2);
 		assert.ok(contexts[0]!.some((text) => text.includes("  FIRST-QUESTION\n")));
 		const received = child.sessionManager

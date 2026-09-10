@@ -23,7 +23,9 @@
 - Preserved `PATH` lookup and relative executable paths for administrative Windows Postgres launches. Invalid launch inputs containing embedded NUL characters now fail before starting a process rather than using truncated paths, arguments, or environment values.
 - Fixed custom Windows Postgres `.cmd` and `.bat` launchers failing with arguments on administrative accounts, including launcher paths containing spaces. Batch arguments retain their existing quoting and line-break rejection.
 - Fixed explicit `cmd.exe` Postgres launchers and safe verbatim working directories on Windows administrative accounts. Concurrent Postgres launches no longer keep one another's log files open or expose them to unrelated commands starting at the same time.
-- Working subagents now receive Intercom steering in their original task at the next model turn, including while tools are active. Startup and completion races preserve ordered, exactly-once input without duplicate execution; cancellation and terminal-child rejection remain intact.
+- Incoming Intercom `send` and `ask` messages now act as a priority interrupt queue for working subagents and live workflow stages: the receiver's current model call or cancellable tool is cancelled immediately and the message is processed within the same task, session, and stage generation. Completed tool side effects are never replayed, the original task prompt is not repeated, multiple arrivals stay in arrival order with duplicate suppression, and exact ask/reply correlation survives the cancelled turn. Explicit user abort, host stop, and terminal/closed receivers still win: late input never restarts finished work.
+- Fixed a deadlock where an extension event hook awaiting an ordinary context-only message could wait behind an inbound Intercom delivery that was itself waiting for that event hook.
+- Inbound delivery retries after a transient persistence failure keep their original arrival position and remain part of the receiver's settlement, and a card appended before a failed flush is completed on retry instead of being appended a second time.
 
 ## [0.9.19-alpha.3] - 2026-09-09
 

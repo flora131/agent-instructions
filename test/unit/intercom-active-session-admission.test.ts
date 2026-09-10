@@ -56,7 +56,12 @@ for (const terminal of ["execution ended", "admission sealed"] as const) {
 			subagentPolicy: {
 				...policy,
 				executionEnded: ended.signal,
-				messageAdmission: { isOpen: () => terminal !== "admission sealed" },
+				messageAdmission: {
+					isOpen: () => terminal !== "admission sealed",
+					run: async (deliver: () => void | Promise<void>) => {
+						await deliver();
+					},
+				},
 			},
 		};
 		let deliveries = 0;

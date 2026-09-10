@@ -18,7 +18,7 @@ export function admitActiveSessionInbound(
 			return Promise.reject(new Error("Subagent execution is terminal and cannot accept messages"));
 		}
 		try {
-			return Promise.resolve(deliver());
+			return ctx.subagentPolicy?.messageAdmission?.run(deliver) ?? Promise.resolve(deliver());
 		} catch (error) {
 			return Promise.reject(error);
 		}

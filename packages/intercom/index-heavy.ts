@@ -409,9 +409,13 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
       liveContext,
       (admissionBarrier) => {
         replyTracker.queueTurnContext(replyContext);
+        // Peer ask/send is priority input: cancel the receiver's supported active
+        // operation and continue the same task/stage with the message.
         return retryStableDelivery({
-          deliver: () => sendIncomingMessage(entry, "trigger", messageGeneration, false, undefined, admissionBarrier),
-          isCurrent: () => Boolean(getLiveContext(liveContext, messageGeneration)),
+          deliver: () => sendIncomingMessage(entry, "interrupt", messageGeneration, false, undefined, admissionBarrier),
+          isCurrent: () => Boolean(getLiveContext(liveContext, messageGeneration)) &&
+            liveContext.subagentPolicy?.executionEnded?.aborted !== true &&
+            liveContext.subagentPolicy?.messageAdmission?.isOpen() !== false,
         });
       },
       () => foregroundDetachHandoff.claim(from, message, messageGeneration, () => Boolean(getLiveContext(liveContext, messageGeneration))),

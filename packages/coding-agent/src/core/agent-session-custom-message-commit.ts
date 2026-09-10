@@ -14,6 +14,29 @@ function appendDurableStageAdmission<T>(session: AgentSession, message: CustomMe
 	if ((message as StageAdmittedCustomMessage).stageAdmissionKey !== undefined) session.sessionManager?.flush();
 }
 
+/** Cancel only the receiver's native operation; its original prompt owns continuation. */
+async function commitPriorityMessage(session: AgentSession, message: CustomMessage): Promise<void> {
+	session._priorityInterruptPending = true;
+	session._ensureActiveInterruptQueueHold();
+	if (!session._queuedMessagesPaused) {
+		session.abortRetry();
+		session.agent.abort();
+	}
+	await queueProtectedStreamingCustomMessage(session, message, "steer", true);
+	if (
+		!session.isStreaming &&
+		session._activePromptCount === 0 &&
+		!session._queuedMessagesPaused &&
+		!session._subagentMessageAdmission
+	) {
+		// Idle stage chat has no original prompt awaiter. Start one owned drain,
+		// without replaying the stage task or a completed tool call.
+		const turn = session._runAgentPrompt([]);
+		session._workflowStageAdmission?.trackAdmittedWork(turn);
+		void turn.catch(() => {});
+	}
+}
+
 /** Commit one delivery whose source generation already granted admission. */
 export async function commitAdmittedCustomMessage<T>(
 	session: AgentSession,
@@ -27,6 +50,15 @@ export async function commitAdmittedCustomMessage<T>(
 		options?.persistWhenStreaming === true &&
 		options.excludeFromContext !== true &&
 		(options.triggerTurn === true || options.stageAdmissionKey !== undefined);
+	if (
+		useProtectedReconciliation &&
+		options?.triggerTurn &&
+		options.deliverAs === "interrupt" &&
+		(self._subagentMessageAdmission || self._workflowStageAdmission)
+	) {
+		await commitPriorityMessage(self, appMessage);
+		return;
+	}
 	if (options?.deliverAs === "nextTurn") {
 		self._pendingNextTurnMessages.push(appMessage);
 	} else if (
