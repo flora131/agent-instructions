@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.19-alpha.3] - 2026-09-09
+
 ### Changed
 
 - Reduced default top-level parallel subagent concurrency from 4 to 3. Explicit configuration and per-call overrides remain honored; the separate per-parent native turn cap remains 4.

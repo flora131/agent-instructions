@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.9.19-alpha.3] - 2026-09-09
+
 ### Fixed
 
 - Local `workflow stages` now uses the same expanded nested graph as exact stage/transcript lookup, matching retained durable inspection instead of listing hidden import boundaries.
