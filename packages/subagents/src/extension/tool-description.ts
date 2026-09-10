@@ -14,4 +14,4 @@ MANAGEMENT (use action field, omit agent/task/tasks):
 • { action: "delete", agent: "code-analysis.custom-agent" }
 CONTROL:
 • { action: "status", id: "..." } - inspect an in-process run by id or prefix
-• { action: "interrupt", id?: "..." } - soft-interrupt the current child turn; the child is terminal for continuation, so follow-up work starts a fresh launch`;
+• { action: "kill", id: "..." } - terminally stop the selected child; killed children cannot be resumed, so follow-up work starts a fresh launch`;

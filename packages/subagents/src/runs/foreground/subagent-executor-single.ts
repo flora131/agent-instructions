@@ -366,12 +366,24 @@ export async function runSinglePath(
 		};
 	}
 
+	if (r.status === "killed") {
+		return {
+			content: [
+				{
+					type: "text",
+					text: `Killed (${params.agent}). This child cannot be resumed. Launch a fresh subagent for any follow-up.`,
+				},
+			],
+			details,
+		};
+	}
+
 	if (r.interrupted) {
 		return {
 			content: [
 				{
 					type: "text",
-					text: `Run ended after interrupt (${params.agent}). Launch a fresh subagent for any follow-up.`,
+					text: `Run ended before completion (${params.agent}). Launch a fresh subagent for any follow-up.`,
 				},
 			],
 			details,

@@ -60,9 +60,11 @@ function progressFor(agent: AgentConfig, task: string, outcome: AttemptOutcome, 
 	const status =
 		outcome.status === "ok"
 			? "completed"
-			: outcome.status === "interrupted" && isParentCancellation(outcome.cause)
-				? "interrupted"
-				: "failed";
+			: outcome.status === "killed"
+				? "killed"
+				: outcome.status === "interrupted" && isParentCancellation(outcome.cause)
+					? "interrupted"
+					: "failed";
 	return {
 		index: 0,
 		agent: agent.name,
@@ -90,7 +92,12 @@ function resultFromOutcome(
 	artifactPaths: ArtifactPaths | undefined,
 ): SingleResult {
 	const status = outcome.status;
-	const output = outcome.status === "ok" ? outcome.output : outcome.envelope;
+	const output =
+		outcome.status === "killed"
+			? "Killed. This child cannot be resumed."
+			: outcome.status === "ok"
+				? outcome.output
+				: outcome.envelope;
 	const model = outcome.model;
 	const thinking = outcome.thinking;
 	const result: SingleResult = {
@@ -104,7 +111,7 @@ function resultFromOutcome(
 				: {}),
 		stats: outcome.stats,
 		path: outcome.path,
-		envelope: outcome.envelope,
+		envelope: outcome.status === "killed" ? output : outcome.envelope,
 		interrupted: status === "interrupted" ? true : undefined,
 		messages: [],
 		usage: usageFromStats(outcome.stats),
