@@ -187,6 +187,9 @@ export function _buildRuntime(
 							}
 						: {}),
 				},
+				kill: {
+					taskOwner: () => this.getAgentTaskHost().ownerBinding,
+				},
 				search: {
 					contextBefore: this.settingsManager.getSearchContextBefore(),
 					contextAfter: this.settingsManager.getSearchContextAfter(),
