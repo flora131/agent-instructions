@@ -175,7 +175,7 @@ bash({ action: "wait", id: taskId, budgetMs: 1000 })
 powershell({ action: "wait", id: taskId, budgetMs: 1000 })
 ```
 
-Use the original task ID from the same owning session or workflow stage. Omit `budgetMs` to use the owner's command observation policy, or pass `0` to poll. A wait returns retained output and a yielded or settled observation; settled results include available exit and failure details. Output gaps and truncation are labelled. Repeated waits may include output you have already seen.
+Use the original task ID from the same owning session or workflow stage. Omit `budgetMs` to use the owner's command observation policy, or pass `0` to poll. A wait returns retained output and a yielded or settled observation; settled results include available exit and failure details. While running, successive yielded waits advance through retained output in bounded pages, including after a session reload. A caught-up wait returns no output until more arrives. Settled waits return all retained output again, subject to labelled gaps and truncation, so they may repeat output you have already seen.
 
 Do not combine `action: "wait"` with `command`, `timeout`, `wait`, `env`, `cwd`, or `pty`. Existing-task waits require a supported task owner, even with custom execution adapters. Unknown or foreign IDs are rejected. Cancelling a wait or admitting user/Intercom messages releases observation only, not the command. Waiting never extends the original execution timeout or the owner's lifetime.
 

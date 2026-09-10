@@ -3,8 +3,9 @@ import { createChildProcessEnvironment } from "../../utils/child-process.ts";
 import { createModuleRequire } from "../../utils/module-require.ts";
 import { getShellConfig, getShellEnv, type ShellConfig } from "../../utils/shell.ts";
 import type { OperationId, TaskId, WaitOutcome, WaitPolicy } from "../tasks/contracts.js";
-import type { OwnerLease, TaskSupervisor, WaitLease } from "../tasks/supervisor.js";
-import { OutputAccumulator, type OutputAccumulatorOptions } from "./output-accumulator.js";
+import type { OwnerLease, TaskLease, TaskSupervisor, WaitLease } from "../tasks/supervisor.js";
+import { OutputAccumulator, type OutputAccumulatorOptions } from "./output-accumulator.ts";
+import { completeUtf8PrefixLength } from "./persisted-output-file.ts";
 
 const NATIVE_PACKAGE = "@bastani/atomic-natives";
 
@@ -84,6 +85,9 @@ export interface SupervisedCommandResult {
 	observation?: WaitOutcome;
 }
 
+// Bind progress to the task capability, not a tool instance or replaceable session binding.
+const yieldedOutputOffsets = new WeakMap<TaskLease, string>();
+
 export async function waitForSupervisedCommand(
 	context: SupervisedCommandOwner | undefined,
 	id: string,
@@ -111,7 +115,9 @@ export async function waitForSupervisedCommand(
 			: context.supervisor.waitForTaskId(context.owner, id as TaskId, budgetMs, registered));
 		if (signal?.aborted) throw new Error("aborted");
 		if (!observed.ok) throw new Error(`${observed.error.code}: ${observed.error.message}`);
-		let offset: string | undefined = "0";
+		let offset: string | undefined =
+			observed.value.kind === "yielded" ? (yieldedOutputOffsets.get(task.value) ?? "0") : "0";
+		let nextOffset = offset;
 		do {
 			const page = await context.supervisor.readTaskOutput(task.value, { start: offset, maximumBytes: 8192 });
 			if (!page.ok) throw new Error(`${page.error.code}: ${page.error.message}`);
@@ -122,13 +128,21 @@ export async function waitForSupervisedCommand(
 					bytes: Buffer.from(`\n[Output omitted: bytes ${offsets.start}-${offsets.end}]\n`),
 				})),
 			].sort((a, b) => (BigInt(a.offsets.start) < BigInt(b.offsets.start) ? -1 : 1));
-			for (const segment of segments) output.append(segment.bytes);
+			const bytes = Buffer.concat(segments.map((segment) => segment.bytes));
+			const completeBytes = observed.value.kind === "yielded" ? completeUtf8PrefixLength(bytes) : bytes.length;
+			output.append(bytes.subarray(0, completeBytes));
+			// Re-read an incomplete UTF-8 suffix next time, including at the current live tail.
+			nextOffset = page.value.nextOffset ?? segments.at(-1)?.offsets.end ?? offset;
+			nextOffset = (BigInt(nextOffset) - BigInt(bytes.length - completeBytes)).toString();
 			if (page.value.nextOffset !== undefined && observed.value.kind === "yielded")
 				output.append(Buffer.from("\n[Additional output not shown; wait again to retrieve retained output.]\n"));
 			offset = observed.value.kind === "yielded" ? undefined : page.value.nextOffset;
 		} while (offset !== undefined);
 		output.finish();
 		const snapshot = output.snapshot({ persistIfTruncated: true });
+		await output.closeTempFile();
+		if (observed.value.kind === "yielded" && BigInt(nextOffset) > BigInt(yieldedOutputOffsets.get(task.value) ?? "0"))
+			yieldedOutputOffsets.set(task.value, nextOffset);
 		const terminal = observed.value.kind === "settled" ? observed.value.result : undefined;
 		return {
 			content: [

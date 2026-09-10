@@ -68,6 +68,64 @@ async function release(session: AgentSession, id: TaskId) {
 }
 
 for (const name of ["bash", "powershell"] as const) {
+	// PR #2972: a yielded wait must advance beyond the first retained 8 KiB page.
+	test(`registered ${name} progresses retained output across yielded waits and reload`, async () => {
+		const harness = await createHarness({
+			settings: { bashInterceptor: { enabled: false } },
+			initialActiveToolNames: ["bash", "powershell"],
+		});
+		const { session } = harness;
+		session.pauseQueuedMessages();
+		try {
+			const launched = await tool(session, launchShell).execute("launch", {
+				command:
+					launchShell === "powershell"
+						? "$value = [Console]::ReadLine(); [Console]::Write(('a' * 8192) + 'later-page'); $value = [Console]::ReadLine(); [Console]::Write('terminal'); exit 7"
+						: "read value; printf '%8192s' '' | tr ' ' a; printf 'later-page'; read value; printf terminal; exit 7",
+				wait: { kind: "background" },
+				timeout: 20,
+			});
+			const id = (launched.details as BashToolDetails).observation!.taskId;
+			await release(session, id);
+			const host = session.getAgentTaskHost();
+			const task = host.resolveTask(id);
+			assert.ok(task.ok);
+			await vi.waitFor(
+				async () => {
+					const page = await host.ownerBinding.supervisor.readTaskOutput(task.value, {
+						start: "8192",
+						maximumBytes: 32,
+					});
+					assert.ok(page.ok);
+					assert.equal(
+						Buffer.concat(page.value.chunks.map((chunk) => Buffer.from(chunk.bytes))).toString(),
+						"later-page",
+					);
+				},
+				{ timeout: 5000 },
+			);
+			const first = await tool(session, name).execute("first-page", { action: "wait", id, budgetMs: 0 });
+			assert.equal((first.details as BashToolDetails).observation?.kind, "yielded");
+			assert.match(first.content[0].type === "text" ? first.content[0].text : "", /^a{8192}\n\[Additional output/);
+			await session.reload();
+			const second = await tool(session, name).execute("second-page", { action: "wait", id, budgetMs: 0 });
+			assert.equal((second.details as BashToolDetails).observation?.kind, "yielded");
+			assert.equal((second.details as BashToolDetails).observation?.taskId, id);
+			assert.match(second.content[0].type === "text" ? second.content[0].text : "", /^later-page\n\n/);
+			const empty = await tool(session, name).execute("caught-up", { action: "wait", id, budgetMs: 0 });
+			assert.match(empty.content[0].type === "text" ? empty.content[0].text : "", /^\(no output\)\n\n/);
+			await release(session, id);
+			const terminal = await tool(session, name).execute("settle", { action: "wait", id, budgetMs: 10000 });
+			assert.equal((terminal.details as BashToolDetails).exitCode, 7);
+			assert.match(
+				terminal.content[0].type === "text" ? terminal.content[0].text : "",
+				/^a{8192}later-pageterminal\n\n/,
+			);
+		} finally {
+			await session.closeSessionTasks();
+			harness.cleanup();
+		}
+	});
 	test(`registered ${name} waits on its session's existing command across yields and settlement`, async () => {
 		const harness = await createHarness({
 			settings: { bashInterceptor: { enabled: false } },

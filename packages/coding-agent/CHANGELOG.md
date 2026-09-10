@@ -4,7 +4,11 @@
 
 ### Added
 
-- Added `action: "wait"` with `id` and optional `budgetMs` to Bash and PowerShell for observing existing asynchronous tasks without rerunning commands. Waits retain output and terminal metadata, follow owner observation policy, and release on cancellation or incoming messages without stopping execution or extending task lifetime.
+- Added `{ action: "wait", id, budgetMs }` to Bash and PowerShell for observing existing asynchronous tasks without rerunning commands. The observation budget is optional. Waits retain output and terminal metadata, follow owner observation policy, and release on cancellation or incoming messages without stopping execution or extending task lifetime.
+
+### Fixed
+
+- Fixed repeated yielded shell waits replaying the first output page instead of progressing through retained output while the task is still running ([#2972](https://github.com/bastani-inc/atomic/pull/2972)).
 
 ## [0.9.19-alpha.3] - 2026-09-09
 

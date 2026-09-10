@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { stripVTControlCharacters } from "node:util";
 import { Value } from "typebox/value";
-import { test } from "vitest";
+import { test, vi } from "vitest";
 import type { AgentTaskHostBinding } from "../src/core/tasks/agent-adapter.js";
 import { AgentTaskHost } from "../src/core/tasks/agent-adapter.js";
 import type { OperationId, TaskId, WaitOutcome } from "../src/core/tasks/contracts.js";
@@ -237,6 +238,62 @@ for (const factory of [createBashToolDefinition, createPowerShellToolDefinition]
 				if (result?.kind === "settled") assert.equal(result.result.kind, "cancelled");
 			}
 			await assert.rejects(tool.execute("wait", { action: "wait", id }), /OwnerClosed/);
+		},
+	);
+	// PR #2972: retained offsets count bytes, including split UTF-8 and control bytes.
+	test.runIf(process.platform !== "win32")(
+		`${factory.name} preserves UTF-8 and raw spill bytes across yielded output pages`,
+		async () => {
+			const owner = host();
+			try {
+				const id = await launch(
+					owner,
+					"read value; printf '\\377\\000'; printf 'a\\n%.0s' {1..4094}; printf 'a\\342\\202\\254\\033[31mred\\033[0m\\n'; read value",
+				);
+				await release(owner, id);
+				const task = owner.resolveTask(id);
+				assert.ok(task.ok);
+				await vi.waitFor(
+					async () => {
+						const page = await owner.ownerBinding.supervisor.readTaskOutput(task.value, {
+							start: "8191",
+							maximumBytes: 32,
+						});
+						assert.ok(page.ok);
+						assert.equal(
+							Buffer.concat(page.value.chunks.map((chunk) => Buffer.from(chunk.bytes))).toString(),
+							"€\x1b[31mred\x1b[0m\n",
+						);
+					},
+					{ timeout: 5000 },
+				);
+				const first = await factory(process.cwd(), { taskOwner: owner.ownerBinding }).execute("first", {
+					action: "wait",
+					id,
+					budgetMs: 0,
+				});
+				assert.equal(first.details?.observation?.kind, "yielded");
+				assert.ok(first.details?.truncation?.truncated);
+				assert.ok(first.details.fullOutputPath);
+				assert.deepEqual(
+					readFileSync(first.details.fullOutputPath),
+					Buffer.concat([
+						Buffer.from([255, 0]),
+						Buffer.from(
+							`${"a\n".repeat(4094)}a\n[Additional output not shown; wait again to retrieve retained output.]\n`,
+						),
+					]),
+				);
+				const second = await factory(process.cwd(), { taskOwner: owner.ownerBinding }).execute("next", {
+					action: "wait",
+					id,
+					budgetMs: 0,
+				});
+				assert.equal(second.details?.observation?.kind, "yielded");
+				assert.ok(second.content[0].text.startsWith("€\x1b[31mred\x1b[0m\n\n\n"));
+			} finally {
+				await owner.close("session-close");
+			}
 		},
 	);
 	test.runIf(process.platform !== "win32")(
