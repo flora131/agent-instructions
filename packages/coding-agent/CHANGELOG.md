@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added `action: "wait"` with `id` and optional `budgetMs` to Bash and PowerShell for observing existing asynchronous tasks without rerunning commands. Waits retain output and terminal metadata, follow owner observation policy, and release on cancellation or incoming messages without stopping execution or extending task lifetime.
+
 ## [0.9.19-alpha.3] - 2026-09-09
 
 ### Fixed

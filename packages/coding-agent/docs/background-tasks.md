@@ -35,7 +35,7 @@ The agent can choose foreground-first or background observation for each authori
 
 If the task finishes during observation, the call returns its terminal result instead. Automatic backgrounding is **observation expiry**, not a slow-task failure, a restart, or a second execution. Use foreground-first observation for a dependency and background observation for independent work. If a dependency yields, wait for its actual completion before using the result.
 
-Shell `budgetMs` accepts finite non-negative milliseconds; zero means no observation delay. It is only valid for foreground observation. A trusted SDK host can override the usual budgets or select `tasks.wait.kind: "until-settled"`; omitted foreground budgets then wait until settlement. Explicit per-call budgets still take precedence.
+Shell `budgetMs` accepts finite non-negative milliseconds; zero means no observation delay. On command launches it belongs inside a foreground `wait`; existing-task `action: "wait"` calls take it at the top level. A trusted SDK host can override the usual budgets or select `tasks.wait.kind: "until-settled"`; omitted foreground budgets then wait until settlement. Explicit per-call budgets still take precedence.
 
 Native observation timers run independently of JavaScript. A zero-budget wait can already be backgrounded by the time a caller reads the next task snapshot, even before JavaScript awaits the result. Synchronous wait registration does not guarantee a visible foreground interval. The elapsed result still identifies the same wait and task; execution continues.
 
@@ -167,6 +167,17 @@ bash({ command: "npm run check" })
 ```
 
 The shell execution timeout is separate: `timeout` is seconds and defaults to 300, with a maximum of 3600. It continues counting after backgrounding. Choose a timeout appropriate for the command; reducing `budgetMs` does not shorten or extend it. Use the returned task ID to inspect or stop the existing task through `/tasks`. Background completion notifies the parent automatically, so there is no need to launch the command again to collect its result.
+
+Observe an existing task without running its command again:
+
+```ts
+bash({ action: "wait", id: taskId, budgetMs: 1000 })
+powershell({ action: "wait", id: taskId, budgetMs: 1000 })
+```
+
+Use the original task ID from the same owning session or workflow stage. Omit `budgetMs` to use the owner's command observation policy, or pass `0` to poll. A wait returns retained output and a yielded or settled observation; settled results include available exit and failure details. Output gaps and truncation are labelled. Repeated waits may include output you have already seen.
+
+Do not combine `action: "wait"` with `command`, `timeout`, `wait`, `env`, `cwd`, or `pty`. Existing-task waits require a supported task owner, even with custom execution adapters. Unknown or foreign IDs are rejected. Cancelling a wait or admitting user/Intercom messages releases observation only, not the command. Waiting never extends the original execution timeout or the owner's lifetime.
 
 Shell completions use the same shaded card as subagents, with a retained output preview and available exit code. Nonzero shell exits are shown as failures even though the process itself reached a terminal state. Cancellation shows Stopped. The card and below-prompt count update in the owning main or workflow-stage chat.
 
