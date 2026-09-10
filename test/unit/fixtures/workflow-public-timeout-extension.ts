@@ -52,7 +52,7 @@ export default function workflowPublicTimeoutFixture(api: WorkflowTimeoutFixture
 			queueMicrotask(() => {
 				const userTurns = context.messages.filter((entry) => entry.role === "user").length;
 				const toolResults = context.messages.filter((entry) => entry.role === "toolResult").length;
-				const action = userTurns > 1 ? "interrupt" : "list";
+				const action = userTurns > 1 ? "pause" : "list";
 				const reason = toolResults < userTurns ? "toolUse" : "stop";
 				const finalMessage =
 					reason === "toolUse"
@@ -73,7 +73,7 @@ export default function workflowPublicTimeoutFixture(api: WorkflowTimeoutFixture
 		async (args, _ctx, signal) => {
 			const action = args.action ?? "run";
 			return new Promise<WorkflowToolResult>((_resolve, reject) => {
-				if (action !== "interrupt") return;
+				if (action !== "pause") return;
 				signal?.addEventListener("abort", () => reject(new Error("Agent process stopped")), { once: true });
 			});
 		},

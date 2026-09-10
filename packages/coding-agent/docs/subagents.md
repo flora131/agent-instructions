@@ -163,7 +163,7 @@ Tool examples:
 subagent({ agent: "codebase-analyzer", task: "Trace the auth flow with file references.", wait: { kind: "foreground", budgetMs: 30000 } })
 ```
 
-Use `subagent({ action: "kill", id: "<task-or-run-id>" })` to terminally stop a live child. Killed children cannot be resumed; launch a fresh child with an explicit context handoff for follow-up work. The former `interrupt` action is no longer accepted. Replace subagent calls using `action: "interrupt"` with `action: "kill"`. Workflow interrupt commands and host cancellation APIs are unchanged.
+Use `subagent({ action: "kill", id: "<task-or-run-id>" })` to terminally stop a live child. Killed children cannot be resumed; launch a fresh child with an explicit context handoff for follow-up work. The former `interrupt` action is no longer accepted. Replace subagent calls using `action: "interrupt"` with `action: "kill"`. Workflow controls use `pause`; host cancellation APIs are unchanged.
 
 If the parent turn is cancelled while a foreground in-process child is still running, the child stops through the existing abort/interrupted state. That outcome is terminal and non-retryable: it does not count as a failure, never looks completed, and preserves any fallback metadata already recorded before abort. Parent receipts, Intercom summaries, and progress present the child as cancelled; persisted metadata records `interrupted` with abort cause rather than a new public status. Atomic recovers bounded, clearly labelled partial findings in this order:
 1. A modified run-scoped `progress.md`

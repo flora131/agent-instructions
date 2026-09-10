@@ -10,7 +10,6 @@ import { createExtensionRuntime } from "../../packages/workflows/src/extension/r
 import { handleRunControlCommand } from "../../packages/workflows/src/extension/workflow-run-control-command.js";
 import { resolveStageTarget } from "../../packages/workflows/src/extension/workflow-targets.js";
 import {
-	workflowInterruptAction,
 	workflowPauseAction,
 	workflowResumeAction,
 } from "../../packages/workflows/src/extension/workflow-tool-control.js";
@@ -179,18 +178,9 @@ describe("non-attachable tool interactions", () => {
 				ensureWorkflowResourcesLoaded() {},
 			},
 		);
-		const interrupted = await workflowInterruptAction({
-			action: "interrupt",
-			runId: testRunId("tool-interaction-run"),
-			stageId: "tool:publish",
-		});
 
 		assert.equal(paused.status, "noop");
-		assert.equal(interrupted.status, "noop");
-		// Tool nodes are abort-only control targets: pause rejects them explicitly and
-		// interrupt reports that this settled node has nothing in flight to abort.
-		assert.match(paused.message, /Tool nodes cannot be paused/);
-		assert.match(interrupted.message, /Tool node tool:publish is not running/);
+		assert.match(paused.message, /Tool node tool:publish is not running/);
 		const resumed = await workflowResumeAction(
 			{ action: "resume", runId: testRunId("tool-interaction-run"), stageId: "tool:publish" },
 			{

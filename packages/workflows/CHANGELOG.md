@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Breaking Changes
+
+- Workflow run control uses `pause` across slash commands, tool actions, runtime APIs, and lifecycle control events. Run-level pause preserves resumable work, including nested task-result checkpoint tails and executor-only waits; targeted stage pause retains queued messages, and targeted `ctx.tool` pause cancels only that call. Use `resume` to continue eligible work.
+
 ### Added
 
 - Added effective model and thinking identity to graph node cards, preserving thinking and canonical fast model suffixes in narrow rows and restoring identity through durable resume. Live fallback replacements update the model row; the `BACKGROUND` widget is unchanged ([#1859](https://github.com/bastani-inc/atomic/pull/1859) by [@sina85](https://github.com/sina85)).

@@ -4,7 +4,8 @@
 
 ### Breaking Changes
 
-- Renamed the bundled subagent `interrupt` action to `kill`. Migrate `subagent({ action: "interrupt", id })` to `subagent({ action: "kill", id })`, including calls using `runId`. The old action is no longer accepted. Kill terminally stops the child and cannot be resumed; follow-up work requires a fresh launch. Workflow interrupt commands and parent cancellation behavior are unchanged.
+- Workflow controls, completion, help, and status hints use `/workflow pause`, `/workflow quit`, and `/workflow resume`. The workflow tool supports run, stage, and individual durable-tool pause targets; `/workflow pause [run-id|--all]` controls runs. Workflow lifecycle control events report `action: "pause"` for pause requests.
+- Renamed the bundled subagent `interrupt` action to `kill`. Migrate `subagent({ action: "interrupt", id })` to `subagent({ action: "kill", id })`, including calls using `runId`. The old action is no longer accepted. Kill terminally stops the child and cannot be resumed; follow-up work requires a fresh launch. Workflow controls use `/workflow pause`; parent cancellation behavior is unchanged.
 
 ### Added
 
@@ -14,6 +15,7 @@
 
 ### Fixed
 
+- First-loaded TypeScript extensions share the live host's classes and singletons when native import falls back to transformation, avoiding duplicate host evaluation and slow startup.
 - Fixed repeated yielded shell waits replaying the first output page instead of progressing through retained output while the task is still running ([#2972](https://github.com/bastani-inc/atomic/pull/2972)).
 - Preserved an explicit subagent kill when parent cancellation arrives during execution-capacity waiting, and kept grouped Intercom cancellation status consistent when a killed child has parent-cancelled siblings.
 

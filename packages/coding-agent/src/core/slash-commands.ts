@@ -34,9 +34,8 @@ const WORKFLOW_ADMIN_COMPLETIONS: AutocompleteItem[] = [
 	{ value: "attach ", label: "attach", description: "Open the in-place attach pane on a node" },
 	{ value: "list ", label: "list", description: "List registered workflows" },
 	{ value: "status ", label: "status", description: "List current-session active and retained terminal runs" },
-	{ value: "interrupt ", label: "interrupt", description: "Interrupt a run" },
+	{ value: "pause ", label: "pause", description: "Pause a run" },
 	{ value: "quit ", label: "quit", description: "Quit a run and keep it resumable" },
-	{ value: "pause ", label: "pause", description: "Pause a run or stage" },
 	{ value: "resume ", label: "resume", description: "Re-open overlay for a run" },
 	{ value: "inputs ", label: "inputs", description: "Show a workflow's input schema" },
 	{ value: "reload ", label: "reload", description: "Reload workflow resources" },
@@ -265,9 +264,9 @@ export function getBundledWorkflowArgumentCompletions(argumentPrefix: string): A
 		return completeWorkflowToken(argumentPrefix, [...WORKFLOW_ADMIN_COMPLETIONS, ...workflowItems]);
 	}
 	if (subcommand === "inputs") return completeWorkflowToken(argumentPrefix, workflowItems);
-	if (subcommand === "interrupt") {
+	if (subcommand === "pause") {
 		return completeWorkflowToken(argumentPrefix, [
-			{ value: "--all ", label: "--all", description: "Interrupt all in-flight runs" },
+			{ value: "--all ", label: "--all", description: "Pause all in-flight runs" },
 			{ value: "--yes ", label: "--yes", description: "Skip confirmation" },
 			{ value: "-y ", label: "-y", description: "Skip confirmation" },
 		]);
@@ -340,7 +339,7 @@ export const BUNDLED_EXTENSION_SLASH_COMMANDS: ReadonlyArray<BuiltinSlashCommand
 	{
 		name: "workflow",
 		description:
-			"Run or inspect Atomic workflows. Usage: /workflow <name> [key=value…] | /workflow [list|status|connect|attach|interrupt|quit|pause|resume|inputs|reload] [args]",
+			"Run or inspect Atomic workflows. Usage: /workflow <name> [key=value…] | /workflow [list|status|connect|attach|quit|pause|resume|inputs|reload] [args]",
 		getArgumentCompletions: getBundledWorkflowArgumentCompletions,
 	},
 	{ name: "mcp", description: "Show MCP server status" },

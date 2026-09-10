@@ -18,7 +18,7 @@ export function formatAlreadyEndedRetainedMessage(runId: string): string {
 	return `Run ${runId} already ended; retained for inspection.`;
 }
 
-export function stageFailureMessage(runId: string, resultReason: string, action: "pause" | "interrupt"): string {
+export function stageFailureMessage(runId: string, resultReason: string, action: "pause"): string {
 	switch (resultReason) {
 		case "not_found":
 			return `Run not found: ${runId}`;
@@ -47,7 +47,7 @@ export function topLevelExpandedSnapshots() {
 	});
 }
 
-export function allStageConflictMessage(action: "pause" | "interrupt" | "quit"): string {
+export function allStageConflictMessage(action: "pause" | "quit"): string {
 	return `Cannot ${action} --all with a stageId; omit stageId or target a single run.`;
 }
 
@@ -162,7 +162,7 @@ export function resolveToolStageTarget(
 /**
  * Control target resolved across stages *and* tool nodes.
  *
- * Tool nodes are abort-only control targets: `quit` and `interrupt` may name
+ * Tool nodes are abort-only control targets: `quit` and `pause` may name
  * them by expanded id, local `tool:<argsHash>` id, or tool name, with the same
  * ambiguity handling stages get. They are never chat/attach targets.
  */
@@ -199,10 +199,6 @@ function resolvedControlNodeTarget(node: ExpandedWorkflowStage): ControlNodeTarg
 	return node.nodeKind === "tool"
 		? { ok: true, kind: "tool", runId: graphTarget.runId, nodeId: graphTarget.stageId, name: node.name }
 		: { ok: true, kind: "stage", runId: graphTarget.runId, stageId: graphTarget.stageId };
-}
-
-export function toolNodePauseRejectionMessage(name: string, nodeId: string): string {
-	return `Tool nodes cannot be paused; ctx.tool ${name} (${nodeId}) has no turn boundary. Use interrupt or quit to abort it.`;
 }
 
 export function overlaySurfaceFromContext(ctx?: { ui?: PiUISurface }): OverlayPiSurface | undefined {

@@ -678,7 +678,7 @@ describe("workflow-first execution routing", () => {
 			"see agents working",
 			"chat with and steer each stage",
 			"Inspection and control calls",
-			"`status`, `stages`, `stage`, `transcript`, `answer`, `pause`, `resume`, `interrupt`, `quit`",
+			"`status`, `stages`, `stage`, `transcript`, `answer`, `pause`, `resume`, `quit`",
 			"A heartbeat is a periodic alignment check",
 			"continue a progressing run when no intervention is needed",
 			"Send free-form updates through Intercom",
@@ -863,7 +863,7 @@ describe("workflow-first execution routing", () => {
 		expect(registered?.description).toContain("`notInKnownSet` warning");
 		expect(registered?.description).toContain("settles undeliverable at terminal only if never delivered");
 		expect(registered?.description).toContain("answer pending prompts");
-		expect(registered?.description).toContain("pause/resume/interrupt/quit runs");
+		expect(registered?.description).toContain("pause/resume/quit runs");
 		expect(registered?.description).not.toMatch(/workflow send|action ['"]send['"]/i);
 
 		const readme = await readRepositoryFile("packages/workflows/README.md");

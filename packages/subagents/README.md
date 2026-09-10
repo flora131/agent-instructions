@@ -560,7 +560,7 @@ subagent({ action: "status", id: "<run-id>" })
 subagent({ action: "kill", id: "<run-id>" })
 ```
 
-Completed, killed, interrupted, and single-child terminal-handoff children cannot be revived by a prior run ID; follow-up work requires a fresh launch with explicit context. A parallel child waiting for a reply is not terminal and continues in its original execution. Parent cancellation of a still-running child uses the interrupted/abort state: receipts and progress present it as cancelled rather than failed, persisted metadata keeps the abort cause, and bounded partial findings remain available. Migrate old subagent calls from `action: "interrupt"` to `action: "kill"`; the old action is rejected. Kill is terminal and cannot be resumed. Workflow and host interrupt APIs are unchanged.
+Completed, killed, interrupted, and single-child terminal-handoff children cannot be revived by a prior run ID; follow-up work requires a fresh launch with explicit context. A parallel child waiting for a reply is not terminal and continues in its original execution. Parent cancellation of a still-running child uses the interrupted/abort state: receipts and progress present it as cancelled rather than failed, persisted metadata keeps the abort cause, and bounded partial findings remain available. Migrate old subagent calls from `action: "interrupt"` to `action: "kill"`; the old action is rejected. Kill is terminal and cannot be resumed. Workflow controls use `pause`; host interrupt APIs are unchanged.
 
 ## Worktree isolation
 

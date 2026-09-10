@@ -99,7 +99,7 @@ export function quitRun(runId: string, opts?: Parameters<typeof quitRunWithActio
 	return quitRunWithAction(runId, opts, "quit");
 }
 
-/** Preserve the requested control action when interrupt uses graceful suspension. */
+/** Preserve the requested control action when pause uses graceful suspension. */
 export async function quitRunWithAction(
 	runId: string,
 	opts:
@@ -112,7 +112,7 @@ export async function quitRunWithAction(
 				actor?: WorkflowActor;
 		  }
 		| undefined,
-	action: "quit" | "interrupt",
+	action: "quit" | "pause",
 ): Promise<QuitRunResult> {
 	const activeStore = opts?.store ?? defaultStore;
 	const registry = opts?.stageControlRegistry ?? defaultStageControlRegistry;

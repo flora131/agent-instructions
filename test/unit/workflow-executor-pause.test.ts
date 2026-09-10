@@ -8,7 +8,6 @@ import { toolControlRegistry } from "../../packages/workflows/src/engine/run-too
 import { createExtensionRuntime } from "../../packages/workflows/src/extension/runtime.js";
 import { workflowAnswerAction } from "../../packages/workflows/src/extension/workflow-tool-answer.js";
 import {
-	workflowInterruptAction,
 	workflowPauseAction,
 	workflowResumeAction,
 } from "../../packages/workflows/src/extension/workflow-tool-control.js";
@@ -27,7 +26,7 @@ afterEach(() => {
 });
 
 // PR #2885: executor-only control must retain the live owner and actually resume it.
-for (const action of ["pause", "interrupt"] as const) {
+for (const action of ["pause"] as const) {
 	test(`${action} gates node-less body work and public resume advances the same owner exactly once`, async () => {
 		const backend = new InMemoryDurableBackend();
 		setDurableBackend(backend);
@@ -61,10 +60,10 @@ for (const action of ["pause", "interrupt"] as const) {
 		await entered.promise;
 		const owner = toolControlRegistry.runControl(runId);
 		try {
-			const result = await (action === "pause" ? workflowPauseAction : workflowInterruptAction)({ action, runId });
-			assert.ok(result.action === "pause" || result.action === "interrupt");
+			const result = await workflowPauseAction({ action, runId });
+			assert.ok(result.action === "pause");
 			assert.equal(result.status, "paused");
-			assert.match(result.message ?? "", action === "pause" ? /paused/i : /interrupted/i);
+			assert.match(result.message ?? "", /paused/i);
 			assert.doesNotMatch(result.message ?? "", /quit|cannot be resumed/i);
 			assert.equal(store.runs()[0]?.exitReason, undefined);
 			assert.equal(store.runs()[0]?.resumable, true);

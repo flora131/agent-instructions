@@ -21,7 +21,6 @@ export interface WorkflowToolArgs {
 		| "transcript"
 		| "answer"
 		| "pause"
-		| "interrupt"
 		| "quit"
 		| "resume"
 		| "reload"
@@ -91,9 +90,6 @@ export function renderCall(args: WorkflowToolArgs, opts: RenderCallOpts = {}): s
 			break;
 		case "reload":
 			line = "workflow: reload runtime";
-			break;
-		case "interrupt":
-			line = name === undefined ? "workflow: interrupt run" : `workflow: interrupt run ${quoted(name)}`;
 			break;
 		case "quit":
 			line = name === undefined ? "workflow: quit run" : `workflow: quit run ${quoted(name)}`;

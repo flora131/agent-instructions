@@ -41,7 +41,7 @@ export type RunStatus = "pending" | "running" | "paused" | WorkflowExitStatus | 
 export type WorkflowActor = "user" | "agent";
 export type WorkflowDetailsMode = "named" | "inspection" | "control";
 export type WorkflowDetailsStatus = "accepted" | "running" | WorkflowExitStatus | "killed" | "noop";
-export type WorkflowAction = "list" | "get" | "inputs" | "run" | "status" | "interrupt" | "resume";
+export type WorkflowAction = "list" | "get" | "inputs" | "run" | "status" | "pause" | "resume";
 
 type WorkflowExitOutputValues<TOutputs extends WorkflowOutputValues = WorkflowOutputValues> = [keyof TOutputs] extends [
 	never,

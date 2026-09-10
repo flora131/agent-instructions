@@ -1168,7 +1168,7 @@ Good workflows are information-flow systems, not just prompt sequences. Keep sta
 - Do not rely on undeclared child outputs; returning a key that is not declared in `outputs` fails the run. Declare every child-workflow field you expose in `outputs` — including `result` — and return values matching those schemas from `run` (see [Outputs](/workflows/authoring#outputs)).
 - Do not expect to select or rename child outputs at the call site; parent workflows receive the child's declared output contract as `child.outputs` after checking `child.exited === false`, and a partial declared-output map when `child.exited === true`.
 - Do not expect named workflow runs to block the chat turn; they are background tasks.
-- Use `interrupt` or `pause` when the user asks to pause specific live work resumably; use `quit` for a graceful run-level process boundary.
+- Use `pause` when the user asks to pause specific live work resumably; use `quit` for a graceful run-level process boundary.
 - Keep stage names readable because they appear in workflow status and UI.
 - Do not ask a stage to reason from workflow or stage names that are only orchestration labels. Model stages see their local prompt, artifacts, tools, and reads; describe the concrete action and evidence instead of referring to an implementation-specific nickname.
 - Do not write stage prompts that depend on hidden workflow-wide awareness; make each model stage locally scoped and self-described ([Locally Scoped Stage Prompts](#locally-scoped-stage-prompts)).
@@ -1348,7 +1348,7 @@ A failed test becomes the next objective.
 Validation failed on `[command]`. Treat that as the source of truth. Fix the root cause only, rerun the failing check, then report the result.
 ```
 
-#### 8. Interrupt stale or wrong work
+#### 8. Pause stale or wrong work
 
 If a run is solving the wrong problem, based on outdated assumptions, or duplicating another run, stop it. Continuing usually creates more cleanup.
 
@@ -2093,7 +2093,7 @@ These anti-patterns target run prompts; [Common Mistakes](#common-mistakes) cove
 | `Fix this.` | `Fix [specific failure]; done means [test command] passes.` |
 | No validation step | Require tests, smoke checks, typecheck, or explicit manual verification. |
 | Broad refactors | Constrain the run to the files needed for the objective. |
-| Letting a wrong stage continue | Redirect or interrupt as soon as the agent follows the wrong signal. |
+| Letting a wrong stage continue | Redirect or pause as soon as the agent follows the wrong signal. |
 | Accepting unverified summaries | Ask for changed files, commands run, results, and remaining risks. |
 | Mixing investigation and implementation too early | Ask for root cause and proposed fix before code changes. |
 | Ignoring blocked stages | Answer directly with one decision and any constraints. |

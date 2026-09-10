@@ -255,7 +255,7 @@ describe("runDetached — HIL never reaches pi.ui adapter", () => {
 
 		const accepted = runDetached(def, {}, { store, cancellation, jobs });
 		const prompt = await waitForStagePendingPrompt(store, accepted.runId);
-		// Interrupt via the cancellation registry (mirrors `/workflow interrupt <id>`).
+		// Abort the run through its cancellation registry while a prompt is pending.
 		cancellation.abort(accepted.runId, "user kill");
 		await waitForRunEnded(store, accepted.runId);
 		const run = store.runs().find((r) => r.id === accepted.runId);

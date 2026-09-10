@@ -95,7 +95,7 @@ export interface CreateToolPrimitiveInput {
 	/** Optional run-level signal; combined with the per-node signal handed to `fn`. */
 	readonly signal?: AbortSignal;
 	/**
-	 * Publish the per-node abort control so `/workflow quit|interrupt` can abort
+	 * Publish the per-node abort control so workflow quit/pause actions can abort
 	 * one in-flight node. The returned disposer runs when the node settles.
 	 */
 	readonly registerNodeControl?: (registration: ToolNodeControlRegistration) => (() => void) | undefined;
@@ -501,7 +501,7 @@ async function executeTimedToolAttempt<T extends WorkflowSerializableValue>(
  * Execute one uncached tool call under its own abort controller.
  *
  * The callback signal combines the run signal with this node's controller, so a
- * run abort cascades to every node while `/workflow quit|interrupt` can abort
+ * run abort cascades to every node while workflow quit/pause actions can abort
  * exactly one node without touching its siblings. A cancelled call never writes
  * a replayable checkpoint, so resume re-executes it at the same ordinal.
  */

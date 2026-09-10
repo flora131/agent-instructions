@@ -4,7 +4,7 @@ import type { ResumableWorkflowEntry } from "../durable/types.js";
 import { toolControlRegistry } from "../engine/run-tool-control-registry.js";
 import { quitAllRuns, quitRun } from "../runs/background/quit.js";
 import { abortToolNode } from "../runs/background/quit-tool-node.js";
-import { interruptAllRuns, interruptRun, pauseAllRuns, pauseRun, resumeRun } from "../runs/background/status.js";
+import { pauseAllRuns, pauseRun, resumeRun } from "../runs/background/status.js";
 import { workflowHasPausedStages, workflowHasPausedState } from "../runs/background/workflow-lifecycle-aggregate.js";
 import { store } from "../shared/store.js";
 import type { RunSnapshot } from "../shared/store-types.js";
@@ -24,7 +24,6 @@ import {
 	resolveToolRunTarget,
 	resolveToolStageTarget,
 	stageFailureMessage,
-	toolNodePauseRejectionMessage,
 } from "./workflow-targets.js";
 
 export interface WorkflowControlActionDeps {
@@ -36,11 +35,7 @@ export interface WorkflowControlActionDeps {
 	onRunAccepted?: (runId: string) => void;
 }
 
-function controlFailure(
-	action: "pause" | "interrupt" | "quit" | "resume",
-	runId: string,
-	error: unknown,
-): WorkflowToolResult {
+function controlFailure(action: "pause" | "quit" | "resume", runId: string, error: unknown): WorkflowToolResult {
 	return {
 		action,
 		runId,
@@ -63,66 +58,6 @@ function resumeControlFailure(runId: string, error: unknown): WorkflowToolResult
 		status: visiblyRunning ? "partial" : "noop",
 		message: `Failed to resume run ${runId}: ${detail}`,
 	};
-}
-
-export async function workflowPauseAction(args: WorkflowToolArgs): Promise<WorkflowToolResult> {
-	const target = resolveToolRunTarget(args, "No in-flight runs to pause.");
-	const action = "pause";
-	if (target.kind === "all") {
-		if (args.stageId !== undefined && args.stageId.length > 0) {
-			return { action, runId: "--all", status: "noop", message: allStageConflictMessage("pause") };
-		}
-		try {
-			const results = await pauseAllRuns({ actor: "agent" });
-			const paused = results.filter((result) => result.ok).length;
-			return {
-				action,
-				runId: "--all",
-				status: paused > 0 ? "paused" : "noop",
-				message: [
-					paused > 0 ? `Paused ${paused} run(s).` : "No in-flight runs to pause.",
-					...results.flatMap((result) => (result.ok && result.message !== undefined ? [result.message] : [])),
-				].join("\n"),
-			};
-		} catch (error) {
-			return controlFailure(action, "--all", error);
-		}
-	}
-	if (target.kind === "malformed" || target.kind === "not_found")
-		return { action, runId: target.target, status: "noop", message: target.message };
-	const controlNode = resolveControlNodeTarget(target.runId, args.stageId);
-	// Tool nodes have no turn boundary to stop at, so pause rejects them loudly
-	// instead of silently resolving to nothing.
-	if (!controlNode.ok) return { action, runId: target.runId, status: "noop", message: controlNode.message };
-	if (controlNode.kind === "tool") {
-		return {
-			action,
-			runId: target.runId,
-			status: "noop",
-			message: toolNodePauseRejectionMessage(controlNode.name, controlNode.nodeId),
-		};
-	}
-	const stage = resolveToolStageTarget(target.runId, args.stageId);
-	if (!stage.ok) return { action, runId: target.runId, status: "noop", message: stage.message };
-	const stageRunId = stage.runId ?? target.runId;
-	try {
-		const result = await pauseRun(stageRunId, { stageId: stage.stageId, actor: "agent" });
-		return result.ok
-			? {
-					action,
-					runId: result.runId,
-					status: "paused",
-					message: result.message ?? `Paused ${result.paused.length} stage(s) on run ${result.runId}.`,
-				}
-			: {
-					action,
-					runId: stageRunId,
-					status: "noop",
-					message: stageFailureMessage(stageRunId, result.reason, "pause"),
-				};
-	} catch (error) {
-		return controlFailure(action, stageRunId, error);
-	}
 }
 
 export async function workflowReloadAction(
@@ -207,7 +142,7 @@ function cancelledToolSummary(result: {
 async function quitToolNodeAction(
 	runId: string,
 	nodeId: string,
-	action: "quit" | "interrupt",
+	action: "quit" | "pause",
 ): Promise<WorkflowToolResult> {
 	const aborted = await abortToolNode(runId, nodeId);
 	if (!aborted.ok) {
@@ -299,22 +234,22 @@ export async function workflowQuitAction(args: WorkflowToolArgs): Promise<Workfl
 	}
 }
 
-export async function workflowInterruptAction(args: WorkflowToolArgs): Promise<WorkflowToolResult> {
-	const target = resolveToolRunTarget(args, "No in-flight runs to interrupt.");
-	const action = "interrupt";
+export async function workflowPauseAction(args: WorkflowToolArgs): Promise<WorkflowToolResult> {
+	const target = resolveToolRunTarget(args, "No in-flight runs to pause.");
+	const action = "pause";
 	if (target.kind === "all") {
 		if (args.stageId !== undefined && args.stageId.length > 0) {
-			return { action, runId: "--all", status: "noop", message: allStageConflictMessage("interrupt") };
+			return { action, runId: "--all", status: "noop", message: allStageConflictMessage("pause") };
 		}
 		try {
-			const results = await interruptAllRuns();
-			const interrupted = results.filter((result) => result.ok).length;
+			const results = await pauseAllRuns();
+			const paused = results.filter((result) => result.ok).length;
 			return {
 				action,
 				runId: "--all",
-				status: interrupted > 0 ? "paused" : "noop",
+				status: paused > 0 ? "paused" : "noop",
 				message: [
-					interrupted > 0 ? `Interrupted ${interrupted} run(s).` : "No in-flight runs to interrupt.",
+					paused > 0 ? `Paused ${paused} run(s).` : "No in-flight runs to pause.",
 					...results.flatMap((result) => (result.ok && result.message !== undefined ? [result.message] : [])),
 				].join("\n"),
 			};
@@ -331,7 +266,7 @@ export async function workflowInterruptAction(args: WorkflowToolArgs): Promise<W
 	if (!stage.ok) return { action, runId: target.runId, status: "noop", message: stage.message };
 	const stageRunId = stage.runId ?? target.runId;
 	try {
-		const result = await interruptRun(stageRunId, { stageId: stage.stageId });
+		const result = await pauseRun(stageRunId, { stageId: stage.stageId });
 		if (result.ok) {
 			return {
 				action,
@@ -340,15 +275,15 @@ export async function workflowInterruptAction(args: WorkflowToolArgs): Promise<W
 				message:
 					result.message ??
 					(stage.stageId
-						? `Stage ${stage.stageId} interrupted on run ${result.runId} and can be resumed.`
-						: `Run ${result.runId} interrupted and can be resumed.`),
+						? `Stage ${stage.stageId} paused on run ${result.runId} and can be resumed.`
+						: `Run ${result.runId} paused and can be resumed.`),
 			};
 		}
 		return {
 			action,
 			runId: stageRunId,
 			status: "noop",
-			message: stageFailureMessage(stageRunId, result.reason, "interrupt"),
+			message: stageFailureMessage(stageRunId, result.reason, "pause"),
 		};
 	} catch (error) {
 		return controlFailure(action, stageRunId, error);

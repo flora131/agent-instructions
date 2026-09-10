@@ -1,6 +1,6 @@
 /**
  * WorkflowDispatcher — routes tool actions (list, inputs, run) through the
- * WorkflowRegistry + executor.  status/interrupt/resume are handled upstream in
+ * WorkflowRegistry + executor.  status/pause/resume are handled upstream in
  * index.ts since they operate on in-flight run tracking, not the registry.
  *
  * Design: pure function `dispatch(args, opts)`.  No broad catch — caller sees
