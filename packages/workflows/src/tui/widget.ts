@@ -21,6 +21,7 @@
  *  - src/tui/chat-surface.ts renderRoundedBoxLines
  */
 
+import { expandWorkflowGraph } from "../shared/expanded-workflow-graph.js";
 import {
 	pendingWorkflowStageStatuses,
 	type WorkflowBoundarySegmentsResolver,
@@ -29,7 +30,7 @@ import {
 import { effectiveRunStatus } from "../shared/returned-run-status.js";
 import { runIndicatorStatus } from "../shared/run-indicator-status.js";
 import { topLevelWorkflowRuns } from "../shared/run-visibility.js";
-import type { RunSnapshot, StoreSnapshot } from "../shared/store-types.js";
+import type { RunSnapshot, StageSnapshot, StoreSnapshot } from "../shared/store-types.js";
 import { elapsedRunMs } from "../shared/timing.js";
 import type { FlatBandBadge } from "./chat-surface.js";
 import { renderRoundedBoxLines } from "./chat-surface.js";
@@ -195,14 +196,14 @@ function statusFg(run: RunSnapshot, theme: GraphTheme, allRuns: readonly RunSnap
 	}
 }
 
-function modeLabel(run: RunSnapshot): string {
-	return run.stages.length > 1 ? "chain" : "single";
+function modeLabel(stages: readonly StageSnapshot[]): string {
+	return stages.length > 1 ? "chain" : "single";
 }
 
-function progressLabel(run: RunSnapshot): string | undefined {
-	const total = run.stages.length;
+function progressLabel(stages: readonly StageSnapshot[]): string | undefined {
+	const total = stages.length;
 	if (total === 0) return undefined;
-	const done = run.stages.filter(
+	const done = stages.filter(
 		(s) => s.status === "completed" || s.status === "failed" || s.status === "skipped",
 	).length;
 	return `${done}/${total}`;
@@ -266,6 +267,7 @@ function pendingStageLabel(
 
 function metaLine(
 	run: RunSnapshot,
+	allRuns: readonly RunSnapshot[],
 	now: number,
 	width = Number.POSITIVE_INFINITY,
 	resolveBoundarySegments?: WorkflowBoundarySegmentsResolver,
@@ -276,8 +278,10 @@ function metaLine(
 	if (isQuitRun(run))
 		return run.resumable === false ? "quit · not resumable" : "quit · resumable via /workflow resume";
 	if (effectiveRunStatus(run) === "blocked") return "blocked · resumable via /workflow resume";
-	const prefix: string[] = [modeLabel(run)];
-	const prog = progressLabel(run);
+	// Match the graph's recursive stage projection, not the root's boundary placeholders.
+	const { stages } = expandWorkflowGraph({ runs: allRuns, notices: [], version: 0 }, run.id);
+	const prefix: string[] = [modeLabel(stages)];
+	const prog = progressLabel(stages);
 	if (prog) prefix.push(prog);
 	const suffix: string[] = [];
 	const tools = activeToolLabel(run);
@@ -355,7 +359,7 @@ function themedRunLines(
 ): string[] {
 	const resolveBoundarySegments: WorkflowBoundarySegmentsResolver = (runId) =>
 		workflowBoundarySegments(allRuns, runId);
-	const meta = metaLine(run, now, runMetaWidth(run, width), resolveBoundarySegments);
+	const meta = metaLine(run, allRuns, now, runMetaWidth(run, width), resolveBoundarySegments);
 	// Render the meta line in muted while running so the elapsed-time
 	// gradient stays readable; dim it once the run has terminated.
 	const metaColor = effectiveRunStatus(run) === "running" ? theme.textMuted : theme.dim;
@@ -376,7 +380,7 @@ function plainRunLines(run: RunSnapshot, now: number, allRuns: readonly RunSnaps
 	return renderRunIdentityRows({
 		runId: run.id,
 		name: run.name,
-		meta: metaLine(run, now, runMetaWidth(run, width), resolveBoundarySegments),
+		meta: metaLine(run, allRuns, now, runMetaWidth(run, width), resolveBoundarySegments),
 		glyph: statusGlyph(run, allRuns),
 	});
 }
