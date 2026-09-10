@@ -1398,7 +1398,8 @@ export class SubagentControlRuntime {
 				(attempt.status === "running" || attempt.status === "continued"),
 		);
 		if (!running) return false;
-		this.killedChildren.add(pathValue);
+		// Native interruption can be final before the JS attempt is retired. Do not relabel it.
+		if (this.findChild(pathValue)?.status !== "interrupted") this.killedChildren.add(pathValue);
 		await this.terminateChildAttempt(running, "interrupt");
 		return true;
 	}

@@ -694,6 +694,101 @@ test("late public kill by runId preserves an already-published native interrupt 
 	}
 });
 
+for (const field of ["id", "runId"] as const) {
+	for (const abortResolvesPrompt of [true, false]) {
+		test.each(["interrupt", "parent-default", "parent-user", "kill"] as const)(
+			`late public kill via ${field} after finalization preserves %s (prompt resolves: ${abortResolvesPrompt})`,
+			async (first) => {
+				const cwd = makeRoot();
+				const gate = Promise.withResolvers<void>();
+				const lateRequest = Promise.withResolvers<void>();
+				const abort = new AbortController();
+				const interrupt = new AbortController();
+				const expectedStatus = first === "kill" ? "killed" : "interrupted";
+				const parentCancelled = first === "parent-default" || first === "parent-user";
+				const control = new SubagentControlRuntime(
+					{ path: "finalized-interrupt", depth: 0 },
+					join(cwd, "sessions"),
+				);
+				control.registerAgents([agent()]);
+				registerSubagentControl(control);
+				const { execute } = executor(cwd, new TestEvents());
+				const call = (action: "kill" | "status") =>
+					execute.execute(
+						"finalized-interrupt",
+						{ action, [field]: path },
+						new AbortController().signal,
+						undefined,
+						context(cwd),
+					);
+				const admitted = control.admitChildSession({
+					taskName: "hold",
+					task: "wait for interruption",
+					agent: agent(),
+					cwd,
+					testSession: {
+						promptGate: gate.promise,
+						abortResolvesPrompt,
+						dispose() {
+							// The result is finalized, but its outer promise has not yet retired the attempt.
+							queueMicrotask(() => {
+								void (async () => {
+									assert.equal(running.status, "running");
+									assert.equal(control.native.listChildren()[0]?.status, "interrupted");
+									assert.equal(control.findChild(path)?.status, expectedStatus);
+									const requested = call("kill");
+									assert.equal(control.findChild(path)?.status, expectedStatus);
+									const receipt = await requested;
+									assert.notEqual(receipt.isError, true, text(receipt));
+								})().then(lateRequest.resolve, lateRequest.reject);
+							});
+						},
+					},
+				});
+				assert.ok(admitted.admitted);
+				const running = control.startAttempt(
+					admitted.admitted,
+					{},
+					{
+						abort: abort.signal,
+						interrupt: interrupt.signal,
+					},
+				);
+				const path = running.child.identity.path;
+				try {
+					const firstRequest = first === "kill" ? call("kill") : undefined;
+					if (first === "interrupt") interrupt.abort();
+					else if (first === "parent-user") abort.abort("user");
+					else if (first === "parent-default") abort.abort();
+					const result = await running.promise;
+					await firstRequest;
+					await lateRequest.promise;
+					assert.equal(result.status, expectedStatus);
+					assert.equal(result.cause, parentCancelled ? "abort" : undefined);
+					if (parentCancelled) assert.match(result.envelope, /Run cancelled by parent/);
+					else
+						assert.equal(
+							result.envelope,
+							first === "kill" ? "Killed. This child cannot be resumed." : "Interrupted",
+						);
+					assert.equal(control.native.listChildren()[0]?.status, "interrupted");
+					assert.equal(control.findChild(path)?.status, expectedStatus);
+					const status = await call("status");
+					assert.ok(text(status).includes(`Status: ${expectedStatus}`));
+					if (first !== "kill") assert.doesNotMatch(text(status), /killed|cannot be resumed/i);
+					assert.equal(status.details.statusGroups?.[0]?.children[0]?.status, expectedStatus);
+					assert.equal((await call("kill")).isError, true);
+					assert.equal(control.findChild(path)?.status, expectedStatus);
+				} finally {
+					gate.resolve();
+					await running.promise;
+					await lateRequest.promise;
+				}
+			},
+		);
+	}
+}
+
 for (const cause of ["parent-default", "parent-user", "owner-close"] as const) {
 	test.each([false, true])(`${cause} at capacity preserves abort (late kill: %s)`, async (lateKill) => {
 		const cwd = makeRoot();
