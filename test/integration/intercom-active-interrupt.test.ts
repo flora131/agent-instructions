@@ -3,6 +3,7 @@ import { fauxAssistantMessage, fauxToolCall } from "@bastani/pi-ai/compat";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "typebox";
 import { test, vi } from "vitest";
+import type { AgentSessionMethodSurface } from "../../packages/coding-agent/src/core/agent-session-methods.js";
 import type { ExtensionContext } from "../../packages/coding-agent/src/core/extensions/index.js";
 import { WorkflowStageAdmissionBoundary } from "../../packages/coding-agent/src/core/workflow-stage-admission.js";
 import { createHarness, getMessageText, type HarnessOptions } from "../../packages/coding-agent/test/suite/harness.js";
@@ -80,6 +81,7 @@ async function receiver(
 		...h,
 		ended,
 		boundary,
+		context: ctx,
 		deliver: (entry: Message) => inbound(ctx, peer, entry),
 		async close(execution: Promise<void>) {
 			ended.abort();
@@ -548,6 +550,69 @@ test("multiple arrivals keep FIFO and dedup while the first cancellation is sett
 		await h.close(execution);
 	}
 });
+
+// R7: durable card order is insufficient; replacement must preserve model-context FIFO.
+for (const transfer of [false, true]) {
+	for (const action of ["send", "ask"] as const) {
+		test(`${action} priority model context keeps FIFO ${transfer ? "across same-generation transfer" : "without transfer"}`, async () => {
+			const source = await receiver("workflow-stage", []);
+			const replacement = transfer
+				? await createHarness({
+						sessionManager: source.sessionManager,
+						orchestrationContext: source.context.orchestrationContext,
+					})
+				: undefined;
+			const active = replacement ?? source;
+			const contexts: string[][] = [];
+			const dispatches = createDispatchCounter(
+				Array.from({ length: 2 }, () => (context: { messages: object[] }) => {
+					contexts.push(
+						context.messages.flatMap((entry) => getMessageText(entry).match(/PRIORITY-(?:first|second)/g) ?? []),
+					);
+					return fauxAssistantMessage("processed priority input");
+				}),
+			);
+			active.setResponses(dispatches.steps(4));
+			let execution = Promise.resolve();
+			try {
+				source.session.pauseQueuedMessages();
+				const first = message("first", action);
+				await source.deliver(first);
+				await source.boundary.waitForMessageDeliveries();
+				if (replacement) {
+					const transferable = source.session as typeof source.session &
+						Pick<AgentSessionMethodSurface, "transferWorkflowStageDeliveriesTo">;
+					transferable.transferWorkflowStageDeliveriesTo(replacement.session);
+				}
+				assert.equal(active.session.sessionId, source.session.sessionId);
+				assert.equal(source.boundary.isOpen(), true);
+				// The old inbound handler remains reachable after retirement; retries stay deduplicated.
+				await source.deliver(first);
+				await source.deliver(message("second", action));
+				await source.boundary.waitForMessageDeliveries();
+				assert.deepEqual(
+					source.sessionManager
+						.getEntries()
+						.flatMap((entry) =>
+							entry.type === "custom_message" && entry.customType === "intercom_message"
+								? [entry.stageAdmissionKey]
+								: [],
+						),
+					["intercom:first", "intercom:second"],
+				);
+				assert.equal(dispatches.counts.valid, 0, "paused admission must not start a model turn");
+				await active.session.resumeQueuedMessages();
+				execution = active.session.prompt("resume stage");
+				await execution;
+				assert.deepEqual(contexts, [["PRIORITY-first"], ["PRIORITY-first", "PRIORITY-second"]]);
+				assert.equal(dispatches.counts.valid, 2);
+			} finally {
+				await source.close(execution);
+				replacement?.cleanup();
+			}
+		});
+	}
+}
 
 test("an explicit abort wins: later priority input never restarts a cancelled child", async () => {
 	const record = { calls: 0, completed: 0 } as { calls: number; signal?: AbortSignal; completed: number };

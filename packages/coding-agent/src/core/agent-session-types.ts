@@ -94,6 +94,10 @@ export interface InterruptQueueHold {
 	readonly steering: AgentMessage[];
 	readonly followUp: AgentMessage[];
 }
+
+/** Insertion boundary after already admitted priority input in a queue hold. */
+export const priorityHoldCounts = new WeakMap<InterruptQueueHold, number>();
+
 export interface ClearQueueOptions {
 	preserveUnprotectedCustomMessages?: boolean;
 }

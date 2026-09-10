@@ -17,6 +17,7 @@ import {
 	drainAgentMessageQueue,
 	type InterruptQueueHold,
 	normalizeInterruptAbortMessage,
+	priorityHoldCounts,
 } from "./agent-session-types.ts";
 import type { SendMessageOptions, SendMessagesOptions } from "./extensions/index.js";
 import type { CustomMessage, StageAdmittedCustomMessage } from "./messages.ts";
@@ -24,9 +25,6 @@ import type { CustomMessage, StageAdmittedCustomMessage } from "./messages.ts";
 export { transferWorkflowStageDeliveriesTo };
 
 const interruptMutationQueues = new WeakMap<AgentSession, Promise<void>>();
-
-/** Leading steering entries of a hold reserved for priority input, in arrival order. */
-const priorityHoldCounts = new WeakMap<InterruptQueueHold, number>();
 
 function serializeInterruptMutation(owner: AgentSession, operation: () => Promise<void>): Promise<void> {
 	const previous = interruptMutationQueues.get(owner) ?? Promise.resolve();
