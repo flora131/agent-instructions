@@ -54,13 +54,64 @@ const REVIEWED_CORRECTIONS_SHA256 = "89912afa14fa7efe86737b9c1c0db60f9a41e533575
 export const digest = (text) => createHash("sha256").update(text, "utf8").digest("hex");
 
 const gitSnapshotCache = new Map();
+const revisionBlobCache = new Map();
+const blobCache = new Map();
+const snapshotRoots = [DOCS, "docs/migrations/", "docs/2847-stage-skill-verification.md"];
+
+/** Batch immutable trees once; share raw bytes across paths, revisions, and text/binary reads. */
+function revisionBlobs(repoRoot, revision) {
+	assert.match(revision, /^[a-f0-9]{40}$/u, "blob cache requires an immutable commit");
+	const root = realpathSync(repoRoot);
+	const key = `${root}:${revision}`;
+	if (revisionBlobCache.has(key)) return revisionBlobCache.get(key);
+	const tree = git(repoRoot, ["ls-tree", "-rz", revision, "--", ...snapshotRoots]);
+	const paths = new Map();
+	for (const entry of tree.split("\0").filter(Boolean)) {
+		const match = /^\d+ blob ([a-f0-9]+)\t([\s\S]+)$/u.exec(entry);
+		assert.ok(match, `unreadable tree entry ${entry}`);
+		paths.set(match[2], match[1]);
+	}
+	const missing = [...new Set(paths.values())].filter((oid) => !blobCache.has(`${root}:${oid}`));
+	if (missing.length) {
+		const bytes = git(repoRoot, ["cat-file", "--batch"], `${missing.join("\n")}\n`, "buffer");
+		let offset = 0;
+		for (const oid of missing) {
+			const headerEnd = bytes.indexOf(10, offset);
+			assert.ok(headerEnd >= offset, `missing blob header ${oid}`);
+			const header = bytes.subarray(offset, headerEnd).toString("utf8");
+			assert.match(header, new RegExp(`^${oid} blob \\d+$`, "u"), `unreadable blob ${oid}`);
+			const size = Number(header.split(" ")[2]);
+			const end = headerEnd + 1 + size;
+			assert.ok(Number.isSafeInteger(size) && end < bytes.length, `truncated blob ${oid}`);
+			assert.equal(bytes[end], 10, `missing blob terminator ${oid}`);
+			blobCache.set(`${root}:${oid}`, bytes.subarray(headerEnd + 1, end));
+			offset = end + 1;
+		}
+		assert.equal(offset, bytes.length, "unexpected batch output");
+	}
+	const blobs = new Map([...paths].map(([path, oid]) => [path, blobCache.get(`${root}:${oid}`)]));
+	revisionBlobCache.set(key, blobs);
+	return blobs;
+}
+
 function git(repoRoot, args, input, encoding = "utf8") {
+	if (args[0] === "show" && args.length === 2) {
+		const match = /^([a-f0-9]{40}):(.+)$/u.exec(args[1]);
+		if (
+			match &&
+			snapshotRoots.some((path) => match[2] === path || (path.endsWith("/") && match[2].startsWith(path)))
+		) {
+			const bytes = revisionBlobs(repoRoot, match[1]).get(match[2]);
+			assert.ok(bytes, `missing committed blob ${args[1]}`);
+			return encoding === "buffer" ? bytes : bytes.toString(encoding);
+		}
+	}
 	const key = JSON.stringify([realpathSync(repoRoot), args, input, encoding]);
 	// Resolve a caller's revision afresh; all subsequent reads use the resolved commit.
 	const cacheable = args[0] !== "rev-parse";
 	if (cacheable && gitSnapshotCache.has(key)) return gitSnapshotCache.get(key);
 	const output = execFileSync("git", ["-C", repoRoot, ...args], {
-		encoding,
+		encoding: encoding === "buffer" ? null : encoding,
 		input,
 		timeout: 30_000,
 		maxBuffer: 64 * 1024 * 1024,
@@ -181,26 +232,12 @@ export function sourceDocuments(repoRoot, revision) {
 	assert.ok([BASELINE, PR, MAIN].includes(revision), "source must use a pinned commit");
 	const key = `${realpathSync(repoRoot)}:${revision}`;
 	if (sourceCache.has(key)) return sourceCache.get(key);
-	const paths = git(repoRoot, ["ls-tree", "-r", "--name-only", revision, "--", DOCS])
-		.trim()
-		.split("\n")
-		.filter((path) => /\.mdx?$/u.test(path))
-		.sort();
-	// One process for the corpus. Parse byte lengths, not line-oriented separators in document bodies.
-	const bytes = Buffer.from(
-		git(repoRoot, ["cat-file", "--batch"], paths.map((path) => `${revision}:${path}\n`).join("")),
-		"utf8",
+	const documents = new Map(
+		[...revisionBlobs(repoRoot, revision)]
+			.filter(([path]) => path.startsWith(DOCS) && /\.mdx?$/u.test(path))
+			.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+			.map(([path, bytes]) => [path.slice(DOCS.length), bytes.toString("utf8")]),
 	);
-	const documents = new Map();
-	let offset = 0;
-	for (const path of paths) {
-		const headerEnd = bytes.indexOf(10, offset);
-		const header = bytes.subarray(offset, headerEnd).toString("utf8");
-		assert.match(header, /^[a-f0-9]+ blob \d+$/u, `unreadable source ${path}`);
-		const size = Number(header.split(" ")[2]);
-		documents.set(path.slice(DOCS.length), bytes.subarray(headerEnd + 1, headerEnd + 1 + size).toString("utf8"));
-		offset = headerEnd + 1 + size + 1;
-	}
 	sourceCache.set(key, documents);
 	return documents;
 }

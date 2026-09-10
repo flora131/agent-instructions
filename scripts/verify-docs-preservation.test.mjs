@@ -762,3 +762,52 @@ test("fourth-main repair retains the complete bash snapshot table, not just its 
 	assert.ok(row);
 	assert.throws(() => check(new Map([[path, text.replace(row, "")]])), /source prose\/example\/table\/caveat/u);
 });
+
+// #2847 / PR #2971: file-by-file Git children exhausted the existing unit-test budget under load.
+test("cold data-URL verification batches each immutable blob once and isolates working overrides", async () => {
+	const { spawnSync } = await import("node:child_process");
+	const source = read("scripts/verify-docs-preservation.mjs");
+	const moduleURL = `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
+	const child = spawnSync(process.execPath, ["--input-type=module", "-"], {
+		cwd: repoRoot,
+		input: `import assert from 'node:assert/strict';
+		import cp from 'node:child_process';
+		import fs from 'node:fs';
+		import { syncBuiltinESMExports } from 'node:module';
+		const execute = cp.execFileSync;
+		const calls = [];
+		cp.execFileSync = (command, args, options) => {
+			if (command === 'git') calls.push({ args: args.slice(2), input: options.input, encoding: options.encoding });
+			return execute(command, args, options);
+		};
+		syncBuiltinESMExports();
+		const verifier = await import(${JSON.stringify(moduleURL)});
+		const repoRoot = ${JSON.stringify(repoRoot)};
+		const committed = verifier.verifyCommittedDocumentation({ repoRoot });
+		assert.equal(committed.readerPages, 86);
+		assert.equal(committed.fourthMain.pages, 48);
+		const beforeRepeat = calls.length;
+		assert.deepEqual(verifier.verifyCommittedDocumentation({ repoRoot }), committed);
+		assert.deepEqual(calls.slice(beforeRepeat).map(call => call.args[0]), ['rev-parse']);
+		const path = verifier.DOCS + 'computer-use.md';
+		const text = fs.readFileSync(repoRoot + '/' + path, 'utf8');
+		const overrides = new Map([[path, text.replace('pyautogui', '')]]);
+		assert.throws(() => verifier.verifyWorkingTreeDocumentation({ repoRoot, overrides }), /fourth-main new page differs/u);
+		assert.equal(verifier.verifyWorkingTreeDocumentation({ repoRoot }).readerPages, 86);
+		assert.throws(() => verifier.verifyWorkingTreeDocumentation({ repoRoot, overrides }), /fourth-main new page differs/u);
+		const batches = calls.filter(call => call.args[0] === 'cat-file');
+		assert.ok(batches.length > 0);
+		const objects = batches.flatMap(call => {
+			assert.deepEqual(call.args, ['cat-file', '--batch']);
+			assert.equal(call.encoding, null, 'batch must preserve raw image bytes');
+			return call.input.trim().split('\\n');
+		});
+		assert.ok(objects.length > batches.length, 'read corpora, not one process per file');
+		assert.equal(new Set(objects).size, objects.length, 'unchanged blobs must be shared across revisions');
+		assert.ok(objects.every(oid => /^[a-f0-9]{40}$/u.test(oid)), 'cache only immutable object IDs');
+		assert.deepEqual(calls.filter(call => call.args[0] === 'show'), [], 'no per-file Git children');`,
+		encoding: "utf8",
+		timeout: 30_000,
+	});
+	assert.equal(child.status, 0, child.stderr);
+});
