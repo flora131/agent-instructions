@@ -24,6 +24,7 @@ import {
 	readdirSync as nodeReaddirSync,
 	readFileSync as nodeReadFileSync,
 	rmSync as nodeRmSync,
+	symlinkSync as nodeSymlinkSync,
 	writeFileSync as nodeWriteFileSync,
 } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -50,6 +51,7 @@ export const makeDirectorySync = nodeMkdirSync;
 export const readDirectorySync = nodeReaddirSync;
 export const readTextSync = nodeReadFileSync;
 export const removePathSync = nodeRmSync;
+export const symlinkSync = nodeSymlinkSync;
 export const writeTextSync = nodeWriteFileSync;
 
 /** Asynchronous removal re-enumerates directories during recursive retries. */

@@ -5,6 +5,9 @@ import { pathToFileURL } from "node:url";
 // Inputs are independently built host and builtin modules, not source imports.
 const { ExtensionRunner } = await import(pathToFileURL(process.argv[2]).href);
 const { default: intercom } = await import(pathToFileURL(process.argv[3]).href);
+// Node emits import-time warnings (including node:sqlite's experimental warning)
+// on the next turn. Let startup finish before capturing operation diagnostics.
+await tick();
 const message = "Intercom heavy initialization failed; a later call will retry: Connection closen";
 const rows = [];
 function owner(mode, unowned = false) {

@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { symlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { afterAll, beforeAll, test } from "vitest";
 import {
@@ -8,6 +7,7 @@ import {
 	moduleDir,
 	removeTempDirectory,
 	spawnSyncCollect,
+	symlinkSync,
 } from "../helpers/runtime.js";
 
 const root = resolve(moduleDir(import.meta.url), "../..");
