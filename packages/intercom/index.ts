@@ -329,8 +329,11 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 					sessionSnapshot = { event: createSyntheticSessionStartEvent(), ctx, generation: ++lifecycleGeneration, lease };
 				}
 				await ensureSessionStartReplayed(captured, lease, (replayContext) => {
+					// The same owner may already be stale; only a new owner needs a new route.
+					if (replayContext !== (replayCtx ?? ctx)) {
+						diagnosticRoute = captureDiagnosticRoute(replayContext);
+					}
 					replayCtx = replayContext;
-					diagnosticRoute = captureDiagnosticRoute(replayContext);
 				});
 				assertLease(lease);
 				const handle = createHandle(captured, lease);

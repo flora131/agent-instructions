@@ -12,7 +12,7 @@ import { IntercomClientDisconnectedError } from "../../packages/intercom/recover
 
 type HeavyModule = { default: (pi: ExtensionAPI) => void | Promise<void> };
 type ConsoleErrorCall = [message?: unknown, ...optionalParams: unknown[]];
-type ImportResult = { error: unknown } | { module: HeavyModule };
+type ImportResult = { error: unknown } | { module: HeavyModule | Promise<HeavyModule> };
 type LifecycleHandler = (event: object, ctx: ExtensionContext) => void | Promise<void>;
 
 const originalConsoleError = console.error;
@@ -339,6 +339,141 @@ describe("Intercom lazy heavy-initialization diagnostics", () => {
 	});
 
 	for (const mode of ["print", "json", "rpc", "tui"] as const) {
+		for (const phase of ["during import", "after factory"] as const) {
+			test(`retains the ${mode} route when the same owner expires ${phase} before first replay`, async () => {
+				const imported = Promise.withResolvers<HeavyModule>();
+				const owner = guardedContext(mode);
+				const failure = new Error("Connection closen");
+				const current = fixture([{ module: imported.promise }, { module: successfulHeavyModule() }]);
+				const log = vi.spyOn(console, "log").mockImplementation(() => {});
+				const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+				try {
+					await current.fire("session_start", owner.ctx);
+					const rejected = assert.rejects(current.executeIntercom(owner.ctx), (error) => error === failure);
+					await tick();
+					assert.equal(current.imports, 1, "the successful import is still pending");
+					if (phase === "during import") owner.invalidate();
+					imported.resolve({
+						default(pi) {
+							if (phase === "after factory") {
+								assert.equal(owner.ctx.mode, mode, "the factory starts with a live owner");
+								queueMicrotask(() => owner.invalidate());
+							}
+							pi.on("session_start", (_event, ctx) => {
+								assert.equal(ctx, owner.ctx);
+								assert.throws(() => ctx.mode, /Extension context is stale/);
+								throw failure;
+							});
+						},
+					});
+					await rejected;
+					await tick();
+					const message = "Intercom heavy initialization failed; a later call will retry: Connection closen";
+					assert.deepEqual(consoleErrorCalls, mode === "tui" ? [] : [[message, failure]]);
+					if (mode !== "tui") assert.equal(consoleErrorCalls[0]?.[1], failure);
+					assert.deepEqual(owner.notifications, []);
+					assert.equal(log.mock.calls.length, 0);
+					assert.equal(warn.mock.calls.length, 0);
+					const replacement = guardedContext(mode);
+					await current.fire("session_start", replacement.ctx);
+					assert.deepEqual(await current.executeIntercom(replacement.ctx), {
+						content: [{ type: "text", text: "connected" }],
+						details: {},
+					});
+					assert.equal(current.imports, 2);
+					assert.deepEqual(replacement.notifications, []);
+				} finally {
+					log.mockRestore();
+					warn.mockRestore();
+				}
+			});
+		}
+
+		for (const phase of ["first replay", "later replay"] as const) {
+			for (const state of ["live", "expired"] as const) {
+				test(`routes ${phase} failure and cleanup to a new ${state} ${mode} owner only`, async () => {
+					const imported = Promise.withResolvers<HeavyModule>();
+					const replayEntered = Promise.withResolvers<void>();
+					const replayRelease = Promise.withResolvers<void>();
+					const owner = guardedContext(mode);
+					const other = guardedContext(mode === "tui" ? "print" : "tui");
+					const failure = new Error("Connection closen");
+					const cleanupFailure = new Error("cleanup failed");
+					const module: HeavyModule = {
+						default(pi) {
+							pi.on("session_start", async (_event, ctx) => {
+								if (ctx === other.ctx) {
+									replayEntered.resolve();
+									await replayRelease.promise;
+									return;
+								}
+								assert.equal(ctx, owner.ctx);
+								if (state === "expired") assert.throws(() => ctx.mode, /Extension context is stale/);
+								else assert.equal(ctx.mode, mode);
+								throw failure;
+							});
+							pi.on("session_shutdown", (_event, ctx) => {
+								assert.equal(ctx, owner.ctx, "cleanup follows the failed replay owner");
+								throw cleanupFailure;
+							});
+						},
+					};
+					const current = fixture([{ module: imported.promise }, { module: successfulHeavyModule() }]);
+					await current.fire("session_start", other.ctx);
+					// Later replay returns to the initiating context after another owner has replayed.
+					const rejected = assert.rejects(
+						current.executeIntercom(phase === "first replay" ? other.ctx : owner.ctx),
+						(error) => error === failure,
+					);
+					if (phase === "later replay") {
+						imported.resolve(module);
+						await replayEntered.promise;
+					} else {
+						await tick();
+						assert.equal(current.imports, 1);
+					}
+					await current.fire("session_start", owner.ctx);
+					if (state === "expired") owner.invalidate();
+					imported.resolve(module);
+					replayRelease.resolve();
+					await rejected;
+					await tick();
+					const message = "Intercom heavy initialization failed; a later call will retry: Connection closen";
+					assert.deepEqual(
+						consoleErrorCalls,
+						state === "expired" || mode === "tui"
+							? []
+							: [
+									["Intercom failed to clean rejected lazy candidate:", cleanupFailure],
+									[message, failure],
+								],
+					);
+					if (state === "live" && mode !== "tui") {
+						assert.equal(consoleErrorCalls[0]?.[1], cleanupFailure);
+						assert.equal(consoleErrorCalls[1]?.[1], failure);
+					}
+					assert.deepEqual(
+						owner.notifications,
+						state === "live" && mode === "tui"
+							? [
+									{
+										message: "Intercom failed to clean rejected lazy candidate: cleanup failed",
+										level: "error",
+									},
+									{ message, level: "warning" },
+								]
+							: [],
+					);
+					assert.deepEqual(other.notifications, []);
+					const replacement = guardedContext(mode);
+					await current.fire("session_start", replacement.ctx);
+					await current.executeIntercom(replacement.ctx);
+					assert.equal(current.imports, 2);
+					assert.deepEqual(replacement.notifications, []);
+				});
+			}
+		}
+
 		for (const phase of ["initializing", "replaying"] as const) {
 			test(`retains the ${mode} ${phase} route when its guarded owner expires`, async () => {
 				const entered = Promise.withResolvers<void>();
