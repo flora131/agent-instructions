@@ -2,6 +2,8 @@
 
 Atomic reports its status to [Herdr](https://herdr.dev) automatically when you launch it in a Herdr pane. No extra extension is required. The pane identifies the agent as `atomic`.
 
+For interactive terminal automation, pane isolation, and tool fallbacks, see [Computer use](/computer-use#terminal-automation-with-herdr). This page covers Atomic's automatic status integration.
+
 ## Setup
 
 Use Herdr 0.8.2 or newer and launch Atomic inside it. Herdr supplies the pane connection settings automatically; you do not need to configure them yourself.

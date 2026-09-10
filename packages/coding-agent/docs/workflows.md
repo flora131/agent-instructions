@@ -40,6 +40,8 @@ Prefer composing builtin definitions with `ctx.workflow(...)` over copying or re
 4. [Operations](/workflows/operations) — run, inspect, steer, pause, resume, and configure workflows.
 5. [API reference](/workflows/api-reference) — look up definitions, contexts, options, results, and programmatic APIs.
 
+For checking changes and sharing results in PRs, see [Verification and evidence](/workflows/verification). For general desktop, browser, and terminal work, including creative workflows, see [Computer use](/computer-use).
+
 ## When to Use Workflows
 
 Unless the user explicitly chooses inline execution, workflows are the default for non-trivial requests or structured work with a verifiable objective. Requests such as `quickly`, `inline`, `do this directly`, and `don't use a workflow` override that default for the specified task, even when complex. Treat "quickly" as an inline execution choice, not a request for a faster workflow. Do not launch a hidden/nested replacement or ask the user to reapprove the choice. Preserve testing, review, evidence, safety and authorization inline. Quoted examples, questions about inline code, and descriptions of software that should run quickly are not mode instructions. For an active switch, safely hold/stop the affected run and reconcile completed work and in-flight effects before continuing without duplicates; completed work is not undone. See [Verification and evidence](/workflows/verification).

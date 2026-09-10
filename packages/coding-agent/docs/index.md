@@ -59,6 +59,7 @@ For the full first-run flow, see [Quickstart](/quickstart).
 
 - [Quickstart](/quickstart) - install, authenticate, and run a first session.
 - [Using Atomic](/usage) - interactive mode, slash commands, context files, and CLI reference.
+- [Computer use](/computer-use) - work in desktop apps, browsers, and terminals across macOS, Linux, and Windows.
 - [Providers](/providers) - subscription and API-key setup for built-in providers.
 - [Environment variables](/environment-variables) - Atomic/Pi aliases, provider credentials, and bash session metadata.
 - [Security](/security) - project trust, sandbox boundaries, and vulnerability reporting.
