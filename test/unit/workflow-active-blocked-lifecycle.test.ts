@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, test } from "vitest";
+import { describe, test, vi } from "vitest";
 import {
 	createWorkflowLifecycleNotificationState,
 	installWorkflowLifecycleNotifications,
@@ -212,12 +212,30 @@ describe("active recoverable blocked lifecycle notices", () => {
 			},
 		});
 
-		startRecoverableRun(store, "retry-fourth-attempt");
-		await new Promise((resolve) => setTimeout(resolve, 180));
-
-		assert.equal(attempts, 4);
-		assert.equal(sent.length, 1);
-		unsubscribe();
+		// #2847 validation exposed a wall-clock race in this upstream retry test.
+		// Advance promise-driven backoff deterministically, without extending its budget.
+		vi.useFakeTimers();
+		try {
+			startRecoverableRun(store, "retry-fourth-attempt");
+			for (const [delay, expectedAttempts] of [
+				[19, 1],
+				[1, 2],
+				[39, 2],
+				[1, 3],
+				[79, 3],
+				[1, 4],
+			] as const) {
+				await vi.advanceTimersByTimeAsync(delay);
+				assert.equal(attempts, expectedAttempts);
+				assert.equal(sent.length, expectedAttempts === 4 ? 1 : 0);
+			}
+			await vi.advanceTimersByTimeAsync(40);
+			assert.equal(attempts, 4);
+			assert.equal(sent.length, 1);
+		} finally {
+			unsubscribe();
+			vi.useRealTimers();
+		}
 	});
 
 	test("retries the retained blocked payload after the run is consumed", async () => {
