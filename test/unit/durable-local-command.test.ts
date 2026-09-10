@@ -27,6 +27,7 @@ async function assertSuccessfulExitSettles(): Promise<void> {
 	const root = mkdtempSync(join(tmpdir(), "atomic-local-command-exit-"));
 	const readyPath = join(root, "server.pid");
 	const parentExitPath = join(root, "parent.exit");
+	const publishPath = join(root, "server.publish");
 	const releasePath = join(root, "server.release");
 	const serverSource = `
 const { existsSync } = require("node:fs");
@@ -39,7 +40,7 @@ const timer = setInterval(() => {
 `;
 	const parentSource = `
 const { spawn } = require("node:child_process");
-const { writeFileSync } = require("node:fs");
+const { existsSync, writeFileSync } = require("node:fs");
 process.on("exit", () => writeFileSync(${JSON.stringify(parentExitPath)}, "exited"));
 const server = spawn(process.execPath, ["-e", ${JSON.stringify(serverSource)}], {
   stdio: ["ignore", "inherit", "inherit"],
@@ -48,8 +49,13 @@ const server = spawn(process.execPath, ["-e", ${JSON.stringify(serverSource)}], 
 process.stdout.write("direct stdout");
 process.stderr.write("direct stderr");
 server.unref();
-writeFileSync(${JSON.stringify(readyPath)}, String(server.pid));
-setImmediate(() => process.exit(0));
+writeFileSync(${JSON.stringify(readyPath)}, "");
+const publication = setInterval(() => {
+  if (!existsSync(${JSON.stringify(publishPath)})) return;
+  clearInterval(publication);
+  writeFileSync(${JSON.stringify(readyPath)}, String(server.pid));
+  setImmediate(() => process.exit(0));
+}, 10);
 `;
 
 	let settled: LocalCommandResult | undefined;
@@ -64,16 +70,23 @@ setImmediate(() => process.exit(0));
 	let serverPid = 0;
 	try {
 		await waitFor(() => existsSync(readyPath), "the parent to launch its server descendant");
+		// PR #2973: a file is visible before writeFileSync has published its contents.
+		// Hold that interprocess window open until this reader has observed it.
+		assert.equal(readFileSync(readyPath, "utf8"), "");
+		writeFileSync(publishPath, "publish", "utf8");
+		await waitFor(() => existsSync(parentExitPath), "the direct child to finish publishing its PID and exit");
 		serverPid = Number.parseInt(readFileSync(readyPath, "utf8"), 10);
 		assert.ok(Number.isInteger(serverPid) && serverPid > 0);
-		await waitFor(() => existsSync(parentExitPath), "the direct child to exit");
 		await waitFor(() => settled !== undefined, "successful-exit completion without inherited-pipe EOF");
 		assert.ok(settled);
 		assert.equal(settled.exitCode, 0);
 		assert.equal(settlements, 1);
+		assert.ok(processExists(serverPid), "the server still holds the inherited pipes open at settlement");
 	} finally {
+		writeFileSync(publishPath, "publish", "utf8");
 		writeFileSync(releasePath, "release", "utf8");
 		await pending;
+		if (!(serverPid > 0) && existsSync(readyPath)) serverPid = Number.parseInt(readFileSync(readyPath, "utf8"), 10);
 		if (serverPid > 0) await waitFor(() => !processExists(serverPid), "the fixture server to exit");
 		rmSync(root, { recursive: true, force: true });
 	}
