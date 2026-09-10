@@ -32,6 +32,7 @@ import {
 	type SupervisedCommandOwner,
 	type SupervisedCommandResult,
 	validateBashWait,
+	waitForSupervisedCommand,
 } from "./bash-pty-native.js";
 import { applyBashSessionEnvironment, snapshotBashSessionEnvironment } from "./bash-session-environment.ts";
 import { OutputAccumulator } from "./output-accumulator.ts";
@@ -74,11 +75,40 @@ const bashBaseSchema = Type.Object(
 	},
 	{ additionalProperties: false },
 );
-const bashSchema = bashBaseSchema;
+type ShellCommandInput = Static<typeof bashBaseSchema> & { action?: never; id?: never; budgetMs?: never };
+type ShellWaitInput = { action: "wait"; id: string; budgetMs?: number } & Partial<
+	Record<keyof Static<typeof bashBaseSchema>, never>
+>;
+const bashSchema = Type.Unsafe<ShellCommandInput | ShellWaitInput>({
+	...bashBaseSchema,
+	properties: {
+		...bashBaseSchema.properties,
+		action: {
+			type: "string",
+			enum: ["wait"],
+			description: "Observe an existing asynchronous task without executing a command.",
+		},
+		id: { type: "string", description: "Existing task ID owned by this session." },
+		budgetMs: {
+			type: "number",
+			minimum: 0,
+			description: "Observation budget in milliseconds; omitted uses owner policy.",
+		},
+	},
+	required: [],
+	anyOf: [
+		{ required: ["command"], not: { anyOf: ["action", "id", "budgetMs"].map((key) => ({ required: [key] })) } },
+		{
+			required: ["action", "id"],
+			not: { anyOf: Object.keys(bashBaseSchema.properties).map((key) => ({ required: [key] })) },
+		},
+	],
+});
 export const bashToolSystemPromptContribution = Object.freeze({
 	snippet: "Execute a shell command.",
 	guidelines: Object.freeze([
 		"You can inspect ATOMIC_* or PI_* environment variables for current model and session details.",
+		'Use { action: "wait", id: taskId, budgetMs: 1000 } to observe an existing shell task. Omit budgetMs for owner policy; zero polls. Never relaunch a yielded command. Waiting does not extend execution timeout or owner lifetime.',
 		"Choose foreground or background bash observation as needed without asking the user each time. Background yields after admission; foreground waits for its optional budget then the same command continues in background. Omitted wait uses owner-configured automatic background yield (default 10s). Observation never changes the execution timeout, which stops the command. Background requires a supported task owner; unbound foreground waits until completion regardless of budget.",
 	] as const),
 } as const);
@@ -313,7 +343,11 @@ function formatDuration(ms: number): string {
 	if (minutes > 0) return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
 	return `${seconds}s`;
 }
-function formatBashCall(args: { command?: string; timeout?: number } | undefined, prompt: string): string {
+function formatBashCall(
+	args: { command?: string; timeout?: number; action?: string; id?: string } | undefined,
+	prompt: string,
+): string {
+	if (args?.action === "wait") return theme.fg("toolTitle", theme.bold(`${prompt} wait ${str(args.id) ?? "..."}`));
 	const command = str(args?.command);
 	const timeout = args?.timeout as number | undefined;
 	const timeoutSuffix = timeout ? theme.fg("muted", ` (timeout ${timeout}s)`) : "";
@@ -434,13 +468,37 @@ export function createBashToolDefinition(
 		name: "bash",
 		label: "bash",
 		description:
-			"Execute a shell command with optional PTY handling and foreground/background observation. Choose the observation mode without asking the user; omitted wait auto-yields per owner configuration (default 10s). Observation does not change execution timeout. Background requires a supported task owner; unbound foreground waits until completion.",
+			'Execute a shell command with optional PTY handling and foreground/background observation, or observe an existing task with action: "wait", id, and optional budgetMs. Omitted command wait uses owner policy (default 10s). Observation never changes execution timeout. Background and existing-task waits require a supported task owner; unbound foreground execution waits until completion.',
 		promptSnippet: bashToolSystemPromptContribution.snippet,
 		constrainedSampling: { type: "json_schema", strict: "prefer" },
 		promptGuidelines: exposeSessionEnvironment ? [...bashToolSystemPromptContribution.guidelines] : undefined,
 		parameters: bashSchema,
 		maxResultSizeChars: Infinity,
 		async execute(_toolCallId, bashCommand: BashToolInput, signal?: AbortSignal, onUpdate?, ctx?: ExtensionContext) {
+			if (bashCommand.action !== undefined) {
+				if (
+					bashCommand.action !== "wait" ||
+					typeof bashCommand.id !== "string" ||
+					Object.keys(bashCommand).some((key) => !["action", "id", "budgetMs"].includes(key)) ||
+					(bashCommand.budgetMs !== undefined &&
+						(typeof bashCommand.budgetMs !== "number" ||
+							!Number.isFinite(bashCommand.budgetMs) ||
+							bashCommand.budgetMs < 0))
+				)
+					throw new Error(
+						"Invalid shell wait: expected action wait, id, and optional finite non-negative budgetMs",
+					);
+				return waitForSupervisedCommand(options?.taskOwner, bashCommand.id, bashCommand.budgetMs, signal, {
+					tempFilePrefix: presentation.tempFilePrefix,
+					tempDir: resolveSessionTempDir(),
+				});
+			}
+			if (
+				bashCommand.id !== undefined ||
+				bashCommand.budgetMs !== undefined ||
+				typeof bashCommand.command !== "string"
+			)
+				throw new Error("Invalid shell command: command is required; id and budgetMs require action wait");
 			const { command } = bashCommand;
 			const timeout = normalizeTimeoutSeconds(bashCommand.timeout);
 			validateBashWait(bashCommand.wait, !!options?.operations || !!options?.taskOwner);

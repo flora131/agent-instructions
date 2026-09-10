@@ -4,7 +4,12 @@
 
 ### Added
 
+- Added `{ action: "wait", id, budgetMs }` to Bash and PowerShell for observing existing asynchronous tasks without rerunning commands. The observation budget is optional. Waits retain output and terminal metadata, follow owner observation policy, and release on cancellation or incoming messages without stopping execution or extending task lifetime.
 - Added the agent-callable `kill({ id })` tool for owned background bash and PowerShell tasks in main and workflow-stage chat. It cancels by task ID, preserves retained output and original outcomes, reports current cleanup state, and rejects other owners' tasks and subagents.
+
+### Fixed
+
+- Fixed repeated yielded shell waits replaying the first output page instead of progressing through retained output while the task is still running ([#2972](https://github.com/bastani-inc/atomic/pull/2972)).
 
 ## [0.9.19-alpha.3] - 2026-09-09
 
