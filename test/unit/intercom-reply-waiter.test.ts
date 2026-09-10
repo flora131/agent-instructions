@@ -49,6 +49,30 @@ describe("ReplyWaiterRegistry admission", () => {
 		assertNoLeaks(registry);
 	});
 
+	test("broker binding keeps exact sender/thread checks and cannot alter a later waiter", async () => {
+		const registry = new ReplyWaiterRegistry();
+		const first = registry.begin("workflow:root/child/reviewer", "question");
+		assert.ok(first.ok);
+		first.wait.bindSender("retained-session");
+		assert.equal(routeIncomingReply(registry.pending(), { id: "other-session" } as never, reply("question")), false);
+		assert.equal(
+			routeIncomingReply(registry.pending(), { id: "retained-session" } as never, reply("other-question")),
+			false,
+		);
+		assert.equal(
+			routeIncomingReply(registry.pending(), { id: "retained-session" } as never, reply("question")),
+			true,
+		);
+		await first.wait.promise;
+		const next = registry.begin("next-session", "question");
+		assert.ok(next.ok);
+		first.wait.bindSender("stale-session");
+		assert.equal(routeIncomingReply(registry.pending(), { id: "stale-session" } as never, reply("question")), false);
+		assert.equal(routeIncomingReply(registry.pending(), { id: "next-session" } as never, reply("question")), true);
+		await next.wait.promise;
+		assertNoLeaks(registry);
+	});
+
 	test("reopens capacity after one waiter settles", async () => {
 		const registry = new ReplyWaiterRegistry(1_000, 2);
 		const first = registry.begin("peer-a", "q-1");

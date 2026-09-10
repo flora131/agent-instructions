@@ -366,15 +366,20 @@ function withWorkflowStageSessionOptions(
 	const policyExcludedTools =
 		meta?.executionMode === "non_interactive" ? ["workflow", "ask_user_question"] : ["workflow"];
 	const excludedTools = Array.from(new Set([...(options.excludedTools ?? []), ...policyExcludedTools]));
+	const existingContext = meta?.orchestrationContext ?? options.orchestrationContext;
+	const defaultContext =
+		meta && existingContext?.lateMessageRouter === undefined
+			? makeWorkflowStageOrchestrationContext(meta, pi)
+			: undefined;
 	return {
 		...options,
 		excludedTools,
 		...(meta
 			? {
 					orchestrationContext:
-						meta.orchestrationContext ??
-						options.orchestrationContext ??
-						makeWorkflowStageOrchestrationContext(meta, pi),
+						defaultContext === undefined
+							? existingContext
+							: { ...defaultContext, ...existingContext, lateMessageRouter: defaultContext.lateMessageRouter },
 				}
 			: {}),
 	};

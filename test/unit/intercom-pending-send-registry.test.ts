@@ -213,6 +213,7 @@ function makeConnectedClient(): {
 	setWriteFailure(fail: boolean): void;
 	deliver(index?: number, legacy?: boolean): void;
 	fail(index?: number, legacy?: boolean): void;
+	bindTarget(index: number, sessionId: string, messageId?: string): void;
 } {
 	const writes: Buffer[] = [];
 	let failWrites = false;
@@ -239,6 +240,15 @@ function makeConnectedClient(): {
 			failWrites = fail;
 		},
 		writes,
+		bindTarget(index, sessionId, messageId) {
+			const frame = JSON.parse(writes[index]!.subarray(4).toString("utf-8"));
+			internals.handleBrokerMessage({
+				type: "question_target",
+				messageId: messageId ?? frame.message.id,
+				attemptId: frame.attemptId,
+				sessionId,
+			});
+		},
 		deliver(index = 0, legacy = false) {
 			const frame = writes[index];
 			assert.ok(frame);
@@ -279,6 +289,31 @@ describe("IntercomClient.send", () => {
 		assert.equal(writes.length, 1);
 		deliver();
 		assert.deepEqual(await first, { id: "stable-id", delivered: true });
+	});
+
+	test("binds a reply target only for the current exact question and transport attempt", async () => {
+		const { client, writes, deliver, bindTarget } = makeConnectedClient();
+		const bound: string[] = [];
+		const options = {
+			text: "question",
+			messageId: "question-id",
+			expectsReply: true,
+			onReplyTarget: (id: string) => bound.push(id),
+		};
+		const first = client.send("workflow:root/reviewer", options);
+		assert.equal(JSON.parse(writes[0]!.subarray(4).toString("utf-8")).resolveReplyTarget, true);
+		bindTarget(0, "wrong-question", "other-question");
+		assert.deepEqual(bound, []);
+		bindTarget(0, "first-recipient");
+		deliver(0);
+		await first;
+		const second = client.send("workflow:root/reviewer", options);
+		bindTarget(0, "stale-attempt");
+		assert.deepEqual(bound, ["first-recipient"]);
+		bindTarget(1, "second-recipient");
+		deliver(1);
+		await second;
+		assert.deepEqual(bound, ["first-recipient", "second-recipient"]);
 	});
 
 	test("rejects conflicting explicit-ID reuse without another wire write", async () => {

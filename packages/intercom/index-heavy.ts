@@ -197,7 +197,10 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
   }
   function currentStatus(): string {
     const activeToolName = activeTools.values().next().value;
-    const lifecycleStatus = activeToolName ? `tool:${activeToolName}` : agentRunning ? "thinking" : "idle";
+    const stage = getLiveContext()?.orchestrationContext;
+    const lifecycleStatus = stage?.kind === "workflow-stage" && stage.messageAdmission?.isOpen() === false
+      ? `closed · reply: ${stage.lateMessageRouter === undefined ? "unavailable" : "post-mortem only"}`
+      : activeToolName ? `tool:${activeToolName}` : agentRunning ? "thinking" : "idle";
     return config.status ? `${lifecycleStatus} · ${config.status}` : lifecycleStatus;
   }
   function resolveSessionHomeGroup(): string {
@@ -359,7 +362,12 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
     if (stageClosed) {
       routeClosedWorkflowStageMessage(
         entry, inboundDeliveries, replyTracker, replyWaiters.pending(),
-        () => sendIncomingMessage(entry, isDeliveryFeedback(message) ? "prelude" : "trigger", messageGeneration, false),
+        () => {
+          if (message.expectsReply === true && liveContext.orchestrationContext?.lateMessageRouter === undefined) {
+            throw new Error("Workflow stage is closed and cannot reply because post-mortem routing is unavailable. Contact a live stage or start new work with explicit context.");
+          }
+          return sendIncomingMessage(entry, isDeliveryFeedback(message) ? "prelude" : "trigger", messageGeneration, false);
+        },
         () => client,
         () => Boolean(getLiveContext(liveContext, messageGeneration)),
         (runId) => stageAdmission.boundary.ownsSubagentRun(runId),

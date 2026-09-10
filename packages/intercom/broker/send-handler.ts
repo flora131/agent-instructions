@@ -59,6 +59,7 @@ export interface PendingStageRoute {
   readonly attemptId?: string;
 	readonly liveTargetId?: string;
 	readonly signature?: string;
+	readonly resolveReplyTarget?: true;
 }
 
 export type PendingStageRouter = (route: PendingStageRoute) => boolean;
@@ -326,6 +327,8 @@ export function handleBrokerSend(
 				return;
 			}
 			pendingQuestions.record(fromSession.info.id, target.info.id, message.id);
+			if (clientMessage.resolveReplyTarget === true && attemptId !== undefined)
+				write(socket, { type: "question_target", messageId: message.id, attemptId, sessionId: target.info.id });
 		}
 		write(socket, { type: "delivered", messageId: message.id, attemptId });
 		return;
@@ -369,6 +372,7 @@ export function handleBrokerSend(
 				...(attemptId ? { attemptId } : {}),
 				liveTargetId: target.info.id,
 				signature,
+				...(clientMessage.resolveReplyTarget === true ? { resolveReplyTarget: true } : {}),
 			})
 		) {
 			return;
@@ -416,6 +420,8 @@ export function handleBrokerSend(
 			return;
 		}
 		if (message.expectsReply === true) pendingQuestions.record(fromSession.info.id, target.info.id, message.id);
+		if (message.expectsReply === true && clientMessage.resolveReplyTarget === true && attemptId !== undefined)
+			write(socket, { type: "question_target", messageId: message.id, attemptId, sessionId: target.info.id });
 		write(socket, { type: "delivered", messageId: message.id, attemptId });
 		return;
 	}
@@ -433,6 +439,8 @@ export function handleBrokerSend(
 		});
 		return;
 	}
+	if (message.expectsReply === true && clientMessage.resolveReplyTarget === true && attemptId !== undefined)
+		write(socket, { type: "question_target", messageId: message.id, attemptId, sessionId: target.info.id });
     const finishDelivery = (): void => {
 	  let accepted: ReturnType<DeliveredMessageCache["accept"]>;
 	  try {
@@ -508,6 +516,7 @@ export function handleBrokerSend(
 			message,
 			...(attemptId ? { attemptId } : {}),
 			signature,
+			...(clientMessage.resolveReplyTarget === true ? { resolveReplyTarget: true } : {}),
 		})
 	) {
 		return;
