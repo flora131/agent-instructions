@@ -111,7 +111,12 @@ export function createPowerShellToolDefinition(cwd: string, options: PowerShellT
 	const definition = createBashToolDefinition(
 		cwd,
 		{
-			...options,
+			exposeSessionEnvironment: options.exposeSessionEnvironment,
+			spawnHook: options.spawnHook,
+			// Preserve lazy session ownership instead of reading an accessor at registration.
+			get taskOwner() {
+				return options.taskOwner;
+			},
 			shellDialect: "powershell",
 			operations: options.operations ?? createLocalPowerShellOperations({ taskOwner: options.taskOwner }),
 		},

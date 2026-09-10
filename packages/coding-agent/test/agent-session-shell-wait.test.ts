@@ -1,0 +1,311 @@
+import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { test, vi } from "vitest";
+import type { AgentSession } from "../src/core/agent-session.js";
+import { createAgentSession } from "../src/core/sdk.js";
+import type { CreateAgentSessionOptions } from "../src/core/sdk-types.js";
+import { SessionManager } from "../src/core/session-manager.js";
+import { SettingsManager } from "../src/core/settings-manager.js";
+import type { OperationId, TaskId } from "../src/core/tasks/contracts.js";
+import type { BashToolDetails } from "../src/core/tools/bash.js";
+import { WorkflowStageAdmissionBoundary } from "../src/core/workflow-stage-admission.js";
+import { createHarness } from "./suite/harness.js";
+import { createTestResourceLoader } from "./utilities.js";
+
+vi.mock("../src/utils/shell.js", async (importOriginal) => {
+	const shell = await importOriginal<typeof import("../src/utils/shell.js")>();
+	return {
+		...shell,
+		// Exercise both registry branches even when PowerShell cannot launch on this host.
+		isPowerShellAvailable: () => true,
+		// Only replace OS executable discovery for portable PowerShell. The session
+		// registry, local operations, encoded transport and native supervisor are real.
+		getPowerShellConfig: () =>
+			process.platform !== "win32" && process.env.ATOMIC_TEST_PWSH
+				? { shell: process.env.ATOMIC_TEST_PWSH, args: ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command"] }
+				: shell.getPowerShellConfig(),
+	};
+});
+
+const launchShell = process.platform === "win32" ? "powershell" : "bash";
+const commands = {
+	powershell: "$value = [Console]::ReadLine(); Write-Output 'registry completed once'; exit 7",
+	bash: "read value; printf 'registry completed once'; exit 7",
+};
+
+function tool(session: AgentSession, name: "bash" | "powershell") {
+	const registered = session.agent.state.tools.find((item) => item.name === name);
+	assert.ok(registered, `${name} must be registered on the session`);
+	return registered;
+}
+
+async function start(session: AgentSession, name: "bash" | "powershell" = launchShell) {
+	const result = await tool(session, name).execute("launch", {
+		command: commands[name],
+		wait: { kind: "background" },
+		timeout: 20,
+	});
+	const observation = (result.details as BashToolDetails).observation;
+	assert.equal(observation?.kind, "yielded");
+	assert.ok(observation);
+	return observation.taskId;
+}
+
+async function release(session: AgentSession, id: TaskId) {
+	const host = session.getAgentTaskHost();
+	const task = host.resolveTask(id);
+	assert.ok(task.ok);
+	const { supervisor } = host.ownerBinding;
+	const input = supervisor.taskStdin(task.value);
+	assert.ok(input.ok);
+	const written = await supervisor.writeTaskInput(input.value, crypto.randomUUID() as OperationId, {
+		kind: "bytes",
+		bytes: Buffer.from("ready\n"),
+	});
+	assert.ok(written.ok);
+}
+
+for (const name of ["bash", "powershell"] as const) {
+	test(`registered ${name} waits on its session's existing command across yields and settlement`, async () => {
+		const harness = await createHarness({
+			settings: { bashInterceptor: { enabled: false } },
+			initialActiveToolNames: ["bash", "powershell"],
+		});
+		const { session } = harness;
+		session.pauseQueuedMessages();
+		try {
+			const id = await start(session);
+			for (const budgetMs of [0, 1]) {
+				const result = await tool(session, name).execute("poll", { action: "wait", id, budgetMs });
+				const observation = (result.details as BashToolDetails).observation;
+				assert.equal(observation?.kind, "yielded");
+				assert.equal(observation?.taskId, id);
+			}
+			await session.reload();
+			await release(session, id);
+			const result = await tool(session, name).execute("settle", { action: "wait", id, budgetMs: 10000 });
+			const details = result.details as BashToolDetails;
+			assert.equal(details.observation?.kind, "settled");
+			assert.equal(details.observation?.taskId, id);
+			assert.equal(details.exitCode, 7);
+			assert.match(
+				result.content.map((part) => (part.type === "text" ? part.text : "")).join(""),
+				/registry completed once/,
+			);
+			const tasks = session.getAgentTaskHost().watchOwnerTasks();
+			assert.ok(tasks.ok);
+			assert.equal(tasks.value.snapshot.tasks.length, 1, "wait must not admit another command");
+			tasks.value.dispose();
+		} finally {
+			await session.closeSessionTasks();
+			harness.cleanup();
+		}
+	});
+	test(`registered ${name} abort and steering release observation without stopping execution`, async () => {
+		const harness = await createHarness({
+			settings: { bashInterceptor: { enabled: false } },
+			initialActiveToolNames: ["bash", "powershell"],
+		});
+		const { session } = harness;
+		session.pauseQueuedMessages();
+		try {
+			const id = await start(session);
+			const controller = new AbortController();
+			const waiting = tool(session, name).execute(
+				"abort-wait",
+				{ action: "wait", id, budgetMs: 60000 },
+				controller.signal,
+			);
+			const aborted = assert.rejects(waiting, /aborted/);
+			controller.abort();
+			await aborted;
+			const messageWait = tool(session, name).execute("message-wait", { action: "wait", id });
+			await session.steer("Keep working on the original task");
+			const observation = ((await messageWait).details as BashToolDetails).observation;
+			assert.equal(observation?.kind, "yielded");
+			assert.equal(observation?.taskId, id);
+			if (observation?.kind === "yielded") assert.equal(observation.reason, "input-needed");
+			await release(session, id);
+			const result = await tool(session, name).execute("settle", { action: "wait", id });
+			assert.equal((result.details as BashToolDetails).exitCode, 7);
+		} finally {
+			await session.closeSessionTasks();
+			harness.cleanup();
+		}
+	});
+	test(`registered ${name} releases an aborted observation during session disposal`, async () => {
+		const harness = await createHarness({
+			settings: { bashInterceptor: { enabled: false } },
+			initialActiveToolNames: ["bash", "powershell"],
+		});
+		const { session } = harness;
+		session.pauseQueuedMessages();
+		try {
+			const id = await start(session);
+			const controller = new AbortController();
+			const waiting = tool(session, name).execute(
+				"disposing-wait",
+				{ action: "wait", id, budgetMs: 60000 },
+				controller.signal,
+			);
+			const aborted = assert.rejects(waiting, /aborted/);
+			session.dispose();
+			controller.abort();
+			await aborted;
+		} finally {
+			await session.closeSessionTasks();
+			harness.cleanup();
+		}
+	});
+}
+
+async function sdkSession(
+	root: string,
+	options: Pick<CreateAgentSessionOptions, "orchestrationContext" | "subagentPolicy"> = {},
+) {
+	const { session } = await createAgentSession({
+		cwd: root,
+		agentDir: root,
+		sessionManager: SessionManager.inMemory(root),
+		settingsManager: SettingsManager.inMemory({ bashInterceptor: { enabled: false } }),
+		resourceLoader: createTestResourceLoader(),
+		tools: ["bash", "powershell"],
+		...options,
+	});
+	session.pauseQueuedMessages();
+	return session;
+}
+
+for (const name of ["bash", "powershell"] as const) {
+	for (const scope of ["session", "workflow-stage"] as const) {
+		test(`registered ${name} respects ${scope} ownership across session replacement`, async () => {
+			const root = mkdtempSync(join(tmpdir(), "atomic-shell-wait-"));
+			const boundary = new WorkflowStageAdmissionBoundary();
+			const options =
+				scope === "workflow-stage"
+					? {
+							orchestrationContext: {
+								kind: "workflow-stage" as const,
+								workflowRunId: crypto.randomUUID(),
+								workflowStageId: "shell-wait",
+								workflowStageName: "Shell wait",
+								constraints: { disableWorkflowTool: true as const },
+								messageAdmission: {
+									boundary,
+									extensionState: new Map<string, object>(),
+									isOpen: () => boundary.isOpen(),
+								},
+							},
+						}
+					: {};
+			const sessions: AgentSession[] = [];
+			try {
+				const original = await sdkSession(root, options);
+				sessions.push(original);
+				assert.equal(boundary.hasAgentTaskHost(), false, "registration must not create a task owner");
+				const id = await start(original);
+				const oldTool = tool(original, name);
+				original.dispose();
+				await original.closeSessionTasks();
+				const replacement = await sdkSession(root, options);
+				sessions.push(replacement);
+				await assert.rejects(oldTool.execute("stale", { action: "wait", id }), /stale|closed/i);
+				if (scope === "session") {
+					await assert.rejects(
+						tool(replacement, name).execute("foreign", { action: "wait", id }),
+						/UnknownTask|ScopeMismatch/,
+					);
+				}
+				const currentId = scope === "session" ? await start(replacement) : id;
+				const result = await tool(replacement, name).execute("poll", {
+					action: "wait",
+					id: currentId,
+					budgetMs: 0,
+				});
+				assert.equal((result.details as BashToolDetails).observation?.kind, "yielded");
+				assert.equal((result.details as BashToolDetails).observation?.taskId, currentId);
+				await release(replacement, currentId);
+				const terminal = await tool(replacement, name).execute("settle", {
+					action: "wait",
+					id: currentId,
+					budgetMs: 10000,
+				});
+				assert.equal((terminal.details as BashToolDetails).exitCode, 7);
+				await boundary.close();
+				await replacement.closeSessionTasks();
+				await assert.rejects(
+					tool(replacement, name).execute("closed", { action: "wait", id: currentId }),
+					/closed/i,
+				);
+			} finally {
+				await boundary.close();
+				for (const session of sessions) {
+					await session.closeSessionTasks();
+					session.dispose();
+				}
+				rmSync(root, { recursive: true, force: true });
+			}
+		});
+	}
+}
+
+test.runIf(process.platform === "win32" || !!process.env.ATOMIC_TEST_PWSH)(
+	"registered PowerShell launches and observes a real PowerShell command without restarting",
+	async () => {
+		const harness = await createHarness({ initialActiveToolNames: ["powershell"] });
+		const { session } = harness;
+		session.pauseQueuedMessages();
+		try {
+			const id = await start(session, "powershell");
+			const polled = await tool(session, "powershell").execute("poll", { action: "wait", id, budgetMs: 0 });
+			assert.equal((polled.details as BashToolDetails).observation?.taskId, id);
+			await release(session, id);
+			const result = await tool(session, "powershell").execute("settle", { action: "wait", id, budgetMs: 10000 });
+			assert.equal((result.details as BashToolDetails).exitCode, 7);
+			assert.match(
+				result.content.map((part) => (part.type === "text" ? part.text : "")).join(""),
+				/registry completed once/,
+			);
+		} finally {
+			await session.closeSessionTasks();
+			harness.cleanup();
+		}
+	},
+);
+
+test("registered subagent shells retain unbound waits and legacy foreground execution", async () => {
+	const root = mkdtempSync(join(tmpdir(), "atomic-child-shell-wait-"));
+	const session = await sdkSession(root, {
+		subagentPolicy: {
+			depth: 1,
+			managementActions: "restricted",
+			fanoutAuthorized: false,
+			inheritProjectContext: false,
+			inheritSkills: false,
+		},
+	});
+	try {
+		for (const name of ["bash", "powershell"] as const) {
+			await assert.rejects(
+				tool(session, name).execute("unbound", { action: "wait", id: "missing" }),
+				/supported task owner/,
+			);
+			await assert.rejects(
+				tool(session, name).execute("background", { command: "must not run", wait: { kind: "background" } }),
+				/owner/,
+			);
+		}
+		const result = await tool(session, launchShell).execute("foreground", {
+			command: launchShell === "powershell" ? "Write-Output 'legacy foreground'" : "printf 'legacy foreground'",
+			wait: { kind: "foreground", budgetMs: 0 },
+		});
+		assert.equal((result.details as BashToolDetails).observation, undefined);
+		assert.match(result.content.map((part) => (part.type === "text" ? part.text : "")).join(""), /legacy foreground/);
+	} finally {
+		await session.closeSessionTasks();
+		session.dispose();
+		rmSync(root, { recursive: true, force: true });
+	}
+});
