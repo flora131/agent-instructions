@@ -481,6 +481,16 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
           });
           return;
         }
+        // Observing parents still owe the exact child first refusal: its commit
+        // releases parallel/queued sibling observations as well as its own wait.
+        // Unrelated peers remain unclaimed and reach protected SDK admission.
+        if (!activeContext.isIdle()) {
+          const disposition = await foregroundDetachHandoff.claim(from, message, messageGeneration, () => Boolean(getLiveContext(liveContext, messageGeneration)));
+          if (disposition === "abandoned") {
+            release(new Error("Intercom session retired during foreground-owner admission"));
+            return;
+          }
+        }
         replyTracker.queueTurnContext(replyContext);
         await retryStableDelivery({ deliver: () => sendIncomingMessage(entry, "trigger", messageGeneration, false), isCurrent: () => Boolean(getLiveContext(liveContext, messageGeneration)) });
         commit();

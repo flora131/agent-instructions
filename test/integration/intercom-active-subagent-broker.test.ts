@@ -499,6 +499,48 @@ for (const scope of ["interactive", "headless", "workflow-stage"] as const) {
 	}
 }
 
+test("public foreground child send receives first refusal before the parent's protected event writer", async () => {
+	const releaseHook = Promise.withResolvers<void>();
+	const parent = await observingParent("handshake-parent", "foreground", {
+		ui: true,
+		extensionFactory: (pi) => {
+			pi.on("tool_execution_start", () => releaseHook.promise);
+		},
+	});
+	// Represent the held runSync child's registered Intercom identity at the real broker.
+	const child = await endpoint("handshake-parent-child", true);
+	parent.setResponses([
+		fauxAssistantMessage(fauxToolCall("subagent", {}), { stopReason: "toolUse" }),
+		fauxAssistantMessage("handled child input"),
+	]);
+	const turn = parent.session.prompt("original parent task");
+	try {
+		await parent.started;
+		await parent.observing;
+		const original = ownerSnapshot(parent).tasks[0].ref;
+		const sent = await child.execute({ action: "send", to: parent.id, message: "CHILD-HANDSHAKE" });
+		assert.notEqual(sent.isError, true);
+		await vi.waitFor(() => assert.ok(parent.observation, "exact child must yield before SDK writer admission"));
+		assert.ok(parent.observation?.kind === "admitted" && parent.observation.observation.kind === "yielded");
+		assert.equal(parent.observation.observation.reason, "intercom-coordination");
+		assert.equal(incomingCards(parent).length, 0, "first refusal must not bypass protected persistence");
+		assert.equal(parent.signal?.aborted, false);
+		assert.deepEqual(ownerSnapshot(parent).tasks[0].ref, original);
+		assert.equal(ownerSnapshot(parent).tasks[0].execution.kind, "running");
+		releaseHook.resolve();
+		await turn;
+		await vi.waitFor(() => assert.equal(incomingCards(parent).length, 1));
+		assert.equal(parent.starts, 1);
+	} finally {
+		releaseHook.resolve();
+		parent.release();
+		parent.session.pauseQueuedMessages();
+		await turn;
+		await parent.host.close("session-close");
+		await Promise.all([parent.close(), child.close()]);
+	}
+});
+
 test("public parent input waits for its event writer, then yields only that owner's observation", async () => {
 	const hookEntered = Promise.withResolvers<void>();
 	const releaseHook = Promise.withResolvers<void>();
