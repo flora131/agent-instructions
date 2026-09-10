@@ -5,6 +5,7 @@
 ### Added
 
 - Added `{ action: "wait", id, budgetMs }` to Bash and PowerShell for observing existing asynchronous tasks without rerunning commands. The observation budget is optional. Waits retain output and terminal metadata, follow owner observation policy, and release on cancellation or incoming messages without stopping execution or extending task lifetime.
+- Added the agent-callable `kill({ id })` tool for owned background bash and PowerShell tasks in main and workflow-stage chat. It cancels by task ID, preserves retained output and original outcomes, reports current cleanup state, and rejects other owners' tasks and subagents.
 
 ### Fixed
 

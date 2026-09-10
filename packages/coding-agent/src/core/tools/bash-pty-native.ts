@@ -117,7 +117,7 @@ export async function waitForSupervisedCommand(
 		if (!observed.ok) throw new Error(`${observed.error.code}: ${observed.error.message}`);
 		let offset: string | undefined =
 			observed.value.kind === "yielded" ? (yieldedOutputOffsets.get(task.value) ?? "0") : "0";
-		let nextOffset = offset;
+		let nextOffset: string;
 		do {
 			const page = await context.supervisor.readTaskOutput(task.value, { start: offset, maximumBytes: 8192 });
 			if (!page.ok) throw new Error(`${page.error.code}: ${page.error.message}`);

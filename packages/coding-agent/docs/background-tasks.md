@@ -179,6 +179,18 @@ Use the original task ID from the same owning session or workflow stage. Omit `b
 
 Do not combine `action: "wait"` with `command`, `timeout`, `wait`, `env`, `cwd`, or `pty`. Existing-task waits require a supported task owner, even with custom execution adapters. Unknown or foreign IDs are rejected. Cancelling a wait or admitting user/Intercom messages releases observation only, not the command. Waiting never extends the original execution timeout or the owner's lifetime.
 
+### Stop a shell task from a tool call
+
+Use the `kill` tool with the exact task ID returned by `bash` or `powershell`, whether it launched explicitly in the background or automatically yielded:
+
+```ts
+kill({ id: taskId })
+```
+
+The same command works in main and workflow-stage chat. It selects the existing owned shell task; do not supply a process ID, shell name, or another owner's task ID. Unknown, malformed, foreign-owner, and subagent IDs are rejected. `/tasks` stop controls remain available.
+
+The response includes `taskId`, `decision`, `execution`, and `cleanup`. `cancellation-requested` means cancellation was requested, not that termination or cleanup has finished. A repeated call preserves that decision while reporting current state. `already-settled` means the task finished before cancellation and keeps its original outcome. Confirm `execution.kind: "settled"` and `cleanup.kind: "reaped"` before treating termination and cleanup as complete. Cleanup failures remain errors, not successful stops. Output and completion notifications remain available; killing a task does not erase its history.
+
 Shell completions use the same shaded card as subagents, with a retained output preview and available exit code. Nonzero shell exits are shown as failures even though the process itself reached a terminal state. Cancellation shows Stopped. The card and below-prompt count update in the owning main or workflow-stage chat.
 
 Native Windows owned shells use supervised pipes or ConPTY, with Job Object containment before execution resumes and confirmed cleanup. If containment cannot be established, launch is refused rather than falling back to unsupervised execution. The legacy Windows WSL `bash.exe` stdin transport remains unsupported for owned launch because Windows jobs cannot supervise Linux guest processes. Running Atomic inside WSL uses the normal POSIX/Bash path.
