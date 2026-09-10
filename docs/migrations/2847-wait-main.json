@@ -1,0 +1,107 @@
+{
+  "schema": "2847-wait-main-v1",
+  "predecessor": "37bbd794fdcafac4b883e31e46d95eb60c26923d",
+  "previous_main": "daf6d2747ce95ae25d0b7e46660d92f0c39101d8",
+  "latest_main": "32059e25f6608770280eacc0285b49a454a3f2f0",
+  "source_trees": {
+    "previous_sha256": "c7fb99bef1d81d7f2336ed30df743d09774d27e5cf073939900dbfbff76376d9",
+    "latest_sha256": "f826351e4f39e2825b27a7c72d3b7739273f0193d918816fe64d603c7b905e72",
+    "unchanged_sha256": "7efa35d2cc22f9abb38ad858371160535f86384ea4ea4086d56a6af8a440968f"
+  },
+  "pages_sha256": "651ef3bd622940a20457694139453e26c1c051fc6cb40d55b53885a04e84e0dd",
+  "unchanged_source_paths": [
+    "packages/coding-agent/docs/changelog.mdx",
+    "packages/coding-agent/docs/compaction.md",
+    "packages/coding-agent/docs/containerization.md",
+    "packages/coding-agent/docs/custom-provider.md",
+    "packages/coding-agent/docs/development.md",
+    "packages/coding-agent/docs/environment-variables.md",
+    "packages/coding-agent/docs/extensions.md",
+    "packages/coding-agent/docs/herdr.md",
+    "packages/coding-agent/docs/index.md",
+    "packages/coding-agent/docs/intercom.md",
+    "packages/coding-agent/docs/json.md",
+    "packages/coding-agent/docs/keybindings.md",
+    "packages/coding-agent/docs/llama-cpp.md",
+    "packages/coding-agent/docs/models.md",
+    "packages/coding-agent/docs/models/evals.md",
+    "packages/coding-agent/docs/models/model-selection.md",
+    "packages/coding-agent/docs/models/pareto-efficiency.md",
+    "packages/coding-agent/docs/packages.md",
+    "packages/coding-agent/docs/prompt-templates.md",
+    "packages/coding-agent/docs/providers.md",
+    "packages/coding-agent/docs/quickstart.md",
+    "packages/coding-agent/docs/rpc.md",
+    "packages/coding-agent/docs/security.md",
+    "packages/coding-agent/docs/session-format.md",
+    "packages/coding-agent/docs/sessions.md",
+    "packages/coding-agent/docs/settings.md",
+    "packages/coding-agent/docs/shell-aliases.md",
+    "packages/coding-agent/docs/skills.md",
+    "packages/coding-agent/docs/subagents.md",
+    "packages/coding-agent/docs/terminal-setup.md",
+    "packages/coding-agent/docs/termux.md",
+    "packages/coding-agent/docs/themes.md",
+    "packages/coding-agent/docs/tmux.md",
+    "packages/coding-agent/docs/tools.md",
+    "packages/coding-agent/docs/tools/edit.md",
+    "packages/coding-agent/docs/tui.md",
+    "packages/coding-agent/docs/usage.md",
+    "packages/coding-agent/docs/windows.md",
+    "packages/coding-agent/docs/workflows.md",
+    "packages/coding-agent/docs/workflows/api-reference.md",
+    "packages/coding-agent/docs/workflows/authoring.md",
+    "packages/coding-agent/docs/workflows/builtins.md",
+    "packages/coding-agent/docs/workflows/operations.md",
+    "packages/coding-agent/docs/workflows/reliable-design.md",
+    "packages/coding-agent/docs/workflows/verification.md"
+  ],
+  "changed_source_pages": [
+    {
+      "path": "packages/coding-agent/docs/background-tasks.md",
+      "previous_sha256": "f47a17df64c0d78882981d95f609a496b88c41db03f45d8a7cfb9c0e7b9d4a88",
+      "latest_sha256": "a22793303ca729e2bb5c038ed23ebcaa45b95f9e66aa2f65fe1a29dd92fab7d3",
+      "unchanged": false
+    },
+    {
+      "path": "packages/coding-agent/docs/sdk.md",
+      "previous_sha256": "8f9d4998684af6053780490fe70ab4de17eb0c51e7d16132e9534e7decdc5711",
+      "latest_sha256": "2688a41ac6af5b1cbfdbbd2283d72a99085fcb345d796217f14efb04977795c9",
+      "unchanged": false
+    }
+  ],
+  "edits": [
+    {
+      "source_path": "packages/coding-agent/docs/background-tasks.md",
+      "target_path": "packages/coding-agent/docs/background-tasks.md",
+      "previous_lines": [35, 41],
+      "latest_lines": [35, 41],
+      "before_sha256": "547750668c8f19ca4a1c47365db3cfc6bab352e25029838e990d284cb682a0fd",
+      "after_sha256": "eafebf279e404fe406b74de8e6220a60c2a8f4cc5319a05e545e4f8538ee91fe"
+    },
+    {
+      "source_path": "packages/coding-agent/docs/background-tasks.md",
+      "target_path": "packages/coding-agent/docs/background-tasks.md",
+      "previous_lines": [168, 173],
+      "latest_lines": [168, 184],
+      "before_sha256": "9baf9d13cc6814cb010c296c265d2a09bf16af7a0b73f4180dba86377b6ef362",
+      "after_sha256": "2ffb36fa43529b1babb1bd95c20995a8a6de7539c23f0fecde6b19cd9efe9ac7"
+    },
+    {
+      "source_path": "packages/coding-agent/docs/sdk.md",
+      "target_path": "packages/coding-agent/docs/sdk/reference.md",
+      "previous_lines": [832, 837],
+      "latest_lines": [832, 845],
+      "before_sha256": "f6041937dd14111487894b5feb057187259e93a7d1c5d2bc3f9f45a04e456583",
+      "after_sha256": "348142946c53c9484187786d61d48f98b74793d43a8d4f5866307f49920a2dd7"
+    }
+  ],
+  "compatibility_pointers": [
+    {
+      "kind": "additive-sdk-compatibility-pointer",
+      "target_path": "packages/coding-agent/docs/sdk.md",
+      "before": "#### PowerShell tool behavior\n",
+      "after": "#### Waiting for existing shell tasks\n\nMoved to [SDK API reference](/sdk/reference#waiting-for-existing-shell-tasks).\n\n#### PowerShell tool behavior\n"
+    }
+  ]
+}

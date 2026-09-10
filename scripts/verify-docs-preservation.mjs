@@ -12,6 +12,9 @@ export const DOCS = "packages/coding-agent/docs/";
 export const FIRST_RECONCILIATION = "bf8dcd1bc02a7cb02caf557bb13d281b260c1704";
 export const LATEST_MAIN = "daf6d2747ce95ae25d0b7e46660d92f0c39101d8";
 export const FOLLOWUP = "docs/migrations/2847-latest-main.json";
+export const WAIT_MAIN = "32059e25f6608770280eacc0285b49a454a3f2f0";
+export const SECOND_RECONCILIATION = "37bbd794fdcafac4b883e31e46d95eb60c26923d";
+export const WAIT_FOLLOWUP = "docs/migrations/2847-wait-main.json";
 export const PROVENANCE = "docs/migrations/2847-reconciliation/";
 const originalArtifacts = ["2847-baseline-inventory.json", "2847-destination-map.json", "2847-content-ledger.md"];
 const sourceCache = new Map();
@@ -784,9 +787,104 @@ export function latestMainEvidence(delta) {
 	};
 }
 
-function verifyLatest({ repoRoot, revision, overrides }) {
-	// Prove the immutable predecessor with the original rules; reverse only the closed
-	// reader anchors and five independently source-derived edits before the prior proof.
+/** Closed third-source delta; every source asset and every changed page is reconstructed. */
+export function reconstructWaitMainDelta(repoRoot) {
+	const specs = [
+		["background-tasks.md", "background-tasks.md", 35, 7, 35, 7],
+		["background-tasks.md", "background-tasks.md", 168, 6, 168, 17],
+		["sdk.md", "sdk/reference.md", 832, 6, 832, 14],
+	];
+	const changedPaths = new Set(specs.map(([path]) => DOCS + path));
+	const tree = (revision) => git(repoRoot, ["ls-tree", "-r", revision, "--", DOCS]);
+	const previousTree = tree(LATEST_MAIN),
+		latestTree = tree(WAIT_MAIN);
+	const unchangedTree = (text) =>
+		text
+			.split("\n")
+			.filter((line) => !changedPaths.has(line.split("\t")[1]))
+			.join("\n");
+	assert.equal(unchangedTree(latestTree), unchangedTree(previousTree), "unmapped wait-main source file change");
+	const paths = (text) =>
+		text
+			.split("\n")
+			.filter(Boolean)
+			.map((line) => line.split("\t")[1]);
+	assert.deepEqual(paths(latestTree), paths(previousTree), "wait-main source path set changed");
+	const source = (revision, path) => git(repoRoot, ["show", `${revision}:${path}`]);
+	const slice = (revision, path, start, count) =>
+		`${source(revision, DOCS + path)
+			.split("\n")
+			.slice(start - 1, start - 1 + count)
+			.join("\n")}\n`;
+	const edits = specs.map(([path, target, oldStart, oldCount, newStart, newCount]) => ({
+		source_path: DOCS + path,
+		target_path: DOCS + target,
+		previous_lines: [oldStart, oldStart + oldCount - 1],
+		latest_lines: [newStart, newStart + newCount - 1],
+		before: slice(LATEST_MAIN, path, oldStart, oldCount),
+		after: slice(WAIT_MAIN, path, newStart, newCount),
+	}));
+	const pages = paths(latestTree)
+		.filter((path) => /\.mdx?$/u.test(path))
+		.sort()
+		.map((path) => {
+			const before = source(LATEST_MAIN, path),
+				after = source(WAIT_MAIN, path);
+			let expected = before;
+			for (const edit of edits.filter((row) => row.source_path === path))
+				expected = replaceDelta(expected, edit.before, edit.after, path);
+			assert.equal(expected, after, `unmapped wait-main source change: ${path}`);
+			return { path, previous_sha256: digest(before), latest_sha256: digest(after), unchanged: before === after };
+		});
+	const heading = "#### Waiting for existing shell tasks";
+	assert.ok(edits[2].after.includes(`\n${heading}\n`), "wait-main compatibility heading absent from source");
+	const before = "#### PowerShell tool behavior\n";
+	const compatibilityPointers = [
+		{
+			kind: "additive-sdk-compatibility-pointer",
+			target_path: `${DOCS}sdk.md`,
+			before,
+			after: `${heading}\n\nMoved to [SDK API reference](/sdk/reference#waiting-for-existing-shell-tasks).\n\n${before}`,
+		},
+	];
+	return {
+		schema: "2847-wait-main-v1",
+		predecessor: SECOND_RECONCILIATION,
+		previous_main: LATEST_MAIN,
+		latest_main: WAIT_MAIN,
+		source_trees: {
+			previous_sha256: digest(previousTree),
+			latest_sha256: digest(latestTree),
+			unchanged_sha256: digest(unchangedTree(previousTree)),
+		},
+		pages,
+		edits,
+		compatibility_pointers: compatibilityPointers,
+	};
+}
+
+export function waitMainEvidence(delta) {
+	return {
+		schema: delta.schema,
+		predecessor: delta.predecessor,
+		previous_main: delta.previous_main,
+		latest_main: delta.latest_main,
+		source_trees: delta.source_trees,
+		pages_sha256: digest(JSON.stringify(delta.pages)),
+		unchanged_source_paths: delta.pages.filter((page) => page.unchanged).map((page) => page.path),
+		changed_source_pages: delta.pages.filter((page) => !page.unchanged),
+		edits: delta.edits.map(({ before, after, ...location }) => ({
+			...location,
+			before_sha256: digest(before),
+			after_sha256: digest(after),
+		})),
+		compatibility_pointers: delta.compatibility_pointers,
+	};
+}
+
+function verifyLatest({ repoRoot, revision, overrides, waitMain = false }) {
+	// Prove the immutable predecessor with the original rules; reverse the closed
+	// reader anchors, source-derived edits and new SDK pointer before the prior proof.
 	verify({ repoRoot, revision: FIRST_RECONCILIATION });
 	const current = reader(repoRoot, revision, overrides);
 	const delta = reconstructLatestMainDelta(repoRoot);
@@ -803,6 +901,20 @@ function verifyLatest({ repoRoot, revision, overrides }) {
 			after: `\n${repair.addition}${repair.heading}\n`,
 		})),
 	];
+	const waitDelta = waitMain ? reconstructWaitMainDelta(repoRoot) : undefined;
+	if (waitDelta) {
+		assert.equal(
+			current.read(FOLLOWUP),
+			git(repoRoot, ["show", `${SECOND_RECONCILIATION}:${FOLLOWUP}`]),
+			"immutable second-reconciliation evidence changed",
+		);
+		assert.deepEqual(
+			JSON.parse(current.read(WAIT_FOLLOWUP)),
+			waitMainEvidence(waitDelta),
+			"wait-main evidence does not reconstruct",
+		);
+		readerEdits.push(...waitDelta.edits, ...waitDelta.compatibility_pointers);
+	}
 	const restored = new Map();
 	for (const edit of [...readerEdits].reverse()) {
 		const text = restored.get(edit.target_path) ?? current.read(edit.target_path);
@@ -821,6 +933,15 @@ function verifyLatest({ repoRoot, revision, overrides }) {
 	const frozenPaths = git(repoRoot, ["ls-tree", "-r", "--name-only", FIRST_RECONCILIATION, "--", ...roots])
 		.trim()
 		.split("\n");
+	if (waitMain)
+		assert.deepEqual(
+			git(repoRoot, ["ls-tree", "-r", "--name-only", SECOND_RECONCILIATION, "--", ...roots])
+				.trim()
+				.split("\n")
+				.sort(),
+			[...frozenPaths, FOLLOWUP].sort(),
+			"second-reconciliation frozen file set differs",
+		);
 	const currentPaths = revision
 		? git(repoRoot, ["ls-tree", "-r", "--name-only", revision, "--", ...roots])
 				.trim()
@@ -838,14 +959,29 @@ function verifyLatest({ repoRoot, revision, overrides }) {
 					),
 			);
 	assert.deepEqual(
-		currentPaths.filter((path) => path !== FOLLOWUP).sort(),
+		currentPaths.filter((path) => path !== FOLLOWUP && !(waitMain && path === WAIT_FOLLOWUP)).sort(),
 		frozenPaths.sort(),
 		"latest-main reconciliation changed the frozen file set",
 	);
 	for (const path of frozenPaths) {
 		let expected = git(repoRoot, ["show", `${FIRST_RECONCILIATION}:${path}`], undefined, "buffer");
-		for (const edit of readerEdits.filter((row) => row.target_path === path))
+		for (const edit of readerEdits.filter(
+			(row) =>
+				row.target_path === path &&
+				!waitDelta?.edits.includes(row) &&
+				!waitDelta?.compatibility_pointers.includes(row),
+		))
 			expected = Buffer.from(replaceDelta(expected.toString("utf8"), edit.before, edit.after, path));
+		if (waitDelta) {
+			assert.ok(
+				expected.equals(git(repoRoot, ["show", `${SECOND_RECONCILIATION}:${path}`], undefined, "buffer")),
+				`second-reconciliation predecessor differs: ${path}`,
+			);
+			for (const edit of [...waitDelta.edits, ...waitDelta.compatibility_pointers].filter(
+				(row) => row.target_path === path,
+			))
+				expected = Buffer.from(replaceDelta(expected.toString("utf8"), edit.before, edit.after, path));
+		}
 		const actual = revision
 			? git(repoRoot, ["show", `${revision}:${path}`], undefined, "buffer")
 			: overrides?.has(path)
@@ -862,6 +998,17 @@ function verifyLatest({ repoRoot, revision, overrides }) {
 			unchangedPages: delta.pages.filter((page) => page.unchanged).length,
 			edits: delta.edits.length,
 		},
+		...(waitDelta
+			? {
+					waitMain: {
+						revision: WAIT_MAIN,
+						pages: waitDelta.pages.length,
+						unchangedPages: waitDelta.pages.filter((page) => page.unchanged).length,
+						edits: waitDelta.edits.length,
+						compatibilityPointers: waitDelta.compatibility_pointers.length,
+					},
+				}
+			: {}),
 	};
 }
 
@@ -869,14 +1016,17 @@ function verifyLatest({ repoRoot, revision, overrides }) {
 export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
 	const commit = git(repoRoot, ["rev-parse", "--verify", `${revision}^{commit}`]).trim();
 	const latest = git(repoRoot, ["merge-base", commit, LATEST_MAIN]).trim() === LATEST_MAIN;
-	const result = latest ? verifyLatest({ repoRoot, revision: commit }) : verify({ repoRoot, revision: commit });
+	const waitMain = git(repoRoot, ["merge-base", commit, WAIT_MAIN]).trim() === WAIT_MAIN;
+	const result = latest
+		? verifyLatest({ repoRoot, revision: commit, waitMain })
+		: verify({ repoRoot, revision: commit });
 	console.log(JSON.stringify({ mode: "committed", revision: commit, ...result }));
 	return result;
 }
 
 /** Explicit precommit mode; overrides are a disposable in-memory negative-control fixture. */
 export function verifyWorkingTreeDocumentation({ repoRoot, overrides = new Map() }) {
-	return verifyLatest({ repoRoot, overrides });
+	return verifyLatest({ repoRoot, overrides, waitMain: true });
 }
 
 if (

@@ -210,6 +210,14 @@ const { session } = await createAgentSession({
 Atomic's built-in `bash` tool matches upstream pi: when `bash` is enabled, commands execute through the configured shell with the Atomic process permissions. Use `tools`, `excludedTools`, or `noTools` to decide whether a session exposes the `bash` tool at all. Atomic no longer provides a command-level allow/deny option for `bash`; use an operating-system/container sandbox or a custom tool/extension when you need command allowlisting or stronger isolation.
 
 
+#### Waiting for existing shell tasks
+
+Both Bash and PowerShell factories accept `{ action: "wait", id: taskId, budgetMs: 1000 }` with a trusted `taskOwner` binding. No command is executed. `BashToolInput` and `PowerShellToolInput` distinguish command launches from existing-task waits; narrow by `action` before reading `command`.
+
+`budgetMs` is optional, finite, and non-negative. Omission uses the owner's command wait policy and zero polls. Results keep the `WaitOutcome` in `details.observation`, available exit information in `details.exitCode`, and retained output in text content. Failure and cancellation metadata remain in the settled observation. Yielded waits advance through bounded retained-output pages for the same owned task, even when the tool is recreated. Partial UTF-8 characters continue on the next page. Settled waits return all retained output again, subject to labelled gaps and truncation. Aborting the call releases only its observation. A binding from `AgentTaskHost.ownerBinding` also releases waits for incoming owner messages.
+
+Do not mix wait arguments with launch fields. Unknown or foreign IDs and unbound waits are rejected before execution hooks. Custom `operations.exec` does not provide existing-task ownership. See [Background tasks](/background-tasks) for examples and lifetime rules.
+
 #### PowerShell tool behavior
 
 `createPowerShellTool()` and `createPowerShellToolDefinition()` provide the same tool used by interactive sessions. When their default local operations execute on native Windows, they prefer `pwsh.exe`, fall back to `powershell.exe`, and throw a clear error when neither executable is available. `createLocalPowerShellOperations()` and `getPowerShellConfig()` are also exported for custom integrations. The PowerShell factories expose the current `ATOMIC_*` and legacy `PI_*` session snapshot by default; set `exposeSessionEnvironment: false` to opt out.

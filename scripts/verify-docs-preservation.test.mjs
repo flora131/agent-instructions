@@ -16,9 +16,14 @@ import {
 	PR,
 	PROVENANCE,
 	reconstructLatestMainDelta,
+	reconstructWaitMainDelta,
+	SECOND_RECONCILIATION,
 	splitBlocks,
 	verifyCommittedDocumentation,
 	verifyWorkingTreeDocumentation,
+	WAIT_FOLLOWUP,
+	WAIT_MAIN,
+	waitMainEvidence,
 } from "./verify-docs-preservation.mjs";
 
 const repoRoot = resolve(import.meta.dirname, "..");
@@ -38,6 +43,13 @@ test("two immutable source corpora and the original PR connective content are pr
 	assert.equal(result.readerPages, 85);
 	assert.deepEqual(result.latestMain, { revision: LATEST_MAIN, pages: 47, unchangedPages: 44, edits: 5 });
 	assert.equal(result.readerAnchorRepairs, 4);
+	assert.deepEqual(result.waitMain, {
+		revision: "32059e25f6608770280eacc0285b49a454a3f2f0",
+		pages: 47,
+		unchangedPages: 45,
+		edits: 3,
+		compatibilityPointers: 1,
+	});
 });
 
 function deletionFixture(source, kind) {
@@ -335,14 +347,21 @@ test("still-valid retention claims cannot omit reviewed source lines", () => {
 
 // #2847 / PR #2971: newest-main proof is a closed source delta, not a refreshed reader hash.
 const latestDelta = reconstructLatestMainDelta(repoRoot);
+const waitDelta = reconstructWaitMainDelta(repoRoot);
 for (const [index, edit] of latestDelta.edits.entries()) {
 	test(`latest-main addition ${index + 1} cannot be deleted or tampered with at ${edit.target_path}`, () => {
 		const text = read(edit.target_path);
-		assert.ok(text.includes(edit.after));
-		assert.throws(
-			() => check(new Map([[edit.target_path, text.replace(edit.after, () => edit.before)]])),
-			/latest-main delta must occur exactly once/u,
-		);
+		// New wait prose splits the older background-shell hunk. Reconstruct its exact
+		// predecessor view, but delete the original added lines from the real current reader.
+		let previousView = text;
+		for (const waitEdit of [...waitDelta.edits].reverse().filter((row) => row.target_path === edit.target_path))
+			previousView = previousView.replace(waitEdit.after, () => waitEdit.before);
+		assert.ok(previousView.includes(edit.after));
+		const addedLines = edit.after.split("\n").filter((line) => line && !edit.before.split("\n").includes(line));
+		for (const line of addedLines) assert.ok(text.includes(line));
+		const deleted = addedLines.reduce((have, line) => have.replace(line, ""), text);
+		assert.notEqual(deleted, text);
+		assert.throws(() => check(new Map([[edit.target_path, deleted]])), /latest-main delta must occur exactly once/u);
 		const addedLine = edit.after.split("\n").find((line) => line && !edit.before.split("\n").includes(line));
 		assert.ok(addedLine);
 		assert.throws(
@@ -376,13 +395,17 @@ test("latest-main source inventory covers every page and rejects omitted or forg
 		assert.throws(() => check(changedJSON(FOLLOWUP, change)), /latest-main evidence does not reconstruct/u);
 });
 
-test("SDK additions are active in its reference and the SDK hub remains exactly the predecessor", async () => {
+test("SDK additions are active in its reference and the SDK hub preserves its predecessor plus the exact wait pointer", async () => {
 	const { execFileSync } = await import("node:child_process");
 	const oldHub = execFileSync("git", ["show", `${FIRST_RECONCILIATION}:${DOCS}sdk.md`], {
 		cwd: repoRoot,
 		encoding: "utf8",
 	});
-	assert.equal(read(`${DOCS}sdk.md`), oldHub);
+	const pointer = waitDelta.compatibility_pointers[0];
+	assert.equal(
+		read(`${DOCS}sdk.md`),
+		oldHub.replace(pointer.before, () => pointer.after),
+	);
 	for (const edit of latestDelta.edits.filter((row) => row.source_path === `${DOCS}sdk.md`))
 		assert.ok(read(`${DOCS}sdk/reference.md`).includes(edit.after));
 	const path = `${DOCS}sdk/reference.md`;
@@ -489,4 +512,106 @@ test("reader-anchor evidence cannot authorize omitted, forged, or arbitrary addi
 	});
 	overrides.set(repair.target_path, text.replace(`id="${repair.id}"`, 'id="forged"'));
 	assert.throws(() => check(overrides), /latest-main evidence does not reconstruct/u);
+});
+
+// #2847 / PR #2971: PR #2972 guidance must remain active, not merely archived.
+for (const [index, edit] of waitDelta.edits.entries()) {
+	test(`wait-main source hunk ${index + 1} rejects deletion and tampering`, () => {
+		const text = read(edit.target_path);
+		assert.equal(text.split(edit.after).length, 2);
+		const added = edit.after.split("\n").filter((line) => line && !edit.before.split("\n").includes(line));
+		assert.ok(added.length > 0);
+		for (const replacement of [edit.before, edit.after.replace(added[0], `${added[0]} altered`)])
+			assert.throws(
+				() => check(new Map([[edit.target_path, text.replace(edit.after, () => replacement)]])),
+				/latest-main delta/u,
+			);
+	});
+}
+
+test("wait-main examples and settled-output, ownership, UTF-8 and lifetime caveats cannot be deleted", () => {
+	for (const [path, fragment] of [
+		["background-tasks.md", 'bash({ action: "wait", id: taskId, budgetMs: 1000 })'],
+		["background-tasks.md", 'powershell({ action: "wait", id: taskId, budgetMs: 1000 })'],
+		["background-tasks.md", "Settled waits return all retained output again"],
+		["background-tasks.md", "Waiting never extends the original execution timeout or the owner's lifetime."],
+		["sdk/reference.md", "Partial UTF-8 characters continue on the next page."],
+		["sdk/reference.md", "Custom `operations.exec` does not provide existing-task ownership."],
+	]) {
+		const text = read(DOCS + path);
+		assert.ok(text.includes(fragment));
+		assert.throws(() => check(new Map([[DOCS + path, text.replace(fragment, "")]])), /latest-main delta/u);
+	}
+});
+
+test("wait-main evidence rejects source omissions, forged hunks and missing compatibility disclosure", () => {
+	assert.deepEqual(JSON.parse(read(WAIT_FOLLOWUP)), waitMainEvidence(waitDelta));
+	assert.equal(waitDelta.latest_main, WAIT_MAIN);
+	assert.equal(waitDelta.previous_main, LATEST_MAIN);
+	assert.equal(waitDelta.predecessor, SECOND_RECONCILIATION);
+	assert.equal(waitDelta.pages.length, 47);
+	assert.equal(waitDelta.edits.length, 3);
+	for (const mutate of [
+		(record) => record.unchanged_source_paths.pop(),
+		(record) => record.changed_source_pages.pop(),
+		(record) => record.edits.pop(),
+		(record) => record.compatibility_pointers.pop(),
+		(record) => {
+			record.edits[2].target_path = `${DOCS}sdk.md`;
+		},
+		(record) => {
+			record.source_trees.unchanged_sha256 = "0".repeat(64);
+		},
+		(record) => {
+			record.edits[0].after_sha256 = "0".repeat(64);
+		},
+	])
+		assert.throws(() => check(changedJSON(WAIT_FOLLOWUP, mutate)), /wait-main evidence does not reconstruct/u);
+});
+
+test("wait-main SDK compatibility pointer cannot be deleted, retargeted or forged with matching evidence", () => {
+	const pointer = waitDelta.compatibility_pointers[0];
+	const text = read(pointer.target_path);
+	assert.equal(text.split(pointer.after).length, 2);
+	for (const replacement of [
+		pointer.before,
+		pointer.after.replace("#waiting-for-existing-shell-tasks", "#bash-tool-behavior"),
+	])
+		assert.throws(
+			() => check(new Map([[pointer.target_path, text.replace(pointer.after, () => replacement)]])),
+			/latest-main delta/u,
+		);
+	const forged = pointer.after.replace("#waiting-for-existing-shell-tasks", "#bash-tool-behavior");
+	const overrides = changedJSON(WAIT_FOLLOWUP, (record) => {
+		record.compatibility_pointers[0].after = forged;
+	});
+	overrides.set(
+		pointer.target_path,
+		text.replace(pointer.after, () => forged),
+	);
+	assert.throws(() => check(overrides), /wait-main evidence does not reconstruct/u);
+});
+
+test("wait-main freezes second-source evidence bytes including whitespace", () => {
+	assert.throws(
+		() => check(new Map([[FOLLOWUP, `${read(FOLLOWUP)}\n`]])),
+		/immutable second-reconciliation evidence changed/u,
+	);
+});
+
+test("committed second predecessor works from a data URL without filesystem document reads", async () => {
+	const { spawnSync } = await import("node:child_process");
+	const source = read("scripts/verify-docs-preservation.mjs");
+	const child = spawnSync(process.execPath, ["--input-type=module", "-"], {
+		cwd: repoRoot,
+		input: `import fs from 'node:fs'; import { syncBuiltinESMExports } from 'node:module';
+		const module = await import(${JSON.stringify(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`)});
+		fs.readFileSync = fs.readdirSync = () => { throw new Error('working-tree read forbidden'); };
+		syncBuiltinESMExports();
+		const result = module.verifyCommittedDocumentation({repoRoot: ${JSON.stringify(repoRoot)}, revision: module.SECOND_RECONCILIATION});
+		if (result.readerPages !== 85 || result.latestMain.revision !== module.LATEST_MAIN || 'waitMain' in result) process.exit(2);`,
+		encoding: "utf8",
+		timeout: 30_000,
+	});
+	assert.equal(child.status, 0, child.stderr);
 });

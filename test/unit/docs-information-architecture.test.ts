@@ -1767,6 +1767,13 @@ describe("docs content ledger (#2847)", () => {
 			readerPages: number;
 			readerAnchorRepairs: number;
 			latestMain: { revision: string; pages: number; unchangedPages: number; edits: number };
+			waitMain: {
+				revision: string;
+				pages: number;
+				unchangedPages: number;
+				edits: number;
+				compatibilityPointers: number;
+			};
 		};
 		assert.equal(report.baseline.blocks, 1038);
 		assert.equal(report.main.pages, 47);
@@ -1778,6 +1785,13 @@ describe("docs content ledger (#2847)", () => {
 			pages: 47,
 			unchangedPages: 44,
 			edits: 5,
+		});
+		assert.deepEqual(report.waitMain, {
+			revision: "32059e25f6608770280eacc0285b49a454a3f2f0",
+			pages: 47,
+			unchangedPages: 45,
+			edits: 3,
+			compatibilityPointers: 1,
 		});
 	});
 
