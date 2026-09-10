@@ -297,7 +297,11 @@ export async function resumeRun(
 						.pausedStages()
 						.map((handle) => ({ controlRunId, handle })),
 				);
-		const acknowledgements = await settleResumeAcknowledgements(activeStore, handles, opts?.message);
+		const reopenAdmission = (): void => {
+			const tools = opts?.toolControlRegistry ?? defaultToolControlRegistry;
+			for (const controlRunId of controlRunIds) tools.admissionBoundary(controlRunId)?.resume();
+		};
+		const acknowledgements = await settleResumeAcknowledgements(activeStore, handles, opts?.message, reopenAdmission);
 		acknowledgedTargets = acknowledgements.acknowledged;
 		resumed.push(...acknowledgements.resumed);
 		const currentRun = activeStore.runs().find((candidate) => candidate.id === runId);
@@ -309,6 +313,7 @@ export async function resumeRun(
 				!hasPausedDescendant &&
 				currentRun?.status === "paused")
 		) {
+			reopenAdmission();
 			// One scope carries the actor, mirroring pauseRun: the stage when a
 			// stage-scoped resume leaves siblings paused, the run otherwise. The
 			// aggregate root is reconciled without attribution so one request never

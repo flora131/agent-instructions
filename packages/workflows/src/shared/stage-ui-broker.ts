@@ -208,6 +208,9 @@ export class StageUiBroker {
 		options?: PiCustomOverlayOptions,
 		signal?: AbortSignal,
 	): Promise<T> {
+		if (options?.signal !== undefined) {
+			signal = signal === undefined ? options.signal : AbortSignal.any([signal, options.signal]);
+		}
 		if (signal?.aborted) {
 			return Promise.reject(signal.reason ?? new Error("atomic-workflows: stage UI request aborted"));
 		}
