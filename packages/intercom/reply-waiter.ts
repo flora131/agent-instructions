@@ -18,6 +18,8 @@ export interface ReplyWait {
    * unhandled rejection.
    */
   promise: Promise<Message>;
+  /** Bind only this question to the broker-authorized recipient before dispatch. */
+  bindSender(from: string): void;
   /** Rejects only this waiter. No-op once it settled or was replaced. */
   cancel(error: Error): void;
 }
@@ -108,6 +110,7 @@ export class ReplyWaiterRegistry {
       ok: true,
       wait: {
         promise,
+        bindSender: (sender) => { if (this.waiters.get(replyTo) === record) record.from = sender; },
         cancel: (error) => record.reject(error),
       },
     };

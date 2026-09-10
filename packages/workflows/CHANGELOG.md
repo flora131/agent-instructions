@@ -10,9 +10,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Added effective model and thinking identity to graph node cards, preserving thinking and canonical fast model suffixes in narrow rows and restoring identity through durable resume. Live fallback replacements update the model row; the `BACKGROUND` widget is unchanged ([#1859](https://github.com/bastani-inc/atomic/pull/1859) by [@sina85](https://github.com/sina85)).
 
+## [0.9.19-alpha.3] - 2026-09-09
+
 ### Fixed
 
+- Local `workflow stages` now uses the same expanded nested graph as exact stage/transcript lookup, matching retained durable inspection instead of listing hidden import boundaries.
+- Runner-created workflow sessions retain their pending-delivery context while receiving the host late-message route, so completed-stage Intercom asks can reopen the exact retained conversation without re-running the workflow.
 - Stage pause now cancels owned active and admitted queued agents and commands before acknowledging completion, including shells admitted during already-in-flight setup. It waits for cleanup without permanently closing message admission; resume releases queued user and Intercom messages and permits fresh work, without reviving cancelled executions or affecting sibling stages.
+- Fixed the `BACKGROUND` workflow list's stage count and `single`/`chain` label to include recursively nested stages as they appear, without double-counting expanded workflow boundaries. Completed, failed, and skipped stages retain their existing progress semantics. Recursive counts share run lookup preparation across cards within each refresh.
 
 ### Changed
 

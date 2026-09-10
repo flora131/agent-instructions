@@ -410,7 +410,8 @@ export function formatSessionListRow(session: SessionInfo, currentCwd: string, i
   const name = session.name || "Unnamed session";
   const normalizedGroup = normalizeGroup(session.group);
   const groupTag = normalizedGroup !== DEFAULT_GROUP ? `group: ${normalizedGroup}` : undefined;
-  const tags = [isSelf ? "self" : session.cwd === currentCwd ? "same cwd" : undefined, session.status, groupTag]
+  const capabilityTag = session.replyCapability === undefined ? undefined : `replyCapability: ${session.replyCapability}`;
+  const tags = [isSelf ? "self" : session.cwd === currentCwd ? "same cwd" : undefined, session.status, capabilityTag, groupTag]
     .filter((tag): tag is string => Boolean(tag));
   const suffix = tags.length ? ` [${tags.join(", ")}]` : "";
   return `• ${name} (${session.id}) — ${session.cwd} (${session.model})${suffix}`;

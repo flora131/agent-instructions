@@ -40,8 +40,11 @@ export function registerIntercomLifecycle(pi: ExtensionAPI, deps: LifecycleDeps)
   const activeReplyTracker = (): ReplyTracker =>
     typeof deps.replyTracker === "function" ? deps.replyTracker() : deps.replyTracker;
   let hasActiveSession = false;
+  let unbindStageClose: (() => void) | undefined;
 
   async function cleanupRuntime(reason: string): Promise<void> {
+    unbindStageClose?.();
+    unbindStageClose = undefined;
     deps.setRuntimeStarted(false);
     deps.setShuttingDown(true);
     deps.setDisposed(true);
@@ -91,6 +94,11 @@ export function registerIntercomLifecycle(pi: ExtensionAPI, deps: LifecycleDeps)
     deps.setSessionStartedAt(Date.now());
     deps.setAgentRunning(false);
     deps.activeTools.clear();
+    const stage = ctx.orchestrationContext;
+    const closeSignal = stage?.kind === "workflow-stage" ? stage.messageAdmission?.boundary?.closeSignal : undefined;
+    closeSignal?.addEventListener("abort", deps.syncPresenceStatus, { once: true });
+    unbindStageClose = () => closeSignal?.removeEventListener("abort", deps.syncPresenceStatus);
+    if (closeSignal?.aborted) deps.syncPresenceStatus();
   });
 
   pi.on("session_shutdown", async () => {

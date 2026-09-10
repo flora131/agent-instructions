@@ -6,6 +6,8 @@
 
 - Added a model row to the `/workflow connect` graph node cards showing each stage's effective model and thinking level, including canonical fast model identity, with model-name truncation preserving the suffixes. Cards retain duration, status and dependencies in a six-row layout, reflect live fallbacks, and restore identity through durable resume ([#1859](https://github.com/bastani-inc/atomic/pull/1859) by [@sina85](https://github.com/sina85)).
 
+## [0.9.19-alpha.3] - 2026-09-09
+
 ### Fixed
 
 - Fixed `Failed to initialize class constructor` when npm-installed Node sessions create multiple task supervisors, preventing shell commands and subagent launches from failing during task-host initialization.
@@ -16,6 +18,7 @@
 - Workflow-stage pause now blocks new task launches, cancels active and admitted queued agents and commands, and waits for in-flight command admission and resource cleanup. Main-chat and sibling tasks stay unaffected; queued user and Intercom messages survive, and resume permits fresh work without restarting cancelled executions.
 - Fixed npm-installed Node startup failing with a missing upstream AI package after the retry-policy update. Core retry imports now use Atomic's declared AI dependency.
 - Fixed an unhandled rejection when session cancellation interrupts an in-flight stage-chat pause, while preserving pause error reporting and rejection for callers awaiting completion.
+- Fixed Windows extension reloads re-evaluating Atomic's host modules, avoiding duplicate host classes and long reload delays while preserving edits to extension dependencies. The supported `@earendil-works/pi-coding-agent` import also shares host identity with `@bastani/atomic` after reload.
 
 ## [0.9.19-alpha.2] - 2026-09-08
 
