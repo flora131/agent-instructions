@@ -22,7 +22,7 @@ type LifecycleSnapshot<K extends keyof ForwardedEventMap> = {
 	event: ForwardedEventMap[K];
 	ctx: ExtensionContext;
 };
-type ShutdownSnapshot = LifecycleSnapshot<"session_shutdown"> & { generation: number };
+type ShutdownSnapshot = LifecycleSnapshot<"session_shutdown"> & { generation: number; diagnosticRoute: DiagnosticRoute };
 type IntercomLease = LifecycleLease<ShutdownSnapshot>;
 type SessionSnapshot = LifecycleSnapshot<"session_start"> & { generation: number; lease: IntercomLease };
 type IntercomHeavyHandle = HeavyHandle<CapturedHeavy>;
@@ -143,26 +143,37 @@ function diagnosticDetail(error: unknown): string {
 	}
 }
 
+type DiagnosticRoute = ExtensionContext | "console" | "silent";
+
+/** Snapshot routing before awaits can invalidate the owner's guarded getters. */
+function captureDiagnosticRoute(ctx: ExtensionContext | undefined): DiagnosticRoute {
+	try {
+		// RPC has UI too, but only a terminal owns pane diagnostics. Keep the
+		// context, not its raw UI: late TUI notifications must still be guarded.
+		return ctx?.hasUI && ctx.mode === "tui" ? ctx : "console";
+	} catch {
+		return "silent";
+	}
+}
+
 /** Report against the captured owner, not whichever session is current after an await. */
 function reportDiagnostic(
-	ctx: ExtensionContext | undefined,
+	route: DiagnosticRoute,
 	message: string,
 	error: unknown,
 	level: "warning" | "error",
 	consoleMessage = message,
 ): void {
-	try {
-		// RPC hosts also set hasUI; only the terminal's own mode owns pane
-		// diagnostics, so print, JSON, and RPC retain console output.
-		if (ctx?.hasUI && ctx.mode === "tui") {
-			ctx.ui.notify(message, level);
-			return;
-		}
-	} catch {
-		// A retired context or unavailable UI never authorizes console fallback.
+	if (route === "console") {
+		console.error(consoleMessage, error);
 		return;
 	}
-	console.error(consoleMessage, error);
+	if (route === "silent") return;
+	try {
+		route.ui.notify(message, level);
+	} catch {
+		// A retired TUI context or unavailable UI never authorizes console fallback.
+	}
 }
 
 /**
@@ -177,11 +188,11 @@ function reportDiagnostic(
  * reported. The caller-facing acknowledgement is emitted either way, so a
  * waiting relay never hangs on this decision.
  */
-function reportRelayFailure(ctx: ExtensionContext | undefined, eventName: string, error: unknown): void {
+function reportRelayFailure(route: DiagnosticRoute, eventName: string, error: unknown): void {
 	if (isRecoverableIntercomDisconnect(error)) return;
 	const prefix = `Intercom event relay failed (${eventName}):`;
 	const detail = diagnosticDetail(error);
-	reportDiagnostic(ctx, `${prefix} ${detail}`, error, "error", prefix);
+	reportDiagnostic(route, `${prefix} ${detail}`, error, "error", prefix);
 }
 
 /**
@@ -201,7 +212,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
   let loadedHeavy: IntercomHeavyHandle | null = null;
   let sessionSnapshot: SessionSnapshot | null = null;
 	// Event subscriptions outlive shutdown replay state; never use this owner to load heavy state.
-	let shutdownDiagnosticContext: ExtensionContext | undefined;
+	let shutdownDiagnosticRoute: DiagnosticRoute | undefined;
 	let lifecycleGeneration = 0;
 	let nextLeaseId = 1;
 	let activeLease = createLifecycleLease<ShutdownSnapshot>(nextLeaseId++);
@@ -272,6 +283,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 		await promise;
 	}
 	async function loadHeavy(ctx?: ExtensionContext): Promise<IntercomHeavyHandle> {
+		let diagnosticRoute = captureDiagnosticRoute(ctx);
 		const lease = activeLease;
 		if (lease.retired) throw new Error("Intercom initialization unavailable: no active session");
 		await waitForPriorCleanup(lease);
@@ -305,7 +317,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 				} catch (cleanupError) {
 					const prefix = "Intercom failed to clean rejected lazy candidate:";
 					const detail = diagnosticDetail(cleanupError);
-					reportDiagnostic(cleanupCtx, `${prefix} ${detail}`, cleanupError, "error", prefix);
+					reportDiagnostic(shutdown?.diagnosticRoute ?? diagnosticRoute, `${prefix} ${detail}`, cleanupError, "error", prefix);
 				}
 			};
 			try {
@@ -316,7 +328,10 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 				if (!sessionSnapshot && ctx) {
 					sessionSnapshot = { event: createSyntheticSessionStartEvent(), ctx, generation: ++lifecycleGeneration, lease };
 				}
-				await ensureSessionStartReplayed(captured, lease, (replayContext) => { replayCtx = replayContext; });
+				await ensureSessionStartReplayed(captured, lease, (replayContext) => {
+					replayCtx = replayContext;
+					diagnosticRoute = captureDiagnosticRoute(replayContext);
+				});
 				assertLease(lease);
 				const handle = createHandle(captured, lease);
 				loadedHeavy = handle;
@@ -334,7 +349,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 				if (!isRecoverableIntercomDisconnect(error)) {
 					const message = diagnosticDetail(error);
 					reportDiagnostic(
-						replayCtx ?? ctx,
+						diagnosticRoute,
 						`Intercom heavy initialization failed; a later call will retry: ${message}`,
 						error,
 						"warning",
@@ -476,7 +491,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
     }
     const generation = ++lifecycleGeneration;
     sessionSnapshot = { event, ctx, generation, lease };
-		shutdownDiagnosticContext = undefined;
+		shutdownDiagnosticRoute = undefined;
     cancelWarmUpRetry();
     if (ctx.orchestrationContext?.kind === "workflow-stage" && ctx.orchestrationContext.pendingStageDelivery !== undefined) {
       const pendingStageDelivery = ctx.orchestrationContext.pendingStageDelivery;
@@ -502,8 +517,9 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 	pi.on("session_shutdown", async (event, ctx) => {
 		const lease = activeLease;
 		const generation = ++lifecycleGeneration;
-		retireLifecycleLease(lease, { event, ctx, generation });
-		shutdownDiagnosticContext = ctx;
+		const diagnosticRoute = captureDiagnosticRoute(ctx);
+		retireLifecycleLease(lease, { event, ctx, generation, diagnosticRoute });
+		shutdownDiagnosticRoute = diagnosticRoute;
 		cancelWarmUpRetry();
 		const retiredHeavy = loadedHeavy?.heavy ?? null;
 		const retiredAttempt = heavyAttempt?.lease === lease ? heavyAttempt.promise : null;
@@ -627,7 +643,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 		payload.handled = true;
 		const forwarded = { ...payload, handled: false, completion: undefined };
 		const ctx = latestLifecycleContext();
-		const diagnosticCtx = ctx ?? shutdownDiagnosticContext;
+		const diagnosticRoute = ctx ? captureDiagnosticRoute(ctx) : shutdownDiagnosticRoute ?? "console";
 		payload.completion = loadHeavy(ctx)
 			.then(async (handle) => {
 				handle.assertCurrent();
@@ -638,7 +654,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 					: false;
 			})
 			.catch((error) => {
-				reportRelayFailure(diagnosticCtx, PENDING_STAGE_UNDELIVERABLE_EVENT, error);
+				reportRelayFailure(diagnosticRoute, PENDING_STAGE_UNDELIVERABLE_EVENT, error);
 				return false;
 			});
 	});
@@ -649,7 +665,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 	] as const) {
 		pi.events.on(eventName, (payload) => {
 			const ctx = latestLifecycleContext();
-			const diagnosticCtx = ctx ?? shutdownDiagnosticContext;
+			const diagnosticRoute = ctx ? captureDiagnosticRoute(ctx) : shutdownDiagnosticRoute ?? "console";
 			const completion = loadHeavy(ctx).then(async (handle) => {
 				handle.assertCurrent();
 				await dispatchEventHandlers(handle.heavy, eventName, payload);
@@ -664,7 +680,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 			}
 			void completion.catch((error) => {
 				rejectLazyResultRelay(pi, eventName, payload, error);
-				reportRelayFailure(diagnosticCtx, eventName, error);
+				reportRelayFailure(diagnosticRoute, eventName, error);
 			});
 		});
 	}

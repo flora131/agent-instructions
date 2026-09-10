@@ -3,6 +3,10 @@ import { setImmediate as tick } from "node:timers/promises";
 import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@bastani/atomic";
 import { Type } from "typebox";
 import { afterEach, beforeEach, describe, test, vi } from "vitest";
+import {
+	createExtensionContext,
+	type ExtensionContextSource,
+} from "../../packages/coding-agent/src/core/extensions/runner-context.js";
 import intercom from "../../packages/intercom/index.js";
 import { IntercomClientDisconnectedError } from "../../packages/intercom/recoverable-disconnect.js";
 
@@ -30,6 +34,7 @@ function fixture(importResults: ImportResult[], hasUI = false, mode: ExtensionCo
 	const handlers = new Map<string, LifecycleHandler>();
 	const eventHandlers = new Map<string, (payload: object) => void>();
 	let imports = 0;
+	const deliveries: Array<{ name: string; payload: unknown }> = [];
 	const pi = {
 		on(name: string, handler: LifecycleHandler) {
 			handlers.set(name, handler);
@@ -43,7 +48,9 @@ function fixture(importResults: ImportResult[], hasUI = false, mode: ExtensionCo
 			on(name: string, handler: (payload: object) => void) {
 				eventHandlers.set(name, handler);
 			},
-			emit() {},
+			emit(name: string, payload: unknown) {
+				deliveries.push({ name, payload });
+			},
 		},
 	};
 	intercom(pi as never, {
@@ -66,8 +73,9 @@ function fixture(importResults: ImportResult[], hasUI = false, mode: ExtensionCo
 	};
 	return {
 		notifications,
+		deliveries,
 		ctx,
-		async fire(name: string, context = ctx) {
+		async fire(name: string, context: ExtensionContext | typeof ctx = ctx) {
 			await handlers.get(name)?.({ type: name, reason: "startup" }, context as ExtensionContext);
 		},
 		emit(name: string, payload: object) {
@@ -76,7 +84,10 @@ function fixture(importResults: ImportResult[], hasUI = false, mode: ExtensionCo
 		get imports() {
 			return imports;
 		},
-		executeIntercom(context = ctx, params: { action: string; to?: string; message?: string } = { action: "list" }) {
+		executeIntercom(
+			context: ExtensionContext | typeof ctx = ctx,
+			params: { action: string; to?: string; message?: string } = { action: "list" },
+		) {
 			const tool = tools.get("intercom");
 			assert.ok(tool, "intercom tool should be registered");
 			return tool.execute("tool-call", params, new AbortController().signal, undefined, context as ExtensionContext);
@@ -96,6 +107,36 @@ function successfulHeavyModule(): HeavyModule {
 					return { content: [{ type: "text", text: "connected" }], details: {} };
 				},
 			});
+		},
+	};
+}
+
+/** Use the host's actual guarded getters, not a hasUI-only imitation. */
+function guardedContext(mode: ExtensionContext["mode"]) {
+	let active = true;
+	const notifications: Array<{ message: string; level?: string }> = [];
+	const ctx = createExtensionContext({
+		assertActive() {
+			if (!active) throw new Error("Extension context is stale");
+		},
+		getMode: () => mode,
+		hasUI: () => mode === "tui" || mode === "rpc",
+		getUIContext: () => ({
+			notify(message: string, level?: string) {
+				notifications.push({ message, level });
+			},
+		}),
+		getSubagentPolicy: () => undefined,
+		getOrchestrationContext: () => undefined,
+	} as ExtensionContextSource);
+	return {
+		ctx,
+		notifications,
+		invalidate() {
+			active = false;
+			for (const key of ["hasUI", "mode", "ui"] as const) {
+				assert.throws(() => ctx[key], /Extension context is stale/);
+			}
 		},
 	};
 }
@@ -297,13 +338,149 @@ describe("Intercom lazy heavy-initialization diagnostics", () => {
 		assert.deepEqual(consoleErrorCalls, []);
 	});
 
-	for (const eventName of ["atomic:workflow-pending-stage-route", "atomic:workflow-pending-stage-undeliverable"]) {
-		test(`does not redirect a stale ${eventName} callback to the replacement or console`, async () => {
-			const entered = Promise.withResolvers<void>();
-			const release = Promise.withResolvers<void>();
-			const failure = new Error("late relay failure");
-			const current = fixture(
-				[
+	for (const mode of ["print", "json", "rpc", "tui"] as const) {
+		for (const phase of ["initializing", "replaying"] as const) {
+			test(`retains the ${mode} ${phase} route when its guarded owner expires`, async () => {
+				const entered = Promise.withResolvers<void>();
+				const release = Promise.withResolvers<void>();
+				const failure = new Error("Connection closen");
+				const fail = async () => {
+					entered.resolve();
+					await release.promise;
+					throw failure;
+				};
+				const current = fixture([
+					{
+						module: {
+							async default(pi) {
+								if (phase === "initializing") await fail();
+								else pi.on("session_start", fail);
+							},
+						},
+					},
+				]);
+				const owner = guardedContext(mode);
+				const other = guardedContext(mode === "tui" ? "print" : "tui");
+				if (phase === "replaying") await current.fire("session_start", owner.ctx);
+				const rejected = assert.rejects(
+					current.executeIntercom(phase === "initializing" ? owner.ctx : other.ctx),
+					(error) => error === failure,
+				);
+				await entered.promise;
+				// Exercise the guarded boundary even if a host expires a pending owner.
+				owner.invalidate();
+				await current.fire("session_start", other.ctx);
+				release.resolve();
+				await rejected;
+				await tick();
+				const message = "Intercom heavy initialization failed; a later call will retry: Connection closen";
+				assert.deepEqual(consoleErrorCalls, mode === "tui" ? [] : [[message, failure]]);
+				if (mode !== "tui") assert.equal(consoleErrorCalls[0]?.[1], failure);
+				assert.deepEqual(owner.notifications, []);
+				assert.deepEqual(other.notifications, []);
+			});
+		}
+
+		test(`retains the ${mode} shutdown cleanup route independently of its expired replay owner`, async () => {
+			const replayEntered = Promise.withResolvers<void>();
+			const replayRelease = Promise.withResolvers<void>();
+			const cleanupEntered = Promise.withResolvers<void>();
+			const cleanupRelease = Promise.withResolvers<void>();
+			const failure = new Error("Connection closen");
+			const cleanupFailure = new Error("cleanup failed");
+			const owner = guardedContext(mode);
+			const replayOwner = guardedContext(mode === "tui" ? "print" : "tui");
+			const replacement = guardedContext("tui");
+			const current = fixture([
+				{
+					module: {
+						default(pi) {
+							pi.on("session_start", async () => {
+								replayEntered.resolve();
+								await replayRelease.promise;
+								throw failure;
+							});
+							pi.on("session_shutdown", async () => {
+								cleanupEntered.resolve();
+								await cleanupRelease.promise;
+								throw cleanupFailure;
+							});
+						},
+					},
+				},
+				{ module: successfulHeavyModule() },
+			]);
+			await current.fire("session_start", replayOwner.ctx);
+			const rejected = assert.rejects(current.executeIntercom(owner.ctx), (error) => error === failure);
+			await replayEntered.promise;
+			const shutdown = current.fire("session_shutdown", owner.ctx);
+			const replaced = current.fire("session_start", replacement.ctx);
+			replayRelease.resolve();
+			await cleanupEntered.promise;
+			owner.invalidate();
+			replayOwner.invalidate();
+			cleanupRelease.resolve();
+			await Promise.all([rejected, shutdown, replaced]);
+			const expected =
+				mode === "tui"
+					? [["Intercom heavy initialization failed; a later call will retry: Connection closen", failure]]
+					: [["Intercom failed to clean rejected lazy candidate:", cleanupFailure]];
+			assert.deepEqual(consoleErrorCalls, expected);
+			assert.equal(consoleErrorCalls[0]?.[1], mode === "tui" ? failure : cleanupFailure);
+			assert.deepEqual(owner.notifications, []);
+			assert.deepEqual(replayOwner.notifications, []);
+			assert.deepEqual(replacement.notifications, []);
+			await current.executeIntercom(replacement.ctx);
+			assert.equal(current.imports, 2);
+		});
+
+		test(`retains the ${mode} shutdown route for all relays arriving after runner invalidation`, async () => {
+			const current = fixture([]);
+			const owner = guardedContext(mode);
+			await current.fire("session_start", owner.ctx);
+			await current.fire("session_shutdown", owner.ctx);
+			owner.invalidate();
+			for (const eventName of [
+				"subagent:control-intercom",
+				"subagent:result-intercom",
+				"atomic:workflow-pending-stage-route",
+				"atomic:workflow-pending-stage-undeliverable",
+			]) {
+				const payload = {
+					completion: undefined as Promise<void> | Promise<boolean> | undefined,
+					runId: "run",
+					senderId: "sender",
+					messageId: "message",
+					notificationId: "notice",
+					reason: "not_started",
+				};
+				current.emit(eventName, payload);
+				if (eventName.endsWith("undeliverable")) assert.equal(await payload.completion, false);
+				else if (eventName.endsWith("stage-route")) await assert.rejects(payload.completion!, /no active session/);
+				await tick();
+				if (mode !== "tui") {
+					const args = consoleErrorCalls.shift();
+					assert.equal(args?.[0], `Intercom event relay failed (${eventName}):`);
+					assert.ok(args[1] instanceof Error);
+					assert.equal(args[1].message, "Intercom initialization unavailable: no active session");
+				}
+				assert.deepEqual(consoleErrorCalls, []);
+			}
+			assert.deepEqual(owner.notifications, []);
+			assert.equal(current.imports, 0, "a diagnostic route cannot reactivate the retired lease");
+		});
+
+		for (const eventName of [
+			"subagent:control-intercom",
+			"subagent:result-intercom",
+			"atomic:workflow-pending-stage-route",
+			"atomic:workflow-pending-stage-undeliverable",
+		]) {
+			test(`retains ${mode} late ${eventName} diagnostics after real context invalidation`, async () => {
+				const entered = Promise.withResolvers<void>();
+				const release = Promise.withResolvers<void>();
+				const failure = new Error("late relay failure");
+				const current = fixture([
 					{
 						module: {
 							default(pi) {
@@ -316,57 +493,64 @@ describe("Intercom lazy heavy-initialization diagnostics", () => {
 						},
 					},
 					{ module: successfulHeavyModule() },
-				],
-				true,
-			);
-			let retired = false;
-			const origin = {
-				...current.ctx,
-				get hasUI() {
-					if (retired) throw new Error("Extension context is stale");
-					return true;
-				},
-			};
-			await current.fire("session_start", origin);
-			const payload: {
-				completion?: Promise<void> | Promise<boolean>;
-				runId: string;
-				senderId: string;
-				messageId: string;
-				notificationId: string;
-				reason: string;
-			} = {
-				runId: "run",
-				senderId: "sender",
-				messageId: "message",
-				notificationId: "notice",
-				reason: "stage_never_started",
-			};
-			current.emit(eventName, payload);
-			assert.ok(payload.completion);
-			const settled = eventName.endsWith("undeliverable")
-				? payload.completion.then((value) => assert.equal(value, false))
-				: assert.rejects(payload.completion, (error) => error === failure);
-			await entered.promise;
-			await current.fire("session_shutdown", origin);
-			retired = true;
-			await current.fire("session_start", {
-				hasUI: false,
-				mode: "print",
-				ui: {
-					notify() {
-						assert.fail("wrong session");
-					},
-				},
+				]);
+				const origin = guardedContext(mode);
+				const replacement = guardedContext(mode === "tui" ? "print" : "tui");
+				const log = vi.spyOn(console, "log").mockImplementation(() => {});
+				const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+				try {
+					await current.fire("session_start", origin.ctx);
+					const payload = {
+						completion: undefined as Promise<void> | Promise<boolean> | undefined,
+						requestId: "request",
+						runId: "run",
+						senderId: "sender",
+						messageId: "message",
+						notificationId: "notice",
+						reason: "stage_never_started",
+					};
+					current.emit(eventName, payload);
+					const settled = eventName.endsWith("undeliverable")
+						? payload.completion!.then((value) => assert.equal(value, false))
+						: eventName.endsWith("stage-route")
+							? assert.rejects(payload.completion!, (error) => error === failure)
+							: Promise.resolve();
+					await entered.promise;
+					await current.fire("session_shutdown", origin.ctx);
+					origin.invalidate(); // Runner invalidates only after awaited shutdown.
+					await current.fire("session_start", replacement.ctx);
+					release.resolve();
+					await settled;
+					await tick();
+					assert.deepEqual(origin.notifications, []);
+					assert.deepEqual(replacement.notifications, []);
+					assert.deepEqual(
+						consoleErrorCalls,
+						mode === "tui" ? [] : [[`Intercom event relay failed (${eventName}):`, failure]],
+					);
+					if (mode !== "tui") assert.equal(consoleErrorCalls[0]?.[1], failure);
+					assert.equal(log.mock.calls.length, 0);
+					assert.equal(warn.mock.calls.length, 0);
+					assert.deepEqual(
+						current.deliveries,
+						eventName === "subagent:result-intercom"
+							? [
+									{
+										name: "subagent:result-intercom-delivery",
+										payload: { requestId: "request", delivered: false, error: failure.message },
+									},
+								]
+							: [],
+					);
+					await current.executeIntercom(replacement.ctx);
+					assert.equal(current.imports, 2, "the retired callback does not invalidate the replacement");
+				} finally {
+					release.resolve();
+					log.mockRestore();
+					warn.mockRestore();
+				}
 			});
-			release.resolve();
-			await settled;
-			await tick();
-			assert.deepEqual(current.notifications, []);
-			assert.deepEqual(consoleErrorCalls, []);
-			await current.executeIntercom();
-			assert.equal(current.imports, 2, "the retired callback does not invalidate the replacement");
-		});
+		}
 	}
 
 	for (const eventName of [
