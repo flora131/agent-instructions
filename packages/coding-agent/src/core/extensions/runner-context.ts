@@ -108,7 +108,12 @@ export function copyScopedModels(scoped: readonly ScopedModel[]): readonly Scope
 	return Object.freeze(scoped.map((entry) => deepFrozenCopy(entry)));
 }
 
-const contextOwners = new WeakMap<ExtensionContext, object>();
+// Private host/builtin bridge, also read by intercom/context-owner.ts. Separate
+// bundles share identity without exposing guarded capabilities or retaining UI.
+const CONTEXT_OWNERS_KEY = Symbol.for("atomic-coding-agent/extension-context-owners@1");
+const contextOwnerBag = globalThis as typeof globalThis & { [CONTEXT_OWNERS_KEY]?: WeakMap<ExtensionContext, object> };
+contextOwnerBag[CONTEXT_OWNERS_KEY] ??= new WeakMap<ExtensionContext, object>();
+const contextOwners = contextOwnerBag[CONTEXT_OWNERS_KEY];
 
 /** Internal lifecycle identity; contexts themselves are recreated for every dispatch. */
 export function getExtensionContextOwner(context: ExtensionContext): object {
@@ -257,13 +262,16 @@ export function createExtensionContext(source: ExtensionContextSource, owner: ob
 	return context;
 }
 
-export function createExtensionCommandContext(source: ExtensionCommandContextSource): ExtensionCommandContext {
+export function createExtensionCommandContext(
+	source: ExtensionCommandContextSource,
+	owner: object = source,
+): ExtensionCommandContext {
 	// Use property descriptors instead of object spread so the guarded getters from
 	// createExtensionContext() stay lazy. A spread would eagerly read them once and
 	// freeze old values into the returned object, bypassing stale-instance checks.
 	const context = Object.defineProperties(
 		{},
-		Object.getOwnPropertyDescriptors(createExtensionContext(source)),
+		Object.getOwnPropertyDescriptors(createExtensionContext(source, owner)),
 	) as ExtensionCommandContext;
 	context.getSystemPromptOptions = () => {
 		source.assertActive();
@@ -293,5 +301,6 @@ export function createExtensionCommandContext(source: ExtensionCommandContextSou
 		source.assertActive();
 		return source.reload();
 	};
+	contextOwners.set(context, owner);
 	return context;
 }
