@@ -1,5 +1,6 @@
 import {
 	BASH_SHELL_PRESENTATION,
+	type BashToolInput,
 	createLocalPowerShellOperations,
 	createPowerShellTool,
 	createPowerShellToolDefinition,
@@ -20,7 +21,16 @@ type Equal<Left, Right> =
 type Assert<Condition extends true> = Condition;
 
 export type PowerShellToolCallEventRootExport = Assert<Equal<PowerShellToolCallEvent["toolName"], "powershell">>;
-export type PowerShellToolInputRootExport = Assert<Equal<PowerShellToolInput["command"], string>>;
+export type PowerShellToolInputRootExport = Assert<Equal<PowerShellToolInput, BashToolInput>>;
+export type ShellCommandInputRootExport = Assert<
+	Equal<Extract<PowerShellToolInput, { command: string }>["command"], string>
+>;
+export const shellWaitInput: BashToolInput = { action: "wait", id: "task", budgetMs: 0 };
+export const powershellWaitInput: PowerShellToolInput = { action: "wait", id: "task" };
+// @ts-expect-error Existing-task waits cannot execute another command.
+export const mixedShellInput: BashToolInput = { action: "wait", id: "task", command: "echo duplicate" };
+// @ts-expect-error Existing-task waits require an ID.
+export const missingWaitId: PowerShellToolInput = { action: "wait" };
 export type PowerShellSpawnContextRootExport = Assert<Equal<PowerShellSpawnContext["command"], string>>;
 export type ShellToolPresentationRootExport = Assert<Equal<ShellToolPresentation["prompt"], string>>;
 

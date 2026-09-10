@@ -47,6 +47,7 @@ export {
 	createCodingTools,
 	createEditTool,
 	createFindTool,
+	createKillTool,
 	createLocalPowerShellOperations,
 	createLsTool,
 	createPowerShellTool,
