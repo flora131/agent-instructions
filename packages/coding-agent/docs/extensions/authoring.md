@@ -662,3 +662,7 @@ Custom editors and `ctx.ui.custom()` components receive `keybindings: Keybinding
 If a slot renderer is not defined or throws:
 - `renderCall`: Shows the tool name
 - `renderResult`: Shows raw text from `content`
+
+## Next steps
+
+Continue with [extension events](/extensions/events) to hook into the session lifecycle. Use the [Extension API reference](/extensions/api-reference) to look up context properties and registration methods.

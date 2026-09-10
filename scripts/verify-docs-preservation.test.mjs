@@ -615,3 +615,42 @@ test("committed second predecessor works from a data URL without filesystem docu
 	});
 	assert.equal(child.status, 0, child.stderr);
 });
+
+// #2847 / PR #2971 review 3: exact additions never excuse loss of earlier content.
+for (const [page, target] of [
+	["skills/authoring.md", "/skills/reference#frontmatter"],
+	["extensions/authoring.md", "/extensions/api-reference"],
+	["extensions/events.md", "/extensions/api-reference#extensioncontext"],
+	["extensions/ui.md", "/extensions/api-reference"],
+	["extensions/examples.md", "/extensions/api-reference"],
+]) {
+	test(`${page} reference handoff is required verbatim and cannot mask prior content loss`, () => {
+		const path = DOCS + page;
+		const text = read(path);
+		const start = text.lastIndexOf("\n## Next steps\n");
+		assert.ok(start > 0);
+		const addition = text.slice(start);
+		assert.ok(addition.includes(`](${target})`));
+		for (const changed of [
+			text.slice(0, start),
+			text.slice(0, start) + addition.replace(target, "/reference"),
+			addition + text.slice(0, start),
+		]) {
+			assert.throws(() => check(new Map([[path, changed]])), /authoring reference addition differs/u);
+		}
+		assert.throws(() => check(new Map([[path, text + addition]])), /reader content changed/u);
+		const retainedLine = text
+			.slice(0, start)
+			.split("\n")
+			.find((line) => line.length > 100);
+		assert.ok(retainedLine, `${page} must exercise substantive content, not a blank or heading`);
+		assert.throws(
+			() => check(new Map([[path, text.replace(retainedLine, "")]])),
+			/source prose\/example\/table\/caveat (?:differs|missing or reordered)/u,
+		);
+	});
+}
+
+test("authoring reference handoffs are counted separately from immutable source reconciliation", () => {
+	assert.equal(check().authoringReferenceAdditions, 5);
+});

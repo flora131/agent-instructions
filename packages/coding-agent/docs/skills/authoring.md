@@ -89,3 +89,7 @@ cd /path/to/brave-search && bun install
 ./content.js https://example.com
 ```
 ````
+
+## Next steps
+
+Check the skill reference for [frontmatter fields](/skills/reference#frontmatter) and [validation rules](/skills/reference#validation) before sharing your skill.

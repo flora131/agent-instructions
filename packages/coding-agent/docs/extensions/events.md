@@ -787,3 +787,7 @@ The host hub retains at most 256 diagnostics, available through its host-side `d
 - `ObserverDeliveryFailed`: a callback threw or rejected; other observers and publication continue.
 - `ObserverOverflow`: a per-observer queue reached its 256-frame limit. Pending frames are cleared and a fresh snapshot replaces them, invalidating continuity instead of silently losing updates.
 - `PublisherFenced`: a disposed or superseded publisher attempted publication.
+
+## Next steps
+
+Continue with [extension UI](/extensions/ui) to add user interaction. Look up the context available to event handlers in the [Extension API reference](/extensions/api-reference#extensioncontext).

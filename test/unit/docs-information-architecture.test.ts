@@ -805,6 +805,28 @@ describe("docs information architecture (#2847)", () => {
 		}
 	});
 
+	// #2847 / PR #2971: a Reference-tab entry cannot replace the guide's own handoff.
+	for (const [slug, targets] of [
+		["skills/authoring", ["/skills/reference#frontmatter", "/skills/reference#validation"]],
+		["extensions/authoring", ["/extensions/events", "/extensions/api-reference"]],
+		["extensions/events", ["/extensions/ui", "/extensions/api-reference#extensioncontext"]],
+		["extensions/ui", ["/extensions/examples", "/extensions/api-reference"]],
+		["extensions/examples", ["/extensions/api-reference"]],
+	] as const) {
+		test(`${slug} ends with direct next-step and reference links`, () => {
+			const text = readFileSync(join(docsDir, pathForSlug(slug)), "utf8");
+			assert.ok(readerAnchors(text).has("next-steps"), `${slug} needs a reader-visible next step`);
+			const nextSteps = text.split("\n## Next steps\n")[1];
+			assert.ok(nextSteps, `${slug} must link from its article, not only the navigation shell`);
+			for (const target of targets) {
+				assert.ok(nextSteps.includes(`](${target})`), `${slug} must link directly to ${target}`);
+				const [route, anchor] = target.split("#");
+				assert.ok(route && routeToSlug.has(route), `${target} needs a real destination`);
+				if (anchor) assert.ok(anchorResolves(route, anchor), `${target} needs a real reference heading`);
+			}
+		});
+	}
+
 	test("every navigation entry resolves to a page on disk", () => {
 		assert.ok(navPages.length > 40, "docs.json navigation was discovered, not hardcoded");
 		const slugs = new Set(diskSlugs);

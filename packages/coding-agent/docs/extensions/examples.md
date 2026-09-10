@@ -88,3 +88,7 @@ All examples in [examples/extensions/](https://github.com/bastani-inc/atomic/tre
 | `inline-bash.ts` | Inline bash in tool calls | `on("tool_call")` |
 | `bash-spawn-hook.ts` | Adjust bash command, cwd, and env before execution | `createBashTool`, `spawnHook` |
 | `with-deps/` | Extension with npm dependencies | Package structure with `package.json` |
+
+## Next steps
+
+Use the [Extension API reference](/extensions/api-reference) to check the context properties and method contracts used by these examples.

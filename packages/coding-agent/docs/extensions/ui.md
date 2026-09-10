@@ -464,3 +464,7 @@ const highlighted = highlightCode("const x = 1;", "typescript", theme);
 const lang = getLanguageFromPath("/path/to/file.rs");  // "rust"
 const highlighted = highlightCode(code, lang, theme);
 ```
+
+## Next steps
+
+Try the runnable [extension examples](/extensions/examples), and use the [Extension API reference](/extensions/api-reference) for context and method contracts.

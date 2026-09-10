@@ -16,6 +16,32 @@ export const WAIT_MAIN = "32059e25f6608770280eacc0285b49a454a3f2f0";
 export const SECOND_RECONCILIATION = "37bbd794fdcafac4b883e31e46d95eb60c26923d";
 export const WAIT_FOLLOWUP = "docs/migrations/2847-wait-main.json";
 export const PROVENANCE = "docs/migrations/2847-reconciliation/";
+// #2847 / PR #2971 review 3: exact append-only reader handoffs, not upstream changes.
+export const AUTHORING_PREDECESSOR = "8da40cc4ddb88b16baf8b4291722c6dabee8cfbb";
+const authoringReferenceAdditions = new Map(
+	[
+		[
+			"skills/authoring.md",
+			"Check the skill reference for [frontmatter fields](/skills/reference#frontmatter) and [validation rules](/skills/reference#validation) before sharing your skill.",
+		],
+		[
+			"extensions/authoring.md",
+			"Continue with [extension events](/extensions/events) to hook into the session lifecycle. Use the [Extension API reference](/extensions/api-reference) to look up context properties and registration methods.",
+		],
+		[
+			"extensions/events.md",
+			"Continue with [extension UI](/extensions/ui) to add user interaction. Look up the context available to event handlers in the [Extension API reference](/extensions/api-reference#extensioncontext).",
+		],
+		[
+			"extensions/ui.md",
+			"Try the runnable [extension examples](/extensions/examples), and use the [Extension API reference](/extensions/api-reference) for context and method contracts.",
+		],
+		[
+			"extensions/examples.md",
+			"Use the [Extension API reference](/extensions/api-reference) to check the context properties and method contracts used by these examples.",
+		],
+	].map(([path, paragraph]) => [`${DOCS}${path}`, `\n## Next steps\n\n${paragraph}\n`]),
+);
 const originalArtifacts = ["2847-baseline-inventory.json", "2847-destination-map.json", "2847-content-ledger.md"];
 const sourceCache = new Map();
 // Closed reviewed corrections: changing both a manifest and its checksum cannot authorize prose edits.
@@ -882,7 +908,7 @@ export function waitMainEvidence(delta) {
 	};
 }
 
-function verifyLatest({ repoRoot, revision, overrides, waitMain = false }) {
+function verifyLatest({ repoRoot, revision, overrides, waitMain = false, authoringReferences = false }) {
 	// Prove the immutable predecessor with the original rules; reverse the closed
 	// reader anchors, source-derived edits and new SDK pointer before the prior proof.
 	verify({ repoRoot, revision: FIRST_RECONCILIATION });
@@ -916,6 +942,14 @@ function verifyLatest({ repoRoot, revision, overrides, waitMain = false }) {
 		readerEdits.push(...waitDelta.edits, ...waitDelta.compatibility_pointers);
 	}
 	const restored = new Map();
+	if (authoringReferences) {
+		for (const [path, addition] of authoringReferenceAdditions) {
+			const text = current.read(path);
+			assert.ok(text.endsWith(addition), `authoring reference addition differs: ${path}`);
+			// Remove only the exact disclosed suffix. Every preceding byte still faces the prior proof.
+			restored.set(path, text.slice(0, -addition.length));
+		}
+	}
 	for (const edit of [...readerEdits].reverse()) {
 		const text = restored.get(edit.target_path) ?? current.read(edit.target_path);
 		restored.set(edit.target_path, replaceDelta(text, edit.after, edit.before, edit.target_path));
@@ -982,6 +1016,8 @@ function verifyLatest({ repoRoot, revision, overrides, waitMain = false }) {
 			))
 				expected = Buffer.from(replaceDelta(expected.toString("utf8"), edit.before, edit.after, path));
 		}
+		if (authoringReferences && authoringReferenceAdditions.has(path))
+			expected = Buffer.concat([expected, Buffer.from(authoringReferenceAdditions.get(path))]);
 		const actual = revision
 			? git(repoRoot, ["show", `${revision}:${path}`], undefined, "buffer")
 			: overrides?.has(path)
@@ -991,6 +1027,7 @@ function verifyLatest({ repoRoot, revision, overrides, waitMain = false }) {
 	}
 	return {
 		...result,
+		...(authoringReferences ? { authoringReferenceAdditions: authoringReferenceAdditions.size } : {}),
 		readerAnchorRepairs: delta.reader_anchor_repairs.length,
 		latestMain: {
 			revision: LATEST_MAIN,
@@ -1017,8 +1054,11 @@ export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
 	const commit = git(repoRoot, ["rev-parse", "--verify", `${revision}^{commit}`]).trim();
 	const latest = git(repoRoot, ["merge-base", commit, LATEST_MAIN]).trim() === LATEST_MAIN;
 	const waitMain = git(repoRoot, ["merge-base", commit, WAIT_MAIN]).trim() === WAIT_MAIN;
+	const authoringReferences =
+		commit !== AUTHORING_PREDECESSOR &&
+		git(repoRoot, ["merge-base", commit, AUTHORING_PREDECESSOR]).trim() === AUTHORING_PREDECESSOR;
 	const result = latest
-		? verifyLatest({ repoRoot, revision: commit, waitMain })
+		? verifyLatest({ repoRoot, revision: commit, waitMain, authoringReferences })
 		: verify({ repoRoot, revision: commit });
 	console.log(JSON.stringify({ mode: "committed", revision: commit, ...result }));
 	return result;
@@ -1026,7 +1066,7 @@ export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
 
 /** Explicit precommit mode; overrides are a disposable in-memory negative-control fixture. */
 export function verifyWorkingTreeDocumentation({ repoRoot, overrides = new Map() }) {
-	return verifyLatest({ repoRoot, overrides, waitMain: true });
+	return verifyLatest({ repoRoot, overrides, waitMain: true, authoringReferences: true });
 }
 
 if (
