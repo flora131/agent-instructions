@@ -335,7 +335,10 @@ describe("renderWidgetLines — standard form", () => {
 			message: "Which synthetic constellation?",
 			createdAt: now - 100,
 		});
-		assert.match(buildThemedWidgetLines(store.snapshot(), NULL_PI_THEME, 120, now).join("\n"), /F2 answer/);
+		assert.match(
+			buildThemedWidgetLines(store.snapshot(), NULL_PI_THEME, 120, now).join("\n"),
+			/Answer: \/workflow connect/,
+		);
 		assert.equal(store.recordStagePaused(runId, stage.id), true);
 		assert.equal(store.recordRunPaused(runId, now, { exitReason: "quit", resumable: true }), true);
 
@@ -1189,8 +1192,8 @@ describe("renderWidgetLines — awaiting-input affordances", () => {
 			const joined = lines.join("\n");
 			assert.equal(lines.length, 6, "waiting cards add exactly two rows to the ordinary card");
 			assert.ok(joined.includes(`"${message}"`));
-			assert.ok(joined.includes(`/workflow connect ${run.id}`));
-			assert.ok(joined.includes("F2 answer"));
+			assert.ok(joined.includes(`Answer: /workflow connect ${run.id}`));
+			assert.doesNotMatch(joined, /F2 answer/);
 			assert.ok(joined.includes(statusIcon("awaiting_input")));
 		}
 	});
@@ -1333,7 +1336,53 @@ describe("renderWidgetLines — awaiting-input affordances", () => {
 		}
 	});
 
-	test("only the store active run gets the F2 answer hint", () => {
+	// #2700: every attention card must have a safe CTA before removing the fallback.
+	test("keeps generic header guidance for every status-only and mixed attention case", () => {
+		const single = awaitingRun("safe-root", "safe", "Approve safe?");
+		const promptless = makeRun("promptless-root", "promptless", "running", [
+			makeStage("ask", "ask", "awaiting_input"),
+		]);
+		const multiple = awaitingRun("multiple-root", "multiple", "First question?");
+		multiple.stages.push(
+			makeStage("other", "other", "awaiting_input", {
+				pendingPrompt: { id: "other-prompt", kind: "confirm", message: "Second question?", createdAt: 1 },
+			}),
+		);
+		const form = makeRun("form-root", "form", "running", [
+			makeStage("ask", "ask", "awaiting_input", {
+				inputRequest: {
+					id: "form-request",
+					kind: "ask_user_question",
+					questions: [
+						{ question: "First field?", options: [] },
+						{ question: "Second field?", options: [] },
+					],
+					createdAt: 1,
+				},
+			}),
+		]);
+		for (const theme of [undefined, NULL_PI_THEME]) {
+			for (const ambiguous of [promptless, multiple, form]) {
+				for (const runs of [[ambiguous], [single, ambiguous], [ambiguous, single]]) {
+					const lines = buildThemedWidgetLines(makeSnap(runs), theme, 180).map(stripAnsi);
+					assert.ok(
+						lines[0]!.includes(
+							`？ ↵ ${runs.length} needs attention (attach to workflow with \`/workflow connect\`)`,
+						),
+					);
+					assert.ok(!lines.join("\n").includes(`Answer: /workflow connect ${ambiguous.id}`));
+					assert.equal(lines.join("\n").includes(`Answer: /workflow connect ${single.id}`), runs.includes(single));
+				}
+			}
+			for (const runs of [[single], [single, awaitingRun("another-safe", "another", "Approve another?")]]) {
+				const lines = buildThemedWidgetLines(makeSnap(runs), theme, 180).map(stripAnsi);
+				assert.ok(lines[0]!.includes(`？ ↵ ${runs.length} needs attention`));
+				assert.doesNotMatch(lines[0]!, /attach to workflow/);
+			}
+		}
+	});
+
+	test("each safe waiting root advertises only its exact Answer command", () => {
 		const first = awaitingRun("first-waiting-root", "first-waiting", "Answer first?", Date.now() - 2_000);
 		const second = awaitingRun("second-waiting-root", "second-waiting", "Answer second?", Date.now() - 1_000);
 		const lines = renderWidgetLines(makeSnap([first, second]), 120).map(stripAnsi);
@@ -1343,11 +1392,12 @@ describe("renderWidgetLines — awaiting-input affordances", () => {
 		const firstAction = lines.slice(firstName).find((line) => line.includes("/workflow connect"));
 		const secondAction = lines.slice(secondName).find((line) => line.includes("/workflow connect"));
 		assert.ok(firstAction !== undefined && secondAction !== undefined);
-		assert.doesNotMatch(firstAction!, /F2 answer/);
-		assert.match(secondAction!, /F2 answer/);
+		assert.ok(firstAction!.includes(`Answer: /workflow connect ${first.id}`));
+		assert.ok(secondAction!.includes(`Answer: /workflow connect ${second.id}`));
+		assert.doesNotMatch(lines.join("\n"), /F2 answer|❯|to answer/);
 	});
 
-	test("a newer non-awaiting active run suppresses F2 on an older waiting card", () => {
+	test("a newer non-awaiting active run leaves the older waiting card's exact command intact", () => {
 		const waiting = awaitingRun("older-waiting-root", "older-waiting", "Answer the older run?", Date.now() - 2_000);
 		const newer = makeRun("newer-active-root", "newer-active", "running", [], Date.now() - 1_000);
 		const lines = renderWidgetLines(makeSnap([waiting, newer]), 120).map(stripAnsi);
@@ -1379,6 +1429,26 @@ describe("renderWidgetLines — awaiting-input affordances", () => {
 		assert.equal(collapsed.length, 1);
 		assert.ok(!collapsed.join("\n").includes("Approve this generated migration"));
 		assert.ok(!collapsed.join("\n").includes("/workflow connect"));
+	});
+
+	// #2700: IDs remain verbatim even when the command needs continuation rows.
+	test("wraps long identifiers without ellipsis and bounds Unicode questions", () => {
+		const runId = "full-identifier-".repeat(12);
+		const run = awaitingRun(runId, "unicode", "承認 é 確認 ".repeat(30));
+		for (const theme of [undefined, NULL_PI_THEME]) {
+			for (const width of [80, 81, 120]) {
+				const lines = buildThemedWidgetLines(makeSnap([run]), theme, width).map(stripAnsi);
+				for (const line of lines) assert.equal(visibleWidth(line), width);
+				const actionIndex = lines.findIndex((line) => line.includes("Answer: /workflow connect "));
+				assert.ok(actionIndex >= 0);
+				const command = lines
+					.slice(actionIndex, -1)
+					.map((line) => line.slice(1, -1).trim())
+					.join("");
+				assert.equal(command, `Answer: /workflow connect ${runId}`);
+				assert.match(lines.find((line) => line.includes('"')) ?? "", /".*…"/u);
+			}
+		}
 	});
 
 	test("keeps waiting rows width-safe with exact pending targets and live-tool metadata", () => {
@@ -1494,7 +1564,7 @@ describe("renderWidgetLines — awaiting-input affordances", () => {
 		const lines = buildThemedWidgetLines(makeSnap([run]), NULL_PI_THEME, 120);
 		const joined = lines.join("\n");
 		assert.ok(joined.includes(hexToAnsi(theme.info)));
-		assert.ok(lines.some((line) => line.includes(`${hexToAnsi(theme.info)}    ❯`)));
+		assert.ok(lines.some((line) => line.includes(`${hexToAnsi(theme.info)}     Answer:`)));
 	});
 });
 

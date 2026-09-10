@@ -307,7 +307,7 @@ function metaLine(
 // Count badges for the band header
 // ---------------------------------------------------------------------------
 
-function countBadges(counts: RunCounts, theme: GraphTheme): FlatBandBadge[] {
+function countBadges(counts: RunCounts, theme: GraphTheme, needsConnectGuidance: boolean): FlatBandBadge[] {
 	const badges: FlatBandBadge[] = [];
 	if (counts.active > 0) {
 		badges.push({ text: `● ${counts.active} running`, fg: theme.warning });
@@ -323,7 +323,7 @@ function countBadges(counts: RunCounts, theme: GraphTheme): FlatBandBadge[] {
 	// question-mark status glyph, then keep ↵ as the attach/respond action hint.
 	if (counts.awaiting > 0) {
 		badges.push({
-			text: `${statusIcon("awaiting_input")} ↵ ${counts.awaiting} needs attention (attach to workflow with \`/workflow connect\`)`,
+			text: `${statusIcon("awaiting_input")} ↵ ${counts.awaiting} needs attention${needsConnectGuidance ? " (attach to workflow with `/workflow connect`)" : ""}`,
 			fg: theme.info,
 		});
 	}
@@ -408,13 +408,8 @@ function renderAwaitingPromptLine(message: string, bodyWidth: number, theme: Gra
 	return theme === undefined ? row : `${hexToAnsi(theme.info)}${row}${RESET}`;
 }
 
-function renderAwaitingActionLines(
-	visibleRunId: string,
-	bodyWidth: number,
-	theme: GraphTheme | undefined,
-	f2TargetsThisRun: boolean,
-): string[] {
-	const prefix = f2TargetsThisRun ? "    ❯ F2 answer · /workflow connect " : "    ❯ /workflow connect ";
+function renderAwaitingActionLines(visibleRunId: string, bodyWidth: number, theme: GraphTheme | undefined): string[] {
+	const prefix = "     Answer: /workflow connect ";
 	const rows = wrapIdentifierLines(visibleRunId, bodyWidth, prefix, "      ");
 	return rows.map((row) => {
 		const text = `${row.prefix}${row.chunk}`;
@@ -429,7 +424,6 @@ function awaitingRunLines(
 	allRuns: readonly RunSnapshot[],
 	affordance: PendingInputAffordance,
 	bodyWidth: number,
-	f2TargetsThisRun: boolean,
 	expandGraph: ReturnType<typeof createWorkflowGraphExpander>,
 ): string[] {
 	const meta = metaLine(run, expandGraph, now, runMetaWidth(run, bodyWidth + 2));
@@ -448,7 +442,7 @@ function awaitingRunLines(
 		width: bodyWidth,
 	});
 	identity.push(renderAwaitingPromptLine(affordance.message, bodyWidth, theme));
-	identity.push(...renderAwaitingActionLines(affordance.visibleRunId, bodyWidth, theme, f2TargetsThisRun));
+	identity.push(...renderAwaitingActionLines(affordance.visibleRunId, bodyWidth, theme));
 	return identity;
 }
 
@@ -547,12 +541,18 @@ export function buildThemedWidgetLines(
 	const total = display.length;
 	const subtitle = `${total} run${total === 1 ? "" : "s"}`;
 
-	const badgeList = countBadges(visibleCounts, graphTheme);
+	const needsConnectGuidance = display.some(
+		(run) =>
+			run.endedAt === undefined &&
+			!isQuitRun(run) &&
+			subtreeAwaitsInput(run, snap.runs) &&
+			pendingInputAffordance(run, snap.runs) === undefined,
+	);
+	const badgeList = countBadges(visibleCounts, graphTheme, needsConnectGuidance);
 	const badges = formatTitleBadges(badgeList, graphTheme, themed);
 	const title = `BACKGROUND  ${subtitle}${badges ? `  ${badges}` : ""}`;
 	const body: string[] = [];
 	const expandGraph = createWorkflowGraphExpander(snap);
-	const activeRunId = deriveActiveRunId(snap.runs);
 	const bodyWidth = Math.max(2, width - 2);
 
 	for (let i = 0; i < display.length; i++) {
@@ -561,16 +561,7 @@ export function buildThemedWidgetLines(
 		const indicator = runIndicatorStatus(run, snap.runs);
 		const runLines =
 			!isQuitRun(run) && indicator === "awaiting_input" && affordance !== undefined
-				? awaitingRunLines(
-						run,
-						now,
-						themed ? graphTheme : undefined,
-						snap.runs,
-						affordance,
-						bodyWidth,
-						activeRunId === affordance.visibleRunId,
-						expandGraph,
-					)
+				? awaitingRunLines(run, now, themed ? graphTheme : undefined, snap.runs, affordance, bodyWidth, expandGraph)
 				: themed
 					? themedRunLines(run, now, graphTheme, snap.runs, width, expandGraph)
 					: plainRunLines(run, now, snap.runs, width, expandGraph);

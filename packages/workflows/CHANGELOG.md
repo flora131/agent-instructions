@@ -27,6 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Added a live needs-input affordance to the wide `BACKGROUND` panel for a visible run tree with exactly one displayable human-in-the-loop prompt. The card preserves the full workflow identity and width-bounded pending-stage/tool metadata, shows a bounded, terminal-control-stripped question and exact `Answer: /workflow connect <full-run-id>` action without a duplicate F2 hint, and repaints back to the ordinary row when the exact prompt clears. The header keeps generic connect guidance whenever any visible workflow needing attention lacks its own answer action. Interactive users answer through F2 or the connected workflow, while agents retain the exact `workflow answer` run/stage/prompt path; promptless, multi-question, or ambiguous trees remain status-only, and the live affordance itself stays outside parent chat and model context without changing existing answer notices ([#2700](https://github.com/bastani-inc/atomic/pull/2700) by [@Shreyasd10](https://github.com/Shreyasd10), related to [#2529](https://github.com/bastani-inc/atomic/issues/2529)).
 - Added effective model and thinking identity to graph node cards, preserving thinking and canonical fast model suffixes in narrow rows and restoring identity through durable resume. Live fallback replacements update the model row; the `BACKGROUND` widget is unchanged ([#1859](https://github.com/bastani-inc/atomic/pull/1859) by [@sina85](https://github.com/sina85)).
 
 ### Fixed

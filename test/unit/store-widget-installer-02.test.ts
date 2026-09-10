@@ -294,7 +294,8 @@ describe("installStoreWidget", () => {
 		assert.ok(renderRequests.count > requestsBeforePrompt, "prompt creation must request an in-place repaint");
 		const waiting = component.render(120).join("\n");
 		assert.match(waiting, /"Approve the deployment\?"/);
-		assert.match(waiting, /❯ F2 answer · \/workflow connect r1/);
+		assert.match(waiting, /Answer: \/workflow connect r1/);
+		assert.doesNotMatch(waiting, /F2 answer|attach to workflow/);
 
 		assert.equal(storeInstance.resolveStagePendingPrompt("wrong-run", "s1", "prompt-1", true), false);
 		assert.equal(storeInstance.resolveStagePendingPrompt("r1", "wrong-stage", "prompt-1", true), false);
