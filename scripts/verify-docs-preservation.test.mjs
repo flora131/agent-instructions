@@ -6,11 +6,16 @@ import {
 	BASELINE,
 	DOCS,
 	digest,
+	FIRST_RECONCILIATION,
+	FOLLOWUP,
+	LATEST_MAIN,
+	latestMainEvidence,
 	MAIN,
 	normalize,
 	orderedContains,
 	PR,
 	PROVENANCE,
+	reconstructLatestMainDelta,
 	splitBlocks,
 	verifyCommittedDocumentation,
 	verifyWorkingTreeDocumentation,
@@ -31,6 +36,8 @@ test("two immutable source corpora and the original PR connective content are pr
 	assert.equal(result.main.historical, 0);
 	assert.deepEqual(result.prConnective, { blocks: 514, lines: 1255 });
 	assert.equal(result.readerPages, 85);
+	assert.deepEqual(result.latestMain, { revision: LATEST_MAIN, pages: 47, unchangedPages: 44, edits: 5 });
+	assert.equal(result.readerAnchorRepairs, 4);
 });
 
 function deletionFixture(source, kind) {
@@ -324,4 +331,162 @@ test("still-valid retention claims cannot omit reviewed source lines", () => {
 			),
 		/reviewed still-valid reader retention changed/u,
 	);
+});
+
+// #2847 / PR #2971: newest-main proof is a closed source delta, not a refreshed reader hash.
+const latestDelta = reconstructLatestMainDelta(repoRoot);
+for (const [index, edit] of latestDelta.edits.entries()) {
+	test(`latest-main addition ${index + 1} cannot be deleted or tampered with at ${edit.target_path}`, () => {
+		const text = read(edit.target_path);
+		assert.ok(text.includes(edit.after));
+		assert.throws(
+			() => check(new Map([[edit.target_path, text.replace(edit.after, () => edit.before)]])),
+			/latest-main delta must occur exactly once/u,
+		);
+		const addedLine = edit.after.split("\n").find((line) => line && !edit.before.split("\n").includes(line));
+		assert.ok(addedLine);
+		assert.throws(
+			() => check(new Map([[edit.target_path, text.replace(addedLine, `${addedLine} altered`)]])),
+			/latest-main delta must occur exactly once/u,
+		);
+	});
+}
+
+test("latest-main source inventory covers every page and rejects omitted or forged evidence", () => {
+	assert.deepEqual(JSON.parse(read(FOLLOWUP)), latestMainEvidence(latestDelta));
+	assert.equal(latestDelta.pages.length, 47);
+	assert.deepEqual(
+		latestDelta.pages.filter((page) => !page.unchanged).map((page) => page.path),
+		["background-tasks.md", "sdk.md", "tools.md"].map((path) => DOCS + path),
+	);
+	for (const change of [
+		(record) => record.unchanged_source_paths.pop(),
+		(record) => record.changed_source_pages.pop(),
+		(record) => record.edits.pop(),
+		(record) => {
+			record.source_trees.unchanged_sha256 = "0".repeat(64);
+		},
+		(record) => {
+			record.edits[0].after_sha256 = "0".repeat(64);
+		},
+		(record) => {
+			record.edits[1].target_path = `${DOCS}sdk.md`;
+		},
+	])
+		assert.throws(() => check(changedJSON(FOLLOWUP, change)), /latest-main evidence does not reconstruct/u);
+});
+
+test("SDK additions are active in its reference and the SDK hub remains exactly the predecessor", async () => {
+	const { execFileSync } = await import("node:child_process");
+	const oldHub = execFileSync("git", ["show", `${FIRST_RECONCILIATION}:${DOCS}sdk.md`], {
+		cwd: repoRoot,
+		encoding: "utf8",
+	});
+	assert.equal(read(`${DOCS}sdk.md`), oldHub);
+	for (const edit of latestDelta.edits.filter((row) => row.source_path === `${DOCS}sdk.md`))
+		assert.ok(read(`${DOCS}sdk/reference.md`).includes(edit.after));
+	const path = `${DOCS}sdk/reference.md`;
+	const sentence = "Specify which tools to expose by name:";
+	assert.throws(() => check(new Map([[path, read(path).replace(sentence, "")]])), /latest-main delta/u);
+});
+
+test("exact closure rejects old whitespace loss and frozen manifest reformatting", () => {
+	const path = `${DOCS}build.md`;
+	assert.ok(read(path).includes("\n\n"));
+	assert.throws(() => check(new Map([[path, read(path).replace("\n\n", "\n")]])), /latest-main exact preservation/u);
+	const manifestPath = `${PROVENANCE}manifest.json`;
+	assert.throws(() => check(new Map([[manifestPath, `${read(manifestPath)}\n`]])), /latest-main exact preservation/u);
+});
+
+test("committed predecessor proof works from a data URL with filesystem document reads forbidden", async () => {
+	const { spawnSync } = await import("node:child_process");
+	const source = read("scripts/verify-docs-preservation.mjs");
+	const child = spawnSync(process.execPath, ["--input-type=module", "-"], {
+		cwd: repoRoot,
+		input: `import fs from 'node:fs'; import { syncBuiltinESMExports } from 'node:module';
+		const module = await import(${JSON.stringify(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`)});
+		fs.readFileSync = fs.readdirSync = () => { throw new Error('working-tree read forbidden'); };
+		syncBuiltinESMExports();
+		const result = module.verifyCommittedDocumentation({repoRoot: ${JSON.stringify(repoRoot)}, revision: module.FIRST_RECONCILIATION});
+		if (result.readerPages !== 85 || module.MAIN !== ${JSON.stringify(MAIN)}) process.exit(2);
+		try { module.verifyCommittedDocumentation({repoRoot: ${JSON.stringify(repoRoot)}, revision: module.LATEST_MAIN}); process.exit(3); }
+		catch (error) { if (!error.message.includes(module.FOLLOWUP)) throw error; }`,
+		encoding: "utf8",
+		timeout: 30_000,
+	});
+	assert.equal(child.status, 0, child.stderr);
+});
+
+test("latest-main executable example and cancellation caveats cannot be lost behind retained headings", () => {
+	for (const [path, fragment] of [
+		["background-tasks.md", "\nkill({ id: taskId })\n"],
+		["background-tasks.md", "Cleanup failures remain errors, not successful stops."],
+		["tools.md", "A request is not confirmation of termination."],
+		["sdk/reference.md", "Without a binding they reject execution."],
+	]) {
+		const text = read(DOCS + path);
+		assert.ok(text.includes(fragment));
+		assert.throws(() => check(new Map([[DOCS + path, text.replace(fragment, "")]])), /latest-main delta/u);
+	}
+});
+
+test("exact preservation compares original image bytes, not lossy UTF-8 strings", () => {
+	const path = `${DOCS}images/workflow-graph.png`;
+	const bytes = readFileSync(resolve(repoRoot, path));
+	const changed = Buffer.from(bytes);
+	// An invalid UTF-8 lead byte can decode to the same replacement character as another.
+	const index = bytes.findIndex((byte, at) => byte === 0xff && bytes[at + 1] < 0x80);
+	assert.ok(index >= 0);
+	changed[index] = 0xfe;
+	assert.equal(changed.toString("utf8"), bytes.toString("utf8"));
+	assert.throws(() => check(new Map([[path, changed]])), /latest-main exact preservation/u);
+});
+
+// #2847 / PR #2971: the four reader repairs are additive, closed, and exactly positioned.
+for (const repair of latestDelta.reader_anchor_repairs) {
+	test(`reader anchor ${repair.id} cannot be missing, forged, moved, fenced, or duplicated`, () => {
+		const text = read(repair.target_path);
+		const exact = `${repair.addition}${repair.heading}\n`;
+		assert.equal(text.split(exact).length, 2);
+		for (const replacement of [
+			`${repair.heading}\n`,
+			exact.replace(`id="${repair.id}"`, 'id="forged"'),
+			`${repair.heading}\n\n${repair.addition}`,
+			`\`\`\`html\n${repair.addition}\`\`\`\n${repair.heading}\n`,
+			`${repair.addition}${exact}`,
+		]) {
+			assert.throws(() => check(new Map([[repair.target_path, text.replace(exact, replacement)]])));
+		}
+	});
+}
+
+test("reader-anchor evidence cannot authorize omitted, forged, or arbitrary additions", () => {
+	assert.equal(latestDelta.reader_anchor_repairs.length, 4);
+	for (const change of [
+		(record) => record.reader_anchor_repairs.pop(),
+		(record) => {
+			record.reader_anchor_repairs[0].id = "forged";
+		},
+		(record) => {
+			record.reader_anchor_repairs[0].addition = '<a id="forged" />\n\n';
+		},
+		(record) => {
+			record.reader_anchor_repairs[0].predecessor_heading_line++;
+		},
+		(record) => {
+			record.reader_anchor_repairs[0].heading = "#### 3. Adversarial verification";
+		},
+		(record) => record.reader_anchor_repairs.push({ ...record.reader_anchor_repairs[0], id: "arbitrary" }),
+	])
+		assert.throws(() => check(changedJSON(FOLLOWUP, change)), /latest-main evidence does not reconstruct/u);
+	const repair = latestDelta.reader_anchor_repairs[0];
+	const text = read(repair.target_path);
+	assert.throws(() => check(new Map([[repair.target_path, `${text}\n<a id="arbitrary" />\n`]])));
+	// Even forged matching evidence and reader bytes cannot extend the closed policy.
+	const overrides = changedJSON(FOLLOWUP, (record) => {
+		record.reader_anchor_repairs[0].id = "forged";
+		record.reader_anchor_repairs[0].addition = '<a id="forged" />\n\n';
+	});
+	overrides.set(repair.target_path, text.replace(`id="${repair.id}"`, 'id="forged"'));
+	assert.throws(() => check(overrides), /latest-main evidence does not reconstruct/u);
 });

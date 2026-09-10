@@ -9,6 +9,9 @@ export const BASELINE = "59586efd26afd32a27c999ac8bcce102777e40e4";
 export const PR = "24f58842493deb8ec15dea44ef7e25936feeea60";
 export const MAIN = "cb13229bebe30ea7cb65689569569494b4bc651c";
 export const DOCS = "packages/coding-agent/docs/";
+export const FIRST_RECONCILIATION = "bf8dcd1bc02a7cb02caf557bb13d281b260c1704";
+export const LATEST_MAIN = "daf6d2747ce95ae25d0b7e46660d92f0c39101d8";
+export const FOLLOWUP = "docs/migrations/2847-latest-main.json";
 export const PROVENANCE = "docs/migrations/2847-reconciliation/";
 const originalArtifacts = ["2847-baseline-inventory.json", "2847-destination-map.json", "2847-content-ledger.md"];
 const sourceCache = new Map();
@@ -17,13 +20,13 @@ const REVIEWED_CORRECTIONS_SHA256 = "89912afa14fa7efe86737b9c1c0db60f9a41e533575
 export const digest = (text) => createHash("sha256").update(text, "utf8").digest("hex");
 
 const gitSnapshotCache = new Map();
-function git(repoRoot, args, input) {
-	const key = JSON.stringify([realpathSync(repoRoot), args, input]);
+function git(repoRoot, args, input, encoding = "utf8") {
+	const key = JSON.stringify([realpathSync(repoRoot), args, input, encoding]);
 	// Resolve a caller's revision afresh; all subsequent reads use the resolved commit.
 	const cacheable = args[0] !== "rev-parse";
 	if (cacheable && gitSnapshotCache.has(key)) return gitSnapshotCache.get(key);
 	const output = execFileSync("git", ["-C", repoRoot, ...args], {
-		encoding: "utf8",
+		encoding,
 		input,
 		timeout: 30_000,
 		maxBuffer: 64 * 1024 * 1024,
@@ -401,8 +404,8 @@ function transformed(text, row, corrections, read, sourceRows, original) {
 	return result;
 }
 
-function verify({ repoRoot, revision, overrides }) {
-	const { read, pages } = reader(repoRoot, revision, overrides);
+function verify({ repoRoot, revision, overrides, snapshot }) {
+	const { read, pages } = snapshot ?? reader(repoRoot, revision, overrides);
 	for (const name of originalArtifacts) {
 		const path = `docs/migrations/${name}`;
 		assert.equal(
@@ -661,17 +664,219 @@ function verify({ repoRoot, revision, overrides }) {
 	};
 }
 
+// The first proof and its manifests stay frozen. This small, closed delta is reconstructed
+// from both immutable main sources, not authorized by hashes of the resulting reader pages.
+export function reconstructLatestMainDelta(repoRoot) {
+	const specs = [
+		["background-tasks.md", "background-tasks.md", 168, 6, 168, 18],
+		["sdk.md", "sdk/reference.md", 795, 7, 795, 7],
+		["sdk.md", "sdk/reference.md", 910, 6, 910, 8],
+		["tools.md", "tools.md", 1, 6, 1, 6],
+		["tools.md", "tools.md", 42, 6, 42, 12],
+	];
+	// Include non-Markdown assets and navigation in the unchanged-source proof too.
+	const changedPaths = new Set(specs.map(([path]) => DOCS + path));
+	const tree = (revision) => git(repoRoot, ["ls-tree", "-r", revision, "--", DOCS]);
+	const previousTree = tree(MAIN),
+		latestTree = tree(LATEST_MAIN);
+	const unchangedTree = (text) =>
+		text
+			.split("\n")
+			.filter((line) => !changedPaths.has(line.split("\t")[1]))
+			.join("\n");
+	assert.equal(unchangedTree(latestTree), unchangedTree(previousTree), "unmapped latest-main source file change");
+	const sourceTrees = {
+		previous_sha256: digest(previousTree),
+		latest_sha256: digest(latestTree),
+		unchanged_sha256: digest(unchangedTree(previousTree)),
+	};
+	const sourcePaths = (revision) =>
+		git(repoRoot, ["ls-tree", "-r", "--name-only", revision, "--", DOCS])
+			.trim()
+			.split("\n")
+			.filter((path) => /\.mdx?$/u.test(path))
+			.sort();
+	const paths = sourcePaths(LATEST_MAIN);
+	assert.deepEqual(paths, sourcePaths(MAIN), "latest-main source path set changed");
+	const source = (revision, path) => git(repoRoot, ["show", `${revision}:${path}`]);
+	const slice = (revision, path, start, count) =>
+		`${source(revision, DOCS + path)
+			.split("\n")
+			.slice(start - 1, start - 1 + count)
+			.join("\n")}\n`;
+	const edits = specs.map(([path, target, oldStart, oldCount, newStart, newCount]) => ({
+		source_path: DOCS + path,
+		target_path: DOCS + target,
+		previous_lines: [oldStart, oldStart + oldCount - 1],
+		latest_lines: [newStart, newStart + newCount - 1],
+		before: slice(MAIN, path, oldStart, oldCount),
+		after: slice(LATEST_MAIN, path, newStart, newCount),
+	}));
+	const pages = paths.map((path) => {
+		const before = source(MAIN, path),
+			after = source(LATEST_MAIN, path);
+		let expected = before;
+		for (const edit of edits.filter((row) => row.source_path === path))
+			expected = replaceDelta(expected, edit.before, edit.after, path);
+		assert.equal(expected, after, `unmapped latest-main source change: ${path}`);
+		return { path, previous_sha256: digest(before), latest_sha256: digest(after), unchanged: before === after };
+	});
+	// Closed additive reader repairs, not upstream edits or new source-inventory rules.
+	// Mintlify 4.2.731 generates no h5 ID; preserve each existing heading and link verbatim.
+	const anchorPath = `${DOCS}workflows/reliable-design.md`;
+	const predecessorLines = source(FIRST_RECONCILIATION, anchorPath).split("\n");
+	const readerAnchorRepairs = [
+		[1451, "3. Adversarial verification", "3-adversarial-verification"],
+		[1517, "5. Tournament", "5-tournament"],
+		[1550, "6. Loop until done", "6-loop-until-done"],
+		[1611, "Stacked implementation slices starter pattern", "stacked-implementation-slices-starter-pattern"],
+	].map(([line, title, id]) => {
+		const heading = `##### ${title}`;
+		assert.equal(predecessorLines[line - 1], heading, "reader-anchor predecessor heading differs");
+		return {
+			kind: "additive-reader-anchor",
+			target_path: anchorPath,
+			predecessor_heading_line: line,
+			heading,
+			id,
+			addition: `<a id="${id}" />\n\n`,
+		};
+	});
+	return {
+		schema: "2847-latest-main-v1",
+		predecessor: FIRST_RECONCILIATION,
+		previous_main: MAIN,
+		latest_main: LATEST_MAIN,
+		source_trees: sourceTrees,
+		pages,
+		edits,
+		reader_anchor_repairs: readerAnchorRepairs,
+	};
+}
+
+function replaceDelta(text, before, after, path) {
+	assert.equal(text.split(before).length, 2, `latest-main delta must occur exactly once: ${path}`);
+	return text.replace(before, () => after);
+}
+
+export function latestMainEvidence(delta) {
+	return {
+		schema: delta.schema,
+		predecessor: delta.predecessor,
+		previous_main: delta.previous_main,
+		latest_main: delta.latest_main,
+		source_trees: delta.source_trees,
+		history: {
+			revision: FIRST_RECONCILIATION,
+			path: DOCS,
+			policy:
+				"The complete older reader corpus, including superseded default-tool lists, remains at this immutable predecessor. All existing reader bytes remain active except the two exact default-tool list updates; five source-derived edits add the latest main instructions. Original baseline and first-reconciliation artifacts remain byte-identical.",
+		},
+		pages_sha256: digest(JSON.stringify(delta.pages)),
+		unchanged_source_paths: delta.pages.filter((page) => page.unchanged).map((page) => page.path),
+		changed_source_pages: delta.pages.filter((page) => !page.unchanged),
+		edits: delta.edits.map(({ before, after, ...location }) => ({
+			...location,
+			before_sha256: digest(before),
+			after_sha256: digest(after),
+		})),
+		reader_anchor_repairs: delta.reader_anchor_repairs,
+	};
+}
+
+function verifyLatest({ repoRoot, revision, overrides }) {
+	// Prove the immutable predecessor with the original rules; reverse only the closed
+	// reader anchors and five independently source-derived edits before the prior proof.
+	verify({ repoRoot, revision: FIRST_RECONCILIATION });
+	const current = reader(repoRoot, revision, overrides);
+	const delta = reconstructLatestMainDelta(repoRoot);
+	assert.deepEqual(
+		JSON.parse(current.read(FOLLOWUP)),
+		latestMainEvidence(delta),
+		"latest-main evidence does not reconstruct",
+	);
+	const readerEdits = [
+		...delta.edits,
+		...delta.reader_anchor_repairs.map((repair) => ({
+			target_path: repair.target_path,
+			before: `\n${repair.heading}\n`,
+			after: `\n${repair.addition}${repair.heading}\n`,
+		})),
+	];
+	const restored = new Map();
+	for (const edit of [...readerEdits].reverse()) {
+		const text = restored.get(edit.target_path) ?? current.read(edit.target_path);
+		restored.set(edit.target_path, replaceDelta(text, edit.after, edit.before, edit.target_path));
+	}
+	const result = verify({
+		repoRoot,
+		snapshot: {
+			pages: current.pages,
+			read: (path) => restored.get(path) ?? current.read(path),
+		},
+	});
+	// Byte-exact closure includes all docs assets/navigation, histories, and original and
+	// supplemental manifests. No refreshed final snapshot can bless an unrelated change.
+	const roots = [DOCS, "docs/migrations/"];
+	const frozenPaths = git(repoRoot, ["ls-tree", "-r", "--name-only", FIRST_RECONCILIATION, "--", ...roots])
+		.trim()
+		.split("\n");
+	const currentPaths = revision
+		? git(repoRoot, ["ls-tree", "-r", "--name-only", revision, "--", ...roots])
+				.trim()
+				.split("\n")
+		: roots.flatMap((root) =>
+				readdirSync(join(repoRoot, root), { recursive: true, withFileTypes: true })
+					.filter((entry) => entry.isFile())
+					.map((entry) =>
+						posix.join(
+							root,
+							resolve(entry.parentPath, entry.name)
+								.slice(resolve(repoRoot, root).length + 1)
+								.replaceAll("\\", "/"),
+						),
+					),
+			);
+	assert.deepEqual(
+		currentPaths.filter((path) => path !== FOLLOWUP).sort(),
+		frozenPaths.sort(),
+		"latest-main reconciliation changed the frozen file set",
+	);
+	for (const path of frozenPaths) {
+		let expected = git(repoRoot, ["show", `${FIRST_RECONCILIATION}:${path}`], undefined, "buffer");
+		for (const edit of readerEdits.filter((row) => row.target_path === path))
+			expected = Buffer.from(replaceDelta(expected.toString("utf8"), edit.before, edit.after, path));
+		const actual = revision
+			? git(repoRoot, ["show", `${revision}:${path}`], undefined, "buffer")
+			: overrides?.has(path)
+				? Buffer.from(overrides.get(path))
+				: readFileSync(join(repoRoot, path));
+		assert.ok(actual.equals(expected), `latest-main exact preservation differs: ${path}`);
+	}
+	return {
+		...result,
+		readerAnchorRepairs: delta.reader_anchor_repairs.length,
+		latestMain: {
+			revision: LATEST_MAIN,
+			pages: delta.pages.length,
+			unchangedPages: delta.pages.filter((page) => page.unchanged).length,
+			edits: delta.edits.length,
+		},
+	};
+}
+
 /** Committed mode never consults working-tree docs, manifests, or ledger. Safe through a data URL. */
 export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
 	const commit = git(repoRoot, ["rev-parse", "--verify", `${revision}^{commit}`]).trim();
-	const result = verify({ repoRoot, revision: commit });
+	const latest = git(repoRoot, ["merge-base", commit, LATEST_MAIN]).trim() === LATEST_MAIN;
+	const result = latest ? verifyLatest({ repoRoot, revision: commit }) : verify({ repoRoot, revision: commit });
 	console.log(JSON.stringify({ mode: "committed", revision: commit, ...result }));
 	return result;
 }
 
 /** Explicit precommit mode; overrides are a disposable in-memory negative-control fixture. */
 export function verifyWorkingTreeDocumentation({ repoRoot, overrides = new Map() }) {
-	return verify({ repoRoot, overrides });
+	return verifyLatest({ repoRoot, overrides });
 }
 
 if (

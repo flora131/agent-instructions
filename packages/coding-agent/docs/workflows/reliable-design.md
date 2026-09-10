@@ -1448,6 +1448,8 @@ Best practices:
 - Save each branch to a separate artifact and pass paths with `reads` instead of inlining all branch output.
 - Treat synthesis as a barrier: it waits for every branch, deduplicates, resolves conflicts, and cites evidence.
 
+<a id="3-adversarial-verification" />
+
 ##### 3. Adversarial verification
 
 Builtin definition and contracts: [Six composable pattern builtins](/workflows/builtins#six-composable-pattern-builtins).
@@ -1514,6 +1516,8 @@ Best practices:
 - When the filter ranks candidates rather than applying a threshold, use the same judge guidance as Tournament: graded per-criterion integer scores rather than binary keep/drop, a Bradley–Terry preference from the score gap so near-ties stay near-ties, and K repeats with candidates swapped between the A and B slots. See [Verification scaling](#verification-scaling).
 - For a custom ranking filter, reuse the shared `verification-criteria` module and its `criteria.md` parser rather than inventing a binary keep/drop rubric; stable criterion ids let the judge select the same criteria in each comparison. See [Adversarial verification](#3-adversarial-verification) for the accepted shapes and score decision.
 
+<a id="5-tournament" />
+
 ##### 5. Tournament
 
 Builtin definition and contracts: [Six composable pattern builtins](/workflows/builtins#six-composable-pattern-builtins).
@@ -1546,6 +1550,8 @@ Best practices:
 - See [Verification scaling](#verification-scaling) for score granularity and call-budget trade-offs.
 - The shipped tournament inputs use `num_attempts=4` and `max_concurrency=4`; `n_evaluations=2` repeats each criterion/directed pair, `pivots=1` selects the second comparison phase's pivot candidates, and `seed=0` drives the deterministic schedule. `criteria` is optional and accepts a markdown rubric, a string-to-description record, a string list, or a `CriterionInput` list; omission uses the shipped three-criterion Correctness, Completeness, and Evidence and task fit rubric. Optional ordered `models` ids are assigned round-robin to attempt slots.
 - `comparisons_path` points to `comparisons.json`, whose ledger records the task and seed, `params` (`n`, `pivots`, `n_evaluations`, and normalized `criteria`), per-job `comparisons` rows (`a`, `b`, phase, criterion id, repeat, slot-swap flag, scores or an `invalid` marker, preference, and judge artifact path), aggregate `pairs`, weights/counts, the complete `ranking`, and optional model assignment. Its `budget` records planned versus executed judge stages, including re-asks; invalid reports remain auditable rows and an all-invalid pair remains marked invalid rather than becoming a score.
+
+<a id="6-loop-until-done" />
 
 ##### 6. Loop until done
 
@@ -1607,6 +1613,8 @@ Best practices:
 - Run exactly one bounded evidence-exchange round. Share concrete findings and evidence, challenge blocking claims, and stop rather than opening a second round.
 - Change a verdict only through evidence, never deference. Each reviewer emits its own final structured verdict and records whether deliberation changed it and which evidence caused the change.
 - Let the existing deterministic reducer count the final votes; deliberation shapes votes but does not replace quorum counts or the `stop_review_loop` contract.
+
+<a id="stacked-implementation-slices-starter-pattern" />
 
 ##### Stacked implementation slices starter pattern
 

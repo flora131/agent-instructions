@@ -1,0 +1,159 @@
+{
+  "schema": "2847-latest-main-v1",
+  "predecessor": "bf8dcd1bc02a7cb02caf557bb13d281b260c1704",
+  "previous_main": "cb13229bebe30ea7cb65689569569494b4bc651c",
+  "latest_main": "daf6d2747ce95ae25d0b7e46660d92f0c39101d8",
+  "source_trees": {
+    "previous_sha256": "d59de5656cc1a83a23b6abc9f25e41207fe38419e48087175386a275013fa77f",
+    "latest_sha256": "c7fb99bef1d81d7f2336ed30df743d09774d27e5cf073939900dbfbff76376d9",
+    "unchanged_sha256": "941bbf2730fe9ea9e5b3fe780386f8a62b0aee32c613f1d8d781a3822cadbb4e"
+  },
+  "history": {
+    "revision": "bf8dcd1bc02a7cb02caf557bb13d281b260c1704",
+    "path": "packages/coding-agent/docs/",
+    "policy": "The complete older reader corpus, including superseded default-tool lists, remains at this immutable predecessor. All existing reader bytes remain active except the two exact default-tool list updates; five source-derived edits add the latest main instructions. Original baseline and first-reconciliation artifacts remain byte-identical."
+  },
+  "pages_sha256": "809fa979e3673c24262c1d0f0137cbcdf2fb3575fc8edf417fb3ae783b5f2fd6",
+  "unchanged_source_paths": [
+    "packages/coding-agent/docs/changelog.mdx",
+    "packages/coding-agent/docs/compaction.md",
+    "packages/coding-agent/docs/containerization.md",
+    "packages/coding-agent/docs/custom-provider.md",
+    "packages/coding-agent/docs/development.md",
+    "packages/coding-agent/docs/environment-variables.md",
+    "packages/coding-agent/docs/extensions.md",
+    "packages/coding-agent/docs/herdr.md",
+    "packages/coding-agent/docs/index.md",
+    "packages/coding-agent/docs/intercom.md",
+    "packages/coding-agent/docs/json.md",
+    "packages/coding-agent/docs/keybindings.md",
+    "packages/coding-agent/docs/llama-cpp.md",
+    "packages/coding-agent/docs/models.md",
+    "packages/coding-agent/docs/models/evals.md",
+    "packages/coding-agent/docs/models/model-selection.md",
+    "packages/coding-agent/docs/models/pareto-efficiency.md",
+    "packages/coding-agent/docs/packages.md",
+    "packages/coding-agent/docs/prompt-templates.md",
+    "packages/coding-agent/docs/providers.md",
+    "packages/coding-agent/docs/quickstart.md",
+    "packages/coding-agent/docs/rpc.md",
+    "packages/coding-agent/docs/security.md",
+    "packages/coding-agent/docs/session-format.md",
+    "packages/coding-agent/docs/sessions.md",
+    "packages/coding-agent/docs/settings.md",
+    "packages/coding-agent/docs/shell-aliases.md",
+    "packages/coding-agent/docs/skills.md",
+    "packages/coding-agent/docs/subagents.md",
+    "packages/coding-agent/docs/terminal-setup.md",
+    "packages/coding-agent/docs/termux.md",
+    "packages/coding-agent/docs/themes.md",
+    "packages/coding-agent/docs/tmux.md",
+    "packages/coding-agent/docs/tools/edit.md",
+    "packages/coding-agent/docs/tui.md",
+    "packages/coding-agent/docs/usage.md",
+    "packages/coding-agent/docs/windows.md",
+    "packages/coding-agent/docs/workflows.md",
+    "packages/coding-agent/docs/workflows/api-reference.md",
+    "packages/coding-agent/docs/workflows/authoring.md",
+    "packages/coding-agent/docs/workflows/builtins.md",
+    "packages/coding-agent/docs/workflows/operations.md",
+    "packages/coding-agent/docs/workflows/reliable-design.md",
+    "packages/coding-agent/docs/workflows/verification.md"
+  ],
+  "changed_source_pages": [
+    {
+      "path": "packages/coding-agent/docs/background-tasks.md",
+      "previous_sha256": "f7620a3730a296018387648bc3161f7991ecfe804ec057bb669cafa02ab26140",
+      "latest_sha256": "f47a17df64c0d78882981d95f609a496b88c41db03f45d8a7cfb9c0e7b9d4a88",
+      "unchanged": false
+    },
+    {
+      "path": "packages/coding-agent/docs/sdk.md",
+      "previous_sha256": "314e3831aa7088a6ad5bbcb78fd29f46101e84d9f3dea669ae85e0e913bdd637",
+      "latest_sha256": "8f9d4998684af6053780490fe70ab4de17eb0c51e7d16132e9534e7decdc5711",
+      "unchanged": false
+    },
+    {
+      "path": "packages/coding-agent/docs/tools.md",
+      "previous_sha256": "094faa9618911fa52223681eb701ee7c71238c62f948316679f986997b9c9925",
+      "latest_sha256": "f1dce1175332195dd0f27f397f3eef2736512874dda322f0ffc70e9b36620c86",
+      "unchanged": false
+    }
+  ],
+  "edits": [
+    {
+      "source_path": "packages/coding-agent/docs/background-tasks.md",
+      "target_path": "packages/coding-agent/docs/background-tasks.md",
+      "previous_lines": [168, 173],
+      "latest_lines": [168, 185],
+      "before_sha256": "5a5fd7de85b09be2e31673c570b5f8b42b545572ba55303da623e03248f4bcec",
+      "after_sha256": "c8b5e302d5381a7b67d2bfc0fc637fe3b6f359eae0a9df492688f918f2792eb1"
+    },
+    {
+      "source_path": "packages/coding-agent/docs/sdk.md",
+      "target_path": "packages/coding-agent/docs/sdk/reference.md",
+      "previous_lines": [795, 801],
+      "latest_lines": [795, 801],
+      "before_sha256": "9a6439aa8c2ba0379330296cfae8177b2d4bb0c68ef5afe641f20092cfbbae1d",
+      "after_sha256": "e2bad77563bf7de45c48eaf45d0e66306d45aacf3a6faa77b99a3bc09c1b8847"
+    },
+    {
+      "source_path": "packages/coding-agent/docs/sdk.md",
+      "target_path": "packages/coding-agent/docs/sdk/reference.md",
+      "previous_lines": [910, 915],
+      "latest_lines": [910, 917],
+      "before_sha256": "b051263abfece0784340057ca90a521022af6da0d100ab237c6bc964bef8588e",
+      "after_sha256": "daf1890e23f0d5750d3252c028bd5f872623355ea457e755908d2ba4bd5438d2"
+    },
+    {
+      "source_path": "packages/coding-agent/docs/tools.md",
+      "target_path": "packages/coding-agent/docs/tools.md",
+      "previous_lines": [1, 6],
+      "latest_lines": [1, 6],
+      "before_sha256": "0aeec3bc37f9a16695d7eb863c2928259f84286d470e97fc9d3234f2b067c304",
+      "after_sha256": "a196982f0d5d26789d11154605d41d20d1c2a85b944d6c6b0ab4dde933f43100"
+    },
+    {
+      "source_path": "packages/coding-agent/docs/tools.md",
+      "target_path": "packages/coding-agent/docs/tools.md",
+      "previous_lines": [42, 47],
+      "latest_lines": [42, 53],
+      "before_sha256": "568ab47304e9eec438526ef7d84de337964d5426b983c9f56a66659cf41561ac",
+      "after_sha256": "88b07f4ea2b64ae5765d301e821eefaaf6a98514141ccf990c47972399e48a5f"
+    }
+  ],
+  "reader_anchor_repairs": [
+    {
+      "kind": "additive-reader-anchor",
+      "target_path": "packages/coding-agent/docs/workflows/reliable-design.md",
+      "predecessor_heading_line": 1451,
+      "heading": "##### 3. Adversarial verification",
+      "id": "3-adversarial-verification",
+      "addition": "<a id=\"3-adversarial-verification\" />\n\n"
+    },
+    {
+      "kind": "additive-reader-anchor",
+      "target_path": "packages/coding-agent/docs/workflows/reliable-design.md",
+      "predecessor_heading_line": 1517,
+      "heading": "##### 5. Tournament",
+      "id": "5-tournament",
+      "addition": "<a id=\"5-tournament\" />\n\n"
+    },
+    {
+      "kind": "additive-reader-anchor",
+      "target_path": "packages/coding-agent/docs/workflows/reliable-design.md",
+      "predecessor_heading_line": 1550,
+      "heading": "##### 6. Loop until done",
+      "id": "6-loop-until-done",
+      "addition": "<a id=\"6-loop-until-done\" />\n\n"
+    },
+    {
+      "kind": "additive-reader-anchor",
+      "target_path": "packages/coding-agent/docs/workflows/reliable-design.md",
+      "predecessor_heading_line": 1611,
+      "heading": "##### Stacked implementation slices starter pattern",
+      "id": "stacked-implementation-slices-starter-pattern",
+      "addition": "<a id=\"stacked-implementation-slices-starter-pattern\" />\n\n"
+    }
+  ]
+}

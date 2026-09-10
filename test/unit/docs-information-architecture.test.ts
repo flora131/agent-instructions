@@ -707,19 +707,104 @@ const promptSources = [
 	"packages/workflows/src/extension/workflow-prompts.ts",
 ] as const;
 
+// Reader resolution is separate from the immutable ledger's heading inventory.
+function readerAnchors(text: string): Set<string> {
+	const anchors = new Set<string>();
+	const seen = new Map<string, number>();
+	let fence: { character: string; length: number } | undefined;
+	for (const line of text.split("\n")) {
+		const marker = /^\s*(`{3,}|~{3,})(.*)$/u.exec(line);
+		if (marker) {
+			const delimiter = marker[1] ?? "";
+			if (!fence) fence = { character: delimiter[0] ?? "", length: delimiter.length };
+			else if (delimiter[0] === fence.character && delimiter.length >= fence.length && !marker[2]?.trim())
+				fence = undefined;
+			continue;
+		}
+		if (fence) continue;
+		const heading = /^#{1,4}\s+(.*?)\s*$/u.exec(line);
+		if (heading) {
+			const base = mintlifyAnchor(heading[1] ?? "");
+			const count = (seen.get(base) ?? 0) + 1;
+			seen.set(base, count);
+			anchors.add(count === 1 ? base : `${base}-${count}`);
+		}
+		// Parse quoted attributes as tokens: data-id and an id inside a title are not IDs.
+		const tag = /^ {0,3}<[a-z][\w-]*\b(?:\s+[\w:-]+(?:\s*=\s*(?:"[^"]*"|'[^']*'))?)*\s*\/?>/u.exec(line);
+		if (tag) {
+			for (const attribute of tag[0].matchAll(/\s+([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/gu)) {
+				const id = attribute[2] ?? attribute[3];
+				if (attribute[1] === "id" && id) anchors.add(id);
+			}
+		}
+	}
+	return anchors;
+}
+
 function anchorResolves(route: string, anchor: string): boolean {
 	const slug = routeToSlug.get(route);
 	if (slug === undefined) return false;
-	const headings = headingsOfPage(slug);
-	if (headings.some((heading) => heading.anchor === anchor)) return true;
-	// Mintlify numbers repeated headings page-wide; treat an unmatched `-N`
-	// leniently because its counter also sees text this checker cannot model.
-	// Exact duplicate identity is enforced separately, against the ledger.
-	const duplicate = /^(.*)-\d+$/u.exec(anchor);
-	return duplicate !== null && headings.some((heading) => heading.anchor === duplicate[1]);
+	return readerAnchors(readFileSync(join(docsDir, pathForSlug(slug)), "utf8")).has(anchor);
 }
 
 describe("docs information architecture (#2847)", () => {
+	// #2847: sample markup, forged attributes, and guessed suffixes are not reader targets.
+	test("reader anchors require exact explicit HTML IDs outside fenced examples", () => {
+		const text = [
+			'<a id="precise" />',
+			"<div id='other'></div>",
+			'<a data-id="forged-data" />',
+			`<a title='id="forged-title"' />`,
+			'`<a id="inline-code" />`',
+			'<!-- <a id="commented" /> -->',
+			"````md",
+			"```html",
+			'<a id="fenced" />',
+			"```",
+			'<a id="still-fenced" />',
+			"````",
+			"~~~html",
+			'<a id="tilde-fenced" />',
+			"~~~",
+			"##### precise",
+			"###### other",
+		].join("\n");
+		assert.deepEqual([...readerAnchors(text)], ["precise", "other"]);
+		assert.equal(readerAnchors(text).has("precise-999"), false);
+		assert.equal(readerAnchors(text.replace('<a id="precise" />', "")).has("precise"), false);
+		assert.equal(readerAnchors(text.replace('id="precise"', 'id="forged"')).has("precise"), false);
+	});
+
+	// #2847 / PR #2971: pinned Mintlify generates IDs for h1–h4, never implicit h5/h6.
+	test("reader anchors exclude implicit h5/h6 IDs without changing source heading identity", () => {
+		const text = "# Guide\n##### Hidden\n###### Deeper\n## Hidden\n### Middle\n#### Last\n## Hidden\n";
+		assert.deepEqual([...readerAnchors(text)], ["guide", "hidden", "middle", "last", "hidden-2"]);
+		assert.equal(readerAnchors("##### Hidden\n###### Deeper\n").size, 0);
+		assert.deepEqual(
+			headingsIn(text).map((heading) => heading.anchor),
+			["guide", "hidden", "deeper", "hidden-2", "middle", "last", "hidden-3"],
+		);
+	});
+
+	// #2847: exercise the actual repaired reader page, not only a parser fixture.
+	test("all four deep workflow links depend on their precise standalone reader anchors", () => {
+		const slug = "workflows/reliable-design";
+		const text = readFileSync(join(docsDir, pathForSlug(slug)), "utf8");
+		for (const [id, title] of [
+			["3-adversarial-verification", "3. Adversarial verification"],
+			["5-tournament", "5. Tournament"],
+			["6-loop-until-done", "6. Loop until done"],
+			["stacked-implementation-slices-starter-pattern", "Stacked implementation slices starter pattern"],
+		] as const) {
+			const anchor = `<a id="${id}" />`;
+			assert.equal(text.split(`${anchor}\n\n##### ${title}\n`).length, 2);
+			assert.ok(text.includes(`](#${id})`), `${id} retains its precise link`);
+			assert.ok(anchorResolves(`/${slug}`, id));
+			assert.equal(readerAnchors(text.replace(anchor, "")).has(id), false);
+			assert.equal(readerAnchors(text.replace(anchor, '<a id="forged" />')).has(id), false);
+		}
+	});
+
 	test("every navigation entry resolves to a page on disk", () => {
 		assert.ok(navPages.length > 40, "docs.json navigation was discovered, not hardcoded");
 		const slugs = new Set(diskSlugs);
@@ -1680,11 +1765,20 @@ describe("docs content ledger (#2847)", () => {
 			baseline: { blocks: number };
 			main: { pages: number; blocks: number };
 			readerPages: number;
+			readerAnchorRepairs: number;
+			latestMain: { revision: string; pages: number; unchangedPages: number; edits: number };
 		};
 		assert.equal(report.baseline.blocks, 1038);
 		assert.equal(report.main.pages, 47);
 		assert.equal(report.main.blocks, 1090);
 		assert.equal(report.readerPages, 85);
+		assert.equal(report.readerAnchorRepairs, 4);
+		assert.deepEqual(report.latestMain, {
+			revision: "daf6d2747ce95ae25d0b7e46660d92f0c39101d8",
+			pages: 47,
+			unchangedPages: 44,
+			edits: 5,
+		});
 	});
 
 	test("the connective-text exceptions are a closed, explicit set", () => {
@@ -1727,14 +1821,13 @@ describe("docs content ledger (#2847)", () => {
 			["changelog::002", "models::001", "providers::002"],
 			"a new anchor correction needs review; a baseline line cannot be edited without recording it",
 		);
-		// An exact anchor, not the lenient duplicate-suffix fallback: a correction
-		// that invents `#anchor-999` would otherwise look resolved.
+		// Exact reader identity rejects invented IDs and duplicate suffixes.
 		const anchorExists = (page: string, target: string): boolean => {
 			const own = `/${page.replace(/\.mdx?$/u, "")}`;
 			const [route = "", anchor = ""] = target.startsWith("#") ? [own, target.slice(1)] : target.split("#");
 			const slug = routeToSlug.get(route);
 			if (slug === undefined) return false;
-			return headingsOfPage(slug).some((heading) => heading.anchor === anchor);
+			return readerAnchors(readFileSync(join(docsDir, pathForSlug(slug)), "utf8")).has(anchor);
 		};
 		const blocksById = new Map(ledger.blocks.map((row) => [row.id, row]));
 		for (const entry of corrections) {
