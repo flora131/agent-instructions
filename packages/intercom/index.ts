@@ -1,6 +1,7 @@
 import { APP_NAME, getEnvValue, type ExtensionAPI, type ExtensionContext, type SessionStartEvent, type ToolDefinition } from "@bastani/atomic";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
+import { getExtensionContextOwner } from "./context-owner.js";
 import { renderIntercomToolResult } from "./result-renderers.js";
 import { executeHeavyTool, runHeavyCommand, type HeavyHandle } from "./lazy-tool-execution.js";
 import { assertCurrentLifecycleLease, createLifecycleLease, retainSettledLifecycleCleanup, retireLifecycleLease, SerializedLifecycleForwarder, type LifecycleLease } from "./lifecycle-lease.js";
@@ -284,6 +285,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 	}
 	async function loadHeavy(ctx?: ExtensionContext): Promise<IntercomHeavyHandle> {
 		let diagnosticRoute = captureDiagnosticRoute(ctx);
+		let diagnosticOwner = ctx && getExtensionContextOwner(ctx);
 		const lease = activeLease;
 		if (lease.retired) throw new Error("Intercom initialization unavailable: no active session");
 		await waitForPriorCleanup(lease);
@@ -329,9 +331,11 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 					sessionSnapshot = { event: createSyntheticSessionStartEvent(), ctx, generation: ++lifecycleGeneration, lease };
 				}
 				await ensureSessionStartReplayed(captured, lease, (replayContext) => {
-					// The same owner may already be stale; only a new owner needs a new route.
-					if (replayContext !== (replayCtx ?? ctx)) {
+					// Dispatch wrappers differ even for the same (possibly already stale) owner.
+					const owner = getExtensionContextOwner(replayContext);
+					if (owner !== diagnosticOwner) {
 						diagnosticRoute = captureDiagnosticRoute(replayContext);
+						diagnosticOwner = owner;
 					}
 					replayCtx = replayContext;
 				});

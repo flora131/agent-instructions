@@ -522,7 +522,7 @@ export class ExtensionRunner {
 	}
 
 	createCommandContext(): ExtensionCommandContext {
-		return createExtensionCommandContext(this.createContextSource());
+		return createExtensionCommandContext(this.createContextSource(), this.contextOwner);
 	}
 
 	private createContextSource(): ExtensionCommandContextSource {

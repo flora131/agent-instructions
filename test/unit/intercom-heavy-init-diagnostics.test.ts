@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { setImmediate as tick } from "node:timers/promises";
-import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@bastani/atomic";
+import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext, ToolDefinition } from "@bastani/atomic";
 import { Type } from "typebox";
 import { afterEach, beforeEach, describe, test, vi } from "vitest";
+import { ExtensionRunner } from "../../packages/coding-agent/src/core/extensions/runner.js";
 import {
 	createExtensionContext,
 	type ExtensionContextSource,
@@ -31,6 +32,7 @@ afterEach(() => {
 
 function fixture(importResults: ImportResult[], hasUI = false, mode: ExtensionContext["mode"] = "tui") {
 	const tools = new Map<string, ToolDefinition>();
+	const commands = new Map<string, Parameters<ExtensionAPI["registerCommand"]>[1]>();
 	const handlers = new Map<string, LifecycleHandler>();
 	const eventHandlers = new Map<string, (payload: object) => void>();
 	let imports = 0;
@@ -42,7 +44,9 @@ function fixture(importResults: ImportResult[], hasUI = false, mode: ExtensionCo
 		registerTool(tool: ToolDefinition) {
 			tools.set(tool.name, tool);
 		},
-		registerCommand() {},
+		registerCommand(name: string, command: Parameters<ExtensionAPI["registerCommand"]>[1]) {
+			commands.set(name, command);
+		},
 		registerShortcut() {},
 		events: {
 			on(name: string, handler: (payload: object) => void) {
@@ -83,6 +87,11 @@ function fixture(importResults: ImportResult[], hasUI = false, mode: ExtensionCo
 		},
 		get imports() {
 			return imports;
+		},
+		async executeCommand(context: ExtensionCommandContext) {
+			const command = commands.get("intercom");
+			assert.ok(command, "intercom command should be registered");
+			await command.handler("", context);
 		},
 		executeIntercom(
 			context: ExtensionContext | typeof ctx = ctx,
@@ -139,6 +148,24 @@ function guardedContext(mode: ExtensionContext["mode"]) {
 			}
 		},
 	};
+}
+
+function runnerOwner(mode: ExtensionContext["mode"]) {
+	const notifications: Array<{ message: string; level?: string }> = [];
+	const runner = new ExtensionRunner(
+		[],
+		{ workflowActivityHub: { bindDispatcher() {} }, invalidate() {} } as never,
+		"/tmp",
+		{} as never,
+		{} as never,
+	);
+	runner.setUIContext(
+		mode === "tui" || mode === "rpc"
+			? ({ notify: (message: string, level?: string) => notifications.push({ message, level }) } as never)
+			: undefined,
+		mode,
+	);
+	return { runner, notifications };
 }
 
 const unprintableFailures = [
@@ -340,6 +367,63 @@ describe("Intercom lazy heavy-initialization diagnostics", () => {
 
 	for (const mode of ["print", "json", "rpc", "tui"] as const) {
 		for (const phase of ["during import", "after factory"] as const) {
+			for (const dispatch of ["tool", "command"] as const) {
+				test(`retains the ${mode} route across distinct runner dispatches (${dispatch}) expiring ${phase}`, async () => {
+					const imported = Promise.withResolvers<HeavyModule>();
+					const { runner, notifications } = runnerOwner(mode);
+					const startup = runner.createContext();
+					const invocation = dispatch === "command" ? runner.createCommandContext() : runner.createContext();
+					assert.notEqual(startup, invocation, "normal dispatch creates separate wrappers");
+					const failure = new Error("Connection closen");
+					const current = fixture([{ module: imported.promise }, { module: successfulHeavyModule() }]);
+					const log = vi.spyOn(console, "log").mockImplementation(() => {});
+					const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+					try {
+						await current.fire("session_start", startup);
+						const pending =
+							dispatch === "command"
+								? current.executeCommand(invocation as ExtensionCommandContext)
+								: current.executeIntercom(invocation);
+						const rejected = assert.rejects(pending, (error) => error === failure);
+						await tick();
+						assert.equal(current.imports, 1);
+						if (phase === "during import") runner.invalidate();
+						imported.resolve({
+							default(pi) {
+								if (phase === "after factory") {
+									assert.equal(invocation.mode, mode);
+									queueMicrotask(() => runner.invalidate());
+								}
+								pi.on("session_start", (_event, ctx) => {
+									assert.equal(ctx, startup);
+									assert.throws(() => ctx.mode, /extension ctx is stale/);
+									throw failure;
+								});
+							},
+						});
+						await rejected;
+						await tick();
+						const message = "Intercom heavy initialization failed; a later call will retry: Connection closen";
+						assert.deepEqual(consoleErrorCalls, mode === "tui" ? [] : [[message, failure]]);
+						if (mode !== "tui") assert.equal(consoleErrorCalls[0]?.[1], failure);
+						assert.deepEqual(notifications, []);
+						assert.equal(log.mock.calls.length, 0);
+						assert.equal(warn.mock.calls.length, 0);
+						const replacement = runnerOwner(mode);
+						await current.fire("session_start", replacement.runner.createContext());
+						assert.deepEqual(await current.executeIntercom(replacement.runner.createContext()), {
+							content: [{ type: "text", text: "connected" }],
+							details: {},
+						});
+						assert.equal(current.imports, 2);
+						assert.deepEqual(replacement.notifications, []);
+					} finally {
+						log.mockRestore();
+						warn.mockRestore();
+					}
+				});
+			}
+
 			test(`retains the ${mode} route when the same owner expires ${phase} before first replay`, async () => {
 				const imported = Promise.withResolvers<HeavyModule>();
 				const owner = guardedContext(mode);
