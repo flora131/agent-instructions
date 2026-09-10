@@ -30,7 +30,7 @@ export type WorkflowStageStatus =
 	| "failed"
 	| "skipped";
 export type WorkflowToolNodeStatus = "pending" | "running" | "completed" | "failed" | "cached" | "cancelled";
-export type WorkflowControlAction = "interrupt" | "quit" | "kill" | "pause" | "resume";
+export type WorkflowControlAction = "quit" | "kill" | "pause" | "resume";
 
 export interface WorkflowRootActivity {
 	rootRunId: string;

@@ -162,15 +162,12 @@ describe("/workflow command in non-interactive (-p) mode (#1156 regressions)", (
 
 	test.sequential.each([
 		["reload", "reload", /Reloaded workflow resources\./],
-		["interrupt", "interrupt", /interrupted and can be resumed/],
 		["quit", "quit", /quit.*resume|resume.*quit/i],
-		["pause", "pause", /Paused 1 stage\(s\)/],
+		["pause", "pause", /paused and can be resumed/],
 		["resume", "resume", /Resumed 1 stage\(s\)/],
 	])("/workflow %s emits displayable success output in headless mode", async (_label, action, expected) => {
 		const { handler, sent } = await registerWorkflowCommand();
-		const runId = testRunId(
-			`339e05a4-2289-408e-9076-d1a348f582${action === "interrupt" ? "01" : action === "quit" ? "02" : action === "pause" ? "03" : "04"}`,
-		);
+		const runId = testRunId(`headless-control-${action}`);
 		const stageId = `stage-${action}`;
 
 		if (action !== "reload") {
@@ -200,10 +197,10 @@ describe("/workflow command in non-interactive (-p) mode (#1156 regressions)", (
 		if (action !== "reload") assert.ok(content.includes(runId), `expected full run id ${runId} in ${action} output`);
 	});
 
-	test.sequential("/workflow interrupt --all emits displayable success output in headless mode", async () => {
+	test.sequential("/workflow pause --all emits displayable success output in headless mode", async () => {
 		const { handler, sent } = await registerWorkflowCommand();
-		const runId = testRunId(`headless-interrupt-all-${Date.now()}`);
-		const stageId = "stage-interrupt-all";
+		const runId = testRunId(`headless-pause-all-${Date.now()}`);
+		const stageId = "stage-pause-all";
 		store.recordRunStart({
 			...makeInflightRun(runId),
 			stages: [
@@ -219,12 +216,12 @@ describe("/workflow command in non-interactive (-p) mode (#1156 regressions)", (
 		});
 		registerTestStageHandle(runId, stageId);
 
-		await handler("interrupt --all", headlessNoOpCtx());
+		await handler("pause --all", headlessNoOpCtx());
 
 		const content = commandOutputMessages(sent)
 			.map((message) => message.content ?? "")
 			.join("\n");
-		assert.match(content, /Interrupted 1 run\(s\)\./);
+		assert.match(content, /Paused 1 run\(s\)\./);
 	});
 
 	test.sequential("/workflow quit --all emits displayable resumable success output in headless mode", async () => {

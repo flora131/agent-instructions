@@ -127,10 +127,11 @@ describe("MockExtensionAPI — tool registration", () => {
 		const actionSchema = params.properties.action;
 		// TypeBox Optional(Union([...])) wraps in anyOf
 		const raw = JSON.stringify(actionSchema);
-		for (const literal of ["run", "list", "get", "status", "interrupt", "quit", "resume", "inputs", "models"]) {
+		for (const literal of ["run", "list", "get", "status", "pause", "quit", "resume", "inputs", "models"]) {
 			assert.ok(raw.includes(literal));
 		}
 		assert.ok(!raw.includes("kill"));
+		assert.ok(!raw.includes("interrupt"));
 		assert.ok(!raw.includes("doctor"));
 	});
 
@@ -272,12 +273,12 @@ describe("MockExtensionAPI — tool registration", () => {
 		);
 	});
 
-	test("tool execute returns interrupt result for canonical action='interrupt'", async () => {
+	test("tool execute returns pause result for canonical action='pause'", async () => {
 		const execute = mock.tools[0]!.opts.execute;
 		const unknownRunId = testRunId("run-123");
-		const result = await runTool(execute, { runId: unknownRunId, action: "interrupt" });
-		assert.equal(result.action, "interrupt");
-		const r = result as { action: "interrupt"; runId: string; status: string; message: string };
+		const result = await runTool(execute, { runId: unknownRunId, action: "pause" });
+		assert.equal(result.action, "pause");
+		const r = result as { action: "pause"; runId: string; status: string; message: string };
 		assert.equal(r.runId, unknownRunId);
 		assert.equal(r.status, "noop");
 		assert.ok(r.message.includes("Run not found"));

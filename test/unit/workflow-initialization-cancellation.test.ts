@@ -12,7 +12,7 @@ import { createCancellationRegistry } from "../../packages/workflows/src/runs/ba
 import { createJobTracker } from "../../packages/workflows/src/runs/background/job-tracker.js";
 import { quitRun } from "../../packages/workflows/src/runs/background/quit.js";
 import { runDetached } from "../../packages/workflows/src/runs/background/runner.js";
-import { interruptRun, pauseRun, resumeRun } from "../../packages/workflows/src/runs/background/status.js";
+import { pauseRun, resumeRun } from "../../packages/workflows/src/runs/background/status.js";
 import { run } from "../../packages/workflows/src/runs/foreground/executor.js";
 import { createStore } from "../../packages/workflows/src/shared/store.js";
 import { renderStatusList } from "../../packages/workflows/src/tui/status-list.js";
@@ -152,7 +152,7 @@ test("quit controls a node-less workflow await without inventing graph nodes or 
 	assert.equal(store.runs()[0]?.status, "paused");
 });
 
-for (const control of [quitRun, interruptRun, pauseRun]) {
+for (const control of [quitRun, pauseRun]) {
 	test(`${control.name} settles an initializing root before admission resolves`, async () => {
 		const entered = Promise.withResolvers<void>();
 		const admission = Promise.withResolvers<void>();
@@ -188,7 +188,7 @@ for (const control of [quitRun, interruptRun, pauseRun]) {
 			const result = await control(accepted.runId, { store, toolControlRegistry: toolControls });
 			assert.equal(result.ok, true);
 			assert.equal(store.runs()[0]?.status, "paused");
-			// PR #2885: pause/interrupt must retain the live initialization owner, not quit it.
+			// PR #2885: pause must retain the live initialization owner, not quit it.
 			if (control !== quitRun) {
 				assert.equal(store.runs()[0]?.exitReason, undefined);
 				assert.notEqual(store.runs()[0]?.resumable, false);
@@ -273,7 +273,6 @@ test("pre-aborted public reads and mutations never start resource or runtime wor
 		"reload",
 		"pause",
 		"quit",
-		"interrupt",
 		"answer",
 		"resume",
 	];

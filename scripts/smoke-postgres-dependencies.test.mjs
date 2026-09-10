@@ -4,11 +4,13 @@ import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { npmSpawnPrefix } from "./test-helpers/npm.mjs";
 
 // PR #2887: model dependencies of other workspaces without relying on hoisting or npm's cache.
 // Only declarations from the owning root package may back its smoke imports.
 test("the smoke CLI reaches usage validation with npm's linked layout and an empty cache", () => {
 	const root = mkdtempSync(join(tmpdir(), "atomic-pg-smoke-dependencies-"));
+	const [npm, ...npmArgs] = npmSpawnPrefix();
 	try {
 		const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 		const lock = JSON.parse(readFileSync(new URL("../package-lock.json", import.meta.url), "utf8"));
@@ -31,8 +33,9 @@ test("the smoke CLI reaches usage validation with npm's linked layout and an emp
 			// npm 10.9.4 misresolves linked file: directories; tarballs retain the linked install layout.
 			// Use a separate packing cache so the install cache below starts empty.
 			const packed = execFileSync(
-				"npm",
+				npm,
 				[
+					...npmArgs,
 					"pack",
 					"--silent",
 					"--ignore-scripts",
@@ -70,8 +73,9 @@ test("the smoke CLI reaches usage validation with npm's linked layout and an emp
 			copyFileSync(new URL(name, import.meta.url), join(root, "scripts", name));
 		}
 		execFileSync(
-			"npm",
+			npm,
 			[
+				...npmArgs,
 				"install",
 				"--install-strategy=linked",
 				"--ignore-scripts",

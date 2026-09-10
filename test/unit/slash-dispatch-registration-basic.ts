@@ -60,7 +60,8 @@ describe("getArgumentCompletions includes workflow names", () => {
 		assert.ok(labels.includes("list"));
 		assert.ok(labels.includes("status"));
 		assert.ok(labels.includes("connect"));
-		assert.ok(labels.includes("interrupt"));
+		assert.ok(labels.includes("pause"));
+		assert.equal(labels.includes("interrupt"), false);
 		assert.ok(labels.includes("quit"));
 		assert.equal(labels.includes("kill"), false);
 		assert.ok(labels.includes("resume"));
@@ -91,8 +92,8 @@ describe("getArgumentCompletions includes workflow names", () => {
 		await runFactory(pi);
 
 		const workflowCmd = commands.find((c) => c.name === "workflow");
-		const completions = workflowCmd!.options.getArgumentCompletions?.("interrupt -") ?? [];
-		assert.ok(completions.some((c) => c.value === "interrupt -y "));
+		const completions = workflowCmd!.options.getArgumentCompletions?.("pause -") ?? [];
+		assert.ok(completions.some((c) => c.value === "pause -y "));
 
 		const quitCompletions = workflowCmd!.options.getArgumentCompletions?.("quit -") ?? [];
 		assert.ok(quitCompletions.some((c) => c.value === "quit --all "));
@@ -118,10 +119,14 @@ describe("getArgumentCompletions includes workflow names", () => {
 		const labels = completions.map((completion) => completion.label);
 		assert.ok(labels.includes("quit"));
 		assert.equal(labels.includes("kill"), false);
+		assert.ok(labels.includes("pause"));
+		assert.equal(labels.includes("interrupt"), false);
+		assert.ok((getBundledWorkflowArgumentCompletions("pause -") ?? []).some((c) => c.value === "pause -y "));
 
 		const workflowCommand = BUNDLED_EXTENSION_SLASH_COMMANDS.find((command) => command.name === "workflow");
 		assert.match(workflowCommand?.description ?? "", /quit/);
 		assert.doesNotMatch(workflowCommand?.description ?? "", /kill/);
+		assert.doesNotMatch(workflowCommand?.description ?? "", /interrupt/);
 	});
 
 	test.sequential("trailing-space completion does not throw on empty subcommand", async () => {

@@ -207,7 +207,7 @@ export const EXPECTED_WORKFLOW_DESCRIPTION_TOKENS = [
 	"discover with list/get/inputs",
 	"status/stages/stage details",
 	"prompt answers",
-	"pause/resume/interrupt/quit",
+	"pause/resume/quit",
 	"reload workflow resources",
 	"sessionFile/transcriptPath",
 	"Windows backslashes",

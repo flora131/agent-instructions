@@ -173,7 +173,7 @@ export type WorkflowToolThrowOptions = WorkflowToolOptions & { readonly failureM
  * Cancellation handle handed to every `ctx.tool` callback.
  *
  * The signal aborts when the run is cancelled, when the run is gracefully quit,
- * or when this single tool node is aborted through `/workflow quit|interrupt`
+ * or when this single tool node is aborted through the workflow quit/pause action
  * with the node's id or name. Callbacks that forward it to `fetch`, a child
  * process, or a network client unblock promptly; callbacks that ignore it are
  * abandoned after a bounded wait.

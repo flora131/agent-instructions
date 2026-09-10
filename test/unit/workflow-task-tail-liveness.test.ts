@@ -25,7 +25,7 @@ import { createWorkflowObservation } from "../../packages/workflows/src/extensio
 import { summarizeRunSnapshot } from "../../packages/workflows/src/extension/workflow-status-summary.js";
 import { createJobTracker } from "../../packages/workflows/src/runs/background/job-tracker.js";
 import { quitRun } from "../../packages/workflows/src/runs/background/quit.js";
-import { inspectRun, interruptAllRuns, interruptRun } from "../../packages/workflows/src/runs/background/status.js";
+import { inspectRun, pauseAllRuns, pauseRun } from "../../packages/workflows/src/runs/background/status.js";
 import { run } from "../../packages/workflows/src/runs/foreground/executor.js";
 import { createStageControlRegistry } from "../../packages/workflows/src/runs/foreground/stage-control-registry.js";
 import { runGitChecked } from "../../packages/workflows/src/runs/shared/worktree-git.js";
@@ -1063,9 +1063,9 @@ describe("ctx.task tail liveness", () => {
 			controller: new AbortController(),
 			settled: new Promise(() => {}),
 		});
-		const interrupted = await interruptRun("child", { store, toolControlRegistry: toolControls });
-		assert.equal(interrupted.ok, true);
-		assert.equal(interrupted.runId, "parent");
+		const paused = await pauseRun("child", { store, toolControlRegistry: toolControls });
+		assert.equal(paused.ok, true);
+		assert.equal(paused.runId, "parent");
 		assert.equal(store.runs().find((run) => run.id === "parent")?.status, "paused");
 		assert.equal(store.runs().find((run) => run.id === "child")?.status, "paused");
 	});
@@ -1229,8 +1229,8 @@ describe("ctx.task tail liveness", () => {
 		assert.equal(prompts, 0);
 	});
 
-	// #2912: checkpoint suspension must report the requested interrupt, not its quit implementation.
-	test("quit and interrupt terminate a root awaiting a never-settling task-result checkpoint", async () => {
+	// #2912: checkpoint suspension must report the requested pause, not its quit implementation.
+	test("pause terminates a root awaiting a never-settling task-result checkpoint", async () => {
 		const backend = new DelayedTaskCheckpointBackend();
 		setDurableBackend(backend);
 		const store = createStore();
@@ -1268,19 +1268,19 @@ describe("ctx.task tail liveness", () => {
 			}
 			assert.ok(runId.length > 0);
 			assert.equal(registry.run(runId).stages().length, 0);
-			const interrupted = await interruptRun(runId, {
+			const paused = await pauseRun(runId, {
 				store,
 				stageControlRegistry: registry,
 				toolControlRegistry: toolControls,
 			});
-			assert.equal(interrupted.ok, true);
+			assert.equal(paused.ok, true);
 			const finished = await pending;
 			assert.equal(finished.status, "paused");
 			assert.equal(store.runs().find((candidate) => candidate.id === runId)?.status, "paused");
 			assert.equal(store.runs().find((candidate) => candidate.id === runId)?.exitReason, "quit");
 			assert.equal(backend.getWorkflow(runId)?.status, "paused");
 			await new Promise<void>((resolve) => setImmediate(resolve));
-			assert.deepEqual(actions, ["interrupt"]);
+			assert.deepEqual(actions, ["pause"]);
 		} finally {
 			observation.dispose();
 		}
@@ -1326,12 +1326,12 @@ describe("ctx.task tail liveness", () => {
 			await new Promise((resolve) => setTimeout(resolve, 5));
 		}
 		assert.ok(runId.length > 0);
-		const interrupted = await interruptRun(runId, {
+		const paused = await pauseRun(runId, {
 			store,
 			stageControlRegistry: registry,
 			toolControlRegistry: toolControls,
 		});
-		assert.equal(interrupted.ok, true);
+		assert.equal(paused.ok, true);
 		const finished = await pending;
 		assert.equal(finished.status, "paused");
 		assert.equal(finished.result?.result, undefined);
@@ -1445,7 +1445,7 @@ describe("ctx.task tail liveness", () => {
 		assert.equal(summarizeRunSnapshot(parent, 20, { toolControlRegistry: toolControls }).error, undefined);
 	});
 
-	test("interruptAllRuns forwards an injected tool-control registry to a task tail", async () => {
+	test("pauseAllRuns forwards an injected tool-control registry to a task tail", async () => {
 		const backend = new DelayedTaskCheckpointBackend();
 		setDurableBackend(backend);
 		const store = createStore();
@@ -1471,13 +1471,13 @@ describe("ctx.task tail liveness", () => {
 			await new Promise((resolve) => setTimeout(resolve, 5));
 		}
 		assert.ok(runId.length > 0);
-		const interrupted = await interruptAllRuns({
+		const paused = await pauseAllRuns({
 			store,
 			stageControlRegistry: registry,
 			toolControlRegistry: toolControls,
 		});
-		assert.equal(interrupted.length, 1);
-		assert.equal(interrupted[0]?.ok, true);
+		assert.equal(paused.length, 1);
+		assert.equal(paused[0]?.ok, true);
 		const finished = await pending;
 		assert.equal(finished.status, "paused");
 		assert.equal(store.runs().find((candidate) => candidate.id === runId)?.exitReason, "quit");

@@ -23,9 +23,8 @@ function adminCompletions(): PiArgumentCompletion[] {
 		{ value: "attach ", label: "attach", description: "Open the in-place attach pane on a node" },
 		{ value: "list ", label: "list", description: "List registered workflows" },
 		{ value: "status ", label: "status", description: "List current-session active and retained terminal runs" },
-		{ value: "interrupt ", label: "interrupt", description: "Interrupt a run" },
+		{ value: "pause ", label: "pause", description: "Pause a run" },
 		{ value: "quit ", label: "quit", description: "Quit a run and keep it resumable" },
-		{ value: "pause ", label: "pause", description: "Pause a run or stage" },
 		{ value: "resume ", label: "resume", description: "Re-open overlay for a run" },
 		{ value: "inputs ", label: "inputs", description: "Show a workflow's input schema" },
 		{ value: "reload ", label: "reload", description: "Reload workflow resources" },
@@ -53,7 +52,7 @@ export function workflowArgumentCompletionsNeedWorkflowResources(partial: string
 	const subcommand = parts[0] ?? "";
 	if (!partial.includes(" ")) return true;
 	if (!subcommand || subcommand === "inputs") return true;
-	if (["status", "connect", "resume", "attach", "pause", "interrupt", "quit", "reload"].includes(subcommand)) {
+	if (["status", "connect", "resume", "attach", "pause", "quit", "reload"].includes(subcommand)) {
 		return false;
 	}
 	return true;
@@ -67,12 +66,12 @@ export function workflowArgumentCompletions(partial: string, runtime: ExtensionR
 		return completeToken(partial, [...adminCompletions(), ...workflows()]);
 	}
 	if (subcommand === "inputs") return completeToken(partial, workflows());
-	if (["status", "connect", "resume", "attach", "pause"].includes(subcommand)) {
+	if (["status", "connect", "resume", "attach"].includes(subcommand)) {
 		return completeToken(partial, runIdItems());
 	}
-	if (subcommand === "interrupt") {
+	if (subcommand === "pause") {
 		return completeToken(partial, [
-			{ value: "--all ", label: "--all", description: "Interrupt all in-flight runs" },
+			{ value: "--all ", label: "--all", description: "Pause all in-flight runs" },
 			{ value: "--yes ", label: "--yes", description: "Skip confirmation" },
 			{ value: "-y ", label: "-y", description: "Skip confirmation" },
 			...runIdItems(),

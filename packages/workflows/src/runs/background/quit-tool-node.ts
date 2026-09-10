@@ -1,7 +1,7 @@
 /**
  * Targeted abort for a single in-flight `ctx.tool` graph node.
  *
- * This is the tool-node counterpart to interrupting one rogue stage: the node's
+ * This is the tool-node counterpart to pausing one stage: the node's
  * own controller is aborted, sibling stages and sibling tool nodes keep running,
  * and the run is not paused. The aborted call writes no replayable checkpoint,
  * so a later resume re-executes exactly that callback at the same ordinal.
@@ -36,7 +36,7 @@ export type ToolNodeAbortResult =
  * Abort one in-flight tool node and wait a bounded interval for its callback.
  *
  * `action` only picks the wording of the abort reason; both `quit` and
- * `interrupt` on a tool node mean the same thing — stop this call now.
+ * `pause` on a tool node mean the same thing: stop this call now.
  */
 export async function abortToolNode(
 	runId: string,

@@ -11,7 +11,7 @@ Default to a workflow for non-trivial work with a verifiable objective — see [
 - **Parallel branches** - Run independent research, review, or implementation branches concurrently
 - **Context handoffs** - Pass summaries, artifacts, files, and schema-backed structured results between stages
 - **Human input** - Pause for `ctx.ui.input`, `confirm`, `select`, `editor`, or custom TUI widget decisions during a run
-- **Resumable control** - Interrupt, pause, quit, resume, or connect to workflow runs
+- **Resumable control** - Pause, quit, resume, or connect to workflow runs
 - **Intercom run notifications** - Deliver async run results and control notices (long-running, needs-attention, completed, failed) to a parent session over [Intercom](/intercom)
 - **Artifacts** - Save large outputs to files instead of pushing everything through model context
 - **Verification and gates** - Preserve evidence, run checks, and stop for human approval where reliability matters
@@ -40,6 +40,8 @@ Prefer composing builtin definitions with `ctx.workflow(...)` over copying or re
 4. [Operations](/workflows/operations) — run, inspect, steer, pause, resume, and configure workflows.
 5. [API reference](/workflows/api-reference) — look up definitions, contexts, options, results, and programmatic APIs.
 
+For checking changes and sharing results in PRs, see [Verification and evidence](/workflows/verification). For general desktop, browser, and terminal work, including creative workflows, see [Computer use](/computer-use).
+
 ## When to Use Workflows
 
 Unless the user explicitly chooses inline execution, workflows are the default for non-trivial requests or structured work with a verifiable objective. Requests such as `quickly`, `inline`, `do this directly`, and `don't use a workflow` override that default for the specified task, even when complex. Treat "quickly" as an inline execution choice, not a request for a faster workflow. Do not launch a hidden/nested replacement or ask the user to reapprove the choice. Preserve testing, review, evidence, safety and authorization inline. Quoted examples, questions about inline code, and descriptions of software that should run quickly are not mode instructions. For an active switch, safely hold/stop the affected run and reconcile completed work and in-flight effects before continuing without duplicates; completed work is not undone. See [Verification and evidence](/workflows/verification).
@@ -66,7 +68,7 @@ If exploration drifts without progress, save findings and choose a concrete next
 
 | User need | Use |
 |-----------|-----|
-| Run, inspect, connect to, pause, interrupt, quit, resume, or check status for an existing workflow | `/workflow ...` or `workflow({ action: ... })` |
+| Run, inspect, connect to, pause, quit, resume, or check status for an existing workflow | `/workflow ...` or `workflow({ action: ... })` |
 | Run repository-wide research | Compose `fan-out-and-synthesize` with repository-focused branches, artifact outputs, and a synthesis barrier, or author a smaller task-specific research workflow. |
 | Run an implementation/review loop | Author a task-specific worker → fresh verifier → reducer loop with explicit evidence, repair bounds, and stop conditions. |
 | Create or edit reusable automation | A TypeScript workflow definition exported from `workflow({...})` |

@@ -3,7 +3,7 @@ import { closeSync, mkdtempSync, openSync, readFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
 
-export function runSmokeCommand(path, args, { cwd, env }) {
+export function runSmokeCommand(path, args, { cwd, env, timeout = 30_000 }) {
 	// Windows pg_ctl leaves a CMD shell alive even with -l. Its inherited pipes
 	// keep execFileSync waiting for EOF after pg_ctl has exited successfully.
 	// Files preserve diagnostics without waiting for descendant handle closure.
@@ -19,7 +19,7 @@ export function runSmokeCommand(path, args, { cwd, env }) {
 				cwd,
 				env,
 				encoding: "utf8",
-				timeout: 30_000,
+				timeout,
 				stdio: ["ignore", ...descriptors],
 			});
 		} catch (error) {

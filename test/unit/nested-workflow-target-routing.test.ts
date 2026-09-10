@@ -12,7 +12,6 @@ import {
 import { makeExecuteWorkflowTool } from "../../packages/workflows/src/extension/workflow-tool.js";
 import { renderWorkflowToolContent } from "../../packages/workflows/src/extension/workflow-tool-content.js";
 import {
-	workflowInterruptAction,
 	workflowPauseAction,
 	workflowResumeAction,
 } from "../../packages/workflows/src/extension/workflow-tool-control.js";
@@ -642,9 +641,9 @@ describe("nested workflow stage target routing", () => {
 		assert.equal("runId" in resumed ? resumed.runId : undefined, fixtureRunId("child-right"));
 		assert.deepEqual(rightCalls.resumes, ["continue right"]);
 
-		const interrupted = await workflowInterruptAction({ action: "interrupt", ...target });
-		assert.equal(interrupted.action, "interrupt");
-		assert.equal("runId" in interrupted ? interrupted.runId : undefined, fixtureRunId("child-right"));
+		const pausedAgain = await workflowPauseAction({ action: "pause", ...target });
+		assert.equal(pausedAgain.action, "pause");
+		assert.equal("runId" in pausedAgain ? pausedAgain.runId : undefined, fixtureRunId("child-right"));
 		assert.equal(leftCalls.pauses, 0);
 		assert.equal(rightCalls.pauses, 2);
 	});
@@ -653,7 +652,6 @@ describe("nested workflow stage target routing", () => {
 		const target = { runId: fixtureRunId("root-run"), stageId: "shared" };
 		const expected = `Ambiguous stage identifier "shared" matches: worker:duplicate name (${fixtureRunId("child-left")}/shared), worker:duplicate name (${fixtureRunId("child-right")}/shared)`;
 		const pause = await workflowPauseAction({ action: "pause", ...target });
-		const interrupt = await workflowInterruptAction({ action: "interrupt", ...target });
 		const resume = await workflowResumeAction(
 			{ action: "resume", ...target },
 			{
@@ -668,7 +666,6 @@ describe("nested workflow stage target routing", () => {
 		const transcript = workflowTranscriptResult({ action: "transcript", ...target });
 
 		assert.equal("message" in pause ? pause.message : undefined, expected);
-		assert.equal("message" in interrupt ? interrupt.message : undefined, expected);
 		assert.equal("message" in resume ? resume.message : undefined, expected);
 		assert.equal(inspected.action === "stage" ? inspected.error : undefined, expected);
 		assert.equal(transcript.action === "transcript" ? transcript.entries[0]?.text : undefined, expected);

@@ -1,7 +1,7 @@
 /**
  * Cancellation reasons for in-flight `ctx.tool` graph nodes.
  *
- * A tool node can be aborted on its own (`/workflow interrupt|quit` naming the
+ * A tool node can be aborted on its own (workflow pause/quit naming the
  * node) or as part of a graceful run-level quit. Both use `AbortError` as the
  * error name so the existing callback-cancellation classification and any
  * author code that checks `err.name === "AbortError"` keep working; the `scope`

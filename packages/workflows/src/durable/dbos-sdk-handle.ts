@@ -23,6 +23,7 @@ interface DbosStatus {
 	readonly status?: string;
 	readonly createdAt?: number;
 	readonly input?: readonly WorkflowSerializableValue[];
+	readonly output?: WorkflowSerializableValue;
 }
 
 /**
@@ -122,8 +123,13 @@ export function createRealDbosHandle(
 				const wid = s.workflowID ?? s.workflowId ?? "";
 				const stepName = wid.slice(prefix.length);
 				if (stepName.length === 0) continue;
-				const handle = dbos.retrieveWorkflow(wid);
-				const output = await handle.getResult();
+				// DBOS listings use safeParse: strings may be raw text from a decoding
+				// failure. Keep strict getResult errors for ambiguous/missing outputs;
+				// reuse decoded non-strings (including checkpoint envelopes) in bulk.
+				const output =
+					s.output === undefined || typeof s.output === "string"
+						? await dbos.retrieveWorkflow(wid).getResult()
+						: s.output;
 				records.push({ stepName, output, completedAt: s.createdAt });
 			}
 			return records;

@@ -244,8 +244,8 @@ describe("/workflow run-control chat commands", () => {
 		);
 	});
 
-	test.sequential("top-level /workflow interrupt defaults to the active run", async () => {
-		const runId = testRunId(`interrupt-active-${Date.now()}`);
+	test.sequential("top-level /workflow pause defaults to the active run", async () => {
+		const runId = testRunId(`pause-active-${Date.now()}`);
 		store.recordRunStart(makeInflightRun(runId));
 
 		const { pi, commands } = buildMockPi();
@@ -265,18 +265,18 @@ describe("/workflow run-control chat commands", () => {
 			},
 		};
 
-		await workflowCmd.options.handler("interrupt", ctx);
+		await workflowCmd.options.handler("pause", ctx);
 
 		const run = store.runs().find((r) => r.id === runId);
 		assert.equal(run?.status, "running");
 		assert.equal(
-			msgs.some((m) => m.includes("No active stages to interrupt")),
+			msgs.some((m) => m.includes("No active stages to pause")),
 			true,
 		);
 	});
 
-	test.sequential("top-level /workflow interrupt <id> reports no active stages without confirmation", async () => {
-		const runId = testRunId(`interrupt-chat-${Date.now()}`);
+	test.sequential("top-level /workflow pause <id> reports no active stages without confirmation", async () => {
+		const runId = testRunId(`pause-chat-${Date.now()}`);
 		store.recordRunStart(makeInflightRun(runId));
 
 		const { pi, commands } = buildMockPi();
@@ -300,16 +300,78 @@ describe("/workflow run-control chat commands", () => {
 			},
 		};
 
-		await workflowCmd.options.handler(`interrupt ${runId}`, ctx);
+		await workflowCmd.options.handler(`pause ${runId}`, ctx);
 
 		const run = store.runs().find((r) => r.id === runId);
 		assert.equal(confirmCalls, 0);
 		assert.equal(run?.status, "running");
 		assert.equal(
-			msgs.some((m) => m.includes("No active stages to interrupt")),
+			msgs.some((m) => m.includes("No active stages to pause")),
 			true,
 		);
 	});
+
+	test.sequential("removed /workflow interrupt cannot control a live run", async () => {
+		const runId = testRunId("removed-interrupt");
+		store.recordRunStart(makeInflightRun(runId));
+		registerTestStageHandle(runId, "worker");
+		const { workflowCmd } = await registerWorkflowCommand();
+		const { ctx, messages } = buildCtx();
+		await workflowCmd.options.handler(`interrupt ${runId}`, ctx);
+		assert.match(messages.join("\n"), /Workflow not found: interrupt/);
+		assert.equal(store.runs().find((run) => run.id === runId)?.status, "running");
+	});
+
+	test.sequential.each([
+		[false, false],
+		[false, true],
+		[true, false],
+		[true, true],
+	])("pause confirmation and extra-token handling: all=%s confirmed=%s", async (all, confirmed) => {
+		const runId = testRunId(`pause-confirm-${all}-${confirmed}`);
+		store.recordRunStart(makeInflightRun(runId));
+		registerTestStageHandle(runId, "worker");
+		const { handleRunControlCommand } = await import(
+			"../../packages/workflows/src/extension/workflow-run-control-command.js"
+		);
+		const { ctx, messages } = buildCtx();
+		const confirmations: string[] = [];
+		ctx.ui.confirm = async (title) => {
+			confirmations.push(title);
+			return confirmed;
+		};
+		ctx.ui.custom = async () => {
+			throw new Error("pause must not open a stage picker");
+		};
+		const target = all ? "--all" : runId;
+		await handleRunControlCommand(
+			"pause",
+			[target, "nonexistent-stage", "extra-token"],
+			ctx,
+			{ info: (message) => messages.push(message), error: (message) => messages.push(message) },
+			{} as never,
+		);
+		assert.equal(confirmations.length, 1);
+		assert.match(confirmations[0], all ? /Pause all 1 in-flight workflow runs/ : /Pause workflow run/);
+		assert.equal(store.runs().find((run) => run.id === runId)?.status, confirmed ? "paused" : "running");
+		assert.match(messages.join("\n"), confirmed ? /paused/i : /Cancelled/);
+	});
+
+	test.sequential.each(["", "-y", "--yes"])(
+		"top-level pause %s implicitly confirms and ignores extra stage tokens",
+		async (flag) => {
+			const runId = testRunId(`pause-yes-${flag}`);
+			store.recordRunStart(makeInflightRun(runId));
+			registerTestStageHandle(runId, "worker");
+			const { workflowCmd } = await registerWorkflowCommand();
+			const { ctx } = buildCtx();
+			ctx.ui.confirm = async () => {
+				throw new Error("confirmation was bypassed");
+			};
+			await workflowCmd.options.handler(`pause ${flag} ${runId} nonexistent-stage extra-token`, ctx);
+			assert.equal(store.runs().find((run) => run.id === runId)?.status, "paused");
+		},
+	);
 
 	test.sequential("top-level /workflow reload stays available while workflows are in flight", async () => {
 		const runId = testRunId(`reload-slash-inflight-${Date.now()}`);

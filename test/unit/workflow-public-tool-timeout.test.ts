@@ -19,7 +19,7 @@ import { jobTracker } from "../../packages/workflows/src/runs/background/job-tra
 import { createStore, store as workflowStore } from "../../packages/workflows/src/shared/store.js";
 
 const READ_ONLY_ACTIONS = ["models", "list", "get", "inputs", "status", "stages", "stage", "transcript"] as const;
-const MUTATING_ACTIONS = ["reload", "run", "answer", "pause", "resume", "interrupt", "quit"] as const;
+const MUTATING_ACTIONS = ["reload", "run", "answer", "pause", "resume", "quit"] as const;
 const ALL_ACTIONS = [...READ_ONLY_ACTIONS, ...MUTATING_ACTIONS] as const;
 
 type WorkflowToolExecutor = (
@@ -77,7 +77,7 @@ describe("public workflow tool request deadline", () => {
 			const action = args.action as (typeof ALL_ACTIONS)[number];
 			const deferred = Promise.withResolvers<WorkflowToolResult>();
 			active = { action, deferred, signal };
-			if (action === "interrupt") {
+			if (action === "pause") {
 				signal.addEventListener("abort", () => deferred.reject(new Error("Agent process stopped")), { once: true });
 			}
 			return deferred.promise;
@@ -165,7 +165,7 @@ describe("public workflow tool request deadline", () => {
 		assert.equal(calls, 0);
 
 		const midFlight = new AbortController();
-		const pending = tool.execute("mid-flight", { action: "interrupt" }, midFlight.signal, undefined, {});
+		const pending = tool.execute("mid-flight", { action: "pause" }, midFlight.signal, undefined, {});
 		await vi.advanceTimersByTimeAsync(0);
 		const midFlightReason = new Error("caller stopped mid-flight");
 		midFlight.abort(midFlightReason);
