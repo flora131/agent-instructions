@@ -67,15 +67,20 @@ export function inspectInProcessChildStatus(id?: string): SubagentToolResult | u
 	};
 }
 
-export async function interruptInProcessChild(id: string): Promise<SubagentToolResult | undefined> {
+export async function killInProcessChild(id: string): Promise<SubagentToolResult | undefined> {
 	const control = findSubagentControl(id);
 	if (!control) return undefined;
 	const identities = canonicalChildren(control);
 	const candidates = id === control.parent.path ? identities : identities.filter((child) => child.path === id);
 	for (const child of candidates) {
-		if (await control.interruptChild(child.path)) {
+		if (await control.killChild(child.path)) {
 			return {
-				content: [{ type: "text", text: `Interrupt requested for in-process child ${child.path}.` }],
+				content: [
+					{
+						type: "text",
+						text: `Kill requested for in-process child ${child.path}. This child cannot be resumed.`,
+					},
+				],
 				details: { mode: "management", results: [] },
 			};
 		}

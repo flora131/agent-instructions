@@ -21,7 +21,7 @@ interface SubagentStepResult {
 
 export interface SubagentNotifyDetails {
 	agent: string;
-	status: "completed" | "failed" | "interrupted";
+	status: "completed" | "failed" | "interrupted" | "killed";
 	taskInfo?: string;
 	resultPreview: string;
 	durationMs?: number;
@@ -212,13 +212,16 @@ export default function registerSubagentNotify(pi: ExtensionAPI): () => void {
 		const agent = result.agent ?? "unknown";
 		const summary = typeof result.summary === "string" ? result.summary : "";
 		const interrupted = result.status === "interrupted" || result.state === "interrupted";
-		const status = interrupted
-			? "interrupted"
-			: result.status === "ok"
-				? "completed"
-				: result.status === "continued"
+		const status =
+			result.status === "killed" || result.state === "killed"
+				? "killed"
+				: interrupted
 					? "interrupted"
-					: "failed";
+					: result.status === "ok"
+						? "completed"
+						: result.status === "continued"
+							? "interrupted"
+							: "failed";
 
 		const taskInfo =
 			result.taskIndex !== undefined && result.totalTasks !== undefined

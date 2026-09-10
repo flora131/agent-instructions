@@ -112,11 +112,13 @@ export function renderSubagentResult(
 				? theme.fg("warning", "yielded")
 				: r.detached || r.status === "continued"
 					? theme.fg("warning", "detached")
-					: isParentCancellation(r.cause) && (r.interrupted || r.status === "interrupted")
-						? theme.fg("warning", "cancelled")
-						: r.status === "ok"
-							? theme.fg("success", "ok")
-							: theme.fg("error", "failed");
+					: r.status === "killed"
+						? theme.fg("warning", "killed (non-resumable)")
+						: isParentCancellation(r.cause) && (r.interrupted || r.status === "interrupted")
+							? theme.fg("warning", "cancelled")
+							: r.status === "ok"
+								? theme.fg("success", "ok")
+								: theme.fg("error", "failed");
 		const contextBadge = d.context === "fork" ? theme.fg("warning", " [fork]") : "";
 		const output = r.truncation?.text || getSingleResultOutput(r);
 
@@ -229,19 +231,22 @@ export function renderSubagentResult(
 	const hasCancelled = d.results.some(
 		(result) => isParentCancellation(result.cause) && (result.interrupted || result.status === "interrupted"),
 	);
+	const hasKilled = d.results.some((result) => result.status === "killed");
 	const icon = hasRunning
 		? theme.fg("warning", "running")
 		: d.parentAskYielded
 			? theme.fg("warning", "yielded")
-			: hasEmptyWithoutTarget
-				? theme.fg("warning", "warning")
-				: ok === d.results.length
-					? theme.fg("success", "ok")
-					: d.results.some((result) => result.status === "error")
-						? theme.fg("error", "failed")
-						: hasCancelled
-							? theme.fg("warning", "cancelled")
-							: theme.fg("error", "failed");
+			: hasKilled && !hasCancelled && !d.results.some((result) => result.status === "error")
+				? theme.fg("warning", "killed (non-resumable)")
+				: hasEmptyWithoutTarget
+					? theme.fg("warning", "warning")
+					: ok === d.results.length
+						? theme.fg("success", "ok")
+						: d.results.some((result) => result.status === "error")
+							? theme.fg("error", "failed")
+							: hasCancelled
+								? theme.fg("warning", "cancelled")
+								: theme.fg("error", "failed");
 
 	const totalSummary =
 		d.progressSummary ||
@@ -351,7 +356,10 @@ export function renderSubagentResult(
 				? theme.fg("error", "failed")
 				: isParentCancellation(r.cause) && (r.interrupted || r.status === "interrupted")
 					? theme.fg("warning", "cancelled")
-					: r.status === "skipped" || r.status === "interrupted" || r.status === "continued"
+					: r.status === "killed" ||
+							r.status === "skipped" ||
+							r.status === "interrupted" ||
+							r.status === "continued"
 						? theme.fg("warning", r.status)
 						: hasEmptyTextOutputWithoutOutputTarget(r.task, resultOutput)
 							? theme.fg("warning", "warning")

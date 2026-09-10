@@ -7,7 +7,7 @@
 | Team / Owner           | Atomic — subagents (`@bastani/subagents`) + natives (`crates/atomic-natives`) |
 | Created / Last Updated | 2026-08-04                                                     |
 | Tracking issue         | [bastani-inc/atomic#2188](https://github.com/bastani-inc/atomic/issues/2188); fixes [#2191](https://github.com/bastani-inc/atomic/issues/2191) (detach → live async widget) |
-| Compatibility posture  | **Clean break. No backwards compatibility.** The process-child runtime, the detached async runner, the file-based result-delivery pipeline, the env-variable bridge, the watchdog and its knobs, the exit-code conventions, and public child revival are deleted, not emulated. Fresh single/parallel launches plus list/get/status/doctor/interrupt remain supported. |
+| Compatibility posture  | **Clean break. No backwards compatibility.** The process-child runtime, the detached async runner, the file-based result-delivery pipeline, the env-variable bridge, the watchdog and its knobs, the exit-code conventions, and public child revival are deleted, not emulated. Fresh single/parallel launches plus list/get/status/doctor/kill remain supported. |
 | Implementation language | Control plane in **Rust** (`crates/atomic-natives`, NAPI-RS), a structural port of codex-rs; session runtime stays TypeScript (`createAgentSession`). |
 
 ## 1. Executive Summary
@@ -145,7 +145,7 @@ Resolved with the requester on 2026-08-04 (decision record §9). Citations in `r
 | Depth: V1 max 1; V2 unchecked | `config/mod.rs`, `spec_plan.rs` | **Kept Atomic:** one child level, structural | deliberate |
 | Children get the parent's tools (no per-child allowlist) | `multi_agents_spec.rs#L757-L768` | **Kept Atomic:** per-agent tool allowlists at admission | deliberate |
 | No model fallback; children inherit parent's live model | `multi_agents_common.rs` | **Kept Atomic:** candidate ladder + auth pre-filter above the runner | deliberate |
-| Mailbox protocol (`send_message`/`followup_task`/`wait_agent`/`interrupt_agent`/`list_agents`) | `multi_agents_v2/*` | **Not adopted:** request/response `subagent` tool + intercom; `status`/`interrupt` actions cover live control | deliberate |
+| Mailbox protocol (`send_message`/`followup_task`/`wait_agent`/`interrupt_agent`/`list_agents`) | `multi_agents_v2/*` | **Not adopted:** request/response `subagent` tool + intercom; `status`/`kill` actions cover live control | deliberate |
 
 ## 5. Detailed Design
 
@@ -311,7 +311,7 @@ Child identity lifecycle (Rust-owned): `reserved → loaded → (running ↔ idl
 - **Interactive verification (runnable checklist):**
   1. `codebase-analyzer` on a task requiring > 5 min of uninterrupted thinking — completes, `status: "ok"`, `stats` present, no kill. (The scenario that died three times during this spec's research.)
   2. Parallel 3-agent fan-out — ≤ 4 running turns, zero child processes in `ps`, three metas with `status` and `path`.
-  3. `subagent({action:"interrupt"})` mid-run — child yields terminal `interrupted` within ~100 ms + teardown, session file intact; a follow-up uses a fresh launch and new identity.
+  3. `subagent({action:"kill", id: childId})` mid-run: child yields terminal `killed` after teardown, session file intact; a follow-up uses a fresh launch and new identity. Underlying native interruption APIs retain their original representation.
   4. Foreground child asks its supervisor — the original child terminally hands off exact context; the supervisor answer starts a fresh child with a new identity.
   5. Exit the parent during a live continued child — the run is gone and no public API can revive it from the session file.
   6. Set `ATOMIC_SUBAGENT_ATTEMPT_IDLE_TIMEOUT_MS=1000` on a long child — no effect; the variable no longer exists.
@@ -347,4 +347,4 @@ Child identity lifecycle (Rust-owned): `reserved → loaded → (running ↔ idl
 - `runs/background/`: `subagent-runner*.ts` (the runner, 12 files), `async-execution-*.ts`, `async-event-journal.ts`, `async-resume.ts`, `async-status.ts`, `top-level-async.ts`, `result-*.ts` (watcher, claims, quarantine, status, retry scheduler, delivery processor), `completion-claims.ts`, `completion-dedupe.ts`, `stale-run-reconciler.ts`, `run-status.ts`, `run-id-resolver.ts`, `parallel-groups.ts`. `async-job-tracker.ts` is rewritten watch-backed (widget subscription, no polling, no PID); `completion-notification.ts` survives simplified (notices without claims).
 - `runs/foreground/`: spawn/stream/kill machinery in `execution-attempt*.ts`; the entire `-2` detach apparatus — `execution-detach-reservations.ts`, `execution-detach-route.ts`, `execution-intercom-detach.ts`, `detached-cleanup-barrier.ts` — replaced by `continue_in_background`; `subagent-executor-async.ts` collapses to a thin don't-wait call; the old revive machinery is removed; jiti CLI-resolution probes.
 
-**Kept because users touch them:** the `subagent` tool name and actions (`status`/`interrupt`/`list`/…, backed by the live registry); artifact file naming; `run-history.jsonl` (with `status`); worktree contracts; one child delegation level; parallel caps (50 tasks, 4 running turns); intercom child identity scheme; per-agent definitions, skills, and allowlists.
+**Kept because users touch them:** the `subagent` tool name and actions (`status`/`kill`/`list`/…, backed by the live registry); artifact file naming; `run-history.jsonl` (with `status`); worktree contracts; one child delegation level; parallel caps (50 tasks, 4 running turns); intercom child identity scheme; per-agent definitions, skills, and allowlists.

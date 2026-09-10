@@ -11,6 +11,13 @@ export function taskDisplayText(text: string): string {
 	return text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x1f\x7f-\x9f]/g, " ");
 }
 export function taskState(task: TaskRecord): string {
+	if (
+		task.kind === "agent" &&
+		task.execution.kind === "settled" &&
+		task.execution.result.kind === "cancelled" &&
+		task.execution.result.cause === "user"
+	)
+		return "killed";
 	if (task.execution.kind === "settled") return taskOutcomeStatus(task.execution.result, task.kind);
 	if (task.execution.kind === "cancelling") return "cancelling";
 	if (task.attention.kind === "input-needed") return "input-needed";
@@ -49,6 +56,8 @@ export function taskStatusAppearance(task: TaskRecord): {
 			return { label: "Completed", icon: "✓", color: "success" };
 		case "failed":
 			return { label: "Failed", icon: "✗", color: "error" };
+		case "killed":
+			return { label: "Killed (non-resumable)", icon: "■", color: "warning" };
 		case "cancelled":
 			return { label: "Stopped", icon: "✗", color: "warning" };
 		case "cancelling":
@@ -96,7 +105,7 @@ export class TaskRow implements Component {
 		const index = group?.findIndex((item) => item.ref.taskId === task.ref.taskId) ?? -1;
 		const grouped = group !== undefined && index >= 0;
 		const rowWidth = Math.max(1, width - (grouped ? 2 : 0));
-		const state = taskState(task);
+		const state = taskState(task) === "killed" ? "killed (non-resumable)" : taskState(task);
 		const live = task.execution.kind === "running" || task.execution.kind === "queued";
 		const badge = live && task.observation.kind !== "none" ? ` · ${task.observation.kind}` : "";
 		const { icon: glyph, color } = taskStatusAppearance(task);

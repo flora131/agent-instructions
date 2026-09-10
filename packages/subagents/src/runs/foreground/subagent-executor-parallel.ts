@@ -44,7 +44,7 @@ import {
 	findDuplicateParallelOutputPath,
 	resolveParallelTaskCwd,
 } from "./subagent-executor-worktree.js";
-import { taskResponseRecords } from "./task-execution.js";
+import { subagentTaskResponseText, taskResponseRecords } from "./task-execution.js";
 
 export async function runParallelPath(
 	data: ExecutionContextData,
@@ -251,7 +251,7 @@ export async function runParallelPath(
 				),
 			);
 			return {
-				content: [{ type: "text", text: JSON.stringify(response) }],
+				content: [{ type: "text", text: subagentTaskResponseText(response) }],
 				details: {
 					mode: "parallel",
 					results: [],
@@ -270,7 +270,9 @@ export async function runParallelPath(
 			if (result.artifactPaths) allArtifactPaths.push(result.artifactPaths);
 		}
 
-		const interrupted = results.find((result) => result.interrupted && !isParentCancellation(result.cause));
+		const interrupted = results.find(
+			(result) => result.status === "killed" || (result.interrupted && !isParentCancellation(result.cause)),
+		);
 		const details = compactForegroundDetails({
 			mode: "parallel",
 			runId,
@@ -289,7 +291,10 @@ export async function runParallelPath(
 				content: [
 					{
 						type: "text",
-						text: `Parallel run ended after interrupt (${interrupted.agent}). Launch fresh subagents for any follow-up.`,
+						text:
+							interrupted.status === "killed"
+								? `Parallel child killed (${interrupted.agent}). This child cannot be resumed. Launch fresh subagents for any follow-up.`
+								: `Parallel run ended before completion (${interrupted.agent}). Launch fresh subagents for any follow-up.`,
 					},
 				],
 				details,

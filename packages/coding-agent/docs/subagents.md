@@ -83,7 +83,7 @@ In a parallel run, `intercom.ask`, `contact_supervisor({ reason: "need_decision"
 
 `intercom.send` and `contact_supervisor` progress updates return after delivery without waiting for a reply. An exact-child Intercom handshake can release the parallel call's foreground observations so the supervisor can handle the message. This is not execution cancellation: active siblings keep running, queued siblings start once capacity is available, and worktrees stay owned until their children exit. Background calls use the same communication path without needing to release an observation.
 
-Targeted `interrupt` still stops only the selected child. Explicit batch cancellation and session/workflow-stage lifetime closure still stop the intended owned children, including pending reply waits. A late or duplicate reply cannot revive a terminal child. Ordinary Intercom group restrictions and the authorized cross-group `contact_supervisor` route are unchanged.
+Targeted `kill` stops only the selected child and cannot be resumed. Explicit batch cancellation and session/workflow-stage lifetime closure still stop the intended owned children, including pending reply waits. A late or duplicate reply cannot revive a terminal child. Ordinary Intercom group restrictions and the authorized cross-group `contact_supervisor` route are unchanged.
 
 Completed, failed, interrupted, and cancelled noninteractive children cannot answer new Intercom asks, even when their retained registration still says `idle`. Such asks fail immediately with an explicit terminal-child error; an admitted ask also fails if its child terminates before replying. Launch a fresh child with the required context for follow-up work. This does not restrict live interactive idle sessions or workflow-stage post-mortem conversations, and does not change `send` delivery semantics.
 
@@ -163,16 +163,16 @@ Tool examples:
 subagent({ agent: "codebase-analyzer", task: "Trace the auth flow with file references.", wait: { kind: "foreground", budgetMs: 30000 } })
 ```
 
-Use `interrupt` to stop a live child. Interrupted children are terminal for continuation; launch a fresh child with an explicit context handoff for follow-up work.
+Use `subagent({ action: "kill", id: "<task-or-run-id>" })` to terminally stop a live child. Killed children cannot be resumed; launch a fresh child with an explicit context handoff for follow-up work. The former `interrupt` action is no longer accepted. Replace subagent calls using `action: "interrupt"` with `action: "kill"`. Workflow interrupt commands and host cancellation APIs are unchanged.
 
 If the parent turn is cancelled while a foreground in-process child is still running, the child stops through the existing abort/interrupted state. That outcome is terminal and non-retryable: it does not count as a failure, never looks completed, and preserves any fallback metadata already recorded before abort. Parent receipts, Intercom summaries, and progress present the child as cancelled; persisted metadata records `interrupted` with abort cause rather than a new public status. Atomic recovers bounded, clearly labelled partial findings in this order:
 1. A modified run-scoped `progress.md`
 2. The last assistant message that contains actual text
 3. A cancellation notice with session, progress, and output artifact references
 
-A thinking-only aborted final message is skipped so earlier text can still be recovered. Session, Progress, and Output paths are cited only when those files exist when the cancelled envelope or receipt is built. A parallel set shares one `progress.md`; recovery attributes that file to the first progress-enabled child so siblings are not each given a copy of the same findings. A mixed parallel set that contains both a user interrupt and a parent cancellation presents the cancellation summary rather than interrupt-specific follow-up guidance.
+A thinking-only aborted final message is skipped so earlier text can still be recovered. Session, Progress, and Output paths are cited only when those files exist when the cancelled envelope or receipt is built. A parallel set shares one `progress.md`; recovery attributes that file to the first progress-enabled child so siblings are not each given a copy of the same findings. A mixed parallel set that contains both a killed child and a parent cancellation preserves the cancellation summary.
 
-For owner-bound task IDs, status and interrupt resolve the same task owner as launch and wait. Legacy run IDs use the live Rust registry and status watch; `list` and `get` remain read-only definition management actions. Neither identifier revives a completed execution. Owner-bound completions use persisted delivery identities; unbound callers retain their legacy result and artifact behavior.
+For owner-bound task IDs, status and kill resolve the same task owner as launch and wait. Legacy run IDs use the live registry and status watch; `list` and `get` remain read-only definition management actions. Neither identifier revives a completed execution. Owner-bound completions use persisted delivery identities; unbound callers retain their legacy result and artifact behavior.
 
 In-process status results use compact rows such as `∀ debugger_1 · Running`, matching the other subagent tool cards. The collapsed card shows up to six children and an omitted count; expanding the tool result shows every child, full paths, parent, task, depth, loaded/cold residency, and any recorded termination cause or session file. Multiple runs have separate labels. The configured tool-expansion shortcut appears below the compact rows. This is a status snapshot, not an animated live monitor; inspection does not start or resume work. Model-facing status text and canonical identifiers remain unchanged.
 
@@ -248,7 +248,7 @@ Child-safety boundaries are enforced by typed admission policy and the bundled s
 - In-process child sessions load bundled extensions through normal discovery. The `subagent` tool may therefore be registered when the child's active tool selection permits it, including the default no-allowlist case; an explicit allowlist may omit it. Tool presence does not grant fanout. The bundled subagents skill remains parent-only and is stripped from child prompts, including fanout-authorized children.
 - Child context is filtered to remove parent orchestration artifacts, old control/status messages, and prior parent `subagent` tool calls/results.
 - Children are instructed that they are not the parent orchestrator and must complete their assigned task directly rather than delegating.
-- Delegation is exactly one level deep and is not configurable. A session admitted as a subagent child is refused every launch and `interrupt`; only `list`, `get`, and `status` stay available. A management-restricted child is also refused `create`, `update`, and `delete`.
+- Delegation is exactly one level deep and is not configurable. A session admitted as a subagent child is refused every launch and `kill`; only `list`, `get`, and `status` stay available. A management-restricted child is also refused `create`, `update`, and `delete`.
 - The rule is enforced twice: the subagent executor refuses a child before any run starts, and the Rust admission door refuses a child deeper than the single permitted level. Admitted depth is typed admission state, never inherited from process environment state.
 
 This keeps the parent session responsible for orchestration.

@@ -96,7 +96,7 @@ interface PromptTemplateBridgeResult {
 	details?: {
 		results?: Array<{
 			agent?: string;
-			status?: "ok" | "error" | "skipped" | "interrupted" | "continued";
+			status?: "ok" | "error" | "skipped" | "interrupted" | "killed" | "continued";
 			messages?: unknown[];
 			finalOutput?: string;
 			error?: string;

@@ -7,7 +7,7 @@ export interface RunEntry {
 	agent: string;
 	task: string;
 	ts: number;
-	status: "ok" | "error" | "skipped" | "interrupted" | "continued";
+	status: "ok" | "error" | "skipped" | "interrupted" | "killed" | "continued";
 	duration: number;
 }
 

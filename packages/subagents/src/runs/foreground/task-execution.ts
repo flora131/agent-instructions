@@ -15,9 +15,25 @@ import type { RunSyncOptions, SingleResult, SubagentToolResult } from "../../sha
 import { getSingleResultOutput } from "../../shared/utils.js";
 import type { SubagentExecutorRuntimeDeps } from "./subagent-executor-types.js";
 
+/** Project explicit user stops without changing the shared host cancellation record. */
+export function subagentTaskResultLabel(result: TaskResult): string {
+	return result.kind === "cancelled" && result.cause === "user" ? "killed (non-resumable)" : result.kind;
+}
+
+export function subagentTaskResponseText(response: ModelSingleResponse | ModelParallelResponse): string {
+	const outcomes = response.kind === "parallel" ? response.slots.map((slot) => slot.outcome) : [response];
+	const killed = outcomes.filter(
+		(outcome) =>
+			outcome.kind === "admitted" &&
+			outcome.observation.kind === "settled" &&
+			subagentTaskResultLabel(outcome.observation.result) === "killed (non-resumable)",
+	);
+	return `${killed.length ? `${killed.length} killed. These children cannot be resumed. Underlying host response:\n` : ""}${JSON.stringify(response)}`;
+}
+
 export function taskToolResult(response: ModelSingleResponse, host?: AgentTaskHost): SubagentToolResult {
 	return {
-		content: [{ type: "text", text: JSON.stringify(response) }],
+		content: [{ type: "text", text: subagentTaskResponseText(response) }],
 		details: {
 			mode: "single",
 			results: [],
@@ -129,6 +145,7 @@ export async function runAgentTask(input: {
 						byteCount: String(bytes.length),
 						omittedRanges: [],
 					};
+					if (child.status === "killed") return { kind: "cancelled", cause: "user", output };
 					if (child.interrupted)
 						return {
 							kind: "cancelled",

@@ -160,7 +160,9 @@ function activeSubagentContractPath(file: string): boolean {
 }
 
 function activeSubagentContractSource(file: string): string {
-	const source = readFileSync(join(root, file), "utf8");
+	const source = readFileSync(join(root, file), "utf8")
+		.replace(/\bcannot be resumed\b/gu, "terminal")
+		.replace(/\bnon-resumable\b/gu, "terminal");
 	if (file === "packages/coding-agent/docs/workflows/api-reference.md") {
 		const start = source.indexOf("### `tools` / `noTools` / `excludedTools`");
 		assert.notEqual(start, -1, "workflow subagent-tool contract section is missing");

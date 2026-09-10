@@ -296,10 +296,10 @@ function fixture(wait: WaitPolicy | undefined, owned = true, resources: { worktr
 		snapshot,
 		host,
 		batchSignal,
-		interrupt(taskId: TaskId) {
+		kill(taskId: TaskId) {
 			return executor.execute(
-				"interrupt",
-				{ action: "interrupt", id: taskId },
+				"kill",
+				{ action: "kill", id: taskId },
 				new AbortController().signal,
 				undefined,
 				ctx as never,
@@ -487,11 +487,11 @@ for (const wait of [{ kind: "background" }, { kind: "foreground", budgetMs: 1000
 				const question = current.surfaced[0]!.id;
 				const ids = current.snapshot().map((task) => task.ref.taskId);
 				if (replyFirst) assert.equal(child.reply(question), true);
-				assert.notEqual((await current.interrupt(ids[0]!)).isError, true);
+				assert.notEqual((await current.kill(ids[0]!)).isError, true);
 				assert.equal((await execution).isError, !replyFirst);
-				assert.equal(child.reply(question), false, "late/duplicate replies cannot revive a cancelled child");
+				assert.equal(child.reply(question), false, "late/duplicate replies cannot revive a killed child");
 				assert.equal(child.waits.has(), false);
-				await vi.waitFor(() => assert.equal(current.terminal.get(0)?.status, "interrupted"));
+				await vi.waitFor(() => assert.equal(current.terminal.get(0)?.status, "killed"));
 				assert.equal(current.terminal.has(1), false);
 				await vi.waitFor(() => assert.deepEqual(current.starts, [0, 1, 2]));
 				await current.finish(1);
@@ -589,7 +589,7 @@ test("foreground admission does not execute a queued child cancelled before capa
 		assert.equal(queued.execution.kind, "queued");
 		assert.equal(current.optionsByIndex.has(2), false, "native admission must not invoke queued child execution");
 		assert.deepEqual(current.starts, [0, 1]);
-		assert.notEqual((await current.interrupt(queued.ref.taskId)).isError, true);
+		assert.notEqual((await current.kill(queued.ref.taskId)).isError, true);
 		await current.finish(0);
 		await current.finish(1);
 		await current.host.waitForTask(queued.ref.taskId);
@@ -627,7 +627,7 @@ for (const wait of [undefined, { kind: "background" }, { kind: "foreground", bud
 				const queued = current.snapshot()[2]!;
 				assert.equal(queued.execution.kind, "queued");
 				if (stop === "queued") {
-					assert.notEqual((await current.interrupt(queued.ref.taskId)).isError, true);
+					assert.notEqual((await current.kill(queued.ref.taskId)).isError, true);
 					assert.equal(
 						current.git("worktree", "list", "--porcelain"),
 						worktrees,
