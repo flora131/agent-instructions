@@ -473,7 +473,7 @@ export function createWriteToolDefinition(
 			if (/^[a-z]+:\/\//i.test(path)) {
 				const sourcePath = path.startsWith("local://") ? resolveInternalSelector(path, executionCwd) : undefined;
 				if (sourcePath)
-					return createWriteToolDefinition(executionCwd, options).execute(
+					return createWriteToolDefinition(executionCwd, { ...options, hashlineStore }).execute(
 						toolCallId,
 						{ path: sourcePath, content },
 						signal,
