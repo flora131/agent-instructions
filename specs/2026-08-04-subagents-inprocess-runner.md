@@ -7,7 +7,7 @@
 | Team / Owner           | Atomic — subagents (`@bastani/subagents`) + natives (`crates/atomic-natives`) |
 | Created / Last Updated | 2026-08-04                                                     |
 | Tracking issue         | [bastani-inc/atomic#2188](https://github.com/bastani-inc/atomic/issues/2188); fixes [#2191](https://github.com/bastani-inc/atomic/issues/2191) (detach → live async widget) |
-| Compatibility posture  | **Clean break. No backwards compatibility.** The process-child runtime, the detached async runner, the file-based result-delivery pipeline, the env-variable bridge, the watchdog and its knobs, the exit-code conventions, and public child revival are deleted, not emulated. Fresh single/parallel launches plus list/get/status/doctor/interrupt remain supported. |
+| Compatibility posture  | **Clean break. No backwards compatibility.** The process-child runtime, the detached async runner, the file-based result-delivery pipeline, the env-variable bridge, the watchdog and its knobs, the exit-code conventions, and public child revival are deleted, not emulated. Fresh single/parallel launches plus list/get/status/doctor/kill remain supported. |
 | Implementation language | Control plane in **Rust** (`crates/atomic-natives`, NAPI-RS), a structural port of codex-rs; session runtime stays TypeScript (`createAgentSession`). |
 
 ## 1. Executive Summary

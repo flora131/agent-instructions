@@ -87,6 +87,7 @@ export function renderMultiCompact(d: Details, theme: Theme, now?: number, pulse
 	const hasRunning =
 		d.progress?.some((p) => p.status === "running") || d.results.some((r) => r.progress?.status === "running");
 	const failed = d.results.some((r) => r.status === "error" && r.progress?.status !== "running");
+	const hasKilled = d.results.some((r) => r.status === "killed" && r.progress?.status !== "running");
 	const interruptedOrDetached = d.results.some(
 		(r) =>
 			(r.interrupted ||
@@ -112,12 +113,16 @@ export function renderMultiCompact(d: Details, theme: Theme, now?: number, pulse
 	}
 	const multiLabel = buildMultiProgressLabel(d, hasRunning);
 	const itemTitle = multiLabel.itemTitle;
-	const stats = statJoin(theme, [multiLabel.headerLabel, formatProgressStats(theme, totalSummary, true, now)]);
+	const stats = statJoin(theme, [
+		multiLabel.headerLabel,
+		!hasRunning && hasKilled ? theme.fg("warning", "killed (non-resumable)") : "",
+		formatProgressStats(theme, totalSummary, true, now),
+	]);
 	const glyph = hasRunning
 		? theme.fg("accent", pulseGlyph(pulseFrame))
 		: failed
 			? theme.fg("error", "✗")
-			: interruptedOrDetached
+			: hasKilled || interruptedOrDetached
 				? theme.fg("warning", "■")
 				: theme.fg("success", "✓");
 	const contextBadge = d.context === "fork" ? theme.fg("warning", " [fork]") : "";

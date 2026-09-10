@@ -231,19 +231,22 @@ export function renderSubagentResult(
 	const hasCancelled = d.results.some(
 		(result) => isParentCancellation(result.cause) && (result.interrupted || result.status === "interrupted"),
 	);
+	const hasKilled = d.results.some((result) => result.status === "killed");
 	const icon = hasRunning
 		? theme.fg("warning", "running")
 		: d.parentAskYielded
 			? theme.fg("warning", "yielded")
-			: hasEmptyWithoutTarget
-				? theme.fg("warning", "warning")
-				: ok === d.results.length
-					? theme.fg("success", "ok")
-					: d.results.some((result) => result.status === "error")
-						? theme.fg("error", "failed")
-						: hasCancelled
-							? theme.fg("warning", "cancelled")
-							: theme.fg("error", "failed");
+			: hasKilled && !hasCancelled && !d.results.some((result) => result.status === "error")
+				? theme.fg("warning", "killed (non-resumable)")
+				: hasEmptyWithoutTarget
+					? theme.fg("warning", "warning")
+					: ok === d.results.length
+						? theme.fg("success", "ok")
+						: d.results.some((result) => result.status === "error")
+							? theme.fg("error", "failed")
+							: hasCancelled
+								? theme.fg("warning", "cancelled")
+								: theme.fg("error", "failed");
 
 	const totalSummary =
 		d.progressSummary ||

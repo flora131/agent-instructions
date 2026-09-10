@@ -16,8 +16,11 @@ import type {
 	ExecutorDeps,
 	SubagentExecutorRuntimeDeps,
 } from "../../packages/subagents/src/runs/foreground/subagent-executor-types.js";
-import { clearSubagentControls } from "../../packages/subagents/src/runs/inprocess/control-registry.js";
-import type { SubagentState } from "../../packages/subagents/src/shared/types.js";
+import {
+	clearSubagentControls,
+	listSubagentControls,
+} from "../../packages/subagents/src/runs/inprocess/control-registry.js";
+import type { SingleResult, SubagentState } from "../../packages/subagents/src/shared/types.js";
 import { sleep, spawnSyncCollect } from "../helpers/runtime.js";
 
 type EventHandler = (data: unknown) => void;
@@ -476,3 +479,222 @@ test("owner task kill reaches a real child and wait preserves raw cancellation u
 		}
 	}
 });
+
+test("owner foreground parallel kill preserves sibling execution and raw host records under a killed receipt", async () => {
+	const cwd = makeRoot();
+	const gate = Promise.withResolvers<void>();
+	const { execute } = executor(cwd, new TestEvents(), {
+		runSync: (parentCwd, agents, agentName, task, options) =>
+			runSync(parentCwd, agents, agentName, task, {
+				...options,
+				testSession: {
+					promptGate: gate.promise,
+					promptLogPath: join(cwd, `${task}.log`),
+					abortResolvesPrompt: true,
+				},
+			}),
+	});
+	const host = new AgentTaskHost({ scope: { kind: "session", sessionId: "parallel-kill" }, authorizeLaunch() {} });
+	const ctx = { ...context(cwd), getAgentTaskHost: () => host };
+	const call = (params: Parameters<typeof execute.execute>[1]) =>
+		execute.execute("parallel-kill", params, new AbortController().signal, undefined, ctx);
+	const launch = call({
+		tasks: ["first", "second"].map((task) => ({ agent: "qa-echo", task })),
+		wait: { kind: "foreground" },
+		artifacts: false,
+	});
+	try {
+		await waitUntil(() => ["first", "second"].every((task) => existsSync(join(cwd, `${task}.log`))));
+		const watched = host.watchOwnerTasks();
+		assert.ok(watched.ok);
+		const ids = watched.value.snapshot.tasks.map((task) => task.ref.taskId);
+		watched.value.dispose();
+		assert.equal(ids.length, 2);
+		// Owner lookup retains id precedence when both target fields are supplied.
+		const killed = await call({ action: "kill", id: ids[0], runId: ids[1] });
+		assert.notEqual(killed.isError, true, text(killed));
+		const stopped = await host.waitForTask(ids[0]!);
+		assert.ok(stopped.ok && stopped.value.kind === "settled");
+		assert.equal(stopped.value.result.kind, "cancelled");
+		assert.ok(stopped.value.result.kind === "cancelled");
+		assert.equal(stopped.value.result.cause, "user");
+		const sibling = await host.waitForTask(ids[1]!, 0);
+		assert.ok(sibling.ok && sibling.value.kind === "yielded");
+		gate.resolve();
+		const terminal = await launch;
+		assert.match(text(terminal), /1 killed.*cannot be resumed/);
+		assert.deepEqual(JSON.parse(text(terminal).split("\n").at(-1)!), terminal.details.taskResponse);
+		const response = terminal.details.taskResponse;
+		assert.ok(response?.kind === "parallel");
+		assert.deepEqual(
+			response.slots.map(({ outcome }) => {
+				assert.ok(outcome.kind === "admitted" && outcome.observation.kind === "settled");
+				return outcome.observation.result.kind;
+			}),
+			["cancelled", "completed"],
+		);
+		assert.equal(terminal.details.taskRecords?.length, 2);
+	} finally {
+		gate.resolve();
+		await host.close("session-close");
+		await launch;
+	}
+});
+
+for (const field of ["id", "runId"] as const) {
+	test(`owner public kill via ${field} during native capacity wait is killed, cold and terminal`, async () => {
+		const cwd = makeRoot();
+		const gate = Promise.withResolvers<void>();
+		const terminal: SingleResult[] = [];
+		const { execute } = executor(cwd, new TestEvents(), {
+			runSync: async (parentCwd, agents, agentName, task, options) => {
+				const result = await runSync(parentCwd, agents, agentName, task, {
+					...options,
+					testSession: { promptGate: gate.promise, abortResolvesPrompt: true },
+				});
+				terminal.push(result);
+				return result;
+			},
+		});
+		const host = new AgentTaskHost({
+			scope: { kind: "session", sessionId: `capacity-${field}` },
+			authorizeLaunch() {},
+		});
+		const ctx = { ...context(cwd), getAgentTaskHost: () => host };
+		const call = (params: Parameters<typeof execute.execute>[1]) =>
+			execute.execute("capacity-kill", params, new AbortController().signal, undefined, ctx);
+		try {
+			const launched = await call({
+				tasks: Array.from({ length: 5 }, (_, index) => ({ agent: "qa-echo", task: `hold ${index}` })),
+				concurrency: 5,
+				wait: { kind: "background" },
+				artifacts: false,
+			});
+			const response = launched.details.taskResponse;
+			assert.ok(response?.kind === "parallel");
+			const ids = response.slots.map(({ outcome }) => {
+				assert.ok(outcome.kind === "admitted");
+				return outcome.observation.taskId;
+			});
+			await waitUntil(() => listSubagentControls().some((control) => control.listChildren().length === 5));
+			const control = listSubagentControls().find((control) => control.listChildren().length === 5)!;
+			const children = control.listChildren();
+			assert.deepEqual(
+				children.map(({ status, loaded }) => ({ status, loaded })),
+				[
+					...Array.from({ length: 4 }, () => ({ status: "running", loaded: true })),
+					{ status: "pending", loaded: false },
+				],
+			);
+			const path = children[4]!.path;
+			const watched: string[] = [];
+			control.subscribe(path, (status) => watched.push(status));
+			const killed = await call({ action: "kill", [field]: ids[4] });
+			assert.notEqual(killed.isError, true, text(killed));
+			const stopped = await host.waitForTask(ids[4]!);
+			assert.ok(stopped.ok && stopped.value.kind === "settled");
+			assert.equal(stopped.value.result.kind, "cancelled");
+			assert.ok(stopped.value.result.kind === "cancelled");
+			assert.equal(stopped.value.result.cause, "user");
+			assert.equal(terminal.length, 1);
+			assert.equal(terminal[0]!.status, "killed");
+			assert.equal(terminal[0]!.cause, undefined);
+			assert.equal(terminal[0]!.progress?.status, "killed");
+			assert.match(terminal[0]!.envelope!, /Killed.*cannot be resumed/);
+			assert.doesNotMatch(terminal[0]!.envelope!, /cancelled by parent/);
+			assert.match(text(await call({ action: "status" })), /qa-echo_5 — killed \(cold\)/);
+			assert.equal(control.native.listChildren().find((child) => child.path === path)?.status, "interrupted");
+			await waitUntil(() => watched.includes("killed"));
+			assert.ok(
+				control
+					.listChildren()
+					.slice(0, 4)
+					.every((child) => child.status === "running"),
+			);
+			assert.equal((await call({ action: "kill", id: path })).isError, true);
+			gate.resolve();
+			await Promise.all(ids.map((id) => host.waitForTask(id)));
+			assert.deepEqual(
+				terminal.map((result) => result.status),
+				["killed", "ok", "ok", "ok", "ok"],
+			);
+			assert.equal(control.findChild(path)?.status, "killed");
+		} finally {
+			gate.resolve();
+			await host.close("session-close");
+		}
+	});
+}
+
+for (const cause of ["parent-default", "parent-user", "owner-close"] as const) {
+	test.each([false, true])(`${cause} at capacity preserves abort (late kill: %s)`, async (lateKill) => {
+		const cwd = makeRoot();
+		const gate = Promise.withResolvers<void>();
+		const abort = new AbortController();
+		const terminal: SingleResult[] = [];
+		const { execute } = executor(cwd, new TestEvents(), {
+			runSync: async (parentCwd, agents, agentName, task, options) => {
+				const result = await runSync(parentCwd, agents, agentName, task, {
+					...options,
+					testSession: { promptGate: gate.promise, abortResolvesPrompt: true },
+				});
+				terminal.push(result);
+				return result;
+			},
+		});
+		const host = new AgentTaskHost({ scope: { kind: "session", sessionId: cwd }, authorizeLaunch() {} });
+		const ctx = cause === "owner-close" ? { ...context(cwd), getAgentTaskHost: () => host } : context(cwd);
+		const launch = execute.execute(
+			cause,
+			{
+				tasks: Array.from({ length: 5 }, (_, index) => ({ agent: "qa-echo", task: `hold ${index}` })),
+				concurrency: 5,
+				artifacts: false,
+			},
+			abort.signal,
+			undefined,
+			ctx,
+		);
+		try {
+			await waitUntil(() => listSubagentControls().some((control) => control.listChildren().length === 5));
+			const control = listSubagentControls().find((control) => control.listChildren().length === 5)!;
+			const waiting = control.listChildren()[4]!;
+			assert.equal(waiting.status, "pending");
+			assert.equal(waiting.loaded, false);
+			const closing = cause === "owner-close" ? host.close("session-close") : undefined;
+			if (cause === "parent-user") abort.abort("user");
+			else if (cause === "parent-default") abort.abort();
+			if (lateKill)
+				await execute.execute(
+					"late-kill",
+					{ action: "kill", id: waiting.path },
+					new AbortController().signal,
+					undefined,
+					ctx,
+				);
+			await closing;
+			await launch;
+			await waitUntil(() => terminal.length === 5);
+			for (const result of terminal) {
+				assert.equal(result.status, "interrupted");
+				assert.equal(result.cause, "abort");
+				assert.match(result.envelope!, /Run cancelled by parent/);
+				assert.doesNotMatch(result.envelope!, /killed/i);
+			}
+			assert.equal(control.findChild(waiting.path)?.status, "interrupted");
+			assert.equal(control.findChild(waiting.path)?.loaded, false);
+		} finally {
+			gate.resolve();
+			await host.close("session-close");
+			await launch;
+		}
+	});
+}
+
+async function waitUntil(predicate: () => boolean): Promise<void> {
+	for (let attempt = 0; attempt < 2_400; attempt++) {
+		if (predicate()) return;
+		await sleep(5);
+	}
+	assert.ok(predicate(), "expected child execution state before management action");
+}

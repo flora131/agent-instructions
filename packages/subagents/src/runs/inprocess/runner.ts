@@ -839,14 +839,21 @@ export class SubagentControlRuntime {
 			if (waitResult !== "retry") {
 				const stats = { ...EMPTY_STATS, sessionId: admitted.identity.path };
 				if (waitResult === "interrupt" || waitResult === PARENT_CANCEL_CAUSE) {
+					// Classify before publishing: a late kill must not replace the abort that won the wait.
+					if (waitResult === PARENT_CANCEL_CAUSE) {
+						if (taskHooks && signals.abort.reason === "user") this.killedChildren.add(admitted.identity.path);
+						else this.killedChildren.delete(admitted.identity.path);
+					}
+					const killed = this.killedChildren.has(admitted.identity.path);
 					this.native.publishChildStatus(admitted.identity.path, nativeStatus("interrupted"));
 					return {
-						status: "interrupted",
-						...(waitResult === PARENT_CANCEL_CAUSE ? { cause: PARENT_CANCEL_CAUSE } : {}),
+						status: killed ? "killed" : "interrupted",
+						...(waitResult === PARENT_CANCEL_CAUSE && !killed ? { cause: PARENT_CANCEL_CAUSE } : {}),
 						stats,
 						path: admitted.identity.path,
-						envelope:
-							waitResult === PARENT_CANCEL_CAUSE
+						envelope: killed
+							? "Killed. This child cannot be resumed."
+							: waitResult === PARENT_CANCEL_CAUSE
 								? cancelledEnvelope(undefined, admitted.spec, stats)
 								: INTERRUPTED_ENVELOPE,
 						...(effectiveModelId === undefined ? {} : { model: effectiveModelId }),
