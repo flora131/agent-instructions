@@ -35,7 +35,7 @@ describe("workflow extension-hook authoring guidance", () => {
 			"package and document it with the workflow",
 			"extension-provided custom tools in stage `tools` allowlists",
 			"document hook-driven behavior so the workflow remains inspectable",
-			"packages/coding-agent/docs/extensions.md#events",
+			"packages/coding-agent/docs/extensions/events.md#events",
 		]) {
 			expect(authoringGuidance).toContain(phrase);
 		}

@@ -30,6 +30,18 @@ Extensions are TypeScript modules that extend Atomic's behavior. They can subscr
 See [examples/extensions/](https://github.com/bastani-inc/atomic/tree/main/packages/coding-agent/examples/extensions) for working implementations.
 
 Atomic also ships an environment-gated [Herdr reporter](/herdr). It combines settled agent activity, extension prompt events, and observed workflow roots under one parent pane owner. It defers to loaded community or legacy reporters and can be disabled with `herdr.enabled` in settings. The tested Herdr release and observed CLI behaviour are listed under [Compatibility](/herdr#compatibility).
+## Where to go next
+
+Extensions are TypeScript modules that add tools, commands, event handlers, and custom UI. Read this page for startup behavior, locations, imports, and a first extension, then continue:
+
+- [Writing extensions](/extensions/authoring) — build one, manage its state, and register custom tools.
+- [Extension events](/extensions/events) — every event, its payload, and its return contract.
+- [Extension UI](/extensions/ui) — render custom UI from an extension.
+- [Extension API reference](/extensions/api-reference) — `ExtensionContext`, `ExtensionCommandContext`, `ExtensionAPI` methods, and error handling.
+- [Extension examples](/extensions/examples) — runnable examples shipped with Atomic.
+- [Security](/security) — the project-trust boundary that decides whether a project's extensions load, and what an extension can reach once it does. Read this before installing an extension you did not write.
+
+If an extension is heavier than you need, compare the lighter mechanisms on [Build with Atomic](/build).
 
 ## Table of Contents
 
@@ -38,26 +50,26 @@ Atomic also ships an environment-gated [Herdr reporter](/herdr). It combines set
 - [Quick Start](#quick-start)
 - [Extension Locations](#extension-locations)
 - [Available Imports](#available-imports)
-- [Writing an Extension](#writing-an-extension)
-  - [Extension Styles](#extension-styles)
-- [Events](#events)
-  - [Lifecycle Overview](#lifecycle-overview)
-  - [Resource Events](#resource-events)
-  - [Session Events](#session-events)
-  - [Agent Events](#agent-events)
-  - [Model Events](#model-events)
-  - [Tool Events](#tool-events)
+- [Writing an Extension](/extensions/authoring#writing-an-extension)
+  - [Extension Styles](/extensions/authoring#extension-styles)
+- [Events](/extensions/events#events)
+  - [Lifecycle Overview](/extensions/events#lifecycle-overview)
+  - [Resource Events](/extensions/events#resource-events)
+  - [Session Events](/extensions/events#session-events)
+  - [Agent Events](/extensions/events#agent-events)
+  - [Model Events](/extensions/events#model-events)
+  - [Tool Events](/extensions/events#tool-events)
 - [Workflow activity and lifecycle hooks](#workflow-activity-and-lifecycle-hooks)
-- [ExtensionContext](#extensioncontext)
-- [ExtensionCommandContext](#extensioncommandcontext)
-- [ExtensionAPI Methods](#extensionapi-methods)
-- [State Management](#state-management)
-  - [Session-scoped in-memory state](#session-scoped-in-memory-state)
-- [Custom Tools](#custom-tools)
-- [Custom UI](#custom-ui)
-- [Error Handling](#error-handling)
+- [ExtensionContext](/extensions/api-reference#extensioncontext)
+- [ExtensionCommandContext](/extensions/api-reference#extensioncommandcontext)
+- [ExtensionAPI Methods](/extensions/api-reference#extensionapi-methods)
+- [State Management](/extensions/authoring#state-management)
+  - [Session-scoped in-memory state](/extensions/authoring#session-scoped-in-memory-state)
+- [Custom Tools](/extensions/authoring#custom-tools)
+- [Custom UI](/extensions/ui#custom-ui)
+- [Error Handling](/extensions/api-reference#error-handling)
 - [Mode Behavior](#mode-behavior)
-- [Examples Reference](#examples-reference)
+- [Examples Reference](/extensions/examples#examples-reference)
 
 ## Startup and lazy discovery
 
@@ -109,9 +121,9 @@ The engine child is launched with an environment that never contains Atomic's en
 
 Dialogs and `ctx.ui.custom()` components are proxied to the host as rendered lines with asynchronous input forwarding. Custom UI results must be JSON-safe. APIs that require a synchronous callback in the terminal process—raw `onTerminalInput` transforms, synchronous `getEditorText`, custom editor factories, autocomplete wrappers, component-factory widgets, and custom header/footer factories—are unavailable in isolated interactive mode and produce a warning rather than executing extension code in the host. Print and public RPC modes retain their existing execution model.
 
-For session-style list pickers use `ctx.ui.hostSessionPicker(request)` instead of remote-rendering a selector through `ctx.ui.custom()`: the terminal host mounts the real built-in session selector natively, fed with JSON-safe rows (`HostSessionPickerRow`: `SessionInfo` with `createdAt`/`modifiedAt` epoch millis). Arrow-key navigation and search never cross the process boundary; only semantic events do — the returned handle exposes `result` (resolves with the selected row's `path`, or `undefined` on cancel), `update(rows)`, `error(message)`, and `close()`, and the request's `onDelete(path)` callback owns deletion (the host keeps the row until the extension replies with `update` or `error`). Every interactive host implements the identical API — in-process (no IPC) when not isolated, over the engine protocol when isolated — so callers never branch; the member is absent only on non-interactive surfaces (headless RPC, print), where commands should fail with an actionable error. See [Host-native session picker](/tui#host-native-session-picker) for an example.
+For session-style list pickers use `ctx.ui.hostSessionPicker(request)` instead of remote-rendering a selector through `ctx.ui.custom()`: the terminal host mounts the real built-in session selector natively, fed with JSON-safe rows (`HostSessionPickerRow`: `SessionInfo` with `createdAt`/`modifiedAt` epoch millis). Arrow-key navigation and search never cross the process boundary; only semantic events do — the returned handle exposes `result` (resolves with the selected row's `path`, or `undefined` on cancel), `update(rows)`, `error(message)`, and `close()`, and the request's `onDelete(path)` callback owns deletion (the host keeps the row until the extension replies with `update` or `error`). Every interactive host implements the identical API — in-process (no IPC) when not isolated, over the engine protocol when isolated — so callers never branch; the member is absent only on non-interactive surfaces (headless RPC, print), where commands should fail with an actionable error. See [Host-native session picker](/tui/reference#host-native-session-picker) for an example.
 
-For structured forms use `ctx.ui.hostInputForm(request)`. It accepts JSON-safe field descriptors (`string`, `text`, `number`, `integer`, `boolean`, or `select`, each with a raw `initialValue`) and resolves to a raw string record or `undefined` on cancellation. The terminal host owns the component, focus, validation, configured-keybinding handling, and mutable text state, so Tab, arrows, editing, Enter, Escape, and Ctrl+C are host-local rather than asynchronously forwarded to the engine child. Both interactive modes expose the same optional API; headless RPC and print omit it. See [Host-native input form](/tui#host-native-input-form).
+For structured forms use `ctx.ui.hostInputForm(request)`. It accepts JSON-safe field descriptors (`string`, `text`, `number`, `integer`, `boolean`, or `select`, each with a raw `initialValue`) and resolves to a raw string record or `undefined` on cancellation. The terminal host owns the component, focus, validation, configured-keybinding handling, and mutable text state, so Tab, arrows, editing, Enter, Escape, and Ctrl+C are host-local rather than asynchronously forwarded to the engine child. Both interactive modes expose the same optional API; headless RPC and print omit it. See [Host-native input form](/tui/reference#host-native-input-form).
 
 ## Quick Start
 
@@ -223,830 +235,163 @@ Node.js built-ins (`node:fs`, `node:path`, etc.) are also available.
 
 ## Writing an Extension
 
-An extension exports a default factory function that receives `ExtensionAPI`. The factory can be synchronous or asynchronous:
-
-```typescript
-import type { ExtensionAPI } from "@bastani/atomic";
-
-export default function (pi: ExtensionAPI) {
-  // Subscribe to events
-  pi.on("event_name", async (event, ctx) => {
-    // ctx.ui for user interaction
-    const ok = await ctx.ui.confirm("Title", "Are you sure?");
-    ctx.ui.notify("Done!", "info");
-    ctx.ui.setStatus("my-ext", "Processing...");  // Footer status
-    ctx.ui.setWidget("my-ext", ["Line 1", "Line 2"]);  // Widget above editor (default)
-  });
-
-  // Register tools, commands, shortcuts, flags
-  pi.registerTool({ ... });
-  pi.registerCommand("name", { ... });
-  pi.registerShortcut("ctrl+x", { ... });
-  pi.registerFlag("my-flag", { ... });
-}
-```
-
-Editable user, project, and package extensions and user workflows are loaded through [jiti](https://github.com/unjs/jiti), so TypeScript works without compilation. `/reload` uses content-hash invalidation across the complete imported file graph: an unchanged graph can reuse its evaluated factory, while a direct edit or a transitive dependency edit re-evaluates that extension's modules.
-
-Imports from Atomic's supplied core packages keep the running host's classes and shared state across `/reload`, including on Windows. The supported `@earendil-works/pi-coding-agent` compatibility import shares those exports with `@bastani/atomic`, so class comparisons and `instanceof` checks work across both names after reload. Edits to your extension and its imported local helpers still take effect; restart Atomic after updating Atomic itself.
-
-In Bun compiled or bundled single-file builds, Atomic's five fixed installed builtin extension bundles (workflows, subagents, MCP, web access, and Intercom) take a separate startup path. Atomic installs its live host-module bridge, imports each precompiled bundle natively once, and reuses the evaluated factory across `/reload`. This avoids jiti source reads, transforms, hashing, and graph manifests for immutable shipped code. A builtin bundle's module-scoped state is therefore **not** re-evaluated by `/reload` in those builds. This optimization is limited to exact installed entries of identity-verified Atomic packages; editable extensions and workflows retain the dynamic behavior above.
-
-If the factory returns a `Promise`, Atomic awaits it before continuing startup. That means async initialization completes before `session_start`, before `resources_discover`, and before provider registrations queued via `pi.registerProvider()` are flushed.
+Moved to [Writing extensions](/extensions/authoring#writing-an-extension).
 
 ### Async factory functions
 
-Use an async factory for one-time startup work such as fetching remote configuration or dynamically discovering available models.
-
-```typescript
-import type { ExtensionAPI } from "@bastani/atomic";
-
-export default async function (pi: ExtensionAPI) {
-  const response = await fetch("http://localhost:1234/v1/models");
-  const payload = (await response.json()) as {
-    data: Array<{
-      id: string;
-      name?: string;
-      context_window?: number;
-      max_tokens?: number;
-    }>;
-  };
-
-  pi.registerProvider("local-openai", {
-    baseUrl: "http://localhost:1234/v1",
-    apiKey: "$LOCAL_OPENAI_API_KEY",
-    api: "openai-completions",
-    models: payload.data.map((model) => ({
-      id: model.id,
-      name: model.name ?? model.id,
-      reasoning: false,
-      input: ["text"],
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow: model.context_window ?? 128000,
-      maxTokens: model.max_tokens ?? 4096,
-    })),
-  });
-}
-```
-
-This pattern makes the fetched models available during normal startup and to `atomic --list-models`.
+Moved to [Writing extensions](/extensions/authoring#async-factory-functions).
 
 ### Long-lived resources and shutdown
 
-Extension factories may run in invocations that never start a session, such as metadata commands or early configuration checks. Do not start background resources such as processes, sockets, file watchers, or timers from the factory.
-
-Defer background resource startup until `session_start` or the command/tool/event that needs the resource. Register an idempotent `session_shutdown` handler to close any session-scoped resources you start.
+Moved to [Writing extensions](/extensions/authoring#long-lived-resources-and-shutdown).
 
 ### Extension Styles
 
-**Single file** - simplest, for small extensions:
-
-```
-~/.atomic/agent/extensions/
-└── my-extension.ts
-```
-
-**Directory with index.ts** - for multi-file extensions:
-
-```
-~/.atomic/agent/extensions/
-└── my-extension/
-    ├── index.ts        # Entry point (exports default function)
-    ├── tools.ts        # Helper module
-    └── utils.ts        # Helper module
-```
-
-**Package with dependencies** - for extensions that need npm packages:
-
-```
-~/.atomic/agent/extensions/
-└── my-extension/
-    ├── package.json    # Declares dependencies and entry points
-    ├── bun.lock
-    ├── node_modules/   # After dependency install
-    └── src/
-        └── index.ts
-```
-
-```json
-// package.json
-{
-  "name": "my-extension",
-  "dependencies": {
-    "zod": "^3.0.0",
-    "chalk": "^5.0.0"
-  },
-  "atomic": {
-    "extensions": ["./src/index.ts"]
-  }
-}
-```
-
-The manifest key is the configured Atomic app name (`atomic` here, from the running Atomic package/config), not the extension package's own `"name"` field. The legacy `pi` key is still accepted as a compatibility shim. Run `bun install` in the extension directory, then imports from `node_modules/` work automatically.
+Moved to [Writing extensions](/extensions/authoring#extension-styles).
 
 ## Events
 
+Moved to [Extension events](/extensions/events#events).
+
 ### Lifecycle Overview
 
-Interactive trust-gated startup first emits `session_start` and `resources_discover` for the permitted trust-safe extensions, then resolves `project_trust`. After authorization, newly loaded extensions receive `session_start`; resource discovery runs again against the completed set. Existing reporters keep their session and do not receive a second `session_start`. Noninteractive startup resolves trust before the ordinary session lifecycle.
-
-```
-Atomic starts
-  │
-  ├─► session_start / resources_discover (trust-safe interactive bootstrap, when needed)
-  ├─► project_trust (user/global and CLI extensions only, before project resources load)
-  ├─► session_start { reason: "startup" } (extensions not already started)
-  └─► resources_discover { reason: "startup" }
-      │
-      ▼
-user sends prompt ─────────────────────────────────────────┐
-  │                                                        │
-  ├─► (extension commands checked first, bypass if found)  │
-  ├─► input (can intercept, transform, or handle)          │
-  ├─► (skill/template expansion if not handled)            │
-  ├─► before_agent_start (can inject message, modify system prompt)
-  ├─► agent_start                                          │
-  ├─► message_start / message_update / message_end         │
-  │                                                        │
-  │   ┌─── turn (repeats while LLM calls tools) ───┐       │
-  │   │                                            │       │
-  │   ├─► turn_start                               │       │
-  │   ├─► context (can modify messages)            │       │
-  │   ├─► before_provider_request (can inspect or replace payload)
-  │   ├─► after_provider_response (status + headers, before stream consume)
-  │   │                                            │       │
-  │   │   LLM responds, may call tools:            │       │
-  │   │     ├─► tool_execution_start               │       │
-  │   │     ├─► tool_call (can block)              │       │
-  │   │     ├─► tool_execution_update              │       │
-  │   │     ├─► tool_result (can modify)           │       │
-  │   │     └─► tool_execution_end                 │       │
-  │   │                                            │       │
-  │   ├─► turn_end                                 │       │
-  │   └─► post-tool threshold preflight            │       │
-  │       (may compact before the next provider request)   │
-  └─► agent_end                                            │
-                                                           │
-user sends another prompt ◄────────────────────────────────┘
-
-/new (new session) or /resume (switch session)
-  ├─► session_before_switch (can cancel)
-  ├─► session_shutdown
-  ├─► session_start { reason: "new" | "resume", previousSessionFile? }
-  └─► resources_discover { reason: "startup" }
-
-/fork or /clone
-  ├─► session_before_fork (can cancel)
-  ├─► session_shutdown
-  ├─► session_start { reason: "fork", previousSessionFile }
-  └─► resources_discover { reason: "startup" }
-
-/compact or auto-compaction
-  ├─► compaction_start / compaction_end (verbatim line-compaction status)
-  ├─► session_before_compact (can cancel or provide compactedText)
-  ├─► session_compact (after the compaction boundary is persisted)
-  └─► session_compact_failed (failure or cancellation)
-
-/tree navigation
-  ├─► session_before_tree (can cancel or customize)
-  └─► session_tree
-
-/model or CTRL+P (model selection/cycling)
-  ├─► thinking_level_select (if model change changes/clamps thinking level)
-  └─► model_select
-
-thinking level changes (settings, keybinding, pi.setThinkingLevel())
-  └─► thinking_level_select
-
-exit (CTRL+C, CTRL+D, SIGHUP, SIGTERM)
-  └─► session_shutdown
-```
+Moved to [Extension events](/extensions/events#lifecycle-overview).
 
 ### Startup Events
 
+Moved to [Extension events](/extensions/events#startup-events).
+
 #### project_trust
 
-Fired before Atomic decides whether to trust a project with dynamic configs (`.atomic`, legacy `.pi`, or `.agents/skills`). It runs during startup and when session replacement (for example `/resume`) enters a cwd whose trust has not been resolved in the current process. Only user/global extensions and CLI `-e` extensions participate; project-local extensions are not loaded until after trust is resolved.
-
-```typescript
-pi.on("project_trust", async (event, ctx) => {
-  // event.cwd - current working directory
-  // ctx has a limited trust context: cwd, mode, hasUI, and select/confirm/input/notify UI helpers
-  if (ctx.hasUI && await ctx.ui.confirm("Trust project?", event.cwd)) {
-    return { trusted: "yes", remember: true };
-  }
-  return { trusted: "undecided" };
-});
-```
-
-A `project_trust` handler must return `{ trusted: "yes" | "no" | "undecided" }`. A user/global or CLI extension that returns `"yes"` or `"no"` owns the decision; the first yes/no decision wins and suppresses the built-in trust prompt. Use `remember: true` to persist a yes/no decision; otherwise it applies only to the current process. Return `"undecided"` to let later handlers or the built-in trust flow decide. Check `ctx.hasUI` before prompting. If no handler returns yes/no, normal trust resolution continues: saved `trust.json` decisions apply first, then `defaultProjectTrust` controls whether Atomic asks, trusts, or declines by default.
+Moved to [Extension events](/extensions/events#project_trust).
 
 ### Resource Events
 
+Moved to [Extension events](/extensions/events#resource-events).
+
 #### resources_discover
 
-Fired after `session_start` so extensions can contribute additional skill, prompt, and theme paths.
-The startup path uses `reason: "startup"`. Reload uses `reason: "reload"`.
-
-```typescript
-pi.on("resources_discover", async (event, _ctx) => {
-  // event.cwd - current working directory
-  // event.reason - "startup" | "reload"
-  return {
-    skillPaths: ["/path/to/skills"],
-    promptPaths: ["/path/to/prompts"],
-    themePaths: ["/path/to/themes"],
-  };
-});
-```
+Moved to [Extension events](/extensions/events#resources_discover).
 
 ### Session Events
 
-See [Session Format](/session-format) for session storage internals and the SessionManager API.
+Moved to [Extension events](/extensions/events#session-events).
 
 #### session_start
 
-Fired when a session is started, loaded, or reloaded.
-
-```typescript
-pi.on("session_start", async (event, ctx) => {
-  // event.reason - "startup" | "reload" | "new" | "resume" | "fork"
-  // event.previousSessionFile - present for "new", "resume", and "fork"
-  ctx.ui.notify(`Session: ${ctx.sessionManager.getSessionFile() ?? "ephemeral"}`, "info");
-});
-```
+Moved to [Extension events](/extensions/events#session_start).
 
 #### session_info_changed
 
-Fired when the current session display name is set via `/name`, RPC, or `pi.setSessionName()`.
-
-```typescript
-pi.on("session_info_changed", async (event, ctx) => {
-  // event.name - current normalized name, or undefined if cleared
-  ctx.ui.notify(`Session renamed: ${event.name ?? "(none)"}`, "info");
-});
-```
+Moved to [Extension events](/extensions/events#session_info_changed).
 
 #### session_before_switch
 
-Fired before starting a new session (`/new`) or switching sessions (`/resume`).
-
-```typescript
-pi.on("session_before_switch", async (event, ctx) => {
-  // event.reason - "new" or "resume"
-  // event.targetSessionFile - session we're switching to (only for "resume")
-
-  if (event.reason === "new") {
-    const ok = await ctx.ui.confirm("Clear?", "Delete all messages?");
-    if (!ok) return { cancel: true };
-  }
-});
-```
-
-After a successful switch or new-session action, Atomic emits `session_shutdown` for the old extension instance, reloads and rebinds extensions for the new session, then emits `session_start` with `reason: "new" | "resume"` and `previousSessionFile`.
-Do cleanup work in `session_shutdown`, then reestablish any in-memory state in `session_start`.
+Moved to [Extension events](/extensions/events#session_before_switch).
 
 #### session_before_fork
 
-Fired when forking via `/fork` or cloning via `/clone`.
-
-```typescript
-pi.on("session_before_fork", async (event, ctx) => {
-  // event.entryId - ID of the selected entry
-  // event.position - "before" for /fork, "at" for /clone
-  return { cancel: true }; // Cancel fork/clone
-  // OR
-  return { skipConversationRestore: true }; // Reserved for future conversation restore control
-});
-```
-
-After a successful fork or clone, Atomic emits `session_shutdown` for the old extension instance, reloads and rebinds extensions for the new session, then emits `session_start` with `reason: "fork"` and `previousSessionFile`.
-Do cleanup work in `session_shutdown`, then reestablish any in-memory state in `session_start`.
+Moved to [Extension events](/extensions/events#session_before_fork).
 
 #### session_before_compact / session_compact / session_compact_failed
 
-Fired by `/compact` and auto-compaction, including a threshold crossing detected after tool results enter the prospective next-turn context. Atomic prepares the complete active transcript except for the exact newest `preserve_recent` context-visible messages. Extensions may cancel or provide a complete, non-empty `compactedText` replacement for that region; they cannot move `firstKeptEntryId`. The override is persisted verbatim and works without provider credentials. A successful post-tool compaction returns its rebuilt context directly to the already-active Pi loop; it does not start a separate continuation. Cancellation or failure prevents that loop's follow-up provider request.
-
-```typescript
-pi.on("session_before_compact", async (event) => {
-  const { preparation, branchEntries, parameters, reason, signal } = event;
-
-  // preparation.region.lines - unnumbered compactable transcript lines
-  // preparation.firstKeptEntryId - fixed start of the exact tail, or null when the tail is empty
-  // preparation.tokensBefore - whole-context token estimate
-  // parameters - compression_ratio, preserve_recent, query
-  // branchEntries - raw entries on the active branch
-  // reason - "manual" | "threshold" | "overflow"
-  // preparation is a deep-frozen clone
-
-  if (signal.aborted) return { cancel: true };
-
-  // Cancel compaction:
-  return { cancel: true };
-
-  // Or replace only the prepared region. Whitespace-only text is rejected.
-  return {
-    compactedText: preparation.region.lines.slice(0, 40).join("\n"),
-  };
-});
-
-pi.on("session_compact", async (event) => {
-  // event.result - VerbatimCompactionResult (text, boundary, stats, parameters, rung)
-  // event.compactionEntry - saved CompactionEntry with strategy "verbatim-lines"
-  // event.fromExtension - true when session_before_compact provided compactedText
-  // Observe-only: errors are isolated after persistence.
-});
-
-pi.on("session_compact_failed", async (event) => {
-  // event.reason - "manual" | "threshold" | "overflow"
-  // event.errorMessage - absent for cancellation
-  // event.aborted / event.willRetry - terminal state
-  // event.fromExtension - whether extension-provided text was active
-});
-```
+Moved to [Extension events](/extensions/events#session_before_compact-/-session_compact-/-session_compact_failed).
 
 #### session_before_tree / session_tree
 
-Fired on `/tree` navigation. See [Sessions](/sessions) for tree navigation concepts.
-
-```typescript
-pi.on("session_before_tree", async (event, ctx) => {
-  const { preparation, signal } = event;
-  return { cancel: true };
-  // OR provide custom summary:
-  return { summary: { summary: "...", details: {} } };
-});
-
-pi.on("session_tree", async (event, ctx) => {
-  // event.newLeafId, oldLeafId, summaryEntry, fromExtension
-});
-```
+Moved to [Extension events](/extensions/events#session_before_tree-/-session_tree).
 
 #### session_shutdown
 
-Fired before a started session runtime is torn down. Use this to clean up resources opened from `session_start` or other session-scoped hooks.
-
-```typescript
-pi.on("session_shutdown", async (event, ctx) => {
-  // event.reason - "quit" | "reload" | "new" | "resume" | "fork"
-  // event.targetSessionFile - destination session for session replacement flows
-  // Cleanup, save state, etc.
-});
-```
+Moved to [Extension events](/extensions/events#session_shutdown).
 
 ### Agent Events
 
+Moved to [Extension events](/extensions/events#agent-events).
+
 #### before_agent_start
 
-Fired after user submits prompt, before agent loop. Can inject a message and/or modify the system prompt.
-
-```typescript
-pi.on("before_agent_start", async (event, ctx) => {
-  // event.prompt - user's prompt text
-  // event.images - attached images (if any)
-  // event.systemPrompt - current chained system prompt for this handler
-  //   (includes changes from earlier before_agent_start handlers)
-  // event.systemPromptOptions - structured options used to build the system prompt
-  //   .customPrompt - any custom system prompt (from --system-prompt, SYSTEM.md, or custom templates)
-  //   .selectedTools - tools currently active in the prompt
-  //   .toolSnippets - one-line descriptions for each tool
-  //   .promptGuidelines - custom guideline bullets
-  //   .appendSystemPrompt - text from --append-system-prompt flags
-  //   .cwd - working directory
-  //   .contextFiles - AGENTS.md files and other loaded context files
-  //   .skills - loaded skills
-
-  return {
-    // Inject a persistent message (stored in session, sent to LLM)
-    message: {
-      customType: "my-extension",
-      content: "Additional context for the LLM",
-      display: true,
-    },
-    // Replace the system prompt for this turn (chained across extensions)
-    systemPrompt: event.systemPrompt + "\n\nExtra instructions for this turn...",
-  };
-});
-```
-
-The `systemPromptOptions` field gives extensions access to the same structured data Atomic uses to build the system prompt. This lets you inspect what Atomic has loaded — custom prompts, guidelines, tool snippets, context files, skills — without re-discovering resources or re-parsing flags. Use it when your extension needs to make deep, informed changes to the system prompt while respecting user-provided configuration.
-
-Inside `before_agent_start`, `event.systemPrompt` and `ctx.getSystemPrompt()` both reflect the chained system prompt as of the current handler. Later `before_agent_start` handlers can still modify it again.
+Moved to [Extension events](/extensions/events#before_agent_start).
 
 #### agent_start / agent_end / agent_settled
 
-`agent_start` begins a low-level run. `agent_end` fires when that run ends, but Atomic may still retry, compact and retry, or deliver queued follow-ups. Use `agent_settled` when a status integration needs to know Atomic has no automatic continuation left, including a chain of repeated output-cap continuations. Silence during a provider request or between these runs is not settlement.
-
-```typescript
-pi.on("agent_start", async (_event, ctx) => {});
-pi.on("agent_end", async (event, ctx) => {
-  // event.messages - messages from this low-level run
-});
-pi.on("agent_settled", async (_event, ctx) => {
-  // ctx.isIdle() is true unless another extension started a run.
-});
-```
+Moved to [Extension events](/extensions/events#agent_start-/-agent_end-/-agent_settled).
 
 #### ui_prompt_start / ui_prompt_end
 
-These notification-only events wrap blocking user-facing prompts. Each event has `reason: "ui_prompt" | "project_trust"`, the prompt `kind`, and the prompt `title` when available. Host and status integrations can use the pair to distinguish waiting for the user from active work.
-
-- `ui_prompt`: extension prompts opened through `ctx.ui.select()`, `ctx.ui.confirm()`, `ctx.ui.input()`, `ctx.ui.editor()`, and `ctx.ui.custom()`.
-  Custom inspection/navigation components can pass `{ purpose: "navigation" }` to omit their own prompt span. The default remains `"prompt"`. Nested approval calls still emit events; mounting or hiding the workflow graph is not itself an approval.
-- `project_trust`: interactive startup and resume trust dialogs (including trust-hook `select`, `confirm`, and `input` dialogs and borrowed extension-source authorization), plus the built-in `/trust` selector. In isolated interactive mode, the engine owns startup/resume decisions and uses the host UI; host-owned `/trust` notifications are forwarded to the engine. If the current engine has not bound yet, the transport retains the start and end in order until it binds, even if the selector closes first. Separate completed dialogs retain separate lifecycle pairs when delivered together. This does not delay the trust decision; retiring that engine discards its pending notifications.
-
-Startup first loads only permitted user/global, builtin, and explicitly authorized CLI extensions, and binds them to a real session before asking for trust. Existing handlers receive the live `ExtensionContext` while the dialog is waiting: `ctx.cwd`, `ctx.sessionManager`, and other session APIs are available. Approval completes resources in that same session without rerunning safe extension factories or their `session_start` handlers. Newly authorized project extensions receive `session_start` only after loading; they do not receive historical prompt events. Untrusted project and borrowed project-local code is never loaded just to observe a prompt. Silent saved/default/CLI policy decisions and noninteractive startup emit no artificial waits.
-
-Interactive resume trust dialogs use the outgoing session's live extension context. Destination validation and `session_before_switch` cancellation precede trust preparation; failed preparation leaves that session active. Project resources load only when the prepared replacement continues after shutdown. Attaching subscribers does not replay earlier notifications.
-
-Atomic coalesces nested or overlapping prompts, including mixed reasons, into one shared outer span. The end event retains the original outer prompt's reason, kind, and title and fires after every prompt in the span settles, including rejected promises and synchronous failures. Cancelling or disposing the `/trust` selector ends its wait. Rebinding the host UI context closes an active span before a prompt from the new context can begin. Notifications are not replayed to a replacement engine if the engine exits while a host selector is open.
-
-At session replacement, Atomic waits up to 1,000 ms for a snapshot of pending prompt notification deliveries before shutdown. Prompt display and answers never await observers. Start and end dispatch independently, invoking each observer in notification order without awaiting other observers; an earlier slow observer cannot make later subscribers receive an end before its start. An observer's own asynchronous start and end work can overlap, so update lifecycle state before awaiting unrelated work. If an observer hangs, Atomic warns and continues replacement; its context is not guaranteed to remain valid after that finite boundary.
-
-Handlers run best-effort from the microtask queue. Atomic does not await them before opening or closing the prompt, so notifications do not block the UI.
-
-```typescript
-pi.on("ui_prompt_start", (event) => {
-  // event.reason - "ui_prompt" | "project_trust"
-  // event.kind - "select" | "confirm" | "input" | "editor" | "custom"
-  // event.title - prompt title when available
-});
-
-pi.on("ui_prompt_end", (event) => {
-  // Atomic is no longer waiting on this outer prompt span.
-});
-```
+Moved to [Extension events](/extensions/events#ui_prompt_start-/-ui_prompt_end).
 
 #### turn_start / turn_end
 
-Fired for each turn (one LLM response + tool calls).
-
-```typescript
-pi.on("turn_start", async (event, ctx) => {
-  // event.turnIndex, event.timestamp
-});
-
-pi.on("turn_end", async (event, ctx) => {
-  // event.turnIndex, event.message, event.toolResults
-});
-```
+Moved to [Extension events](/extensions/events#turn_start-/-turn_end).
 
 #### message_start / message_update / message_end
 
-Fired for message lifecycle updates.
-
-- `message_start` and `message_end` fire for user, assistant, and toolResult messages.
-- `message_update` fires for assistant streaming updates.
-- `message_end` handlers can return `{ message }` to replace the finalized message. The replacement must keep the same `role`.
-
-```typescript
-pi.on("message_start", async (event, ctx) => {
-  // event.message
-});
-
-pi.on("message_update", async (event, ctx) => {
-  // event.assistantMessageEvent (token-by-token delta; no cumulative message)
-});
-
-pi.on("message_end", async (event, ctx) => {
-  if (event.message.role !== "assistant") return;
-
-  return {
-    message: {
-      ...event.message,
-      usage: {
-        ...event.message.usage,
-        cost: {
-          ...event.message.usage.cost,
-          total: 0.123,
-        },
-      },
-    },
-  };
-});
-```
+Moved to [Extension events](/extensions/events#message_start-/-message_update-/-message_end).
 
 #### tool_execution_start / tool_execution_update / tool_execution_end
 
-Fired for tool execution lifecycle updates.
-
-In parallel tool mode:
-- `tool_execution_start` is emitted in assistant source order during the preflight phase
-- `tool_execution_update` events may interleave across tools
-- `tool_execution_end` is emitted in tool completion order after each tool is finalized
-- final `toolResult` message events are still emitted later in assistant source order
-
-```typescript
-pi.on("tool_execution_start", async (event, ctx) => {
-  // event.toolCallId, event.toolName, event.args
-});
-
-pi.on("tool_execution_update", async (event, ctx) => {
-  // event.toolCallId, event.toolName, event.args, event.partialResult
-});
-
-pi.on("tool_execution_end", async (event, ctx) => {
-  // event.toolCallId, event.toolName, event.result, event.isError
-});
-```
+Moved to [Extension events](/extensions/events#tool_execution_start-/-tool_execution_update-/-tool_execution_end).
 
 #### context
 
-Fired before each LLM call. Modify messages non-destructively. See [Session Format](/session-format) for message types. When tool output crosses the buffered compaction threshold, the post-tool compaction preflight finishes before this hook runs for the follow-up call, so `event.messages` contains the rebuilt compacted context.
-
-```typescript
-pi.on("context", async (event, ctx) => {
-  // event.messages - deep copy, safe to modify
-  const filtered = event.messages.filter(m => !shouldPrune(m));
-  return { messages: filtered };
-});
-```
+Moved to [Extension events](/extensions/events#context).
 
 #### before_provider_headers
 
-Fires after outgoing HTTP headers are assembled. Mutate `event.headers` to add, override, or remove headers. The event also identifies the provider and model.
-
-```typescript
-pi.on("before_provider_headers", (event, ctx) => {
-  event.headers["x-session-id"] = ctx.sessionManager.getSessionId();
-  delete event.headers["x-remove-me"];
-});
-```
+Moved to [Extension events](/extensions/events#before_provider_headers).
 
 #### before_provider_request
 
-Fired after the provider-specific payload is built, right before the request is sent. Handlers run in extension load order. Returning `undefined` keeps the payload unchanged. Returning any other value replaces the payload for later handlers and for the actual request.
-
-This hook can rewrite provider-level system instructions or remove them entirely. Those payload-level changes are not reflected by `ctx.getSystemPrompt()`, which reports Atomic's system prompt string rather than the final serialized provider payload.
-
-```typescript
-pi.on("before_provider_request", (event, ctx) => {
-  console.log(JSON.stringify(event.payload, null, 2));
-
-  // Optional: replace payload
-  // return { ...event.payload, temperature: 0 };
-});
-```
-
-This is mainly useful for debugging provider serialization and cache behavior.
+Moved to [Extension events](/extensions/events#before_provider_request).
 
 #### after_provider_response
 
-Fired after an HTTP response is received and before its stream body is consumed. Handlers run in extension load order.
-
-```typescript
-pi.on("after_provider_response", (event, ctx) => {
-  // event.status - HTTP status code
-  // event.headers - normalized response headers
-  if (event.status === 429) {
-    console.log("rate limited", event.headers["retry-after"]);
-  }
-});
-```
-
-Header availability depends on provider and transport. Providers that abstract HTTP responses may not expose headers.
+Moved to [Extension events](/extensions/events#after_provider_response).
 
 ### Model Events
 
+Moved to [Extension events](/extensions/events#model-events).
+
 #### model_select
 
-Fired when the model changes via `/model` command, model cycling (`CTRL+P`), or session restore.
-
-```typescript
-pi.on("model_select", async (event, ctx) => {
-  // event.model - newly selected model
-  // event.previousModel - previous model (undefined if first selection)
-  // event.source - "set" | "cycle" | "restore"
-
-  const prev = event.previousModel
-    ? `${event.previousModel.provider}/${event.previousModel.id}`
-    : "none";
-  const next = `${event.model.provider}/${event.model.id}`;
-
-  ctx.ui.notify(`Model changed (${event.source}): ${prev} -> ${next}`, "info");
-});
-```
-
-Use this to update UI elements (status bars, footers) or perform model-specific initialization when the active model changes.
+Moved to [Extension events](/extensions/events#model_select).
 
 #### thinking_level_select
 
-Fired when the thinking level changes. This is notification-only; handler return values are ignored.
-
-```typescript
-pi.on("thinking_level_select", async (event, ctx) => {
-  // event.level - newly selected thinking level
-  // event.previousLevel - previous thinking level
-
-  ctx.ui.setStatus("thinking", `thinking: ${event.level}`);
-});
-```
-
-Use this to update extension UI when `pi.setThinkingLevel()`, model changes, or built-in thinking-level controls change the active thinking level.
+Moved to [Extension events](/extensions/events#thinking_level_select).
 
 ### Tool Events
 
+Moved to [Extension events](/extensions/events#tool-events).
+
 #### tool_call
 
-Fired after `tool_execution_start`, before the tool executes. **Can block.** Use `isToolCallEventType` to narrow and get typed inputs.
-
-Before `tool_call` runs, Atomic waits for previously emitted Agent events to finish draining through `AgentSession`. This means `ctx.sessionManager` is up to date through the current assistant tool-calling message.
-
-In the default parallel tool execution mode, sibling tool calls from the same assistant message are preflighted sequentially, then executed concurrently. `tool_call` is not guaranteed to see sibling tool results from that same assistant message in `ctx.sessionManager`.
-
-`event.input` is mutable. Mutate it in place to patch tool arguments before execution.
-
-Behavior guarantees:
-- Mutations to `event.input` affect the actual tool execution
-- Later `tool_call` handlers see mutations made by earlier handlers
-- No re-validation is performed after your mutation
-- Return values from `tool_call` control blocking via `{ block: true, reason?: string, terminate?: boolean }`
-- `terminate` only applies to a blocked call; the agent stops early only when every finalized result in the batch is terminating
-- `terminate` applies only to a blocked call; the agent stops early only when every finalized result in the batch is terminating
-
-```typescript
-import { isToolCallEventType } from "@bastani/atomic";
-
-pi.on("tool_call", async (event, ctx) => {
-  // event.toolName - "bash", "powershell", "read", "write", "edit", "find", "search", etc.
-  // event.toolCallId
-  // event.input - tool parameters (mutable)
-
-  // Built-in tools: no type params needed
-  if (isToolCallEventType("bash", event)) {
-    // event.input is { command: string; timeout?: number }
-    event.input.command = `source ~/.profile\n${event.input.command}`;
-
-    if (event.input.command.includes("rm -rf")) {
-      return { block: true, reason: "Dangerous command", terminate: true };
-    }
-  }
-
-  if (isToolCallEventType("powershell", event)) {
-    // event.input is typed as PowerShellToolInput
-    event.input.command = `$ErrorActionPreference = "Stop"\n${event.input.command}`;
-  }
-
-  if (isToolCallEventType("read", event)) {
-    // event.input is { path: string }
-    console.log(`Reading: ${event.input.path}`);
-  }
-
-  if (isToolCallEventType("search", event)) {
-    // event.input is typed as SearchToolInput
-    event.input.paths ??= ".";
-  }
-});
-```
+Moved to [Extension events](/extensions/events#tool_call).
 
 #### Typing custom tool input
 
-Custom tools should export their input type:
-
-```typescript
-// my-extension.ts
-export type MyToolInput = Static<typeof myToolSchema>;
-```
-
-Use `isToolCallEventType` with explicit type parameters:
-
-```typescript
-import { isToolCallEventType } from "@bastani/atomic";
-import type { MyToolInput } from "my-extension";
-
-pi.on("tool_call", (event) => {
-  if (isToolCallEventType<"my_tool", MyToolInput>("my_tool", event)) {
-    event.input.action;  // typed
-  }
-});
-```
+Moved to [Extension events](/extensions/events#typing-custom-tool-input).
 
 #### tool_result
 
-Fired after tool execution finishes and before `tool_execution_end` plus the final tool result message events are emitted. **Can modify result.**
-
-In parallel tool mode, `tool_result` and `tool_execution_end` may interleave in tool completion order, while final `toolResult` message events are still emitted later in assistant source order.
-
-`tool_result` handlers chain like middleware:
-- Handlers run in extension load order
-- Each handler sees the latest result after previous handler changes
-- Handlers can return partial patches (`content`, `details`, or `isError`); omitted fields keep their current values
-
-After all handlers finish, Atomic normalizes image blocks returned by the tool or inserted by a handler according to `images.autoResize` before saving the result to history. If image processing fails, the original image remains in the result.
-
-Use `ctx.signal` for nested async work inside the handler. This lets Escape cancel model calls, `fetch()`, and other abort-aware operations started by the extension.
-
-```typescript
-import { isBashToolResult, isPowerShellToolResult, isSearchToolResult } from "@bastani/atomic";
-
-pi.on("tool_result", async (event, ctx) => {
-  // event.toolName, event.toolCallId, event.input
-  // event.content, event.details, event.isError
-
-  if (isBashToolResult(event)) {
-    // event.details is typed as BashToolDetails
-  }
-
-  if (isPowerShellToolResult(event)) {
-    // event.details is typed as PowerShellToolDetails | undefined
-  }
-
-  if (isSearchToolResult(event)) {
-    // event.details is typed as SearchToolDetails | undefined
-  }
-
-  const response = await fetch("https://example.com/summarize", {
-    method: "POST",
-    body: JSON.stringify({ content: event.content }),
-    signal: ctx.signal,
-  });
-
-  // Modify result:
-  return { content: [...], details: {...}, isError: false };
-});
-```
+Moved to [Extension events](/extensions/events#tool_result).
 
 ### User Bash Events
 
+Moved to [Extension events](/extensions/events#user-bash-events).
+
 #### user_bash
 
-Fired when user executes `!` or `!!` commands. **Can intercept.**
-
-```typescript
-import { createLocalBashOperations } from "@bastani/atomic";
-
-pi.on("user_bash", (event, ctx) => {
-  // event.command - the bash command
-  // event.excludeFromContext - true if !! prefix
-  // event.cwd - working directory
-
-  // Option 1: Provide custom operations (e.g., SSH)
-  return { operations: remoteBashOps };
-
-  // Option 2: Wrap atomic's built-in local bash backend
-  const local = createLocalBashOperations();
-  return {
-    operations: {
-      exec(command, cwd, options) {
-        return local.exec(`source ~/.profile\n${command}`, cwd, options);
-      }
-    }
-  };
-
-  // Option 3: Full replacement - return result directly
-  return { result: { output: "...", exitCode: 0, cancelled: false, truncated: false } };
-});
-```
+Moved to [Extension events](/extensions/events#user_bash).
 
 ### Input Events
 
+Moved to [Extension events](/extensions/events#input-events).
+
 #### input
 
-Fired when user input is received, after extension commands are checked but before skill and template expansion. The event sees the raw input text, so `/skill:foo` and `/template` are not yet expanded.
-
-Direct `session.steer()` and `session.followUp()` calls also run input handlers before skill/template expansion and queue admission. A handled input is not queued; transformed text and images are queued instead. Their optional third argument sets `source`, defaulting to `interactive`; RPC queue commands use `rpc`.
-
-**Processing order:**
-1. Extension commands (`/cmd`) checked first - if found, handler runs and input event is skipped
-2. `input` event fires - can intercept, transform, or handle
-3. If not handled: skill commands (`/skill:name`) expanded to skill content
-4. If not handled: prompt templates (`/template`) expanded to template content
-5. Agent processing begins (`before_agent_start`, etc.)
-
-```typescript
-pi.on("input", async (event, ctx) => {
-  // event.text - raw input (before skill/template expansion)
-  // event.images - attached images, if any
-  // event.source - "interactive" (typed), "rpc" (API), or "extension" (via sendUserMessage)
-
-  // Transform: rewrite input before expansion
-  if (event.text.startsWith("?quick "))
-    return { action: "transform", text: `Respond briefly: ${event.text.slice(7)}` };
-
-  // Handle: respond without LLM (extension shows its own feedback)
-  if (event.text === "ping") {
-    ctx.ui.notify("pong", "info");
-    return { action: "handled" };
-  }
-
-  // Route by source: skip processing for extension-injected messages
-  if (event.source === "extension") return { action: "continue" };
-
-  // Intercept skill commands before expansion
-  if (event.text.startsWith("/skill:")) {
-    // Could transform, block, or let pass through
-  }
-
-  return { action: "continue" };  // Default: pass through to expansion
-});
-```
-
-**Results:**
-- `continue` - pass through unchanged (default if handler returns nothing)
-- `transform` - modify text/images, then continue to expansion
-- `handled` - skip agent entirely (first handler to return this wins)
-
-Transforms chain across handlers. See [input-transform.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/extensions/input-transform.ts) and [input-transform-streaming.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/extensions/input-transform-streaming.ts) for `streamingBehavior`-aware routing.
+Moved to [Extension events](/extensions/events#input).
 
 ## Workflow activity and lifecycle hooks
 
@@ -1129,1246 +474,219 @@ The host hub retains at most 256 diagnostics, available through its host-side `d
 
 ## ExtensionContext
 
-All handlers receive `ctx: ExtensionContext`.
+Moved to [Extension API reference](/extensions/api-reference#extensioncontext).
 
 ### ctx.ui
 
-UI methods for user interaction. See [Custom UI](#custom-ui) for full details.
+Moved to [Extension API reference](/extensions/api-reference#ctx-ui).
 
 ### ctx.hasUI
 
-`false` in print mode (`-p`) and JSON mode. `true` in interactive and RPC mode. In RPC mode, dialog methods (`select`, `confirm`, `input`, `editor`) work via the extension UI sub-protocol, and fire-and-forget methods (`notify`, `setStatus`, `setWidget`, `setTitle`, `setEditorText`) emit requests to the client. Some TUI-specific methods are no-ops or return defaults (see [RPC mode](/rpc#extension-ui-protocol)).
+Moved to [Extension API reference](/extensions/api-reference#ctx-hasui).
 
 ### ctx.cwd
 
-Current working directory.
-
-Built-in cwd-sensitive tools (`read`, `write`, `edit`, `search`, `find`, `ls`, `bash`, `powershell`) resolve relative paths against `ctx.cwd` when an extension invokes them, falling back to the cwd captured when the tool was created. An extension that registers a tool and forwards its own context therefore gets paths resolved against the live session cwd rather than a stale one.
-
-Use `CONFIG_DIR_NAME` instead of hardcoding `.atomic` (or legacy `.pi`) when constructing project-local config paths. Rebranded distributions can use a different config directory name.
-
-```typescript
-import { CONFIG_DIR_NAME, type ExtensionAPI } from "@bastani/atomic";
-import { join } from "node:path";
-
-export default function (pi: ExtensionAPI) {
-  pi.on("session_start", (_event, ctx) => {
-    const projectConfigPath = join(ctx.cwd, CONFIG_DIR_NAME, "my-extension.json");
-    // ...
-  });
-}
-```
+Moved to [Extension API reference](/extensions/api-reference#ctx-cwd).
 
 ### ctx.isProjectTrusted()
 
-Returns whether project-local trust is active for the current session context. This includes temporary trust decisions and CLI trust overrides, not just saved decisions in the global trust store.
-
-Use this before reading project-local extension configuration that should only be honored for trusted projects.
-
+Moved to [Extension API reference](/extensions/api-reference#ctx-isprojecttrusted).
 
 ### ctx.sessionManager
 
-Read-only access to session state. See [Session Format](/session-format) for the full SessionManager API and entry types.
-
-For `tool_call`, this state is synchronized through the current assistant message before handlers run. In parallel tool execution mode it is still not guaranteed to include sibling tool results from the same assistant message.
-
-```typescript
-ctx.sessionManager.getEntries()       // All entries
-ctx.sessionManager.getBranch()        // Current branch
-ctx.sessionManager.getLeafId()        // Current leaf entry ID
-```
+Moved to [Extension API reference](/extensions/api-reference#ctx-sessionmanager).
 
 ### ctx.modelRegistry / ctx.model / ctx.scopedModels
 
-Access models, auth state, and provider-aware requests.
-
-Use `ctx.modelRegistry.complete()` for an extension model request that must use Atomic's provider composition. It dispatches through the active `ModelRuntime`, retaining registered custom providers and resolved request auth: the credential-specific `baseUrl`, headers (including `null` suppression markers), and environment values.
-
-For streaming requests, use `ctx.modelRegistry.streamSimple(model, context, options)` with provider-neutral options, or `stream()` with API-specific options. Both use configured providers and request-time authentication, including extension registrations. Iterate the returned `AssistantMessageEventStream` for events and await `.result()` for the final message. Setup failures produce error events and error results. The global compatibility streaming functions do not see extension provider registrations.
-
-```typescript
-const model = ctx.modelRegistry.find("github-copilot", "gpt-5.5");
-if (!model) throw new Error("Model not found");
-
-const response = await ctx.modelRegistry.complete(
-  model,
-  { messages },
-  { signal: ctx.signal },
-);
-```
-
-Use `getApiKeyAndHeaders()` only when an extension must inspect auth before dispatch; normal requests do not need to resolve or overlay auth themselves.
-
-OpenRouter Chat Completions and Anthropic Messages requests send `x-session-id` by default when `sessionId` is supplied and prompt caching is enabled. Set the model's `compat.sendSessionAffinityHeaders` to `false` to opt out, or set `cacheRetention: "none"` on the request to disable cache-related affinity. Explicit request headers override generated headers.
-
-`await ctx.modelRegistry.refresh(options)` returns `{ aborted, errors }`, not just completion. `errors` is a per-provider map, so extensions can report partial refresh failures; `aborted` reports cancellation. Host integrations that call `ModelRuntime.setRuntimeApiKey(providerId, apiKey, options)` must note that it records the runtime credential but does not refresh the catalog; call `refresh({ providers: [providerId], signal })` explicitly when a fresh catalog is needed.
-
-`ctx.scopedModels` is the read-only list of models scoped to the current session — the same set the `/scoped-models` command shows. It is resolved from the `--models` CLI flag and the `enabledModels` setting, matched against the available catalogue. It is empty when no scoping is configured, meaning every available model is usable. Each entry is `{ model, thinkingLevel? }`, where `thinkingLevel` is set only when a pattern pinned it (for example `anthropic/*:high`). Use it to populate a model picker that mirrors the built-in one instead of enumerating the whole catalogue.
-
-The value is resolved at access time, so it tracks session replacement. Under the isolated interactive engine it reflects the engine's catalogue rather than a stale host snapshot.
-
-It reports the scope and cannot change it. `ctx.scopedModels` is a getter with no setter, typed `readonly ScopedModel[]`, so assigning to it or pushing an entry is a compile error. The guarantee also holds at runtime, where the type does not reach: each read returns a fresh copy — of the array, of every `{ model, thinkingLevel }` entry in it, and of each entry's model — and all three are frozen. A JavaScript extension, or one that asserts the `readonly` away, therefore cannot widen the set of models the session may use by pushing an entry, nor change which model it selects by swapping one in place; the attempt throws rather than quietly working. Read it, and change scope through the commands and settings that own it.
-
-```typescript
-for (const { model, thinkingLevel } of ctx.scopedModels) {
-  console.log(`${model.provider}/${model.id}${thinkingLevel ? `:${thinkingLevel}` : ""}`);
-}
-```
-
-Both types are exported: `ScopedModel` for one entry, `ExtensionScopedModels` for the accessor's own type. They are declared at the public extension type path (`core/extensions/types.ts`) and re-exported from the package root, so an extension never reaches into an internal module to describe what it just read.
-
-```typescript
-import type { ExtensionScopedModels, ScopedModel } from "@bastani/atomic";
-
-function firstScoped(scope: ExtensionScopedModels): ScopedModel | undefined {
-  return scope[0];
-}
-```
+Moved to [Extension API reference](/extensions/api-reference#ctx-modelregistry-/-ctx-model-/-ctx-scopedmodels).
 
 ### ctx.signal
 
-The current agent abort signal, or `undefined` when no agent turn is active.
-
-Use this for abort-aware nested work started by extension handlers, for example:
-- `fetch(..., { signal: ctx.signal })`
-- model calls that accept `signal`
-- file or process helpers that accept `AbortSignal`
-
-`ctx.signal` is typically defined during active turn events such as `tool_call`, `tool_result`, `message_update`, and `turn_end`.
-It is usually `undefined` in idle or non-turn contexts such as session events, extension commands, and shortcuts fired while Atomic is idle.
-
-```typescript
-pi.on("tool_result", async (event, ctx) => {
-  const response = await fetch("https://example.com/api", {
-    method: "POST",
-    body: JSON.stringify(event),
-    signal: ctx.signal,
-  });
-
-  const data = await response.json();
-  return { details: data };
-});
-```
+Moved to [Extension API reference](/extensions/api-reference#ctx-signal).
 
 ### ctx.isIdle() / ctx.abort() / ctx.hasPendingMessages()
 
-Control flow helpers.
+Moved to [Extension API reference](/extensions/api-reference#ctx-isidle-/-ctx-abort-/-ctx-haspendingmessages).
 
 ### ctx.isProjectTrusted()
 
-Returns whether project-local trust is active for the current extension context. Use this before reading project-local config, loading project-local resources, or exposing actions that should only run after the user has trusted the cwd.
-
-```typescript
-pi.registerCommand("project-status", {
-  description: "Show trust state",
-  handler: async (_args, ctx) => {
-    ctx.ui.notify(ctx.isProjectTrusted() ? "Project is trusted" : "Project is not trusted", "info");
-  },
-});
-```
+Moved to [Extension API reference](/extensions/api-reference#ctx-isprojecttrusted-2).
 
 ### ctx.shutdown()
 
-Request a graceful shutdown of Atomic.
-
-- **Interactive mode:** Deferred until the agent becomes idle (after processing all queued steering and follow-up messages).
-- **RPC mode:** Deferred until the next idle state (after completing the current command response, when waiting for the next command).
-- **Print mode:** No-op. The process exits automatically when all prompts are processed.
-
-Emits `session_shutdown` event to all extensions before exiting. Available in all contexts (event handlers, tools, commands, shortcuts).
-
-```typescript
-pi.on("tool_call", (event, ctx) => {
-  if (isFatal(event.input)) {
-    ctx.shutdown();
-  }
-});
-```
+Moved to [Extension API reference](/extensions/api-reference#ctx-shutdown).
 
 ### ctx.getContextUsage()
 
-Returns current context usage for the active model. Uses last assistant usage when available, then estimates tokens for trailing messages.
-
-```typescript
-const usage = ctx.getContextUsage();
-if (usage && usage.tokens > 100_000) {
-  // ...
-}
-```
+Moved to [Extension API reference](/extensions/api-reference#ctx-getcontextusage).
 
 ### ctx.compact()
 
-Trigger Atomic's verbatim line compactor without awaiting completion. The planner emits numbered deleted-line ranges only; Atomic validates them and reconstructs retained text mechanically. Use `compression_ratio` (fraction of compactable lines to keep), client-side `preserve_recent` (an exact context-visible message count), and `query` to tune the run, and `onComplete`/`onError` for follow-up actions.
-
-```typescript
-ctx.compact({
-  compression_ratio: 0.5, // fraction of compactable lines to keep
-  preserve_recent: 2,    // protect exactly the newest two context-visible messages
-  query: "keep active migration details",
-  onComplete: (result) => {
-    ctx.ui.notify(`Compaction kept ${result.stats.linesKept}/${result.stats.linesBefore} lines`, "info");
-  },
-  onError: (error) => {
-    ctx.ui.notify(`Compaction failed: ${error.message}`, "error");
-  },
-});
-```
-
-The planner cannot author context text: only validated line ranges enter the mechanical reconstruction path. The `query` parameter guides relevance selection inside the fixed prompt; it is not replacement prose. Extensions that need an offline replacement can return `compactedText` from `session_before_compact`.
+Moved to [Extension API reference](/extensions/api-reference#ctx-compact).
 
 ### ctx.getSystemPrompt()
 
-Returns Atomic's current system prompt string.
-
-- During `before_agent_start`, this reflects chained system-prompt changes made so far for the current turn.
-- It does not include later `context` message mutations.
-- It does not include `before_provider_request` payload rewrites.
-- If later-loaded extensions run after yours, they can still change what is ultimately sent.
-
-```typescript
-pi.on("before_agent_start", (event, ctx) => {
-  const prompt = ctx.getSystemPrompt();
-  console.log(`System prompt length: ${prompt.length}`);
-});
-```
+Moved to [Extension API reference](/extensions/api-reference#ctx-getsystemprompt).
 
 ### ctx.getSkillCatalog()
 
-Returns the current loader-owned skill catalog when the host provides one. Use it to resolve exact skill selectors, including source-qualified names such as `tdd@builtin`, without falling back to the bare precedence winner.
-
-```typescript
-pi.on("session_start", (_event, ctx) => {
-  const catalog = ctx.getSkillCatalog?.();
-  const resolved = catalog?.resolve("tdd@builtin");
-  if (resolved?.ok) {
-    ctx.ui.notify(`Using ${resolved.candidate.selector}`, "info");
-  }
-});
-```
-
-`pi.getCommands()` already includes the same advertised `/skill:name` and `/skill:name@source` names. See [Skill Commands](/skills#skill-commands).
+Moved to [Extension API reference](/extensions/api-reference#ctx-getskillcatalog).
 
 ## ExtensionCommandContext
 
-Command handlers receive `ExtensionCommandContext`, which extends `ExtensionContext` with session control methods. These are only available in commands because they can deadlock if called from event handlers.
+Moved to [Extension API reference](/extensions/api-reference#extensioncommandcontext).
 
 ### ctx.waitForIdle()
 
-Wait for the agent to finish streaming:
-
-```typescript
-pi.registerCommand("my-cmd", {
-  handler: async (args, ctx) => {
-    await ctx.waitForIdle();
-    // Agent is now idle, safe to modify session
-  },
-});
-```
+Moved to [Extension API reference](/extensions/api-reference#ctx-waitforidle).
 
 ### ctx.newSession(options?)
 
-Create a new session:
-
-```typescript
-const parentSession = ctx.sessionManager.getSessionFile();
-const kickoff = "Continue in the replacement session";
-
-const result = await ctx.newSession({
-  parentSession,
-  setup: async (sm) => {
-    sm.appendMessage({
-      role: "user",
-      content: [{ type: "text", text: "Context from previous session..." }],
-      timestamp: Date.now(),
-    });
-  },
-  withSession: async (ctx) => {
-    // Use only the replacement-session ctx here.
-    await ctx.sendUserMessage(kickoff);
-  },
-});
-
-if (result.cancelled) {
-  // An extension cancelled the new session
-}
-```
-
-Options:
-- `parentSession`: parent session file to record in the new session header
-- `setup`: mutate the new session's `SessionManager` before `withSession` runs
-- `withSession`: run post-switch work against a fresh replacement-session context. Do not use captured old `pi` / command `ctx`; see [Session replacement lifecycle and footguns](#session-replacement-lifecycle-and-footguns).
+Moved to [Extension API reference](/extensions/api-reference#ctx-newsession-options).
 
 ### ctx.fork(entryId, options?)
 
-Fork from a specific entry, creating a new session file:
-
-```typescript
-const result = await ctx.fork("entry-id-123", {
-  withSession: async (ctx) => {
-    // Use only the replacement-session ctx here.
-    ctx.ui.notify("Now in the forked session", "info");
-  },
-});
-if (result.cancelled) {
-  // An extension cancelled the fork
-}
-
-const cloneResult = await ctx.fork("entry-id-456", { position: "at" });
-if (cloneResult.cancelled) {
-  // An extension cancelled the clone
-}
-```
-
-Options:
-- `position`: `"before"` (default) forks before the selected user message, restoring that prompt into the editor
-- `position`: `"at"` duplicates the active path through the selected entry without restoring editor text
-- `withSession`: run post-switch work against a fresh replacement-session context. Do not use captured old `pi` / command `ctx`; see [Session replacement lifecycle and footguns](#session-replacement-lifecycle-and-footguns).
+Moved to [Extension API reference](/extensions/api-reference#ctx-fork-entryid-options).
 
 ### ctx.navigateTree(targetId, options?)
 
-Navigate to a different point in the session tree. Navigation rejects while a response, compaction, or branch summarization is active, even with `summarize: false`. Rejection leaves the active branch unchanged. Wait for the active operation to finish and retry.
-
-```typescript
-const result = await ctx.navigateTree("entry-id-456", {
-  summarize: true,
-  customInstructions: "Focus on error handling changes",
-  replaceInstructions: false, // true = replace default prompt entirely
-  label: "review-checkpoint",
-});
-```
-
-Options:
-- `summarize`: Whether to generate a summary of the abandoned branch
-- `customInstructions`: Custom instructions for the summarizer
-- `replaceInstructions`: If true, `customInstructions` replaces the default prompt instead of being appended
-- `label`: Label to attach to the branch summary entry (or target entry if not summarizing)
+Moved to [Extension API reference](/extensions/api-reference#ctx-navigatetree-targetid-options).
 
 ### ctx.switchSession(sessionPath, options?)
 
-Switch to a different session file:
-
-```typescript
-const result = await ctx.switchSession("/path/to/session.jsonl", {
-  withSession: async (ctx) => {
-    await ctx.sendUserMessage("Resume work in the replacement session");
-  },
-});
-if (result.cancelled) {
-  // An extension cancelled the switch via session_before_switch
-}
-```
-
-Options:
-- `withSession`: run post-switch work against a fresh replacement-session context. Do not use captured old `pi` / command `ctx`; see [Session replacement lifecycle and footguns](#session-replacement-lifecycle-and-footguns).
-
-To discover available sessions, use the static `SessionManager.list()` or `SessionManager.listAll()` methods:
-
-```typescript
-import { SessionManager } from "@bastani/atomic";
-
-pi.registerCommand("switch", {
-  description: "Switch to another session",
-  handler: async (args, ctx) => {
-    const sessions = await SessionManager.list(ctx.cwd);
-    if (sessions.length === 0) return;
-    const choice = await ctx.ui.select(
-      "Pick session:",
-      sessions.map(s => s.file),
-    );
-    if (choice) {
-      await ctx.switchSession(choice, {
-        withSession: async (ctx) => {
-          ctx.ui.notify("Switched session", "info");
-        },
-      });
-    }
-  },
-});
-```
+Moved to [Extension API reference](/extensions/api-reference#ctx-switchsession-sessionpath-options).
 
 ### Session replacement lifecycle and footguns
 
-`withSession` receives a fresh `ReplacedSessionContext`, which extends `ExtensionCommandContext` with async `sendMessage()` and `sendUserMessage()` helpers bound to the replacement session.
-
-Lifecycle and footguns:
-- `withSession` runs only after the old session has emitted `session_shutdown`, the old runtime has been torn down, the replacement session has been rebound, and the new extension instance has already received `session_start`.
-- The callback still executes in the original closure, not inside the new extension instance. That means your old extension instance may already have run its shutdown cleanup before `withSession` starts.
-- Captured old `pi` / old command `ctx` session-bound objects are stale after replacement and will throw if used. Use only the `ctx` passed to `withSession` for session-bound work.
-- Previously extracted raw objects are still your responsibility. For example, if you capture `const sm = ctx.sessionManager` before replacement, `sm` is still the old `SessionManager` object. Do not reuse it after replacement.
-- Code in `withSession` should assume any state invalidated by your `session_shutdown` handler is already gone. Only capture plain data that survives shutdown cleanly, such as strings, ids, and serialized config.
-- Long-lived callbacks that need to classify a stale API error should use `isStaleExtensionContextError(error)` from `@bastani/atomic`, not match the host's error message.
-
-Safe pattern:
-
-```typescript
-pi.registerCommand("handoff", {
-  handler: async (_args, ctx) => {
-    const kickoff = "Continue from the replacement session";
-    await ctx.newSession({
-      withSession: async (ctx) => {
-        await ctx.sendUserMessage(kickoff);
-      },
-    });
-  },
-});
-```
-
-Unsafe pattern:
-
-```typescript
-pi.registerCommand("handoff", {
-  handler: async (_args, ctx) => {
-    const oldSessionManager = ctx.sessionManager;
-    await ctx.newSession({
-      withSession: async (_ctx) => {
-        // stale old objects: do not do this
-        oldSessionManager.getSessionFile();
-        pi.sendUserMessage("wrong");
-      },
-    });
-  },
-});
-```
+Moved to [Extension API reference](/extensions/api-reference#session-replacement-lifecycle-and-footguns).
 
 ### ctx.reload()
 
-Run the same reload flow as `/reload`.
-
-```typescript
-pi.registerCommand("reload-runtime", {
-  description: "Reload extensions, skills, prompts, and themes",
-  handler: async (_args, ctx) => {
-    await ctx.reload();
-    return;
-  },
-});
-```
-
-Important behavior:
-- `await ctx.reload()` emits `session_shutdown` for the current extension runtime
-- It then reloads resources and emits `session_start` with `reason: "reload"` and `resources_discover` with reason `"reload"`
-- The currently running command handler still continues in the old call frame
-- Code after `await ctx.reload()` still runs from the pre-reload version
-- Code after `await ctx.reload()` must not assume old in-memory extension state is still valid
-- After the handler returns, future commands/events/tool calls use the new extension version
-
-For predictable behavior, treat reload as terminal for that handler (`await ctx.reload(); return;`).
-
-Tools run with `ExtensionContext`, so they cannot call `ctx.reload()` directly. Use a command as the reload entrypoint, then expose a tool that queues that command as a follow-up user message.
-
-Example tool the LLM can call to trigger reload:
-
-```typescript
-import type { ExtensionAPI } from "@bastani/atomic";
-import { Type } from "typebox";
-
-export default function (pi: ExtensionAPI) {
-  pi.registerCommand("reload-runtime", {
-    description: "Reload extensions, skills, prompts, and themes",
-    handler: async (_args, ctx) => {
-      await ctx.reload();
-      return;
-    },
-  });
-
-  pi.registerTool({
-    name: "reload_runtime",
-    label: "Reload Runtime",
-    description: "Reload extensions, skills, prompts, and themes",
-    parameters: Type.Object({}),
-    async execute() {
-      pi.sendUserMessage("/reload-runtime", { deliverAs: "followUp" });
-      return {
-        content: [{ type: "text", text: "Queued /reload-runtime as a follow-up command." }],
-      };
-    },
-  });
-}
-```
+Moved to [Extension API reference](/extensions/api-reference#ctx-reload).
 
 ## ExtensionAPI Methods
 
+Moved to [Extension API reference](/extensions/api-reference#extensionapi-methods).
+
 ### pi.on(event, handler)
 
-Subscribe to events. See [Events](#events) for event types and return values.
+Moved to [Extension API reference](/extensions/api-reference#pi-on-event-handler).
 
 ### pi.registerTool(definition)
 
-Register a custom tool callable by the LLM. See [Custom Tools](#custom-tools) for full details.
-
-`pi.registerTool()` works both during extension load and after startup. You can call it inside `session_start`, command handlers, or other event handlers. New tools are refreshed immediately in the same session, so they appear in `pi.getAllTools()` and are callable by the LLM without `/reload`.
-
-Use `pi.setActiveTools()` to enable or disable tools (including dynamically added tools) at runtime. Atomic always restores mandatory ordinary `intercom`; other tool behavior is unchanged.
-
-Use `promptSnippet` to opt a custom tool into a one-line entry in `Available tools`, and `promptGuidelines` to append tool-specific bullets to the default `Guidelines` section when the tool is active.
-
-**Important:** `promptGuidelines` bullets are appended flat to the `Guidelines` section with no tool name prefix. Each guideline must name the tool it refers to — avoid "Use this tool when..." because the LLM cannot tell which tool "this" means. Write "Use my_tool when..." instead.
-
-See [dynamic-tools.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/extensions/dynamic-tools.ts) for a full example.
+Moved to [Extension API reference](/extensions/api-reference#pi-registertool-definition).
 
 #### Built-in tool prompt contributions
 
-Atomic exports immutable prompt metadata for its built-in coding tools. Use these constants when a custom harness or tool registry needs the same prompt entries as the built-in factories:
-
-```typescript
-import {
-  bashToolSystemPromptContribution,
-  editToolSystemPromptContribution,
-  findToolSystemPromptContribution,
-  lsToolSystemPromptContribution,
-  readToolSystemPromptContribution,
-  searchToolSystemPromptContribution,
-  writeToolSystemPromptContribution,
-} from "@bastani/atomic";
-
-const { snippet, guidelines } = readToolSystemPromptContribution;
-```
-
-Each contribution has a readonly `snippet` for the `Available tools` section and readonly `guidelines` for the active tool's `Guidelines` entries. The seven exports are `bash`, `edit`, `find`, `ls`, `read`, `search`, and `write`; Atomic's public `search` export is the corresponding surface for pi's upstream `grep` tool. The built-in factories use these values directly, so consumers do not need to duplicate prompt text.
-
-Use Atomic's export rather than importing `StringEnum` directly from Pi. It preserves Pi's Google-compatible runtime schema while keeping the schema typed against Atomic's direct TypeBox version.
-
-```typescript
-import { Type } from "typebox";
-import { StringEnum } from "@bastani/atomic";
-
-pi.registerTool({
-  name: "my_tool",
-  label: "My Tool",
-  description: "What this tool does",
-  promptSnippet: "Summarize or transform text according to action",
-  promptGuidelines: ["Use my_tool when the user asks to summarize previously generated text."],
-  parameters: Type.Object({
-    action: StringEnum(["list", "add"] as const),
-    text: Type.Optional(Type.String()),
-  }),
-  prepareArguments(args) {
-    // Optional compatibility shim. Runs before schema validation.
-    // Return the current schema shape, for example to fold legacy fields
-    // into the modern parameter object.
-    return args;
-  },
-
-  async execute(toolCallId, params, signal, onUpdate, ctx) {
-    // Stream progress
-    onUpdate?.({ content: [{ type: "text", text: "Working..." }] });
-
-    return {
-      content: [{ type: "text", text: "Done" }],
-      details: { result: "..." },
-    };
-  },
-
-  // Optional: Custom rendering
-  renderCall(args, theme, context) { ... },
-  renderResult(result, options, theme, context) { ... },
-});
-```
+Moved to [Extension API reference](/extensions/api-reference#built-in-tool-prompt-contributions).
 
 ### pi.sendMessage(message, options?)
 
-Inject a custom message into the session. The call returns `void | Promise<void>` for compatibility with synchronous hosts; use `await Promise.resolve(pi.sendMessage(...))` when admission or routing failure must be observed. Atomic's AgentSession runtime returns an admission receipt: it settles after the message is accepted by the local queue or workflow late-message route, without waiting for the resulting model turn to finish.
-
-```typescript
-pi.sendMessage({
-  customType: "my-extension",
-  content: "Message text",
-  display: true,
-  details: { ... },
-}, {
-  triggerTurn: true,
-  deliverAs: "steer",
-});
-```
-
-**Options:**
-- `deliverAs` - Delivery mode:
-  - `"steer"` (default) - Queues the message while streaming. Delivered after the current assistant turn finishes executing its tool calls, before the next LLM call.
-  - `"followUp"` - Waits for agent to finish. Delivered only when agent has no more tool calls.
-  - `"nextTurn"` - Queued for next user prompt. Does not interrupt or trigger anything.
-  - `"interrupt"` - With `triggerTurn: true`, aborts an active streaming turn and immediately starts a new turn with the custom message. When idle, behaves like a triggered custom message.
-- `triggerTurn: true` - If agent is idle, trigger an LLM response immediately. Required for `"interrupt"`; ignored for `"nextTurn"`.
-- `excludeFromContext: true` - Render and persist the custom message without adding it to LLM context. With no `deliverAs`, this remains display-only even while the agent is streaming.
-- `interruptAbortMessage` - Optional text used to replace generic abort results (for example `Operation aborted`) when `deliverAs: "interrupt"` aborts an active turn.
+Moved to [Extension API reference](/extensions/api-reference#pi-sendmessage-message-options).
 
 ### pi.sendMessages(messages, options?)
 
-Atomically admit a batch of custom messages in array order. The call returns `void | Promise<void>` for compatibility with synchronous hosts; use `await Promise.resolve(pi.sendMessages(...))` when admission or routing failure must be observed. The promise is an admission receipt and does not wait for the resulting model turn. Admission is indivisible; use this when a prelude and terminal notice must stay contiguous without globally serializing other extension work.
-
-```typescript
-pi.sendMessages([
-  { customType: "worker-update", content: "Ready", display: true },
-  { customType: "worker-terminal", content: "Completed", display: true },
-], { triggerTurn: true });
-```
-
-The batch supports `triggerTurn`, `excludeFromContext`, and `deliverAs: "steer" | "followUp" | "nextTurn"`. Interrupt delivery remains a single-message operation.
+Moved to [Extension API reference](/extensions/api-reference#pi-sendmessages-messages-options).
 
 ### pi.sendUserMessage(content, options?)
 
-Send a user message to the agent. Unlike `sendMessage()` which sends custom messages, this sends an actual user message that appears as if typed by the user. Always triggers a turn.
-
-```typescript
-// Simple text message
-pi.sendUserMessage("What is 2+2?");
-
-// With content array (text + images)
-pi.sendUserMessage([
-  { type: "text", text: "Describe this image:" },
-  { type: "image", source: { type: "base64", mediaType: "image/png", data: "..." } },
-]);
-
-// During streaming - must specify delivery mode
-pi.sendUserMessage("Focus on error handling", { deliverAs: "steer" });
-pi.sendUserMessage("And then summarize", { deliverAs: "followUp" });
-
-// Opt in to extension command dispatch and skill/prompt template expansion
-pi.sendUserMessage("/review src/index.ts", { expandPromptTemplates: true });
-```
-
-**Options:**
-- `deliverAs` - Required when agent is streaming:
-  - `"steer"` - Queues the message for delivery after the current assistant turn finishes executing its tool calls
-  - `"followUp"` - Waits for agent to finish all tools
-
-- `expandPromptTemplates` - Dispatch extension commands and expand skill commands and prompt templates instead of sending the text literally. Defaults to `false`, so an extension-authored message is sent as-is unless it opts in; an unknown command falls through to a literal send.
-
-When not streaming, the message is sent immediately and triggers a new turn. When streaming without `deliverAs`, throws an error.
-
-See [send-user-message.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/extensions/send-user-message.ts) for a complete example.
+Moved to [Extension API reference](/extensions/api-reference#pi-sendusermessage-content-options).
 
 ### pi.appendEntry(customType, data?)
 
-Persist extension state (does NOT participate in LLM context).
-
-```typescript
-pi.appendEntry("my-state", { count: 42 });
-
-// Restore on reload
-pi.on("session_start", async (_event, ctx) => {
-  for (const entry of ctx.sessionManager.getEntries()) {
-    if (entry.type === "custom" && entry.customType === "my-state") {
-      // Reconstruct from entry.data
-    }
-  }
-});
-```
-
-Appending emits `entry_appended` with the durable entry. This lets extensions react to session entries without polling.
+Moved to [Extension API reference](/extensions/api-reference#pi-appendentry-customtype-data).
 
 ### pi.registerEntryRenderer(customType, renderer)
 
-Register a TUI renderer for durable custom entries created by `pi.appendEntry()`. These entries render in the transcript but do not enter model context.
-
-```typescript
-import { Text } from "@earendil-works/pi-tui";
-
-pi.registerEntryRenderer("status-card", (entry, { expanded }, theme) =>
-  new Text(theme.fg("accent", `${expanded ? "Details" : "Status"}: ${JSON.stringify(entry.data)}`), 0, 0)
-);
-```
-
+Moved to [Extension API reference](/extensions/api-reference#pi-registerentryrenderer-customtype-renderer).
 
 ### pi.setSessionName(name)
 
-Set the session display name (shown in session selector instead of first message).
-
-```typescript
-pi.setSessionName("Refactor auth module");
-```
+Moved to [Extension API reference](/extensions/api-reference#pi-setsessionname-name).
 
 ### pi.getSessionName()
 
-Get the current session name, if set.
-
-```typescript
-const name = pi.getSessionName();
-if (name) {
-  console.log(`Session: ${name}`);
-}
-```
+Moved to [Extension API reference](/extensions/api-reference#pi-getsessionname).
 
 ### pi.setLabel(entryId, label)
 
-Set or clear a label on an entry. Labels are user-defined markers for bookmarking and navigation (shown in `/tree` selector).
-
-```typescript
-// Set a label
-pi.setLabel(entryId, "checkpoint-before-refactor");
-
-// Clear a label
-pi.setLabel(entryId, undefined);
-
-// Read labels via sessionManager
-const label = ctx.sessionManager.getLabel(entryId);
-```
-
-Labels persist in the session and survive restarts. Use them to mark important points (turns, checkpoints) in the conversation tree.
+Moved to [Extension API reference](/extensions/api-reference#pi-setlabel-entryid-label).
 
 ### pi.registerCommand(name, options)
 
-Register a command.
-
-If multiple extensions register the same command name, Atomic keeps them all and assigns numeric invocation suffixes in load order, for example `/review:1` and `/review:2`.
-
-```typescript
-pi.registerCommand("stats", {
-  description: "Show session statistics",
-  handler: async (args, ctx) => {
-    const count = ctx.sessionManager.getEntries().length;
-    ctx.ui.notify(`${count} entries`, "info");
-  }
-});
-```
-
-Optional: add argument auto-completion for `/command ...`:
-
-```typescript
-import type { AutocompleteItem } from "@earendil-works/pi-tui";
-
-pi.registerCommand("deploy", {
-  description: "Deploy to an environment",
-  getArgumentCompletions: (prefix: string): AutocompleteItem[] | null => {
-    const envs = ["dev", "staging", "prod"];
-    const items = envs.map((e) => ({ value: e, label: e }));
-    const filtered = items.filter((i) => i.value.startsWith(prefix));
-    return filtered.length > 0 ? filtered : null;
-  },
-  handler: async (args, ctx) => {
-    ctx.ui.notify(`Deploying: ${args}`, "info");
-  },
-});
-```
+Moved to [Extension API reference](/extensions/api-reference#pi-registercommand-name-options).
 
 ### pi.getCommands()
 
-Get the slash commands available for invocation via `prompt` in the current session. Includes extension commands, prompt templates, and skill commands.
-The list matches the RPC `get_commands` ordering: extensions first, then templates, then skills.
-
-```typescript
-const commands = pi.getCommands();
-const bySource = commands.filter((command) => command.source === "extension");
-const userScoped = commands.filter((command) => command.sourceInfo.scope === "user");
-```
-
-Each entry has this shape:
-
-```typescript
-{
-  name: string; // Invokable command name without the leading slash. May be suffixed like "review:1"
-  description?: string;
-  source: "extension" | "prompt" | "skill";
-  sourceInfo: {
-    path: string;
-    source: string;
-    scope: "user" | "project" | "temporary";
-    origin: "package" | "top-level";
-    baseDir?: string;
-  };
-}
-```
-
-Use `sourceInfo` as the canonical provenance field. Do not infer ownership from command names or from ad hoc path parsing.
-
-Built-in interactive commands (like `/model` and `/settings`) are not included here. They are handled only in interactive
-mode and would not execute if sent via `prompt`.
+Moved to [Extension API reference](/extensions/api-reference#pi-getcommands).
 
 ### pi.registerMessageRenderer(customType, renderer)
 
-Register a custom TUI renderer for messages with your `customType`. The renderer options contain `expanded` and the current numeric `outputPad`, so custom output can align with built-in messages. The same options are provided in normal and isolated-engine rendering. See [Custom UI](#custom-ui).
+Moved to [Extension API reference](/extensions/api-reference#pi-registermessagerenderer-customtype-renderer).
 
 ### pi.registerMarkdownTransformer(transformer)
 
-Register a synchronous, display-only transformer for Markdown in normal user text, assistant text, and thinking blocks. Atomic runs transformers in extension load order. Each extension retains one transformer, so a later call from that extension replaces its prior transformer. Each transformer receives the Markdown returned by the prior transformer, then Atomic renders the final value with its built-in Markdown renderer.
-
-The transformer receives the Markdown string and a context with:
-
-- `messageType` — `"user"`, `"assistant"`, or `"assistant-thinking"`
-- `isStreaming` — `true` for partial assistant updates; `false` for user, finalized assistant, and restored messages
-- `availableWidth` — exact terminal columns available for the transformed Markdown content
-
-Return the transformed Markdown:
-
-```typescript
-pi.registerMarkdownTransformer((markdown, { messageType, isStreaming }) => {
-  if (isStreaming || messageType === "assistant-thinking") return markdown;
-  return markdown.replaceAll("-->", "→");
-});
-```
-
-If a transformer throws, Atomic keeps the Markdown produced so far and continues with the next transformer. The hook never changes the original message, session transcript, or model context. It runs for new user messages, assistant streaming updates, restored session messages, and terminal-width changes, so keep transformers synchronous and inexpensive. Isolated-engine rendering does not run host-side display transformers.
+Moved to [Extension API reference](/extensions/api-reference#pi-registermarkdowntransformer-transformer).
 
 ### pi.registerShortcut(shortcut, options)
 
-Register a keyboard shortcut. See [Keybindings](/keybindings) for the shortcut format and built-in keybindings.
-
-```typescript
-pi.registerShortcut("ctrl+shift+p", {
-  description: "Toggle plan mode",
-  handler: async (ctx) => {
-    ctx.ui.notify("Toggled!");
-  },
-});
-```
+Moved to [Extension API reference](/extensions/api-reference#pi-registershortcut-shortcut-options).
 
 ### pi.registerFlag(name, options)
 
-Register a CLI flag.
-
-```typescript
-pi.registerFlag("plan", {
-  description: "Start in plan mode",
-  type: "boolean",
-  default: false,
-});
-
-// Check value
-if (pi.getFlag("plan")) {
-  // Plan mode enabled
-}
-```
+Moved to [Extension API reference](/extensions/api-reference#pi-registerflag-name-options).
 
 ### pi.exec(command, args, options?)
 
-Execute a shell command.
-
-```typescript
-const result = await pi.exec("git", ["status"], { signal, timeout: 5000 });
-// result.stdout, result.stderr, result.code, result.killed
-```
+Moved to [Extension API reference](/extensions/api-reference#pi-exec-command-args-options).
 
 ### pi.getActiveTools() / pi.getAllTools() / pi.setActiveTools(names)
 
-Manage active tools. This works for both built-in tools and dynamically registered tools. `pi.getActiveTools()` returns the active tool names as `string[]`; `pi.getAllTools()` returns metadata for all configured tools.
-
-```typescript
-const active = pi.getActiveTools(); // ["read", "bash", ...]
-const all = pi.getAllTools();
-// all = [{
-//   name: "read",
-//   description: "Read file contents...",
-//   parameters: ...,
-//   promptGuidelines: ["Use read to examine files instead of cat or sed."],
-//   sourceInfo: { path: "<builtin:read>", source: "builtin", scope: "temporary", origin: "top-level" }
-// }, ...]
-const builtinTools = all.filter((t) => t.sourceInfo.source === "builtin");
-const extensionTools = all.filter((t) => t.sourceInfo.source !== "builtin" && t.sourceInfo.source !== "sdk");
-pi.setActiveTools([...new Set([...active, "my_custom_tool"])]); // Keep current tools and enable my_custom_tool
-pi.setActiveTools(["read", "bash"]); // Switch to read-only
-```
-
-`pi.getAllTools()` returns `name`, `description`, `parameters`, `promptGuidelines`, and `sourceInfo`.
-
-Typical `sourceInfo.source` values:
-- `builtin` for built-in tools
-- `sdk` for tools passed via `createAgentSession({ customTools })`
-- extension source metadata for tools registered by extensions
+Moved to [Extension API reference](/extensions/api-reference#pi-getactivetools-/-pi-getalltools-/-pi-setactivetools-names).
 
 ### pi.setModel(model)
 
-Set the model for the current session. The change is recorded in session history and restored when that session is resumed, but it does not change the configured `defaultProvider` or `defaultModel` used by new sessions. Returns `false` if authentication is not configured for the model's provider. See [Custom models](/models) for configuring custom models.
-
-```typescript
-const model = ctx.modelRegistry.find("anthropic", "claude-sonnet-4-5");
-if (model) {
-  const success = await pi.setModel(model);
-  if (!success) {
-    ctx.ui.notify("No API key for this model", "error");
-  }
-}
-```
+Moved to [Extension API reference](/extensions/api-reference#pi-setmodel-model).
 
 ### pi.getThinkingLevel() / pi.setThinkingLevel(level)
 
-Get the current thinking level. Level is clamped to model capabilities (non-reasoning models always use `"off"`; `"xhigh"` and `"max"` require model support). Changes emit `thinking_level_select`.
-
-`pi.setThinkingLevel()` changes the thinking level for the current session. The change is recorded in session history and restored when that session is resumed, but it does not change the configured default used by new sessions.
-
-```typescript
-const current = pi.getThinkingLevel();  // "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max"
-pi.setThinkingLevel("high");
-```
+Moved to [Extension API reference](/extensions/api-reference#pi-getthinkinglevel-/-pi-setthinkinglevel-level).
 
 ### pi.events
 
-Shared event bus for communication between active extensions. A subscription made with `on()` is removed automatically when its extension reloads or the session disposes. Use the returned function if you need to stop listening sooner:
-
-```typescript
-const unsubscribe = pi.events.on("my:event", (data) => { ... });
-pi.events.emit("my:event", { ... });
-unsubscribe();
-```
-
-`pi.events` belongs to the extension instance that received it. Register listeners again when that instance reloads, and do not retain the object for later use: calling `on()` or `emit()` through a captured handle after reload or disposal throws. To keep in-memory state across `/reload`, pass this facade to [`sessionScopedExtensionState`](#session-scoped-in-memory-state); do not capture the facade itself.
-
-If you implement an `ExtensionRuntime` for an embedded host, provide `trackEventBusSubscription(unsubscribe)` and retain each returned subscription until that extension runtime is reloaded or disposed. `ExtensionUIContext.getChatRenderSettings()` must return `markdownTransformers`; it may also return `renderLatex` to control terminal math rendering. These fields keep event subscriptions and display transforms scoped to the active extension instance.
-
+Moved to [Extension API reference](/extensions/api-reference#pi-events).
 
 ### Native providers
 
-In addition to `registerProvider(name, config)`, extensions can register a complete native `Provider` from `@bastani/pi-ai` with `pi.registerProvider(provider)`. Use the native overload for provider-owned authentication, catalog refresh, and transport behavior; use the config overload for ordinary proxies and custom endpoints.
+Moved to [Extension API reference](/extensions/api-reference#native-providers).
 
 ### pi.registerProvider(name, config)
 
-Register or override a model provider dynamically. Useful for proxies, custom endpoints, or team-wide model configurations.
-
-Calls made during the extension factory function are queued and applied once the runner initialises. Calls made after that — for example from a command handler following a user setup flow — take effect immediately without requiring a `/reload`.
-
-If you need to discover models from a remote endpoint, prefer an async extension factory over deferring the fetch to `session_start`. Atomic waits for the factory before startup continues, so the registered models are available immediately, including to `atomic --list-models`.
-
-```typescript
-// Register a new provider with custom models
-pi.registerProvider("my-proxy", {
-  name: "My Proxy",
-  baseUrl: "https://proxy.example.com",
-  apiKey: "$PROXY_API_KEY",  // env var reference; omit $ for a literal
-  api: "anthropic-messages",
-  models: [
-    {
-      id: "claude-sonnet-4-20250514",
-      name: "Claude 4 Sonnet (proxy)",
-      reasoning: false,
-      input: ["text", "image"],
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow: 200000,
-      maxTokens: 16384
-    }
-  ]
-});
-
-// Override baseUrl for an existing provider (keeps all models)
-pi.registerProvider("anthropic", {
-  baseUrl: "https://proxy.example.com"
-});
-
-// Register provider with OAuth support for /login
-pi.registerProvider("corporate-ai", {
-  baseUrl: "https://ai.corp.com",
-  api: "openai-responses",
-  models: [...],
-  oauth: {
-    name: "Corporate AI (SSO)",
-    async login(callbacks, signal) {
-      // Custom OAuth flow
-      callbacks.onAuth({ url: "https://sso.corp.com/..." });
-      const code = await callbacks.onPrompt({ message: "Enter code:" });
-      signal.throwIfAborted();
-      return { refresh: code, access: code, expires: Date.now() + 3600000 };
-    },
-    async refreshToken(credentials, signal) {
-      // Forward signal to the refresh request.
-      signal.throwIfAborted();
-      return credentials;
-    },
-    getApiKey(credentials) {
-      return credentials.access;
-    }
-  }
-});
-
-// Register provider-owned API-key setup for /login
-pi.registerProvider("local-server", {
-  name: "Local Server",
-  auth: {
-    apiKey: {
-      name: "Local server connection",
-      async login({ signal, prompt }) {
-        const baseUrl = await prompt({
-          type: "text",
-          message: "Server URL",
-          placeholder: "http://localhost:8080"
-        });
-        if (signal.aborted) throw new Error("Login cancelled");
-        return { type: "api_key", env: { LOCAL_SERVER_URL: baseUrl } };
-      }
-    }
-  }
-});
-```
-
-**Config options:**
-- `name` - Display name for the provider in UI such as `/login`.
-- `baseUrl` - API endpoint URL. Required when defining models.
-- `apiKey` - API key literal or explicit environment variable reference (`$ENV_VAR` or `${ENV_VAR}`). Required when defining models (unless `oauth` provided).
-- `api` - API type: `"anthropic-messages"`, `"openai-completions"`, `"openai-responses"`, etc.
-- `headers` - Custom headers to include in requests.
-- `authHeader` - If true, adds `Authorization: Bearer` header automatically.
-- `models` - Array of model definitions. If provided, replaces all existing models for this provider. Model definitions can set `baseUrl` to override the provider endpoint for that model.
-- `oauth` - OAuth provider config for `/login` support. When provided, the provider appears in the login menu.
-- `auth.apiKey` - Provider-owned API-key or connection setup for `/login`. Its `name` appears in the provider list and `login({ signal, prompt })` returns the credential Atomic persists. Extension providers registered only in the isolated interactive engine child are synchronized into the host's `/login` list; their login callback and credential-dependent model refresh still execute in the child, while prompts are rendered by the terminal host.
-- `streamSimple` - Custom streaming implementation for non-standard APIs.
-
-See [Custom providers](/custom-provider) for advanced topics: custom streaming APIs, OAuth details, model definition reference.
+Moved to [Extension API reference](/extensions/api-reference#pi-registerprovider-name-config).
 
 ### pi.unregisterProvider(name)
 
-Remove a previously registered provider and its models. Built-in models that were overridden by the provider are restored. Has no effect if the provider was not registered.
-
-Like `registerProvider`, this takes effect immediately when called after the initial load phase, so a `/reload` is not required.
-
-```typescript
-pi.registerCommand("my-setup-teardown", {
-  description: "Remove the custom proxy provider",
-  handler: async (_args, _ctx) => {
-    pi.unregisterProvider("my-proxy");
-  },
-});
-```
+Moved to [Extension API reference](/extensions/api-reference#pi-unregisterprovider-name).
 
 ## State Management
 
-Choose the store that matches the lifetime you need:
-
-- **Tool result `details`** — reconstructs across `/branch` and `/resume` from the transcript.
-- **`pi.appendEntry()`** — durable custom entries that survive process restart. They do not enter model context.
-- **`sessionScopedExtensionState()`** — in-memory objects that survive `/reload` for the current process. They do not survive process restart.
-
-In Bun single-file builds, an editable file extension whose imported graph is unchanged can reuse its evaluated factory, so its module-scoped variables may survive `/reload`. An edit anywhere in that graph re-evaluates its modules and resets those singletons. The five fixed installed builtin bundles always reuse their evaluated factories and module state across `/reload`, as described above.
-
-Extensions with state that must follow conversation branches should store it in tool result `details`:
-
-```typescript
-export default function (pi: ExtensionAPI) {
-  let items: string[] = [];
-
-  // Reconstruct state from session
-  pi.on("session_start", async (_event, ctx) => {
-    items = [];
-    for (const entry of ctx.sessionManager.getBranch()) {
-      if (entry.type === "message" && entry.message.role === "toolResult") {
-        if (entry.message.toolName === "my_tool") {
-          items = entry.message.details?.items ?? [];
-        }
-      }
-    }
-  });
-
-  pi.registerTool({
-    name: "my_tool",
-    // ...
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      items.push("new item");
-      return {
-        content: [{ type: "text", text: "Added" }],
-        details: { items: [...items] },  // Store for reconstruction
-      };
-    },
-  });
-}
-```
+Moved to [Writing extensions](/extensions/authoring#state-management).
 
 ### Session-scoped in-memory state
 
-Import `sessionScopedExtensionState` from `@bastani/atomic` when an extension must keep a live object across `/reload` — registries, abort controllers, connection pools, or any other handle that cannot be rebuilt from the transcript.
-
-```typescript
-import { sessionScopedExtensionState, type ExtensionAPI } from "@bastani/atomic";
-
-interface CounterState {
-  count: number;
-}
-
-export default function (pi: ExtensionAPI) {
-  const state = sessionScopedExtensionState(pi.events, "my-extension:counter:v1", () => ({
-    count: 0,
-  }));
-
-  pi.registerCommand("bump", {
-    description: "Increment a counter that survives /reload",
-    handler: async (_args, ctx) => {
-      state.count += 1;
-      ctx.ui.notify(`count=${state.count}`, "info");
-    },
-  });
-}
-```
-
-**Required scope.** Pass the extension's `pi.events` facade (or the session `EventBus` itself). The host resolves that facade to the canonical session bus, so every load generation of one session re-binds to the same object. Two in-process sessions with distinct buses stay isolated. Do not pass an arbitrary object: an unregistered scope is treated as its own bus and will not re-bind after reload.
-
-**Session-wide key namespace.** Keys are not automatically namespaced by extension. Two extensions that pass the same key on the same session receive the first extension's object; the later factory is not called. Prefix every key with a stable extension identity.
-
-**Key-versioning.** Append a version suffix and bump it when the stored shape changes, for example `"my-extension:counter:v1"` → `"my-extension:counter:v2"`. The new key declines the incompatible predecessor instead of reusing it under a new type.
-
-**Reload behavior.** `/reload` builds a new `pi.events` facade that still forwards to the same bus. Calling `sessionScopedExtensionState` again with the same namespaced key returns the existing object and does not invoke `create`. The reload transaction does not clone this object or roll back mutations that extension factory code makes to it. Keep factory setup idempotent, and mutate durable state only after the new generation starts when failed reloads must not affect it. Entries live exactly as long as that bus. They are not written to the session file; use `pi.appendEntry()` when the data must survive process restart.
-
-**Shutdown.** `session_shutdown` still runs for resources you opened. If the object holds sockets, watchers, or timers, close them there. The next `session_start` or first use can recreate them inside the same session-scoped object.
-
+Moved to [Writing extensions](/extensions/authoring#session-scoped-in-memory-state).
 
 ## Custom Tools
 
-Register tools the LLM can call via `pi.registerTool()`. Tools appear in the system prompt and can have custom rendering.
-
-Use `promptSnippet` for a short one-line entry in the `Available tools` section in the default system prompt. If omitted, custom tools are left out of that section.
-
-Use `promptGuidelines` to add tool-specific bullets to the default system prompt `Guidelines` section. These bullets are included only while the tool is active (for example, after `pi.setActiveTools([...])`).
-
-**Important:** `promptGuidelines` bullets are appended flat to the `Guidelines` section with no tool name prefix or grouping. Each guideline must name the tool it refers to — avoid "Use this tool when..." because the LLM cannot tell which tool "this" means. Write "Use my_tool when..." instead.
-
-Note: Some models are idiots and include the @ prefix in tool path arguments. Built-in tools strip a leading @ before resolving paths. If your custom tool accepts a path, normalize a leading @ as well.
-
-If your custom tool mutates files, use `withFileMutationQueue()` so it participates in the same per-file queue as built-in `edit` and `write`. This matters because tool calls run in parallel by default. Without the queue, two tools can read the same old file contents, compute different updates, and then whichever write lands last overwrites the other.
-
-Example failure case: your custom tool edits `foo.ts` while built-in `edit` also changes `foo.ts` in the same assistant turn. If your tool does not participate in the queue, both can read the original `foo.ts`, apply separate changes, and one of those changes is lost.
-
-Pass the real target file path to `withFileMutationQueue()`, not the raw user argument. Resolve it to an absolute path first, relative to `ctx.cwd` or your tool's working directory. For existing files, the helper canonicalizes through `realpath()`, so symlink aliases for the same file share one queue. For new files, it falls back to the resolved absolute path because there is nothing to `realpath()` yet.
-
-Queue the entire mutation window on that target path. That includes read-modify-write logic, not just the final write.
-
-```typescript
-import { withFileMutationQueue } from "@bastani/atomic";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
-
-async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-  const absolutePath = resolve(ctx.cwd, params.path);
-
-  return withFileMutationQueue(absolutePath, async () => {
-    await mkdir(dirname(absolutePath), { recursive: true });
-    const current = await readFile(absolutePath, "utf8");
-    const next = current.replace(params.oldText, params.newText);
-    await writeFile(absolutePath, next, "utf8");
-
-    return {
-      content: [{ type: "text", text: `Updated ${params.path}` }],
-      details: {},
-    };
-  });
-}
-```
+Moved to [Writing extensions](/extensions/authoring#custom-tools).
 
 ### Tool Definition
 
-`parameters` is required, including for no-argument tools (use `Type.Object({})`). Registration rejects missing, null, array, and primitive schema values before they can break a provider request. This checks the schema container, not its JSON Schema `type`: object-valued union and non-object-type schemas remain accepted and unchanged.
-
-```typescript
-import { Type } from "typebox";
-import { StringEnum } from "@bastani/atomic";
-import { Text } from "@earendil-works/pi-tui";
-
-pi.registerTool({
-  name: "my_tool",
-  label: "My Tool",
-  description: "What this tool does (shown to LLM)",
-  promptSnippet: "List or add items in the project todo list",
-  promptGuidelines: [
-    "Use my_tool for todo planning instead of direct file edits when the user asks for a task list."
-  ],
-  parameters: Type.Object({
-    action: StringEnum(["list", "add"] as const),  // Atomic's Pi-compatible TypeBox helper
-    text: Type.Optional(Type.String()),
-  }),
-  prepareArguments(args) {
-    if (!args || typeof args !== "object") return args;
-    const input = args as { action?: string; oldAction?: string };
-    if (typeof input.oldAction === "string" && input.action === undefined) {
-      return { ...input, action: input.oldAction };
-    }
-    return args;
-  },
-
-  async execute(toolCallId, params, signal, onUpdate, ctx) {
-    // Check for cancellation
-    if (signal?.aborted) {
-      return { content: [{ type: "text", text: "Cancelled" }] };
-    }
-
-    // Stream progress updates
-    onUpdate?.({
-      content: [{ type: "text", text: "Working..." }],
-      details: { progress: 50 },
-    });
-
-    // Run commands via pi.exec (captured from extension closure)
-    const result = await pi.exec("some-command", [], { signal });
-
-    // Return result
-    return {
-      content: [{ type: "text", text: "Done" }],  // Sent to LLM
-      details: { data: result },                   // For rendering & state
-      // Optional: stop after this tool batch when every finalized tool result
-      // in the batch also returns terminate: true.
-      terminate: true,
-    };
-  },
-
-  // Optional: Custom rendering
-  renderCall(args, theme, context) { ... },
-  renderResult(result, options, theme, context) { ... },
-});
-```
-
-**Signaling errors:** To mark a tool execution as failed (sets `isError: true` on the result and reports it to the LLM), throw an error from `execute`. Returning a value never sets the error flag regardless of what properties you include in the return object.
-
-**Early termination:** Return `terminate: true` from `execute()` to hint that the automatic follow-up LLM call should be skipped after the current tool batch. This only takes effect when every finalized tool result in that batch is terminating. Atomic does not register `structured_output` in normal agent sessions by default; use `createStructuredOutputTool({ schema, capture, output, name })` when an extension, SDK session, or workflow stage needs a schema-backed final-answer tool. The factory uses the supplied schema as the tool parameters directly, captures the tool arguments as whatever JSON value matches the schema, emits the same pretty-printed JSON as the terminating tool-result text for `atomic -p`, optionally writes them to the configured `output.outputPath`, and terminates the turn. In text print mode, a terminating result from a factory-created structured-output tool is emitted to stdout as the final response. Custom factory names are opt-in tools: if you register `final_decision`, include `final_decision` in any explicit `tools` allowlist; if you register the default `structured_output` name, it is available only to that session/runtime.
-
-```typescript
-// Correct: throw to signal an error
-async execute(toolCallId, params) {
-  if (!isValid(params.input)) {
-    throw new Error(`Invalid input: ${params.input}`);
-  }
-  return { content: [{ type: "text", text: "OK" }], details: {} };
-}
-```
-
-**Important:** Use `StringEnum` from `@bastani/atomic` for string enums. It retains Pi's Google-compatible schema and composes with Atomic's direct TypeBox types; `Type.Union`/`Type.Literal` doesn't work with Google's API.
+Moved to [Writing extensions](/extensions/authoring#tool-definition).
 
 #### Constrained sampling
 
-`ToolDefinition.constrainedSampling` is preserved for extension tools, SDK `customTools`, wrappers, and isolated execution. It accepts `false` or the exported `ConstrainedSamplingConfig`:
-
-```typescript
-pi.registerTool({
-  name: "strict_edit",
-  label: "Strict edit",
-  description: "Edit one file",
-  parameters: Type.Object({ path: Type.String(), content: Type.String() }),
-  constrainedSampling: { type: "json_schema", strict: "prefer" },
-  async execute(_id, params) {
-    return { content: [{ type: "text", text: params.path }], details: {} };
-  },
-});
-```
-
-Exact modes:
-
-- `{ type: "json_schema", strict: "prefer" }` requests strict provider enforcement and falls back to ordinary tool calling when unavailable.
-- `{ type: "json_schema", strict: "require" }` fails the request rather than silently weakening the constraint.
-- `{ type: "grammar", variants: { openai_lark?: string, openai_regex?: string } }` requests an OpenAI custom grammar tool; Lark wins when both non-empty variants are present.
-- `false` explicitly opts out. Its runtime effect matches omission, but public tool inspection preserves `false` as a present property.
-
-Built-in `read`, `edit`, `write`, `bash`, and its Windows PowerShell variant request strict JSON-schema sampling with `prefer` by default. This is a provider hint, not a schema rewrite or a sandbox. Unsupported providers retain ordinary tool calling. Other experimental tool hints still follow the experimental environment flag.
-
-Atomic preserves the optional property's exact own-key state across wrappers, active-session inspection, staged extension inspection, bundled tools, and isolated transport: omission stays absent; explicitly present `undefined` stays present; `false` and config objects remain unchanged. This distinction matters to SDK/extension code that uses `Object.hasOwn()` rather than an ordinary property read.
-
-Grammar tools require an object schema with exactly one required string property. They are emitted only when model metadata advertises `supportsOpenAIGrammarTools` (also exposed as Atomic's `supportsGrammarTools` alias); otherwise provider handling falls back to the normal function/JSON-schema path. Older OpenAI models and gateways that rewrite schemas cannot honor custom grammar tools. Typed RPC clients receive these claims through optional `ModelInfo.compat`. See [Custom Models](/models#constrained-tool-sampling) and [RPC](/rpc#get_available_models).
-
-**Argument preparation:** `prepareArguments(args)` is optional. If defined, it runs before schema validation and before `execute()`. Use it only when a custom tool must normalize arguments before validation. Return the object you want validated against `parameters`, keep the public schema strict, and avoid advertising deprecated fields.
-
-```typescript
-pi.registerTool({
-  name: "deploy_plan",
-  label: "Deploy Plan",
-  description: "Create a deployment plan for one target environment",
-  parameters: Type.Object({
-    environment: Type.String(),
-    dryRun: Type.Optional(Type.Boolean()),
-  }),
-  prepareArguments(args) {
-    if (!args || typeof args !== "object") return args;
-    const input = args as { env?: unknown; environment?: unknown; dryRun?: unknown };
-    if (typeof input.environment === "string") return args;
-    if (typeof input.env !== "string") return args;
-    return { environment: input.env, dryRun: input.dryRun };
-  },
-  async execute(toolCallId, params) {
-    return {
-      content: [{ type: "text", text: `Planning deploy to ${params.environment}` }],
-      details: {},
-    };
-  },
-});
-```
+Moved to [Writing extensions](/extensions/authoring#constrained-sampling).
 
 ### Fireworks deferred tool loading
 
@@ -2380,749 +698,91 @@ This is an AI SDK capability. Atomic's `pi.setActiveTools()` updates the active 
 
 ### Overriding Built-in Tools
 
-Extensions can override built-in tools (`read`, `bash`, `powershell`, `edit`, `write`, `find`, `search`, `ask_user_question`, `todo`) by registering a tool with the same name. Interactive mode displays a warning when this happens.
-
-```bash
-# Extension's read tool replaces built-in read
-atomic -e ./tool-override.ts
-```
-
-Alternatively, use `--no-builtin-tools` to start without any built-in tools while keeping extension tools enabled:
-```bash
-# No built-in tools, only extension tools
-atomic --no-builtin-tools -e ./my-extension.ts
-```
-
-See [examples/extensions/tool-override.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/extensions/tool-override.ts) for a complete example that overrides `read` with logging and access control.
-
-**Rendering:** Built-in renderer inheritance is resolved per slot. Execution override and rendering override are independent. If your override omits `renderCall`, the built-in `renderCall` is used. If your override omits `renderResult`, the built-in `renderResult` is used. If your override omits both, the built-in renderer is used automatically (syntax highlighting, diffs, etc.). This lets you wrap built-in tools for logging or access control without reimplementing the UI.
-
-**Prompt metadata:** `promptSnippet` and `promptGuidelines` are not inherited from the built-in tool. If your override should keep those prompt instructions, define them on the override explicitly.
-
-**Your implementation must match the exact result shape**, including the `details` type. The UI and session logic depend on these shapes for rendering and state tracking.
-
-Built-in tool implementations:
-- [read.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/src/core/tools/read.ts) - `ReadToolDetails`
-- [bash.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/src/core/tools/bash.ts) - `BashToolDetails`
-- [edit.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/src/core/tools/edit.ts)
-- [write.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/src/core/tools/write.ts)
-- [grep.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/src/core/tools/grep.ts) - `GrepToolDetails`
-- [find.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/src/core/tools/find.ts) - `FindToolDetails`
-- [ls.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/src/core/tools/ls.ts) - `LsToolDetails`
+Moved to [Writing extensions](/extensions/authoring#overriding-built-in-tools).
 
 ### Remote Execution
 
-Built-in tools support pluggable operations for delegating to remote systems (SSH, containers, etc.):
-
-```typescript
-import { createReadTool, createBashTool, type ReadOperations } from "@bastani/atomic";
-
-// Create tool with custom operations
-const remoteRead = createReadTool(cwd, {
-  operations: {
-    readFile: (path) => sshExec(remote, `cat ${path}`),
-    access: (path) => sshExec(remote, `test -r ${path}`).then(() => {}),
-  }
-});
-
-// Register, checking flag at execution time
-pi.registerTool({
-  ...remoteRead,
-  async execute(id, params, signal, onUpdate, _ctx) {
-    const ssh = getSshConfig();
-    if (ssh) {
-      const tool = createReadTool(cwd, { operations: createRemoteOps(ssh) });
-      return tool.execute(id, params, signal, onUpdate);
-    }
-    return localRead.execute(id, params, signal, onUpdate);
-  },
-});
-```
-
-`ReadOperations` may also provide `stat` and `listDir` to keep directory-tree reads on the injected filesystem. The Harness factory supplies both. A custom read backend without both members keeps the existing file-only remote behavior. Archive, SQLite, internal-resource, notebook, and path-variant helpers still use Atomic's local filesystem unless the tool gains dedicated remote seams.
-
-**Operations interfaces:** `ReadOperations`, `WriteOperations`, `EditOperations`, `BashOperations`, `LsOperations`, `GrepOperations`, `FindOperations`
-
-For `user_bash`, extensions can reuse atomic's local shell backend via `createLocalBashOperations()` instead of reimplementing local process spawning, shell resolution, and process-tree termination.
-
-The bash tool also supports a spawn hook to adjust the command, cwd, or env before execution:
-
-```typescript
-import { createBashTool } from "@bastani/atomic";
-
-const bashTool = createBashTool(cwd, {
-  spawnHook: ({ command, cwd, env }) => ({
-    command: `source ~/.profile\n${command}`,
-    cwd: `/mnt/sandbox${cwd}`,
-    env: { ...env, CI: "1" },
-  }),
-});
-```
-
-See [examples/extensions/ssh.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/extensions/ssh.ts) for a complete SSH example with `--ssh` flag.
+Moved to [Writing extensions](/extensions/authoring#remote-execution).
 
 ### Output Truncation
 
-**Tools MUST truncate their output** to avoid overwhelming the LLM context. Large outputs can cause:
-- Context overflow errors (prompt too long)
-- Compaction failures
-- Degraded model performance
-
-The built-in limit is **50KB** (~10k tokens) and **2000 lines**, whichever is hit first. Use the exported truncation utilities:
-
-```typescript
-import {
-  truncateHead,      // Keep first N lines/bytes (good for file reads, search results)
-  truncateTail,      // Keep last N lines/bytes (good for logs, command output)
-  truncateLine,      // Truncate a single line to maxBytes with ellipsis
-  formatSize,        // Human-readable size (e.g., "50KB", "1.5MB")
-  DEFAULT_MAX_BYTES, // 50KB
-  DEFAULT_MAX_LINES, // 2000
-} from "@bastani/atomic";
-
-async execute(toolCallId, params, signal, onUpdate, ctx) {
-  const output = await runCommand();
-
-  // Apply truncation
-  const truncation = truncateHead(output, {
-    maxLines: DEFAULT_MAX_LINES,
-    maxBytes: DEFAULT_MAX_BYTES,
-  });
-
-  let result = truncation.content;
-
-  if (truncation.truncated) {
-    // Write full output to temp file
-    const tempFile = writeTempFile(output);
-
-    // Inform the LLM where to find complete output
-    result += `\n\n[Output truncated: ${truncation.outputLines} of ${truncation.totalLines} lines`;
-    result += ` (${formatSize(truncation.outputBytes)} of ${formatSize(truncation.totalBytes)}).`;
-    result += ` Full output saved to: ${tempFile}]`;
-  }
-
-  return { content: [{ type: "text", text: result }] };
-}
-```
-
-**Key points:**
-- Use `truncateHead` for content where the beginning matters (search results, file reads)
-- Use `truncateTail` for content where the end matters (logs, command output)
-- Always inform the LLM when output is truncated and where to find the full version
-- Document the truncation limits in your tool's description
-
-See [examples/extensions/truncated-tool.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/extensions/truncated-tool.ts) for a complete example wrapping `rg` (ripgrep) with proper truncation.
+Moved to [Writing extensions](/extensions/authoring#output-truncation).
 
 ### Multiple Tools
 
-One extension can register multiple tools with shared state:
-
-```typescript
-export default function (pi: ExtensionAPI) {
-  let connection = null;
-
-  pi.registerTool({ name: "db_connect", ... });
-  pi.registerTool({ name: "db_query", ... });
-  pi.registerTool({ name: "db_close", ... });
-
-  pi.on("session_shutdown", async () => {
-    connection?.close();
-  });
-}
-```
+Moved to [Writing extensions](/extensions/authoring#multiple-tools).
 
 ### Custom Rendering
 
-Tools can provide `renderCall` and `renderResult` for custom TUI display. See [TUI components](/tui) for the full component API and [tool-execution.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/src/modes/interactive/components/tool-execution.ts) for how tool rows are composed.
-
-By default, tool output is wrapped in a `Box` that handles padding and background. A defined `renderCall` or `renderResult` must return a `Component`. If a slot renderer is not defined, `tool-execution.ts` uses fallback rendering for that slot.
-
-Set `renderShell: "self"` when the tool should render its own shell instead of using the default `Box`. This is useful for tools that need complete control over framing or background behavior, for example large previews that must stay visually stable after the tool settles.
-
-```typescript
-pi.registerTool({
-  name: "my_tool",
-  label: "My Tool",
-  description: "Custom shell example",
-  parameters: Type.Object({}),
-  renderShell: "self",
-  async execute() {
-    return { content: [{ type: "text", text: "ok" }], details: undefined };
-  },
-  renderCall(args, theme, context) {
-    return new Text(theme.fg("accent", "my custom shell"), 0, 0);
-  },
-});
-```
-
-`renderCall` and `renderResult` each receive a `context` object with:
-- `args` - the current tool call arguments
-- `state` - shared row-local state across `renderCall` and `renderResult`
-- `lastComponent` - the previously returned component for that slot, if any
-- `invalidate()` - request a rerender of this tool row
-- `toolCallId`, `cwd`, `executionStarted`, `argsComplete`, `isPartial`, `expanded`, `showImages`, `isError`
-
-Use `context.state` for cross-slot shared state. Keep slot-local caches on the returned component instance when you want to reuse and mutate the same component across renders.
+Moved to [Writing extensions](/extensions/authoring#custom-rendering).
 
 #### renderCall
 
-Renders the tool call or header:
-
-```typescript
-import { Text } from "@earendil-works/pi-tui";
-
-renderCall(args, theme, context) {
-  const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
-  let content = theme.fg("toolTitle", theme.bold("my_tool "));
-  content += theme.fg("muted", args.action);
-  if (args.text) {
-    content += " " + theme.fg("dim", `"${args.text}"`);
-  }
-  text.setText(content);
-  return text;
-}
-```
+Moved to [Writing extensions](/extensions/authoring#rendercall).
 
 #### renderResult
 
-Renders the tool result or output:
-
-```typescript
-renderResult(result, { expanded, isPartial }, theme, context) {
-  if (isPartial) {
-    return new Text(theme.fg("warning", "Processing..."), 0, 0);
-  }
-
-  if (result.details?.error) {
-    return new Text(theme.fg("error", `Error: ${result.details.error}`), 0, 0);
-  }
-
-  let text = theme.fg("success", "✓ Done");
-  if (expanded && result.details?.items) {
-    for (const item of result.details.items) {
-      text += "\n  " + theme.fg("dim", item);
-    }
-  }
-  return new Text(text, 0, 0);
-}
-```
-
-If a slot intentionally has no visible content, return an empty `Component` such as an empty `Container`.
+Moved to [Writing extensions](/extensions/authoring#renderresult).
 
 #### Keybinding Hints
 
-Use `keyHintIfBound()` when an affordance should disappear if the action has no effective keybinding. Add surrounding punctuation only when the helper returns text:
-
-```typescript
-import { keyHintIfBound } from "@bastani/atomic";
-
-renderResult(result, { expanded }, theme, context) {
-  let text = theme.fg("success", "✓ Done");
-  const expandHint = keyHintIfBound("app.tools.expand", "to expand");
-  if (!expanded && expandHint) {
-    text += ` (${expandHint})`;
-  }
-  return new Text(text, 0, 0);
-}
-```
-
-Available functions:
-- `keyHint(keybinding, description)` - Formats a configured keybinding id such as `"app.tools.expand"` or `"tui.select.confirm"`; use it when the binding is required by the surrounding UI
-- `keyHintIfBound(keybinding, description)` - Formats the hint only when the action has an effective key list; use it for optional affordances and conditionally compose parentheses or separators
-- `keyText(keybinding)` - Returns the raw configured key text for a keybinding id
-- `rawKeyHint(key, description)` - Format a raw key string
-
-Use namespaced keybinding ids:
-- Coding-agent ids use the `app.*` namespace, for example `app.tools.expand`, `app.editor.external`, `app.session.rename`
-- Shared TUI ids use the `tui.*` namespace, for example `tui.select.confirm`, `tui.select.cancel`, `tui.input.tab`
-
-For the exhaustive list of keybinding ids and defaults, see [Keybindings](/keybindings). `keybindings.json` uses those same namespaced ids.
-
-Custom editors and `ctx.ui.custom()` components receive `keybindings: KeybindingsManager` as an injected argument. They should use that injected manager directly instead of calling `getKeybindings()` or `setKeybindings()`.
+Moved to [Writing extensions](/extensions/authoring#keybinding-hints).
 
 #### Best Practices
 
-- Use `Text` with padding `(0, 0)`. The default Box handles padding.
-- Use `\n` for multi-line content.
-- Handle `isPartial` for streaming progress.
-- Support `expanded` for detail on demand.
-- Keep default view compact.
-- Read `context.args` in `renderResult` instead of copying args into `context.state`.
-- Use `context.state` only for data that must be shared across call and result slots.
-- Reuse `context.lastComponent` when the same component instance can be updated in place.
-- Use `renderShell: "self"` only when the default boxed shell gets in the way. In self-shell mode the tool is responsible for its own framing, padding, and background.
+Moved to [Writing extensions](/extensions/authoring#best-practices).
 
 #### Fallback
 
-If a slot renderer is not defined or throws:
-- `renderCall`: Shows the tool name
-- `renderResult`: Shows raw text from `content`
+Moved to [Writing extensions](/extensions/authoring#fallback).
 
 ## Custom UI
 
-Extensions can interact with users via `ctx.ui` methods and customize how messages/tools render.
-
-**For custom components, see [TUI components](/tui)** which has copy-paste patterns for:
-- Selection dialogs (SelectList)
-- Async operations with cancel (BorderedLoader)
-- Settings toggles (SettingsList)
-- Status indicators (setStatus)
-- Working message, visibility, and indicator from accepted prompt startup through active turns (`setWorkingMessage`, `setWorkingVisible`, `setWorkingIndicator`)
-- Widgets above/below editor (setWidget)
-- Autocomplete providers layered on top of built-in slash/path completion (addAutocompleteProvider)
-- Custom footers (setFooter)
+Moved to [Extension UI](/extensions/ui#custom-ui).
 
 ### Dialogs
 
-```typescript
-// Select from options
-const choice = await ctx.ui.select("Pick one:", ["A", "B", "C"]);
-
-// Confirm dialog
-const ok = await ctx.ui.confirm("Delete?", "This cannot be undone");
-
-// Text input
-const name = await ctx.ui.input("Name:", "placeholder");
-
-// Multi-line editor
-const text = await ctx.ui.editor("Edit:", "prefilled text");
-
-// Notification (non-blocking)
-ctx.ui.notify("Done!", "info");  // "info" | "warning" | "error"
-```
-
-Notifications emitted while extensions load or startup is in progress always appear below the startup `RESOURCES` disclosure line, never above it.
+Moved to [Extension UI](/extensions/ui#dialogs).
 
 #### Timed Dialogs with Countdown
 
-Dialogs support a `timeout` option that auto-dismisses with a live countdown display:
-
-```typescript
-// Dialog shows "Title (5s)" → "Title (4s)" → ... → auto-dismisses at 0
-const confirmed = await ctx.ui.confirm(
-  "Timed Confirmation",
-  "This dialog will auto-cancel in 5 seconds. Confirm?",
-  { timeout: 5000 }
-);
-
-if (confirmed) {
-  // User confirmed
-} else {
-  // User cancelled or timed out
-}
-```
-
-**Return values on timeout:**
-- `select()` returns `undefined`
-- `confirm()` returns `false`
-- `input()` returns `undefined`
+Moved to [Extension UI](/extensions/ui#timed-dialogs-with-countdown).
 
 #### Manual Dismissal with AbortSignal
 
-For more control (e.g., to distinguish timeout from user cancel), use `AbortSignal`:
-
-```typescript
-const controller = new AbortController();
-const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-const confirmed = await ctx.ui.confirm(
-  "Timed Confirmation",
-  "This dialog will auto-cancel in 5 seconds. Confirm?",
-  { signal: controller.signal }
-);
-
-clearTimeout(timeoutId);
-
-if (confirmed) {
-  // User confirmed
-} else if (controller.signal.aborted) {
-  // Dialog timed out
-} else {
-  // User cancelled (pressed Escape or selected "No")
-}
-```
-
-See [examples/extensions/timed-confirm.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/extensions/timed-confirm.ts) for complete examples.
+Moved to [Extension UI](/extensions/ui#manual-dismissal-with-abortsignal).
 
 ### Widgets, Status, and Footer
 
-```typescript
-// Status in footer (persistent until cleared)
-ctx.ui.setStatus("my-ext", "Processing...");
-ctx.ui.setStatus("my-ext", undefined);  // Clear
-
-// Working loader customization (active from accepted prompt startup through the agent turn)
-ctx.ui.setWorkingMessage("Thinking deeply...");
-ctx.ui.setWorkingMessage();  // Restore default
-ctx.ui.setWorkingVisible(false);  // Hide the built-in working indicator entirely
-ctx.ui.setWorkingVisible(true);   // Show the built-in working indicator
-
-// Working indicator customization (same lifecycle; see TUI Pattern 4b)
-ctx.ui.setWorkingIndicator({ frames: [ctx.ui.theme.fg("accent", "●")] });  // Static dot
-ctx.ui.setWorkingIndicator({
-  frames: [
-    ctx.ui.theme.fg("dim", "·"),
-    ctx.ui.theme.fg("muted", "•"),
-    ctx.ui.theme.fg("accent", "●"),
-    ctx.ui.theme.fg("muted", "•"),
-  ],
-  intervalMs: 120,
-});
-ctx.ui.setWorkingIndicator({ frames: [] });  // Hide indicator
-ctx.ui.setWorkingIndicator();  // Restore the default one-cell ∀ luminance ramp
-// The working status uses a standalone row by default. A CustomEditor can opt
-// into placing it in the top border with { embedWorkingStatus: true }.
-
-// Widget above editor (default)
-ctx.ui.setWidget("my-widget", ["Line 1", "Line 2"]);
-// Widget below editor
-ctx.ui.setWidget("my-widget", ["Line 1", "Line 2"], { placement: "belowEditor" });
-ctx.ui.setWidget("my-widget", (tui, theme) => new Text(theme.fg("accent", "Custom"), 0, 0));
-ctx.ui.setWidget("my-widget", undefined);  // Clear
-
-// Custom footer (replaces built-in footer entirely)
-ctx.ui.setFooter((tui, theme) => ({
-  render(width) { return [theme.fg("dim", "Custom footer")]; },
-  invalidate() {},
-}));
-ctx.ui.setFooter(undefined);  // Restore built-in footer
-
-// Terminal title
-ctx.ui.setTitle("atomic - my-project");
-
-// Editor text
-ctx.ui.setEditorText("Prefill text");
-const current = ctx.ui.getEditorText();
-
-// Paste into editor (triggers paste handling, including collapse for large content)
-ctx.ui.pasteToEditor("pasted content");
-
-// Stack custom autocomplete behavior on top of the built-in provider
-ctx.ui.addAutocompleteProvider((current) => ({
-  async getSuggestions(lines, line, col, options) {
-    const beforeCursor = (lines[line] ?? "").slice(0, col);
-    const match = beforeCursor.match(/(?:^|[ \t])#([^\s#]*)$/);
-    if (!match) {
-      return current.getSuggestions(lines, line, col, options);
-    }
-
-    return {
-      prefix: `#${match[1] ?? ""}`,
-      items: [{ value: "#2983", label: "#2983", description: "Extension API for autocomplete" }],
-    };
-  },
-  applyCompletion(lines, line, col, item, prefix) {
-    return current.applyCompletion(lines, line, col, item, prefix);
-  },
-  shouldTriggerFileCompletion(lines, line, col) {
-    return current.shouldTriggerFileCompletion?.(lines, line, col) ?? true;
-  },
-}));
-
-// Tool output expansion
-const wasExpanded = ctx.ui.getToolsExpanded();
-ctx.ui.setToolsExpanded(true);
-ctx.ui.setToolsExpanded(wasExpanded);
-
-// Custom editor (vim mode, emacs mode, etc.)
-ctx.ui.setEditorComponent((tui, theme, keybindings) => new VimEditor(tui, theme, keybindings));
-const currentEditor = ctx.ui.getEditorComponent();
-ctx.ui.setEditorComponent((tui, theme, keybindings) =>
-  new WrappedEditor(tui, theme, keybindings, currentEditor?.(tui, theme, keybindings))
-);
-ctx.ui.setEditorComponent(undefined);  // Restore default editor
-
-// Theme management (see themes.md for creating themes)
-const themes = ctx.ui.getAllThemes();  // [{ name: "dark", path: "/..." | undefined }, ...]
-const lightTheme = ctx.ui.getTheme("light");  // Load without switching
-const result = ctx.ui.setTheme("light");  // Switch by name
-if (!result.success) {
-  ctx.ui.notify(`Failed: ${result.error}`, "error");
-}
-ctx.ui.setTheme(lightTheme!);  // Or switch by Theme object
-ctx.ui.theme.fg("accent", "styled text");  // Access current theme
-```
-
-Calling `setToolsExpanded()` with the current value is a no-op.
-
-Atomic's default working indicator keeps the literal one-cell `∀` fixed while following the active theme's optional `workingIndicator` tone overrides through a dark → accent → bright/bold → accent → dark ramp every 88ms. Any omitted tones are derived from selected-surface, `accent`, and `text` roles. `NO_COLOR` keeps regular/bold activity without foreground-color escapes, and `ATOMIC_REDUCED_MOTION=1` uses a static regular accent `∀` without a timer. Custom working-indicator frames and intervals are rendered verbatim. If you want colors, add them to the frame strings yourself, for example with `ctx.ui.theme.fg(...)`.
-
-These APIs customize presentation only; they do not start work or emit an extension stream event before prompt startup. See [Working Indicator Customization](/tui#pattern-4b-working-indicator-customization) for accepted-prompt, pre-stream, and agent-turn handoff timing.
+Moved to [Extension UI](/extensions/ui#widgets-status-and-footer).
 
 ### Autocomplete Providers
 
-Use `ctx.ui.addAutocompleteProvider()` to stack custom autocomplete logic on top of the built-in slash-command and path provider.
-
-Typical pattern:
-
-- inspect the text before the cursor
-- return your own suggestions when your extension-specific syntax matches
-- otherwise delegate to `current.getSuggestions(...)`
-- delegate `applyCompletion(...)` unless you need custom insertion behavior
-
-```typescript
-pi.on("session_start", (_event, ctx) => {
-  ctx.ui.addAutocompleteProvider((current) => ({
-    async getSuggestions(lines, cursorLine, cursorCol, options) {
-      const line = lines[cursorLine] ?? "";
-      const beforeCursor = line.slice(0, cursorCol);
-      const match = beforeCursor.match(/(?:^|[ \t])#([^\s#]*)$/);
-      if (!match) {
-        return current.getSuggestions(lines, cursorLine, cursorCol, options);
-      }
-
-      return {
-        prefix: `#${match[1] ?? ""}`,
-        items: [
-          { value: "#2983", label: "#2983", description: "Extension API for registering custom @ autocomplete providers" },
-          { value: "#2753", label: "#2753", description: "Reload stale resource settings" },
-        ],
-      };
-    },
-
-    applyCompletion(lines, cursorLine, cursorCol, item, prefix) {
-      return current.applyCompletion(lines, cursorLine, cursorCol, item, prefix);
-    },
-
-    shouldTriggerFileCompletion(lines, cursorLine, cursorCol) {
-      return current.shouldTriggerFileCompletion?.(lines, cursorLine, cursorCol) ?? true;
-    },
-  }));
-});
-```
-
-See [github-issue-autocomplete.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/extensions/github-issue-autocomplete.ts) for a complete example that preloads the latest open GitHub issues with `gh issue list` and filters them locally for fast `#...` completion. It requires GitHub CLI (`gh`) and a GitHub repository checkout.
+Moved to [Extension UI](/extensions/ui#autocomplete-providers).
 
 ### Custom Components
 
-For complex UI, use `ctx.ui.custom()`. This temporarily replaces the editor with your component until `done()` is called:
-
-```typescript
-import { Text, type Component } from "@earendil-works/pi-tui";
-
-class ConfirmPrompt implements Component {
-  render(width: number): string[] {
-    return new Text("Enter Confirm · Escape Cancel", 1, 1).render(width);
-  }
-
-  invalidate(): void {}
-
-  handleInput(data: string): boolean {
-    if (data === "\r") {
-      this.done(true);
-      return true;
-    }
-    if (data === "\x1b") {
-      this.done(false);
-      return true;
-    }
-    return false;
-  }
-
-  constructor(private readonly done: (value: boolean) => void) {}
-}
-
-const result = await ctx.ui.custom<boolean>((_tui, _theme, _keybindings, done) => {
-  return new ConfirmPrompt(done);
-});
-
-if (result) {
-  // User pressed Enter
-}
-```
-
-The callback receives:
-- `tui` - TUI instance (for screen dimensions, focus management)
-- `theme` - Current theme for styling
-- `keybindings` - App keybinding manager (for checking shortcuts)
-- `done(value)` - Call to close component and return value
-
-Pass `{ signal }` to dismiss the custom UI if an operation is aborted; the returned promise rejects with the signal reason.
-Custom component `handleInput` methods must return `true` when they consume an input and `false` (or `undefined`) when they do not. In fullscreen mode, an unhandled viewport key continues to the transcript; remote components also fall through on a failed or timed-out reply.
-
-Custom component `handleInput` methods must return `true` when they consume an input and `false` or `undefined` when they do not. In fullscreen mode, an unhandled viewport key continues to the transcript; remote components also fall through on a failed or timed-out reply. Return `true` for a handled key so it is not applied twice.
-
-A handler that returns a promise is judged when it settles: only a resolved `true` consumes the key, while `false`, `undefined`, and a rejection fall through to the viewport. A component with no `handleInput` declines everything, so viewport keys still scroll the transcript behind it.
-
-Pass `{ handlesCtrlC: true }` when the component binds Ctrl+C itself (cancel, skip, close). In isolated interactive sessions the host otherwise closes a component that owns input on the first Ctrl+C, so that a component which never resolves cannot trap the keyboard. See [Interactive callback isolation](#interactive-callback-isolation).
-
-See [TUI components](/tui) for the full component API.
+Moved to [Extension UI](/extensions/ui#custom-components).
 
 #### Overlay Mode (Experimental)
 
-Pass `{ overlay: true }` to render the component as a floating modal on top of existing content, without clearing the screen:
-
-```typescript
-const result = await ctx.ui.custom<string | null>(
-  (tui, theme, keybindings, done) => new MyOverlayComponent({ onClose: done }),
-  { overlay: true }
-);
-```
-
-For advanced positioning (anchors, margins, percentages, responsive visibility), pass `overlayOptions`. Use `onHandle` to control visibility programmatically:
-
-```typescript
-const result = await ctx.ui.custom<string | null>(
-  (tui, theme, keybindings, done) => new MyOverlayComponent({ onClose: done }),
-  {
-    overlay: true,
-    overlayOptions: { anchor: "top-right", width: "50%", margin: 2 },
-    onHandle: (handle) => { /* handle.setHidden(true/false) */ }
-  }
-);
-```
-
-See [TUI components](/tui) for the full `OverlayOptions` API and [overlay-qa-tests.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/extensions/overlay-qa-tests.ts) for examples.
-
-Pass `{ reserveTranscriptRows: true }` for a blocking bottom-anchored dialog. A reserving overlay must set `overlayOptions.anchor` to `bottom-left`, `bottom-center`, or `bottom-right`; `row` and a nonzero `offsetY` are rejected because they invalidate the transcript-intersection model. Horizontal placement options remain supported. An overlay is composited over the transcript rather than measured into the layout, so without this option a tall dialog can cover the whole screen and the transcript rows it covers can never be scrolled above it. With it, the host bounds the overlay so at least six transcript rows stay visible. Top and bottom margins limit the wrapper before pi-tui composition, preventing a second fixed-head crop. Numeric and percentage `maxHeight` values are also resolved before active-row windowing and removed from the options passed to pi-tui. The host computes each visible bottom overlay's real intersection with the transcript and reserves the connected covered suffix once, so scrolling to the end keeps the newest output readable. A measured height change on mount or resize requests one automatic settling repaint. Margins, overlapping overlays, resize, and temporary visibility changes are reflected each frame. A temporarily hidden overlay — through `OverlayHandle.setHidden(true)` or a false `OverlayOptions.visible` result — contributes no intersection until it becomes visible again. Permanent handle removal, closure, and raw host removal release that exact overlay's registration; the shared reserve remains until its final overlay leaves. Leave the option unset for an overlay that is meant to take the screen, such as a full-screen graph. The built-in `ask_user_question` dialog sets it.
-
-```typescript
-const result = await ctx.ui.custom<string | null>(
-  (tui, theme, keybindings, done) => new MyDialog({ onClose: done }),
-  {
-    overlay: true,
-    reserveTranscriptRows: true,
-    overlayOptions: { anchor: "bottom-center", width: "100%" },
-  }
-);
-```
-
-A component mounted with `reserveTranscriptRows` always releases configured fullscreen transcript actions and vertical wheel input to the host viewport, including while a nested input has focus. The component keeps all other keyboard and mouse input, including text editing, arrows, confirmation, cancellation, and clicks. This rule applies only to reserving overlays; other focused overlays still receive page and wheel input first and can keep it by returning `true`.
-
-Bounding a tall dialog means dropping rows, and the host would otherwise have to guess which. Embed `OVERLAY_ACTIVE_ROW_MARKER` in the line your component most needs kept — the selected row of a list — and the host places what it keeps around that row instead of taking a fixed head, even when the effective `maxHeight` is only one row. The mark is a zero-width APC sequence that `visibleWidth` measures as zero, terminated with ST as ECMA-48 requires. The renderer strips it centrally, in the last transform over the composited screen before it is written out, so it never reaches the terminal — from a reserving overlay, an ordinary overlay, an inline mount, a widget, or a workflow stage chat alike. Embed it once per frame; the host uses the first line that carries it. Put it anywhere on that line: a mark buried mid-line is removed just as a trailing one is. The `ask_user_question` dialog marks every active selectable row, including single- and multi-select options, Next, Submit, Cancel, and inline sentinel rows. Focused pi-tui inputs also anchor the bound through their cursor marker, so arrow keys and text input stay visible on a 16-row terminal.
-
-```typescript
-import { OVERLAY_ACTIVE_ROW_MARKER } from "@bastani/atomic";
-
-render(width: number): string[] {
-  return this.items.map((item, index) =>
-    index === this.selected ? `${this.row(item, width)}${OVERLAY_ACTIVE_ROW_MARKER}` : this.row(item, width),
-  );
-}
-```
+Moved to [Extension UI](/extensions/ui#overlay-mode-experimental).
 
 ### Custom Editor
 
-Replace the main input editor with a custom implementation (vim mode, emacs mode, etc.):
-
-```typescript
-import { CustomEditor, type ExtensionAPI } from "@bastani/atomic";
-import { matchesKey } from "@earendil-works/pi-tui";
-
-class VimEditor extends CustomEditor {
-  private mode: "normal" | "insert" = "insert";
-
-  handleInput(data: string): boolean {
-    if (matchesKey(data, "escape") && this.mode === "insert") {
-      this.mode = "normal";
-      return true;
-    }
-    if (this.mode === "normal" && data === "i") {
-      this.mode = "insert";
-      return true;
-    }
-    return super.handleInput(data);  // App keybindings + text editing
-  }
-}
-
-export default function (pi: ExtensionAPI) {
-  pi.on("session_start", (_event, ctx) => {
-    ctx.ui.setEditorComponent((tui, theme, keybindings) =>
-      new VimEditor(tui, theme, keybindings)
-    );
-  });
-}
-```
-
-**Key points:**
-- Extend `CustomEditor` (not base `Editor`) to get app keybindings (escape to abort, ctrl+d, model switching)
-- Call `super.handleInput(data)` for keys you don't handle
-- Editors keep the standalone working row by default. Pass `{ embedWorkingStatus: true }` as the fourth `CustomEditor` constructor argument to opt into the editor-border spinner.
-- Factory receives `tui`, `theme`, and `keybindings` from the app
-- Use `ctx.ui.getEditorComponent()` before `setEditorComponent()` to wrap the previously configured custom editor
-- Pass `undefined` to restore default: `ctx.ui.setEditorComponent(undefined)`
-- When a custom editor installed through `ctx.ui.setEditorComponent()` exposes `setAutocompleteMaxVisible()`, Atomic initializes it from the active `autocompleteMaxVisible` setting.
-
-To compose with another extension that already replaced the editor, capture the previous factory before setting yours:
-
-```typescript
-const previous = ctx.ui.getEditorComponent();
-ctx.ui.setEditorComponent((tui, theme, keybindings) =>
-  new MyEditor(tui, theme, keybindings, { base: previous?.(tui, theme, keybindings) })
-);
-```
-
-See [TUI components](/tui) Pattern 7 for a complete example with mode indicator.
+Moved to [Extension UI](/extensions/ui#custom-editor).
 
 ### Message Rendering
 
-Register a custom renderer for messages with your `customType`:
-
-```typescript
-import { Text } from "@earendil-works/pi-tui";
-
-pi.registerMessageRenderer("my-extension", (message, options, theme) => {
-  const { expanded, outputPad } = options;
-  let text = theme.fg("accent", `[${message.customType}] `);
-  text += message.content;
-
-  if (expanded && message.details) {
-    text += "\n" + theme.fg("dim", JSON.stringify(message.details, null, 2));
-  }
-
-  return new Text(text, outputPad, 0);
-});
-```
-
-Messages are sent via `pi.sendMessage()`:
-
-```typescript
-pi.sendMessage({
-  customType: "my-extension",  // Matches registerMessageRenderer
-  content: "Status update",
-  display: true,               // Show in TUI
-  details: { ... },            // Available in renderer
-});
-```
+Moved to [Extension UI](/extensions/ui#message-rendering).
 
 ### Theme Colors
 
-All render functions receive a `theme` object. See [Themes](/themes) for creating custom themes and the full color palette.
-
-```typescript
-// Foreground colors
-theme.fg("toolTitle", text)   // Tool names
-theme.fg("accent", text)      // Highlights
-theme.fg("success", text)     // Success (green)
-theme.fg("error", text)       // Errors (red)
-theme.fg("warning", text)     // Warnings (yellow)
-theme.fg("muted", text)       // Secondary text
-theme.fg("dim", text)         // Tertiary text
-
-// Text styles
-theme.bold(text)
-theme.italic(text)
-theme.strikethrough(text)
-```
-
-For syntax highlighting in custom tool renderers:
-
-```typescript
-import { highlightCode, getLanguageFromPath } from "@bastani/atomic";
-
-// Highlight code with explicit language
-const highlighted = highlightCode("const x = 1;", "typescript", theme);
-
-// Auto-detect language from file path
-const lang = getLanguageFromPath("/path/to/file.rs");  // "rust"
-const highlighted = highlightCode(code, lang, theme);
-```
+Moved to [Extension UI](/extensions/ui#theme-colors).
 
 ## Error Handling
 
-- Extension errors are logged, agent continues
-- `tool_call` errors block the tool (fail-safe)
-- Tool `execute` errors must be signaled by throwing; the thrown error is caught, reported to the LLM with `isError: true`, and execution continues
+Moved to [Extension API reference](/extensions/api-reference#error-handling).
 
 ## Mode Behavior
 
@@ -3137,84 +797,4 @@ In non-interactive modes, check `ctx.hasUI` before using UI methods.
 
 ## Examples Reference
 
-All examples in [examples/extensions/](https://github.com/bastani-inc/atomic/tree/main/packages/coding-agent/examples/extensions).
-
-| Example | Description | Key APIs |
-|---------|-------------|----------|
-| **Tools** |||
-| `hello.ts` | Minimal tool registration | `registerTool` |
-| `question.ts` | Width-wrapped single-question custom UI with option descriptions and typed answers | `registerTool`, `ui.custom` |
-| `questionnaire.ts` | Width-wrapped multi-step wizard with tab navigation and typed answers | `registerTool`, `ui.custom` |
-| `todo.ts` | Stateful tool with persistence | `registerTool`, `appendEntry`, `renderResult`, session events |
-| `dynamic-tools.ts` | Register tools after startup and during commands | `registerTool`, `session_start`, `registerCommand` |
-| `structured-output.ts` | Opt-in schema-specific `structured_output` tool using the canonical factory | `createStructuredOutputTool`, `registerTool`, terminating tool results |
-| `truncated-tool.ts` | Output truncation example | `registerTool`, `truncateHead` |
-| `tool-override.ts` | Override built-in read tool | `registerTool` (same name as built-in) |
-| **Commands** |||
-| `pirate.ts` | Modify system prompt per-turn | `registerCommand`, `before_agent_start` |
-| `summarize.ts` | Conversation summary command | `registerCommand`, `ui.custom` |
-| `handoff.ts` | Cross-provider model handoff | `registerCommand`, `ui.editor`, `ui.custom` |
-| `qna.ts` | Q&A with custom UI | `registerCommand`, `ui.custom`, `setEditorText` |
-| `send-user-message.ts` | Inject user messages | `registerCommand`, `sendUserMessage` |
-| `reload-runtime.ts` | Reload command and LLM tool handoff | `registerCommand`, `ctx.reload()`, `sendUserMessage` |
-| `shutdown-command.ts` | Graceful shutdown command | `registerCommand`, `shutdown()` |
-| **Events & Gates** |||
-| `permission-gate.ts` | Block dangerous commands | `on("tool_call")`, `ui.confirm` |
-| `protected-paths.ts` | Block writes to specific paths | `on("tool_call")` |
-| `confirm-destructive.ts` | Confirm session changes | `on("session_before_switch")`, `on("session_before_fork")` |
-| `dirty-repo-guard.ts` | Warn on dirty git repo | `on("session_before_*")`, `exec` |
-| `input-transform.ts` | Transform user input | `on("input")` |
-| `input-transform-streaming.ts` | Streaming-aware input transform | `on("input")`, `streamingBehavior` |
-| `project-trust.ts` | Decide or defer project trust from a user/global or CLI extension | `on("project_trust")`, trust UI, required trust result |
-| `model-status.ts` | React to model changes | `on("model_select")`, `setStatus` |
-| `provider-payload.ts` | Inspect payloads and provider response headers | `on("before_provider_request")`, `on("after_provider_response")` |
-| `system-prompt-header.ts` | Display system prompt info | `on("agent_start")`, `getSystemPrompt` |
-| `claude-rules.ts` | Load rules from files | `on("session_start")`, `on("before_agent_start")` |
-| `prompt-customizer.ts` | Add context-aware tool guidance using `systemPromptOptions` | `on("before_agent_start")`, `BuildSystemPromptOptions` |
-| `file-trigger.ts` | File watcher triggers messages | `sendMessage` |
-| **Compaction & Sessions** |||
-| `custom-compaction.ts` | Offline compacted-text override | `on("session_before_compact")` |
-| `trigger-compact.ts` | Trigger compaction manually | `compact()` |
-| `git-checkpoint.ts` | Git stash on turns | `on("turn_start")`, `on("session_before_fork")`, `exec` |
-| `auto-commit-on-exit.ts` | Commit on shutdown | `on("session_shutdown")`, `exec` |
-| **UI Components** |||
-| `status-line.ts` | Footer status indicator | `setStatus`, session events |
-| `working-indicator.ts` | Customize the Working indicator used during prompt startup and active turns | `setWorkingIndicator`, `registerCommand` |
-| `github-issue-autocomplete.ts` | Add `#1234` issue completions on top of built-in autocomplete by preloading recent open issues from `gh issue list` | `addAutocompleteProvider`, `on("session_start")`, `exec` |
-| `custom-footer.ts` | Replace footer entirely | `registerCommand`, `setFooter` |
-| `custom-header.ts` | Replace startup header | `on("session_start")`, `setHeader` |
-| `modal-editor.ts` | Vim-style modal editor | `setEditorComponent`, `CustomEditor` |
-| `rainbow-editor.ts` | Custom editor styling | `setEditorComponent` |
-| `widget-placement.ts` | Widget above/below editor | `setWidget` |
-| `overlay-test.ts` | Overlay components | `ui.custom` with overlay options |
-| `overlay-qa-tests.ts` | Comprehensive overlay tests | `ui.custom`, all overlay options |
-| `notify.ts` | Simple notifications | `ui.notify` |
-| `timed-confirm.ts` | Dialogs with timeout | `ui.confirm` with timeout/signal |
-| `mac-system-theme.ts` | Auto-switch theme | `setTheme`, `exec` |
-| **Complex Extensions** |||
-| `plan-mode/` | Full plan mode implementation | All event types, `registerCommand`, `registerShortcut`, `registerFlag`, `setStatus`, `setWidget`, `sendMessage`, `setActiveTools` |
-| `preset.ts` | Saveable presets (model, tools, thinking) | `registerCommand`, `registerShortcut`, `registerFlag`, `setModel`, `setActiveTools`, `setThinkingLevel`, `appendEntry` |
-| `tools.ts` | Toggle tools on/off UI | `registerCommand`, `setActiveTools`, `SettingsList`, session events |
-| **Remote & Sandbox** |||
-| `ssh.ts` | SSH remote execution | `registerFlag`, `on("user_bash")`, `on("before_agent_start")`, tool operations |
-| `interactive-shell.ts` | Persistent shell session | `on("user_bash")` |
-| `sandbox/` | Sandboxed tool execution | Tool operations |
-| `gondolin/` | Route built-in tools and `!` commands into a Gondolin micro-VM | Tool operations, built-in tool overrides, `on("user_bash")` |
-| `subagent/` | Spawn sub-agents | `registerTool`, `exec` |
-| **Games** |||
-| `snake.ts` | Snake game | `registerCommand`, `ui.custom`, keyboard handling |
-| `space-invaders.ts` | Space Invaders game | `registerCommand`, `ui.custom` |
-| `doom-overlay/` | Doom in overlay | `ui.custom` with overlay |
-| **Providers** |||
-| `custom-provider-anthropic/` | Custom Anthropic proxy | `registerProvider` |
-| `custom-provider-gitlab-duo/` | GitLab Duo integration | `registerProvider` with OAuth |
-| **Messages & Communication** |||
-| `message-renderer.ts` | Custom message rendering | `registerMessageRenderer`, `sendMessage` |
-| `event-bus.ts` | Inter-extension events | `pi.events` |
-| **Session Metadata** |||
-| `session-name.ts` | Name sessions for selector | `setSessionName`, `getSessionName` |
-| `bookmark.ts` | Bookmark entries for /tree | `setLabel` |
-| **Misc** |||
-| `inline-bash.ts` | Inline bash in tool calls | `on("tool_call")` |
-| `bash-spawn-hook.ts` | Adjust bash command, cwd, and env before execution | `createBashTool`, `spawnHook` |
-| `with-deps/` | Extension with npm dependencies | Package structure with `package.json` |
+Moved to [Extension examples](/extensions/examples#examples-reference).

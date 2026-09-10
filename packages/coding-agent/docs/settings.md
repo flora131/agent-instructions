@@ -11,6 +11,10 @@ Edit directly or use `/settings` for common options. Choosing a model or thinkin
 
 Saving an Atomic setting applies only the changed fields to the corresponding `.atomic` file; it does not copy untouched fallback fields out of `.pi`. To intentionally override an inherited array such as `packages`, set it in `.atomic`, including an explicit empty array (`"packages": []`) when the inherited list should be disabled.
 
+## On this page and its guide
+
+This page is the exhaustive settings reference: every field, its default, and its constraints. If you are writing your first settings file or setting up a project-scoped override, start with the [Configure Atomic](/guides/configuration) guide.
+
 ## Project Trust
 
 On interactive startup, Atomic asks before trusting a project folder that contains trust-gated project inputs and has no saved decision for the folder or a parent folder in `~/.atomic/agent/trust.json`. Trusting a project allows Atomic to load project-local `.atomic/settings.json` and `.atomic` resources, legacy `.pi/settings.json` and `.pi` resources, project-local context files, install missing project packages, and execute project extensions.
@@ -475,51 +479,8 @@ See [Atomic packages](/packages) for package management details.
 
 ## Example
 
-```json
-{
-  "defaultProvider": "anthropic",
-  "defaultModel": "claude-sonnet-4-20250514",
-  "defaultThinkingLevel": "medium",
-  "theme": "dark",
-  "compaction": {
-    "enabled": true,
-    "reserveTokens": 16384,
-    "compression_ratio": 0.5,
-    "preserve_recent": 2
-  },
-  "retry": {
-    "enabled": true,
-    "maxRetries": 3
-  },
-  "httpIdleTimeoutMs": 300000,
-  "enabledModels": ["claude-*", "gpt-4o"],
-  "warnings": {
-    "anthropicExtraUsage": true
-  },
-  "packages": ["pi-skills"],
-  "workflows": ["./workflows/*.ts"]
-}
-```
+Moved to [Configure Atomic](/guides/configuration#example).
 
 ## Project Overrides
 
-Project settings (`.atomic/settings.json`) override global settings. Nested objects merge recursively; arrays and scalar values replace global values:
-
-```json
-// ~/.atomic/agent/settings.json (global)
-{
-  "theme": "dark",
-  "compaction": { "enabled": true, "reserveTokens": 16384 }
-}
-
-// .atomic/settings.json (project)
-{
-  "compaction": { "reserveTokens": 8192 }
-}
-
-// Result
-{
-  "theme": "dark",
-  "compaction": { "enabled": true, "reserveTokens": 8192 }
-}
-```
+Moved to [Configure Atomic](/guides/configuration#project-overrides).

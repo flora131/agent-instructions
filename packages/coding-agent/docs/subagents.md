@@ -40,6 +40,12 @@ Open live transcripts subscribe to child-session events, so streaming text and p
 Detail views pin task identity, state, available metrics, and the selected action while PageUp/PageDown scrolls the body. Recent activity shows up to five retained tool actions; errors and input requests appear explicitly. Left returns to the previous view. `x` requests cancellation without bypassing confirmation or configured task bindings. Shell inspection shows a bounded output tail with omission markers.
 
 After a confirmed `x` stop settles, the owning chat receives a visible **stopped** notification and the parent model receives the stop context, even if the child returns no final message. Repeated stops do not duplicate notifications or replace an already-recorded terminal result. Closing the owner still suppresses late completion delivery.
+## Where to go next
+
+Subagents are focused child agents you delegate bounded work to. Read this page for natural-language use and execution behavior, then continue:
+
+- [Custom subagents](/subagents/authoring) — define, scope, and configure your own.
+- [Subagent reference](/subagents/reference) — fallback model resolution and reasoning levels.
 
 ## Start with natural language
 
@@ -259,76 +265,15 @@ This keeps the parent session responsible for orchestration.
 
 ## Custom agents
 
-Custom agents are Markdown files with YAML frontmatter and a system prompt body. Keep the body outcome-first and locally complete: state the role or goal, observable success criteria, constraints and context-dependent tool routes, required output shape, and stop conditions. Reserve absolute wording for true invariants, request evidence and conclusions rather than private reasoning, and avoid repeated self-check instructions. Common locations are:
-
-| Scope | Path |
-|---|---|
-| User | `~/.atomic/agent/agents/**/*.md` |
-| Project | `.atomic/agents/**/*.md` |
-
-A small custom read-only inspection agent:
-
-```markdown
----
-name: strict-inspector
-description: Inspect code for correctness and regressions
-tools: read, search, bash
-model: anthropic/claude-sonnet-4
-fallbackModels: openai/gpt-5-mini
-inheritProjectContext: true
----
-
-## Role and goal
-Inspect the current diff for correctness and regressions without editing files.
-
-## Success criteria
-Cite each actionable issue with file:line evidence and the observed failure or risk.
-
-## Output and stop rule
-Return only issues worth fixing now. Stop when the relevant diff and affected call paths have been inspected, or name the evidence you could not access.
-```
+Moved to [Custom subagents](/subagents/authoring#custom-agents).
 
 ## Fallback models
 
-Agents can define ordered `fallbackModels` for retryable provider or model failures such as rate limits, quota/usage-limit exhaustion (for example a provider reporting `The usage limit has been reached`, or `usage_limit_reached`/`insufficient_quota` codes), auth problems, unavailable models, network timeouts, or 5xx errors. Atomic tries the requested primary model first, then configured fallbacks, and finally appends the current user-selected model as the last fallback candidate when available. The main chat and workflow stages share one failure classifier, so auth, model-availability, request-incompatibility, and transport signals are handled consistently. Cancellations, safety refusals, and task/tool failures are never retried on another model.
-
-A candidate that cannot serve the current request — for example an HTTP 400/413/422 bad/unprocessable/payload-too-large request, an unsupported tool or parameter, a context-length/context-window overflow, or a `too large` / `invalid_request` error — is treated as request/context incompatible and the fallback sequence advances to the next candidate rather than stopping. This means that if none of the configured candidates are applicable to the request, Atomic falls back to the currently selected user model instead of failing outright.
-
-Model fallback decisions use structured provider and attempt causes. There is no per-attempt idle watchdog, no child wall-clock kill cap, and no timeout-regex classification: a quiet provider response is allowed to finish, and only an explicit termination or provider failure supplies a retryable cause. Numeric process exit codes are not used as an outcome discriminator.
-
-When registry availability shows that a known candidate provider has no configured auth, Atomic records a skipped model attempt before starting the in-process turn. Unknown/custom providers are still attempted, and the current user-selected model appended as the final fallback is never filtered out by this pre-admission check.
-
-Fallbacks do not retry ordinary task failures, validation failures, tool failures, cancellations, or workflow-code errors. Because a fallback may send the same prompt and context to a different provider, choose models that match your cost, privacy, and data-handling requirements.
-
-Each candidate can also carry its own reasoning effort — see [Reasoning levels](#reasoning-levels).
+Moved to [Subagent reference](/subagents/reference#fallback-models).
 
 ## Reasoning levels
 
-Set the reasoning (thinking) effort for each model candidate with a `model_name:thinking_effort` suffix on `model` and on every `fallbackModels` entry. Valid efforts are `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max` — the same shorthand used by `atomic --model sonnet:high`. `xhigh` and `max` are used only when the selected model's capability map supports them.
-
-```markdown
----
-name: deep-reviewer
-description: Adversarial reviewer for risky diffs
-tools: read, search, bash
-model: anthropic/claude-sonnet-4:high
-fallbackModels: openai/gpt-5:medium, anthropic/claude-haiku-4-5:off
----
-```
-
-Because the effort travels with each model string, every primary and fallback candidate is self-contained: a fallback can run at a different effort than the primary, so a high-effort primary degrades gracefully to a cheaper, lower-effort fallback.
-
-**Migrate off the legacy `thinking` field.** The separate `thinking:` frontmatter field is deprecated. It still works as a default for any candidate that has no suffix, and a suffix always wins, but new agents should encode the effort directly on `model` and `fallbackModels`:
-
-```diff
--model: openai/gpt-5.5
--fallbackModels: anthropic/claude-opus-4-8
--thinking: xhigh
-+model: openai/gpt-5.5:xhigh
-+fallbackModels: anthropic/claude-opus-4-8:xhigh
-```
-
-`fallbackThinkingLevels` exists only as an optional compatibility helper: it is aligned by index to `fallbackModels` and supplies a fallback candidate's effort only when that fallback entry has no suffix. Prefer suffixed model strings instead. Attempt metadata reports the resolved model and the effective reasoning effort used for each attempt.
+Moved to [Subagent reference](/subagents/reference#reasoning-levels).
 
 ## Related docs
 

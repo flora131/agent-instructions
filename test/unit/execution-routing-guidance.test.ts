@@ -896,7 +896,7 @@ describe("workflow-first execution routing", () => {
 		const exactGuidance: Record<string, string> = {
 			"packages/intercom/skills/intercom/SKILL.md":
 				"The invocation context can control owned isolated subgroups by exact target, while sibling subgroups and other runs remain isolated.",
-			"packages/coding-agent/docs/intercom.md":
+			"packages/coding-agent/docs/intercom/reference.md":
 				"The invocation group has asymmetric exact-target control over its owned subgroups; ownership does not grant reverse or lateral access.",
 		};
 		for (const [path, sentence] of Object.entries(exactGuidance)) {

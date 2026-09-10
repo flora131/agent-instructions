@@ -5,7 +5,21 @@ import { describe, test } from "vitest";
 import { moduleDir } from "../helpers/runtime.js";
 
 const repoRoot = resolve(moduleDir(import.meta.url), "../..");
-const doc = readFileSync(join(repoRoot, "packages/coding-agent/docs/custom-provider.md"), "utf8");
+// #2847 split the custom-provider guide into child pages and left an
+// anchor-compatible heading behind for every section that moved. The child
+// pages carry the real content, so they come first: a slice anchored on
+// `### API Types` must land on the table, not on the stub that only points at
+// it. The entry page stays in the corpus for the markers that never moved.
+const doc = [
+	"packages/coding-agent/docs/custom-provider/override.md",
+	"packages/coding-agent/docs/custom-provider/registration.md",
+	"packages/coding-agent/docs/custom-provider/oauth.md",
+	"packages/coding-agent/docs/custom-provider/streaming.md",
+	"packages/coding-agent/docs/custom-provider/api-reference.md",
+	"packages/coding-agent/docs/custom-provider.md",
+]
+	.map((path) => readFileSync(join(repoRoot, path), "utf8"))
+	.join("\n");
 
 // npm hoists the six pi packages into the root node_modules; the artifacts
 // suite (pi-0.82.1-artifacts.test.ts) asserts that install, so this suite only
@@ -16,9 +30,9 @@ const piAiDist = join(repoRoot, "node_modules", "@earendil-works", "pi-ai", "dis
 /** One heading-bounded slice of the doc, failing loudly when a marker moves. */
 function section(startMarker: string, endMarker: string): string {
 	const start = doc.indexOf(startMarker);
-	assert.ok(start !== -1, `custom-provider.md must still contain "${startMarker}"`);
+	assert.ok(start !== -1, `the custom provider docs must still contain "${startMarker}"`);
 	const end = doc.indexOf(endMarker, start);
-	assert.ok(end !== -1, `custom-provider.md must still contain "${endMarker}" after "${startMarker}"`);
+	assert.ok(end !== -1, `the custom provider docs must still contain "${endMarker}" after "${startMarker}"`);
 	return doc.slice(start, end);
 }
 

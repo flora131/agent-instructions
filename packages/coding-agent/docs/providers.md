@@ -2,6 +2,10 @@
 
 Atomic supports subscription-based providers via OAuth and API-key providers via environment variables or the auth file. Built-in catalogs ship with Atomic; configured and native providers may refresh newer catalogs independently and cache them in `~/.atomic/agent/models-store.json` for offline use.
 
+## On this page and its reference
+
+This page is provider setup: subscriptions, API keys, cloud providers, and local llama.cpp. The exact contracts — provider stop reasons and credential resolution order — live in the [Provider reference](/providers/reference).
+
 ## Table of Contents
 
 - [Subscriptions](#subscriptions)
@@ -9,9 +13,9 @@ Atomic supports subscription-based providers via OAuth and API-key providers via
 - [API Keys](#api-keys)
 - [Auth File](#auth-file)
 - [Cloud Providers](#cloud-providers)
-- [llama.cpp](#llamacpp)
-- [Stop Reasons](#stop-reasons)
-- [Resolution Order](#resolution-order)
+- [llama.cpp](#llama-cpp)
+- [Stop Reasons](/providers/reference#stop-reasons)
+- [Resolution Order](/providers/reference#resolution-order)
 - [Custom Providers](#custom-providers)
 
 ## Subscriptions
@@ -142,7 +146,7 @@ After a successful API-key or OAuth login, Atomic persists the credential and im
 
 On a remote or headless machine, paste the authorization code or final redirect URL into the login prompt when the provider offers manual entry. A completed exchange must either return to the editor or show an error; it does not require deleting `~/.atomic`. Existing OAuth credentials use the same `auth.json` schema after the pi-ai model-runtime migration and are loaded in place.
 
-Remote pi.dev catalogs persist their ETag and are revalidated with `If-None-Match`; an empty `304` keeps the cached models and counts as a successful check. Atomic renders the cached snapshot immediately, preserves each provider's last usable catalog on refresh failure, and prefers newer bundled data over stale remote overlays. See [Custom Models](/models#catalog-freshness-and-precedence).
+Remote pi.dev catalogs persist their ETag and are revalidated with `If-None-Match`; an empty `304` keeps the cached models and counts as a successful check. Atomic renders the cached snapshot immediately, preserves each provider's last usable catalog on refresh failure, and prefers newer bundled data over stale remote overlays. See [Custom Models](/models/reference#catalog-freshness-and-precedence).
 
 | Provider                           | Environment Variable                                                      | `auth.json` key              |
 | ---------------------------------- | ------------------------------------------------------------------------- | ---------------------------- |
@@ -481,17 +485,8 @@ For router-mode discovery, load/unload management, and Hugging Face downloads wi
 
 ## Stop Reasons
 
-Every provider reports why it ended a turn. Atomic stores one of `stop`, `length`, `toolUse`, `error`, or `aborted`; the provider's own string (`end_turn`, `MAX_TOKENS`, `tool_calls`, and so on) is mapped onto it.
-
-A terminal reason the mapping does not recognise is now reported as a **provider error** naming the raw value, instead of being reported as an ordinary successful stop. The turn fails visibly rather than looking like a model that chose to stop early, which matters most for a truncation or safety stop a new provider version invents. Reasons that already mapped to a successful stop are unchanged, and a provider that stops on its own safety or refusal signal still surfaces the raw reason in the error text (for example `Provider stopped with: SAFETY`).
-
-While a response is still streaming the partial message carries the reason `pending`. It is replaced by the terminal reason before the message is finished, so `pending` is not a state a completed turn can be left in: a stream that ends while still `pending` is a provider error. See [Custom providers](/custom-provider) for what this requires of a provider you implement yourself.
+Moved to [Provider reference](/providers/reference#stop-reasons).
 
 ## Resolution Order
 
-When resolving credentials for a provider:
-
-1. CLI `--api-key` flag
-2. `auth.json` entry (API key or OAuth token)
-3. Environment variable
-4. Custom provider keys from `models.json`
+Moved to [Provider reference](/providers/reference#resolution-order).

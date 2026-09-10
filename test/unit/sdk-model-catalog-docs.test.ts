@@ -11,13 +11,15 @@ import { REMOTE_CATALOG_REFRESH_INTERVAL_MS } from "../../packages/coding-agent/
 import { moduleDir } from "../helpers/runtime.js";
 
 const repoRoot = resolve(moduleDir(import.meta.url), "../..");
-const sdkDocs = readFileSync(join(repoRoot, "packages/coding-agent/docs/sdk.md"), "utf8");
+const sdkDocs = ["packages/coding-agent/docs/sdk.md", "packages/coding-agent/docs/sdk/reference.md"]
+	.map((path) => readFileSync(join(repoRoot, path), "utf8"))
+	.join("\n");
 const modelRuntimeSource = readFileSync(join(repoRoot, "packages/coding-agent/src/core/model-runtime.ts"), "utf8");
 
 describe("ModelRuntime catalog SDK documentation", () => {
 	test("documents every catalog option the implementation ships", () => {
 		for (const option of ["allowModelNetwork", "modelRefreshTimeoutMs", "modelsStorePath", "modelsStore"]) {
-			assert.ok(sdkDocs.includes(option), `docs/sdk.md must document ${option}`);
+			assert.ok(sdkDocs.includes(option), `the SDK docs must document ${option}`);
 		}
 		assert.ok(
 			sdkDocs.includes("(see [Model catalog persistence and refresh]"),
@@ -28,13 +30,13 @@ describe("ModelRuntime catalog SDK documentation", () => {
 
 	test("documented modelRefreshTimeoutMs default matches the implementation", () => {
 		const documented = /`modelRefreshTimeoutMs` \(default `(\d[\d_]*)`\)/u.exec(sdkDocs);
-		assert.ok(documented, "docs/sdk.md states the modelRefreshTimeoutMs default");
+		assert.ok(documented, "the SDK docs state the modelRefreshTimeoutMs default");
 		const implemented = /modelRefreshTimeoutMs\s*\?\?\s*(\d[\d_]*)/u.exec(modelRuntimeSource);
 		assert.ok(implemented, "ModelRuntime.create defaults modelRefreshTimeoutMs inline");
 		assert.equal(
 			documented[1],
 			implemented[1],
-			"the default printed in docs/sdk.md must equal the default in model-runtime.ts",
+			"the default printed in the SDK docs must equal the default in model-runtime.ts",
 		);
 	});
 

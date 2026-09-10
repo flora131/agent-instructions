@@ -6,6 +6,8 @@ There are two general options. You can either
 1. run the whole `atomic` process inside an isolated environment, or
 2. run `atomic` on the host and route tool execution into an isolated environment.
 
+Containerization is the outer boundary, not the only one. [Security](/security) covers the project-trust prompt that gates which project-scoped extensions, skills, and settings load in the first place; read it alongside this page when you are deciding what an untrusted repository is allowed to do.
+
 ## Choose a pattern
 
 | Pattern | What is isolated | Best for | Notes |

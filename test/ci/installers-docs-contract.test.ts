@@ -10,9 +10,19 @@ const pinnedPowerShell =
 	"& ([scriptblock]::Create((irm https://raw.githubusercontent.com/bastani-inc/atomic/main/install.ps1))) -Ref 0.9.11";
 
 test("installer documentation keeps the literal entry points, knobs, defaults, and platform limits", async () => {
+	// The quickstart is the ordered onboarding hub; #2847 moved its installation,
+	// authentication, first-session, and project-instruction detail into
+	// /getting-started/*. The onboarding surface is the hub plus those pages, so
+	// the literals below are asserted against all five together.
+	const quickstartPages = [
+		`${root}/packages/coding-agent/docs/quickstart.md`,
+		`${root}/packages/coding-agent/docs/getting-started/installation.md`,
+		`${root}/packages/coding-agent/docs/getting-started/authentication.md`,
+		`${root}/packages/coding-agent/docs/getting-started/first-session.md`,
+		`${root}/packages/coding-agent/docs/getting-started/project-instructions.md`,
+	];
 	const paths = {
 		readme: `${root}/README.md`,
-		quickstart: `${root}/packages/coding-agent/docs/quickstart.md`,
 		windows: `${root}/packages/coding-agent/docs/windows.md`,
 		index: `${root}/packages/coding-agent/docs/index.md`,
 		containerization: `${root}/packages/coding-agent/docs/containerization.md`,
@@ -21,10 +31,15 @@ test("installer documentation keeps the literal entry points, knobs, defaults, a
 	const entries = await Promise.all(
 		Object.entries(paths).map(async ([name, path]) => [name, await readText(path)] as const),
 	);
-	const docs = Object.fromEntries(entries) as Record<keyof typeof paths, string>;
-	const prerequisitesStart = docs.quickstart.indexOf("## Prerequisites");
-	const prerequisitesEnd = docs.quickstart.indexOf("\n## Install", prerequisitesStart);
-	const prerequisiteBullets = docs.quickstart
+	const quickstartTexts = await Promise.all(quickstartPages.map((path) => readText(path)));
+	const docs = {
+		...(Object.fromEntries(entries) as Record<keyof typeof paths, string>),
+		quickstartHub: quickstartTexts[0] ?? "",
+		quickstart: quickstartTexts.join("\n"),
+	};
+	const prerequisitesStart = docs.quickstartHub.indexOf("## Prerequisites");
+	const prerequisitesEnd = docs.quickstartHub.indexOf("\n## Install", prerequisitesStart);
+	const prerequisiteBullets = docs.quickstartHub
 		.slice(prerequisitesStart, prerequisitesEnd)
 		.split("\n")
 		.filter((line) => line.startsWith("- "));

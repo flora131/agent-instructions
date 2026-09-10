@@ -1,3 +1,8 @@
+---
+title: "SDK"
+description: "Embed Atomic in a Node.js application."
+---
+
 > Atomic can help you use the SDK. Ask it to build an integration for your use case.
 
 # SDK
@@ -247,6 +252,11 @@ This adapter does not launch work or reconstruct live capabilities from history.
 Production subagent runners bind their child history, and main and attached workflow
 chat hosts mount the shared inspector. Command detail reads are scoped to the current
 selection and view lifetime: late results and errors cannot overwrite another view.
+## On this page and its reference
+
+This page covers the SDK quick start, its core concepts, and one complete example. Options, resource loaders, return types, run modes, and exports live in the [SDK API reference](/sdk/reference).
+
+Not sure the SDK is the right integration mode? Compare it with RPC and JSON mode on [Programmatic use](/programmatic).
 
 ## Quick Start
 
@@ -281,7 +291,7 @@ const { session } = await createAgentSession({
 });
 ```
 
-`ModelRuntime.create()` accepts custom `authPath`, `modelsPath`, credential storage, and runtime auth overrides, plus the model-catalog options `allowModelNetwork`, `modelRefreshTimeoutMs`, `modelsStorePath`, and `modelsStore` (see [Model catalog persistence and refresh](#model-catalog-persistence-and-refresh)). `ModelRegistry` and `AuthStorage` remain available as Atomic's synchronous compatibility facades. Use `readStoredCredential(provider, authPath?)` for a lightweight read of one stored provider credential.
+`ModelRuntime.create()` accepts custom `authPath`, `modelsPath`, credential storage, and runtime auth overrides, plus the model-catalog options `allowModelNetwork`, `modelRefreshTimeoutMs`, `modelsStorePath`, and `modelsStore` (see [Model catalog persistence and refresh](/sdk/reference#model-catalog-persistence-and-refresh)). `ModelRegistry` and `AuthStorage` remain available as Atomic's synchronous compatibility facades. Use `readStoredCredential(provider, authPath?)` for a lightweight read of one stored provider credential.
 
 Extensions supplied directly to SDK sessions can use the exported `InlineExtension` type. Extension APIs and event types include native `registerProvider(Provider)`, `registerEntryRenderer`, `entry_appended`, `before_provider_headers`, and `agent_settled`.
 
@@ -630,207 +640,35 @@ streamed, if any.
 
 ## Options Reference
 
+Moved to [SDK API reference](/sdk/reference#options-reference).
+
 ### Directories
 
-```typescript
-const { session } = await createAgentSession({
-  // Working directory for DefaultResourceLoader discovery
-  cwd: process.cwd(), // default
-  
-  // Global config directory
-  agentDir: "~/.atomic/agent", // default (expands ~)
-});
-```
-
-Atomic reads primary `.atomic` locations first and legacy `.pi` locations for compatibility when multiple config directories are supported. Passing an explicit `agentDir` makes that directory the user override.
-
-`cwd` is used by `DefaultResourceLoader` for:
-- Project extensions (`.atomic/extensions/`, then legacy `.pi/extensions/`)
-- Project skills:
-  - `.atomic/skills/`, then legacy `.pi/skills/`
-  - `.agents/skills/` in `cwd` and ancestor directories (up to git repo root, or filesystem root when not in a repo)
-- Project prompts (`.atomic/prompts/`, then legacy `.pi/prompts/`)
-- Context files (`AGENTS.override.md`, `AGENTS.md`, or `CLAUDE.md` walking up from cwd)
-- Session directory naming
-
-`agentDir` is used by `DefaultResourceLoader` for:
-- Global extensions (`extensions/`)
-- Global skills:
-  - `skills/` under `agentDir` (for example `~/.atomic/agent/skills/`; legacy `~/.pi/agent/skills/` is also considered by default)
-  - `~/.agents/skills/`
-- Global prompts (`prompts/`)
-- Global context files (`AGENTS.override.md`, `AGENTS.md`, or `CLAUDE.md` under `agentDir`)
-- Settings (`settings.json`)
-- Custom models (`models.json`)
-- Credentials (`auth.json`)
-- Sessions (`sessions/`)
-
-When you pass a custom `ResourceLoader`, `cwd` and `agentDir` no longer control resource discovery. They still influence session naming and tool path resolution.
+Moved to [SDK API reference](/sdk/reference#directories).
 
 ### Model
 
-```typescript
-import { getModel } from "@bastani/pi-ai/compat";
-import { ModelRuntime } from "@bastani/atomic";
-
-const modelRuntime = await ModelRuntime.create();
-
-// Find specific built-in model (doesn't check if credentials exist)
-const opus = getModel("anthropic", "claude-opus-4-5");
-if (!opus) throw new Error("Model not found");
-
-// Find any model by provider/id, including custom models from models.json
-const customModel = modelRuntime.getModel("my-provider", "my-model");
-
-// Get only models whose providers have configured authentication
-const available = await modelRuntime.getAvailable();
-
-const { session } = await createAgentSession({
-  model: opus,
-  thinkingLevel: "medium", // off, minimal, low, medium, high, xhigh, max (when supported by the model)
-  
-  // Models for cycling (CTRL+P in interactive mode)
-  scopedModels: [
-    { model: opus, thinkingLevel: "high" },
-    { model: haiku, thinkingLevel: "off" },
-  ],
-  
-  modelRuntime,
-});
-```
-
-`ModelRegistry` keeps synchronous reads for extension compatibility, while catalog refresh is asynchronous. Extensions should await `modelRegistry.refresh()` before synchronous `getAll()`, `find()`, or `getAvailable()` reads when a provider may update its catalog. New SDK integrations use `ModelRuntime`; `await modelRuntime.refresh()` reports `aborted` and per-provider `errors`, and failed providers retain their last-known models.
-
-If no model is provided:
-1. Tries to restore from session (if continuing)
-2. Uses default from settings
-3. Falls back to first available model
-
-> See [examples/sdk/02-custom-model.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/sdk/02-custom-model.ts)
+Moved to [SDK API reference](/sdk/reference#model).
 
 #### Model catalog persistence and refresh
 
-`ModelRuntime.create()` restores cached catalogs from local persistence but does not contact
-pi.dev unless you opt in. `allowModelNetwork` (default `false`) enables a create-time network
-refresh, and `modelRefreshTimeoutMs` (default `15_000`) bounds how long that refresh may run
-before it is aborted. Pass `refreshOnCreate: false` to skip the initial catalog and
-availability refresh entirely; built-in models remain available.
-
-```typescript
-const refreshedRuntime = await ModelRuntime.create({
-  allowModelNetwork: true,
-  modelRefreshTimeoutMs: 15_000,
-});
-```
-
-Remote catalogs are persisted locally so later runtimes can restore them without a network
-request. The default file is `models-store.json` next to `models.json` — with the default
-`modelsPath` that is `~/.atomic/agent/models-store.json`. Set `modelsStorePath` to choose
-another location, or inject `modelsStore` to control persistence entirely; a runtime created
-with `modelsPath: null` keeps its store in memory. Network refreshes are throttled to once
-per provider every four hours unless forced. To force an immediate refresh, call
-`await modelRuntime.refresh({ allowNetwork: true, force: true, signal })`. Setting
-`ATOMIC_OFFLINE` (legacy alias `PI_OFFLINE`) disables model network access, and a
-`refresh()` call that omits `allowNetwork` follows that same runtime network policy.
+Moved to [SDK API reference](/sdk/reference#model-catalog-persistence-and-refresh).
 
 ### API Keys and OAuth
 
-`ModelRuntime` is the asynchronous SDK engine for provider composition, credentials, model catalogs, and requests. `ModelRegistry` remains a thin compatibility facade for extensions; `await modelRegistry.complete(model, context, options)` routes a request through its runtime with the resolved provider and auth. New SDK integrations should pass `modelRuntime` to `createAgentSession` and use `modelRuntime.complete()` directly when they issue standalone requests.
-
-Credential resolution combines runtime API-key overrides, stored `auth.json` credentials, environment variables, and the active `models.json` provider configuration. OAuth acquisition is provider-owned and runs through `ModelRuntime.login()`.
-
-```typescript
-import { AuthStorage, ModelRuntime } from "@bastani/atomic";
-
-const authStorage = AuthStorage.create();
-const modelRuntime = await ModelRuntime.create({ credentials: authStorage });
-
-const { session } = await createAgentSession({
-  sessionManager: SessionManager.inMemory(),
-  modelRuntime,
-});
-
-// Runtime API key override (not persisted to disk). Setting the key updates
-// auth state; refresh the provider explicitly when its catalog must be current.
-const providerId = "anthropic";
-const authController = new AbortController();
-await modelRuntime.setRuntimeApiKey(providerId, "sk-my-temp-key", { signal: authController.signal });
-await modelRuntime.refresh({ providers: [providerId], signal: authController.signal });
-
-// Custom credential and model configuration locations
-const customRuntime = await ModelRuntime.create({
-  authPath: "/my/app/auth.json",
-  modelsPath: "/my/app/models.json",
-});
-
-const customSession = await createAgentSession({
-  sessionManager: SessionManager.inMemory(),
-  modelRuntime: customRuntime,
-});
-
-// Disable models.json while retaining built-in providers
-const builtinsOnly = await ModelRuntime.create({ modelsPath: null });
-```
-
-> See the complete [`ModelRuntime` credential and model configuration example](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/sdk/09-api-keys-and-oauth.ts).
+Moved to [SDK API reference](/sdk/reference#api-keys-and-oauth).
 
 ### System Prompt
 
-Use a `ResourceLoader` to override the system prompt:
-
-```typescript
-import { createAgentSession, DefaultResourceLoader } from "@bastani/atomic";
-
-const loader = new DefaultResourceLoader({
-  systemPromptOverride: () => "You are a helpful assistant.",
-});
-await loader.reload();
-
-const { session } = await createAgentSession({ resourceLoader: loader });
-```
-
-> See [examples/sdk/03-custom-prompt.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/sdk/03-custom-prompt.ts)
+Moved to [SDK API reference](/sdk/reference#system-prompt).
 
 ### Tools
 
-Specify which tools to expose by name:
-
-- Built-in tool names enabled by default: `read`, `bash`, `kill`, `edit`, `write`, `find`, `search`, `ask_user_question`, `todo`
-- `find` discovers filesystem paths by glob; `search` searches file contents with regex patterns across files, directories, globs, and internal URLs.
-- `tools` is an allowlist: when provided, only the listed built-in, extension, and custom tool names are exposed, plus mandatory ordinary `intercom`.
-- `excludedTools` is a blocklist: matching built-in, extension, and custom tool names are omitted from the final registry and active tool set, except mandatory ordinary `intercom`. If both are provided, `tools` is applied first and `excludedTools` subtracts from it.
-- `noTools: "all"` disables every tool except mandatory ordinary `intercom`
-- `noTools: "builtin"` disables default built-ins while keeping extension and custom tools enabled, except names listed in `excludedTools`
-
-```typescript
-import { createAgentSession } from "@bastani/atomic";
-
-// Read-only mode. `tools` selects optional tools; ordinary Intercom remains active.
-const { session } = await createAgentSession({
-  tools: ["read", "search", "find", "ls"],
-});
-
-// Pick specific optional tools. Ordinary Intercom remains active even when omitted.
-const { session } = await createAgentSession({
-  tools: ["read", "bash", "search"],
-});
-
-// Keep defaults but remove HITL prompts
-const { session } = await createAgentSession({
-  excludedTools: ["ask_user_question"],
-});
-
-// Allowlist first, then subtract exclusions
-const { session } = await createAgentSession({
-  tools: ["read", "bash", "ask_user_question"],
-  excludedTools: ["ask_user_question"], // optional tools: read, bash; ordinary Intercom remains active
-});
-```
+Moved to [SDK API reference](/sdk/reference#tools).
 
 #### Bash tool behavior
 
-Atomic's built-in `bash` tool matches upstream pi: when `bash` is enabled, commands execute through the configured shell with the Atomic process permissions. Use `tools`, `excludedTools`, or `noTools` to decide whether a session exposes the `bash` tool at all. Atomic no longer provides a command-level allow/deny option for `bash`; use an operating-system/container sandbox or a custom tool/extension when you need command allowlisting or stronger isolation.
-
+Moved to [SDK API reference](/sdk/reference#bash-tool-behavior).
 
 #### Waiting for existing shell tasks
 
@@ -842,465 +680,53 @@ Do not mix wait arguments with launch fields. Unknown or foreign IDs and unbound
 
 #### PowerShell tool behavior
 
-`createPowerShellTool()` and `createPowerShellToolDefinition()` provide the same tool used by interactive sessions. When their default local operations execute on native Windows, they prefer `pwsh.exe`, fall back to `powershell.exe`, and throw a clear error when neither executable is available. `createLocalPowerShellOperations()` and `getPowerShellConfig()` are also exported for custom integrations. The PowerShell factories expose the current `ATOMIC_*` and legacy `PI_*` session snapshot by default; set `exposeSessionEnvironment: false` to opt out.
-
-PowerShell tools and local operations accept a trusted `taskOwner` binding and the same
-`wait` observation policy as bash. Owned native Windows execution automatically yields
-after the owner's command budget (normally 10000 ms); explicit per-call budgets override it,
-and execution timeout remains separate. Commands use encoded PowerShell transport internally,
-while task descriptions retain the original command text. Without a supported owner,
-explicit background requests are refused and foreground execution waits for completion.
-
-```typescript
-import { createPowerShellTool } from "@bastani/atomic";
-
-const powershell = createPowerShellTool("C:\\path\\to\\project");
-```
+Moved to [SDK API reference](/sdk/reference#powershell-tool-behavior).
 
 #### Tools with Custom cwd
 
-When you pass a custom `cwd`, `createAgentSession()` builds selected built-in tools for that cwd.
-
-```typescript
-import { createAgentSession, SessionManager } from "@bastani/atomic";
-
-const cwd = "/path/to/project";
-
-// Use default tools for custom cwd
-const { session } = await createAgentSession({
-  cwd,
-  sessionManager: SessionManager.inMemory(cwd),
-});
-
-// Or pick specific tools for custom cwd
-const { session } = await createAgentSession({
-  cwd,
-  tools: ["read", "bash", "search"],
-  sessionManager: SessionManager.inMemory(cwd),
-});
-```
-
-> See [examples/sdk/05-tools.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/sdk/05-tools.ts)
+Moved to [SDK API reference](/sdk/reference#tools-with-custom-cwd).
 
 ### Custom Tools
 
-```typescript
-import { Type } from "typebox";
-import { createAgentSession, defineTool } from "@bastani/atomic";
-
-// Inline custom tool
-const myTool = defineTool({
-  name: "my_tool",
-  label: "My Tool",
-  description: "Does something useful",
-  parameters: Type.Object({
-    input: Type.String({ description: "Input value" }),
-  }),
-  execute: async (_toolCallId, params) => ({
-    content: [{ type: "text", text: `Result: ${params.input}` }],
-    details: {},
-  }),
-});
-
-// Pass custom tools directly
-const { session } = await createAgentSession({
-  customTools: [myTool],
-});
-```
-
-Use `defineTool()` for standalone definitions and arrays like `customTools: [myTool]`. Inline `pi.registerTool({ ... })` already infers parameter types correctly.
-
-Custom tools passed via `customTools` are combined with extension-registered tools. Extensions loaded by the ResourceLoader can also register tools via `pi.registerTool()`.
-
-If you pass `tools`, include each custom or extension tool name you want enabled, for example `tools: ["read", "bash", "my_tool"]`. Use `excludedTools` to remove a custom or extension tool by name from the final exposed set.
-
-`ToolDefinition.constrainedSampling` is part of the public SDK and survives `defineTool()`, `customTools`, tool wrappers, session/staged inspection, and isolated execution. Use `{ type: "json_schema", strict: "prefer" | "require" }`, `{ type: "grammar", variants: { openai_lark?: string, openai_regex?: string } }`, or `false`. `prefer` can fall back; `require` fails when the active model cannot enforce strict JSON Schema. Grammar constraints require one required string parameter and capable model metadata. Public inspection preserves optional-property identity exactly: an omitted key stays absent, an explicitly present `undefined` stays present, and `false` or a config object remains unchanged. The exported `ConstrainedSamplingConfig` type and [extension reference](/extensions#constrained-sampling) define the exact shape. Typed RPC clients receive the four model capability flags through optional `ModelInfo.compat`; see [RPC](/rpc#get_available_models).
-
-Factory-created `createBashTool()` instances receive the same execution-time `ATOMIC_SESSION_*`/`PI_SESSION_*` model and session snapshot as the built-in bash tool. Set `exposeSessionEnvironment: false` only when the subprocess must not receive it. `MessageRenderOptions.outputPad` is likewise passed to normal and isolated custom message renderers.
+Moved to [SDK API reference](/sdk/reference#custom-tools).
 
 Normal sessions also expose `kill({ id: taskId })` for their owned bash and PowerShell background tasks. Include `kill` when using a `tools` allowlist if the agent should be able to stop those tasks. The exported `createKillTool` and `createKillToolDefinition` factories accept `KillToolOptions.taskOwner`, a trusted execution-time callback returning the same owner binding used by shell launch. Without a binding they reject execution. The result details preserve the supervisor's `CancelReceipt`, including its decision, execution outcome, and cleanup state. See [Background tasks](/background-tasks#stop-a-shell-task-from-a-tool-call).
 
 #### Structured output final results
 
-`structured_output` is not registered in normal agent sessions by default. Add it only when a caller needs a machine-readable final-answer contract by registering the exported factory as a custom tool:
-
-```typescript
-import { Type, type Static } from "typebox";
-import {
-  createAgentSession,
-  createStructuredOutputTool,
-  type StructuredOutputCapture,
-} from "@bastani/atomic";
-
-const DecisionSchema = Type.Object({
-  approved: Type.Boolean(),
-  findings: Type.Array(Type.String()),
-}, { additionalProperties: false });
-
-type Decision = Static<typeof DecisionSchema>;
-const capture: StructuredOutputCapture<Decision> = {
-  called: false,
-  value: undefined,
-};
-
-const structuredOutput = createStructuredOutputTool({
-  schema: DecisionSchema,
-  capture,
-});
-
-const { session } = await createAgentSession({
-  customTools: [structuredOutput],
-});
-```
-
-The tool parameters are exactly the supplied schema: with `DecisionSchema`, the model calls `structured_output({ approved, findings })`. Array and primitive schemas are also accepted by the factory when the target provider/tool runtime supports them; the captured value is whatever JSON value matches the schema. A successful call stores the params in `capture.value`, returns them as pretty-printed JSON tool-result text for text print mode, keeps the flat value in tool `details`, writes the same JSON to the configured `output.outputPath` when an `output` file sink is configured, and sets `terminate: true` so there is no extra follow-up assistant turn. Atomic relies on the tool schema instead of extra structured-output parsing or sidecar validation. Structured-output tool definitions opt out of oversized-result persistence.
-
-Custom tool names are supported, and the prompt metadata follows the configured name. If you use a custom name such as `final_decision`, include that name in any explicit `tools` allowlist. If the standard `structured_output` name is required, register the factory with its default name:
-
-```typescript
-const finalDecision = createStructuredOutputTool({
-  name: "final_decision",
-  schema: DecisionSchema,
-  capture,
-});
-// The model is prompted to call final_decision exactly once, not structured_output.
-
-await createAgentSession({
-  customTools: [finalDecision],
-  tools: ["final_decision"], // only this tool is enabled
-});
-
-await createAgentSession({
-  customTools: [createStructuredOutputTool({ schema: DecisionSchema, capture })],
-  // Registers the standard structured_output tool for this session only.
-});
-```
-
-> See [examples/sdk/05-tools.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/sdk/05-tools.ts)
+Moved to [SDK API reference](/sdk/reference#structured-output-final-results).
 
 ### Extensions
 
-Extensions are loaded by the `ResourceLoader`. `DefaultResourceLoader` discovers extensions from `~/.atomic/agent/extensions/` and `.atomic/extensions/` first, then legacy `~/.pi/agent/extensions/` and `.pi/extensions/`, plus settings.json extension sources.
-
-```typescript
-import { createAgentSession, DefaultResourceLoader } from "@bastani/atomic";
-
-const loader = new DefaultResourceLoader({
-  additionalExtensionPaths: ["/path/to/my-extension.ts"],
-  extensionFactories: [
-    (pi) => {
-      pi.on("agent_start", () => {
-        console.log("[Inline Extension] Agent starting");
-      });
-    },
-  ],
-});
-await loader.reload();
-
-const { session } = await createAgentSession({ resourceLoader: loader });
-```
-
-`createAgentSession()` preserves resources from a supplied loader but restores Atomic's mandatory bundled Intercom extension after loader overrides, deferred reloads, and same-name extension or `customTools` collisions. The supplied loader still controls every optional extension.
-
-Strict reloads (`failOnExtensionErrors: true`) require the loader's transactional `prepareReload()` support so a failed candidate cannot mutate live state before validation. `DefaultResourceLoader` provides that support. Custom loaders without it remain compatible with ordinary reloads, but strict reload fails before calling their mutating `reload()` method.
-
-Extensions can register tools, subscribe to events, add commands, and more. See [Extensions](/extensions) for the full API.
-
-**Event Bus:** Extensions can communicate via `pi.events`. Pass a shared `eventBus` to `DefaultResourceLoader` if you need to emit or listen from outside:
-
-```typescript
-import { createEventBus, DefaultResourceLoader } from "@bastani/atomic";
-
-const eventBus = createEventBus();
-const loader = new DefaultResourceLoader({
-  eventBus,
-});
-await loader.reload();
-
-eventBus.on("my-extension:status", (data) => console.log(data));
-```
-
-> See [examples/sdk/06-extensions.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/sdk/06-extensions.ts) and [Extensions](/extensions)
+Moved to [SDK API reference](/sdk/reference#extensions).
 
 ### Skills
 
-```typescript
-import {
-  createAgentSession,
-  DefaultResourceLoader,
-  type Skill,
-} from "@bastani/atomic";
-
-const customSkill: Skill = {
-  name: "my-skill",
-  description: "Custom instructions",
-  filePath: "/path/to/SKILL.md",
-  baseDir: "/path/to",
-  source: "custom",
-};
-
-const loader = new DefaultResourceLoader({
-  skillsOverride: (current) => ({
-    skills: [...current.skills, customSkill],
-    diagnostics: current.diagnostics,
-  }),
-});
-await loader.reload();
-
-const { session } = await createAgentSession({ resourceLoader: loader });
-```
-
-> See [examples/sdk/04-skills.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/sdk/04-skills.ts)
+Moved to [SDK API reference](/sdk/reference#skills).
 
 ### Context Files
 
-```typescript
-import { createAgentSession, DefaultResourceLoader } from "@bastani/atomic";
-
-const loader = new DefaultResourceLoader({
-  agentsFilesOverride: (current) => ({
-    agentsFiles: [
-      ...current.agentsFiles,
-      { path: "/virtual/AGENTS.md", content: "# Guidelines\n\n- Be concise" },
-    ],
-  }),
-});
-await loader.reload();
-
-const { session } = await createAgentSession({ resourceLoader: loader });
-```
-
-> See [examples/sdk/07-context-files.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/sdk/07-context-files.ts)
+Moved to [SDK API reference](/sdk/reference#context-files).
 
 ### Slash Commands
 
-```typescript
-import {
-  createAgentSession,
-  DefaultResourceLoader,
-  type PromptTemplate,
-} from "@bastani/atomic";
-
-const customCommand: PromptTemplate = {
-  name: "deploy",
-  description: "Deploy the application",
-  source: "(custom)",
-  content: "# Deploy\n\n1. Build\n2. Test\n3. Deploy",
-};
-
-const loader = new DefaultResourceLoader({
-  promptsOverride: (current) => ({
-    prompts: [...current.prompts, customCommand],
-    diagnostics: current.diagnostics,
-  }),
-});
-await loader.reload();
-
-const { session } = await createAgentSession({ resourceLoader: loader });
-```
-
-> See [examples/sdk/08-prompt-templates.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/sdk/08-prompt-templates.ts)
+Moved to [SDK API reference](/sdk/reference#slash-commands).
 
 ### Session Management
 
-Sessions use a tree structure with `id`/`parentId` linking, enabling in-place branching.
-
-```typescript
-import {
-  type CreateAgentSessionRuntimeFactory,
-  createAgentSession,
-  createAgentSessionFromServices,
-  createAgentSessionRuntime,
-  createAgentSessionServices,
-  getAgentDir,
-  SessionManager,
-} from "@bastani/atomic";
-
-// In-memory (no persistence)
-const { session } = await createAgentSession({
-  sessionManager: SessionManager.inMemory(),
-});
-
-// New persistent session
-const { session: persisted } = await createAgentSession({
-  sessionManager: SessionManager.create(process.cwd()),
-});
-
-// Continue most recent
-const { session: continued, modelFallbackMessage } = await createAgentSession({
-  sessionManager: SessionManager.continueRecent(process.cwd()),
-});
-if (modelFallbackMessage) {
-  console.log("Note:", modelFallbackMessage);
-}
-
-// Open specific file
-const { session: opened } = await createAgentSession({
-  sessionManager: SessionManager.open("/path/to/session.jsonl"),
-});
-
-// List sessions
-const currentProjectSessions = await SessionManager.list(process.cwd());
-const allSessions = await SessionManager.listAll(process.cwd());
-
-// Session replacement API for /new, /resume, /fork, /clone, and import flows.
-const createRuntime: CreateAgentSessionRuntimeFactory = async ({ cwd, sessionManager, sessionStartEvent }) => {
-  const services = await createAgentSessionServices({ cwd });
-  return {
-    ...(await createAgentSessionFromServices({
-      services,
-      sessionManager,
-      sessionStartEvent,
-    })),
-    services,
-    diagnostics: services.diagnostics,
-  };
-};
-
-const runtime = await createAgentSessionRuntime(createRuntime, {
-  cwd: process.cwd(),
-  agentDir: getAgentDir(),
-  sessionManager: SessionManager.create(process.cwd()),
-});
-
-// Replace the active session with a fresh one
-await runtime.newSession();
-
-// Replace the active session with another saved session
-await runtime.switchSession("/path/to/session.jsonl");
-
-// Replace the active session with a fork from a specific user entry
-await runtime.fork("entry-id");
-
-// Clone the active path through a specific entry
-await runtime.fork("entry-id", { position: "at" });
-```
-
-**SessionManager tree API:**
-
-```typescript
-const sm = SessionManager.open("/path/to/session.jsonl");
-
-// Session listing
-const currentProjectSessions = await SessionManager.list(process.cwd());
-const allSessions = await SessionManager.listAll(process.cwd());
-
-// Tree traversal
-const entries = sm.getEntries();        // All entries (excludes header)
-const tree = sm.getTree();              // Full tree structure
-const path = sm.getPath();              // Path from root to current leaf
-const leaf = sm.getLeafEntry();         // Current leaf entry
-const entry = sm.getEntry(id);          // Get entry by ID
-const children = sm.getChildren(id);    // Direct children of entry
-
-// Labels
-const label = sm.getLabel(id);          // Get label for entry
-sm.appendLabelChange(id, "checkpoint"); // Set label
-
-// Branching
-sm.branch(entryId);                     // Move leaf to earlier entry
-sm.branchWithSummary(id, "Summary...");  // Branch with context summary
-sm.createBranchedSession(leafId);       // Extract path to new file
-```
-
-> See [examples/sdk/11-sessions.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/sdk/11-sessions.ts) and [Session Format](/session-format)
+Moved to [SDK API reference](/sdk/reference#session-management).
 
 ### Settings Management
 
-```typescript
-import { createAgentSession, SettingsManager, SessionManager } from "@bastani/atomic";
-
-// Default: loads from files (global + project merged)
-const { session } = await createAgentSession({
-  settingsManager: SettingsManager.create(),
-});
-
-// With overrides
-const settingsManager = SettingsManager.create();
-settingsManager.applyOverrides({
-  compaction: { enabled: false },
-  retry: { enabled: true, maxRetries: 5 },
-});
-const { session } = await createAgentSession({ settingsManager });
-
-// In-memory (no file I/O, for testing)
-const { session } = await createAgentSession({
-  settingsManager: SettingsManager.inMemory({ compaction: { enabled: false } }),
-  sessionManager: SessionManager.inMemory(),
-});
-
-// Custom directories
-const { session } = await createAgentSession({
-  settingsManager: SettingsManager.create("/custom/cwd", "/custom/agent"),
-});
-```
-
-**Static factories:**
-- `SettingsManager.create(cwd?, agentDir?)` - Load from files
-- `SettingsManager.inMemory(settings?)` - No file I/O
-
-**Project-specific settings:**
-
-Settings load from Atomic-first locations and merge:
-1. Global: `~/.atomic/agent/settings.json`, then legacy `~/.pi/agent/settings.json`
-2. Project: `<cwd>/.atomic/settings.json`, then legacy `<cwd>/.pi/settings.json`
-
-Project overrides global. Nested objects merge keys. Setters modify global settings by default.
-
-**Persistence and error handling semantics:**
-
-- Settings getters/setters are synchronous for in-memory state.
-- Setters enqueue persistence writes asynchronously.
-- Call `await settingsManager.flush()` when you need a durability boundary (for example, before process exit or before asserting file contents in tests).
-- `SettingsManager` does not print settings I/O errors. Use `settingsManager.drainErrors()` and report them in your app layer.
-
-> See [examples/sdk/10-settings.ts](https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/examples/sdk/10-settings.ts)
+Moved to [SDK API reference](/sdk/reference#settings-management).
 
 ## ResourceLoader
 
-Use `DefaultResourceLoader` to discover extensions, skills, prompts, themes, and context files.
-
-```typescript
-import {
-  DefaultResourceLoader,
-  getAgentDir,
-} from "@bastani/atomic";
-
-const loader = new DefaultResourceLoader({
-  cwd,
-  agentDir: getAgentDir(),
-});
-await loader.reload();
-
-const extensions = loader.getExtensions();
-const skills = loader.getSkills();
-const prompts = loader.getPrompts();
-const themes = loader.getThemes();
-const contextFiles = loader.getAgentsFiles().agentsFiles;
-```
+Moved to [SDK API reference](/sdk/reference#resourceloader).
 
 ## Return Value
 
-`createAgentSession()` returns:
-
-```typescript
-interface CreateAgentSessionResult {
-  // The session
-  session: AgentSession;
-  
-  // Extensions result (for runner setup)
-  extensionsResult: LoadExtensionsResult;
-  
-  // Warning if session model couldn't be restored
-  modelFallbackMessage?: string;
-}
-
-interface LoadExtensionsResult {
-  extensions: Extension[];
-  errors: Array<{ path: string; error: string }>;
-  runtime: ExtensionRuntime;
-}
-```
+Moved to [SDK API reference](/sdk/reference#return-value).
 
 ## Complete Example
 
@@ -1386,118 +812,19 @@ await session.prompt("Get status and list files.");
 
 ## Run Modes
 
-The SDK exports run mode utilities for building custom interfaces on top of `createAgentSession()`:
+Moved to [SDK API reference](/sdk/reference#run-modes).
 
 ### InteractiveMode
 
-Full TUI interactive mode with editor, chat history, and all built-in commands:
-
-```typescript
-import {
-  type CreateAgentSessionRuntimeFactory,
-  createAgentSessionFromServices,
-  createAgentSessionRuntime,
-  createAgentSessionServices,
-  getAgentDir,
-  InteractiveMode,
-  SessionManager,
-} from "@bastani/atomic";
-
-const createRuntime: CreateAgentSessionRuntimeFactory = async ({ cwd, sessionManager, sessionStartEvent }) => {
-  const services = await createAgentSessionServices({ cwd });
-  return {
-    ...(await createAgentSessionFromServices({ services, sessionManager, sessionStartEvent })),
-    services,
-    diagnostics: services.diagnostics,
-  };
-};
-const runtime = await createAgentSessionRuntime(createRuntime, {
-  cwd: process.cwd(),
-  agentDir: getAgentDir(),
-  sessionManager: SessionManager.create(process.cwd()),
-});
-
-const mode = new InteractiveMode(runtime, {
-  migratedProviders: [],
-  modelFallbackMessage: undefined,
-  initialMessage: "Hello",
-  initialImages: [],
-  initialMessages: [],
-});
-
-await mode.run();
-```
+Moved to [SDK API reference](/sdk/reference#interactivemode).
 
 ### runPrintMode
 
-Single-shot mode: send prompts, output result, exit:
-
-```typescript
-import {
-  type CreateAgentSessionRuntimeFactory,
-  createAgentSessionFromServices,
-  createAgentSessionRuntime,
-  createAgentSessionServices,
-  getAgentDir,
-  runPrintMode,
-  SessionManager,
-} from "@bastani/atomic";
-
-const createRuntime: CreateAgentSessionRuntimeFactory = async ({ cwd, sessionManager, sessionStartEvent }) => {
-  const services = await createAgentSessionServices({ cwd });
-  return {
-    ...(await createAgentSessionFromServices({ services, sessionManager, sessionStartEvent })),
-    services,
-    diagnostics: services.diagnostics,
-  };
-};
-const runtime = await createAgentSessionRuntime(createRuntime, {
-  cwd: process.cwd(),
-  agentDir: getAgentDir(),
-  sessionManager: SessionManager.create(process.cwd()),
-});
-
-await runPrintMode(runtime, {
-  mode: "text",
-  initialMessage: "Hello",
-  initialImages: [],
-  messages: ["Follow up"],
-});
-```
+Moved to [SDK API reference](/sdk/reference#runprintmode).
 
 ### runRpcMode
 
-JSON-RPC mode for subprocess integration:
-
-```typescript
-import {
-  type CreateAgentSessionRuntimeFactory,
-  createAgentSessionFromServices,
-  createAgentSessionRuntime,
-  createAgentSessionServices,
-  getAgentDir,
-  runRpcMode,
-  SessionManager,
-} from "@bastani/atomic";
-
-const createRuntime: CreateAgentSessionRuntimeFactory = async ({ cwd, sessionManager, sessionStartEvent }) => {
-  const services = await createAgentSessionServices({ cwd });
-  return {
-    ...(await createAgentSessionFromServices({ services, sessionManager, sessionStartEvent })),
-    services,
-    diagnostics: services.diagnostics,
-  };
-};
-const runtime = await createAgentSessionRuntime(createRuntime, {
-  cwd: process.cwd(),
-  agentDir: getAgentDir(),
-  sessionManager: SessionManager.create(process.cwd()),
-});
-
-await runRpcMode(runtime);
-```
-
-See [RPC documentation](/rpc) for the JSON protocol.
+Moved to [SDK API reference](/sdk/reference#runrpcmode).
 
 ## RPC Mode Alternative
 
@@ -1522,59 +849,4 @@ RPC mode is preferred when:
 
 ## Exports
 
-The main entry point exports:
-
-```typescript
-// Factory
-createAgentSession
-createAgentSessionRuntime
-AgentSessionRuntime
-
-// Auth and Models
-AuthStorage
-ModelRegistry
-
-// Resource loading
-DefaultResourceLoader
-type ResourceLoader
-createEventBus
-
-// Constants and helpers
-CONFIG_DIR_NAME
-defineTool
-STRUCTURED_OUTPUT_TOOL_NAME
-createStructuredOutputTool
-createStructuredOutputCapture
-getAgentDir
-getPackageDir
-getReadmePath
-getDocsPath
-getExamplesPath
-generateDiffString
-generateUnifiedPatch
-type EditDiffResult
-
-// Session management
-SessionManager
-SettingsManager
-
-// Tool factories
-createCodingTools
-createReadOnlyTools
-createReadTool, createBashTool, createEditTool, createWriteTool
-createGrepTool, createFindTool, createLsTool
-
-// Types
-type CreateAgentSessionOptions
-type CreateAgentSessionResult
-type StructuredOutputCapture
-type StructuredOutputToolOptions
-type ExtensionFactory
-type ExtensionAPI
-type ToolDefinition
-type Skill
-type PromptTemplate
-type Tool
-```
-
-For extension types, see [Extensions](/extensions) for the full API.
+Moved to [SDK API reference](/sdk/reference#exports).

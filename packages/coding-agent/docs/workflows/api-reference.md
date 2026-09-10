@@ -1,3 +1,8 @@
+---
+title: "API reference"
+description: "Exhaustive workflow, stage, and context contracts."
+---
+
 # Workflow API Reference
 
 Use this reference while authoring definitions or integrating the workflow SDK programmatically. For a continuous first workflow, start with [Custom Workflow Authoring](/workflows/authoring).

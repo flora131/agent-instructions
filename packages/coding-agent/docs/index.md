@@ -43,7 +43,7 @@ On Windows PowerShell:
 irm https://raw.githubusercontent.com/bastani-inc/atomic/main/install.ps1 | iex
 ```
 
-The archive installer verifies the GitHub Release checksum and installs the full payload under a versioned root. See the [Quickstart](/quickstart#release-archive) for its parameters (`ATOMIC_VERSION`, `ATOMIC_INSTALL_DIR`, `ATOMIC_BIN_DIR`, `GITHUB_TOKEN`/`GH_TOKEN`), default paths, and PATH guidance.
+The archive installer verifies the GitHub Release checksum and installs the full payload under a versioned root. See the [Quickstart](/getting-started/installation#release-archive) for its parameters (`ATOMIC_VERSION`, `ATOMIC_INSTALL_DIR`, `ATOMIC_BIN_DIR`, `GITHUB_TOKEN`/`GH_TOKEN`), default paths, and PATH guidance.
 
 Then run it in a project directory:
 
@@ -55,51 +55,55 @@ Authenticate with `/login` for subscription providers, or set an API key such as
 
 For the full first-run flow, see [Quickstart](/quickstart).
 
+## Documentation paths
+
+The documentation is organized by what you are trying to do, not by product area. Pick the path that matches your intent.
+
+- **[Learn](/guides)** — install Atomic, run a first session, and get good at everyday use. Start with the [Quickstart](/quickstart) if you have never run Atomic, then read the [Guides](/guides).
+- **[Build](/build)** — extend Atomic with prompt templates, skills, subagents, intercom, workflows, extensions, and packages, or embed it with [programmatic use](/programmatic).
+- **[Reference](/reference)** — look up an exact command, flag, setting, event, method, type, or tool contract.
+
+### First successful session
+
+1. [Install Atomic](/getting-started/installation).
+2. [Authenticate a provider](/getting-started/authentication).
+3. [Start your first session](/getting-started/first-session).
+4. [Add project instructions](/getting-started/project-instructions).
+5. [Learn the interactive commands](/usage).
+6. [Learn sessions](/sessions) and [context management](/compaction).
+
 ## Start here
 
-- [Quickstart](/quickstart) - install, authenticate, and run a first session.
-- [Using Atomic](/usage) - interactive mode, slash commands, context files, and CLI reference.
-- [Computer use](/computer-use) - work in desktop apps, browsers, and terminals across macOS, Linux, and Windows.
-- [Providers](/providers) - subscription and API-key setup for built-in providers.
-- [Environment variables](/environment-variables) - Atomic/Pi aliases, provider credentials, and bash session metadata.
-- [Security](/security) - project trust, sandbox boundaries, and vulnerability reporting.
-- [Containerization](/containerization) - sandbox Atomic with OpenShell, Gondolin, or Docker.
-- [Settings](/settings) - global and project settings.
-- [Keybindings](/keybindings) - default shortcuts and custom keybindings.
-- [Sessions](/sessions) - session management, branching, and tree navigation.
-- [Compaction](/compaction) - Verbatim Compaction, context management, and branch summarization.
+The catalogue of everyday learning material now lives on the Learn landing page.
+
+Moved to [Guides](/guides#start-here).
 
 ## Customization
 
-- [Extensions](/extensions) - TypeScript modules for tools, commands, events, and custom UI.
-- [Skills](/skills) - Agent Skills for reusable on-demand capabilities.
-- [Subagents](/subagents) - focused child agents for research, analysis, debugging, cleanup, and review compositions.
-- [Workflows](/workflows) - executable engineering loops with tracked stages, artifacts, gates, and resumable runs.
-- [Prompt templates](/prompt-templates) - reusable prompts that expand from slash commands.
-- [Themes](/themes) - built-in and custom terminal themes.
-- [Atomic packages](/packages) - bundle and share extensions, skills, prompts, and themes.
-- [Custom models](/models) - add model entries for supported provider APIs.
-- [Custom providers](/custom-provider) - implement custom APIs and OAuth flows.
+The catalogue of customization mechanisms now lives on the Build landing page.
+
+Moved to [Build with Atomic](/build#customization).
 
 ## Programmatic usage
 
-- [SDK](/sdk) - embed Atomic in Node.js applications.
-- [RPC mode](/rpc) - integrate over stdin/stdout JSONL.
-- [JSON event stream mode](/json) - print mode with structured events.
-- [TUI components](/tui) - build custom terminal UI for extensions.
+The catalogue of integration modes now lives on the Build landing page, and [Programmatic use](/programmatic) compares them.
+
+Moved to [Build with Atomic](/build#programmatic-usage).
 
 ## Reference
 
-- [Session format](/session-format) - JSONL session file format, entry types, and SessionManager API.
+The catalogue of exact contracts now lives on the Reference index.
+
+Moved to [Reference](/reference#reference-2).
 
 ## Platform setup
 
-- [Windows](/windows)
-- [Termux on Android](/termux)
-- [tmux](/tmux)
-- [Terminal setup](/terminal-setup)
-- [Shell aliases](/shell-aliases)
+Platform pages are grouped under Platform setup on the Reference index.
+
+Moved to [Reference](/reference#platform-setup).
 
 ## Development
 
-- [Development](/development) - local setup, project structure, and debugging.
+Maintainer material is grouped under Project on the Reference index.
+
+Moved to [Reference](/reference#development).
