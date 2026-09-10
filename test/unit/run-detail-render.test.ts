@@ -114,8 +114,22 @@ describe("inspectRun", () => {
 // renderRunDetail
 // ---------------------------------------------------------------------------
 
+// PR #2973: the resumable action must not be described as cancellation.
+test("active run detail labels its pause action consistently across rendering modes", () => {
+	const detail = detailFromRun(makeRun({ id: "aaaaaaaa-1111-4111-8111-111111111111" }));
+	for (const theme of [undefined, deriveGraphTheme({})]) {
+		for (const width of [48, 100]) {
+			const plain = stripAnsi(renderRunDetail(detail, { theme, width, now: 2_000 }));
+			assert.match(plain, /workflow pause/);
+			assert.match(plain, /pause workflow/);
+			assert.doesNotMatch(plain, /cancel/);
+			for (const line of plain.split("\n")) assert.ok(visibleWidth(line) <= width);
+		}
+	}
+});
+
 describe("renderRunDetail — themed", () => {
-	test("emits rounded run panel, stage cards, and a cancel hint for an active run", () => {
+	test("emits rounded run panel, stage cards, and a pause hint for an active run", () => {
 		const now = 1_000_000;
 		const run = makeRun({
 			id: "abc123uuid",

@@ -6,11 +6,43 @@ import { Type } from "typebox";
 import { expect, it } from "vitest";
 import { bunExecutable, moduleDir, spawnSyncCollect } from "../../../test/helpers/runtime.js";
 import { createEventBus } from "../src/core/event-bus.js";
-import { createExtensionRuntime, loadExtensionFromFactory } from "../src/core/extensions/loader.js";
+import { createExtensionRuntime, loadExtensionFromFactory, loadExtensions } from "../src/core/extensions/loader.js";
 import { clearExtensionCache, extensionLoaderTestHooks } from "../src/core/extensions/loader-virtual-modules.js";
 import { SessionManager } from "../src/core/session-manager.js";
 
 const REAL_EXTENSION_LOADER_TEST_TIMEOUT_MS = 120_000;
+
+// PR #2973: a first-load native-import fallback must not evaluate the host again.
+it("first-load transformed extensions share the live host exports", async () => {
+	const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "atomic-first-load-host-"));
+	const entry = path.join(root, "extension.ts");
+	fs.writeFileSync(
+		entry,
+		`import { SessionManager } from "@bastani/atomic";
+import { Text } from "@earendil-works/pi-tui";
+import { Type } from "typebox";
+enum Mode { First }
+export default function (pi) {
+	pi.events.emit("first-load-host", { SessionManager, Text, Type, mode: Mode.First });
+}
+`,
+	);
+	const bus = createEventBus();
+	const observations: Array<{ SessionManager: object; Text: object; Type: object; mode: number }> = [];
+	bus.on("first-load-host", (value) => observations.push(value as (typeof observations)[number]));
+	try {
+		const loaded = await loadExtensions([entry], root, bus);
+		expect(loaded.errors).toEqual([]);
+		expect(observations).toHaveLength(1);
+		expect(observations[0]!.SessionManager).toBe(SessionManager);
+		expect(observations[0]!.Text).toBe(Text);
+		expect(observations[0]!.Type).toBe(Type);
+		expect(observations[0]!.mode).toBe(0);
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true });
+		clearExtensionCache();
+	}
+});
 
 // #2963: Windows reload must not re-evaluate the live host through development aliases.
 it(

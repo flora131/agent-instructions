@@ -6,6 +6,14 @@
 
 - Workflow controls, completion, help, and status hints use `/workflow pause`, `/workflow quit`, and `/workflow resume`. The workflow tool supports run, stage, and individual durable-tool pause targets; `/workflow pause [run-id|--all]` controls runs. Workflow lifecycle control events report `action: "pause"` for pause requests.
 
+### Added
+
+- Added the agent-callable `kill({ id })` tool for owned background bash and PowerShell tasks in main and workflow-stage chat. It cancels by task ID, preserves retained output and original outcomes, reports current cleanup state, and rejects other owners' tasks and subagents.
+
+### Fixed
+
+- First-loaded TypeScript extensions share the live host's classes and singletons when native import falls back to transformation, avoiding duplicate host evaluation and slow startup.
+
 ## [0.9.19-alpha.3] - 2026-09-09
 
 ### Fixed
