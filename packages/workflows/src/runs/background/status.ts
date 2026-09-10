@@ -467,7 +467,7 @@ async function pauseRunWithAction(
 	if (opts?.stageId !== undefined) {
 		const handle = registry.get(runId, opts.stageId);
 		if (!handle) return { ok: false, runId, reason: "stage_not_found" };
-		if (handle.status !== "running" && handle.status !== "pending") {
+		if (handle.status !== "running" && handle.status !== "pending" && handle.status !== "awaiting_input") {
 			return { ok: false, runId, reason: "no_active_stages" };
 		}
 		await handle.pause();
@@ -478,7 +478,10 @@ async function pauseRunWithAction(
 		const stillActive =
 			currentRun?.stages.some(
 				(candidate) =>
-					candidate.id !== opts.stageId && (candidate.status === "running" || candidate.status === "pending"),
+					candidate.id !== opts.stageId &&
+					(candidate.status === "running" ||
+						candidate.status === "pending" ||
+						candidate.status === "awaiting_input"),
 			) ?? false;
 		if (!stillActive) activeStore.recordRunPaused(runId);
 		return { ok: true, runId, paused };
@@ -489,7 +492,10 @@ async function pauseRunWithAction(
 		registry
 			.run(controlRunId)
 			.stages()
-			.filter((handle) => handle.status === "running" || handle.status === "pending")
+			.filter(
+				(handle) =>
+					handle.status === "running" || handle.status === "pending" || handle.status === "awaiting_input",
+			)
 			.map((handle) => ({ controlRunId, handle })),
 	);
 	if (handles.length === 0) {
