@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added the agent-callable `kill({ id })` tool for owned background bash and PowerShell tasks in main and workflow-stage chat. It cancels by task ID, preserves retained output and original outcomes, reports current cleanup state, and rejects other owners' tasks and subagents.
+
 ## [0.9.19-alpha.3] - 2026-09-09
 
 ### Fixed

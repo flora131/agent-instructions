@@ -1,6 +1,6 @@
 # Built-in tools
 
-Atomic enables these coding tools in normal sessions by default: `read`, `write`, `edit`, `bash`, `find`, and `search`.
+Atomic enables these coding tools in normal sessions by default: `read`, `write`, `edit`, `bash`, `kill`, `find`, and `search`.
 
 ## Hashline editing anchors
 
@@ -41,6 +41,12 @@ Configured command prefixes and SDK `spawnHook` rewrites remain executable shell
   "bashInterceptor": { "enabled": true }
 }
 ```
+
+## `kill`
+
+`kill({ id: taskId })` stops an owned background shell task launched by `bash` or `powershell`, including a command that automatically yielded. Pass its returned task ID verbatim, not a PID. The tool is owner-scoped in main and workflow-stage chat and does not cancel subagents or another owner's work.
+
+The result reports the cancellation decision and current execution and cleanup states. A request is not confirmation of termination. Repeated requests preserve the original cancellation decision; already-completed work retains its outcome. Cleanup failures are reported explicitly. See [Background tasks](/background-tasks#stop-a-shell-task-from-a-tool-call) for states, retained output, and `/tasks` controls.
 
 ## `find` and `search`
 

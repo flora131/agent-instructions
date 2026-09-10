@@ -87,6 +87,7 @@ describe("noTools builtin mode keeps extension tools enabled", () => {
 				"edit",
 				"find",
 				"intercom",
+				"kill",
 				"ls",
 				...(getDefaultToolNames().includes("powershell") ? (["powershell"] as const) : []),
 				"read",

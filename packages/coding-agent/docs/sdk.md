@@ -910,6 +910,8 @@ If you pass `tools`, include each custom or extension tool name you want enabled
 
 Factory-created `createBashTool()` instances receive the same execution-time `ATOMIC_SESSION_*`/`PI_SESSION_*` model and session snapshot as the built-in bash tool. Set `exposeSessionEnvironment: false` only when the subprocess must not receive it. `MessageRenderOptions.outputPad` is likewise passed to normal and isolated custom message renderers.
 
+Normal sessions also expose `kill({ id: taskId })` for their owned bash and PowerShell background tasks. Include `kill` when using a `tools` allowlist if the agent should be able to stop those tasks. The exported `createKillTool` and `createKillToolDefinition` factories accept `KillToolOptions.taskOwner`, a trusted execution-time callback returning the same owner binding used by shell launch. Without a binding they reject execution. The result details preserve the supervisor's `CancelReceipt`, including its decision, execution outcome, and cleanup state. See [Background tasks](/background-tasks#stop-a-shell-task-from-a-tool-call).
+
 #### Structured output final results
 
 `structured_output` is not registered in normal agent sessions by default. Add it only when a caller needs a machine-readable final-answer contract by registering the exported factory as a custom tool:
