@@ -432,7 +432,10 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
           release(new Error("Intercom session retired before inbound delivery"));
           return;
         }
-        if (!activeContext.isIdle()) {
+        // Parent-addressed peers need not match an exact child handshake. Reach
+        // SDK admission while this owner is observing a task: persistence and
+        // model-queue insertion then yield its waits, never the child execution.
+        if (!activeContext.isIdle() && !activeContext.getAgentTaskHost?.().hasActiveTaskWaits) {
           if (!activeContext.hasUI) {
             const activeClient = client;
             if (!message.replyTo && activeClient?.isConnected()) {
