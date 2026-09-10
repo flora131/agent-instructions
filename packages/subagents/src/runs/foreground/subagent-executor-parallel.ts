@@ -270,7 +270,9 @@ export async function runParallelPath(
 			if (result.artifactPaths) allArtifactPaths.push(result.artifactPaths);
 		}
 
-		const interrupted = results.find((result) => result.interrupted && !isParentCancellation(result.cause));
+		const interrupted = results.find(
+			(result) => result.status === "killed" || (result.interrupted && !isParentCancellation(result.cause)),
+		);
 		const details = compactForegroundDetails({
 			mode: "parallel",
 			runId,
@@ -289,7 +291,10 @@ export async function runParallelPath(
 				content: [
 					{
 						type: "text",
-						text: `Parallel run ended after interrupt (${interrupted.agent}). Launch fresh subagents for any follow-up.`,
+						text:
+							interrupted.status === "killed"
+								? `Parallel child killed (${interrupted.agent}). This child cannot be resumed. Launch fresh subagents for any follow-up.`
+								: `Parallel run ended before completion (${interrupted.agent}). Launch fresh subagents for any follow-up.`,
 					},
 				],
 				details,

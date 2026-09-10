@@ -3,11 +3,13 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionContext } from "@bastani/atomic";
+import { validateToolArguments } from "@bastani/pi-ai";
 import { afterEach, beforeEach, test } from "vitest";
 import { AgentTaskHost } from "../../packages/coding-agent/src/core/tasks/agent-adapter.js";
 import type { OperationId, TaskResult } from "../../packages/coding-agent/src/core/tasks/contracts.js";
 import { createGitEnvironment } from "../../packages/coding-agent/src/utils/git-env.js";
 import type { AgentConfig } from "../../packages/subagents/src/agents/agent-types.js";
+import { SubagentParams } from "../../packages/subagents/src/extension/schemas.js";
 import { runSync } from "../../packages/subagents/src/runs/foreground/execution.js";
 import { createSubagentExecutor } from "../../packages/subagents/src/runs/foreground/subagent-executor.js";
 import type {
@@ -134,6 +136,36 @@ afterEach(() => {
 	for (const root of tempRoots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
+test("subagent schema accepts kill and rejects interrupt through provider validation", () => {
+	const tool = { name: "subagent", description: "test subagent", parameters: SubagentParams };
+	const call = (action: string) => ({
+		type: "toolCall" as const,
+		id: "schema",
+		name: "subagent",
+		arguments: { action, id: "raw/child" },
+	});
+	assert.deepEqual(validateToolArguments(tool, call("kill")), { action: "kill", id: "raw/child" });
+	assert.throws(() => validateToolArguments(tool, call("interrupt")));
+});
+
+test("public kill replaces interrupt without retaining an alias", async () => {
+	const cwd = makeRoot();
+	const { execute } = executor(cwd, new TestEvents());
+	for (const action of ["kill", "interrupt"]) {
+		const result = await execute.execute(
+			"command-contract",
+			// @ts-expect-error Exercise invalid public action input at runtime.
+			{ action },
+			new AbortController().signal,
+			undefined,
+			context(cwd),
+		);
+		assert.equal(result.isError, true);
+		if (action === "interrupt") assert.match(text(result), /Unknown action: interrupt/);
+		else assert.doesNotMatch(text(result), /Unknown action/);
+	}
+});
+
 test("public parallel dispatch retries capacity refusals until all six tasks complete", async () => {
 	const cwd = makeRoot();
 	const { execute } = executor(cwd, new TestEvents());
@@ -257,7 +289,7 @@ test("public parallel worktree mode gives each task an isolated checkout", async
 		.filter((line) => line.startsWith("worktree "));
 	assert.equal(remainingWorktrees.length, 1);
 });
-test("public interrupt accepts both bare run ids and canonical child paths", async () => {
+test("public kill accepts both bare run ids and canonical child paths", async () => {
 	for (const form of ["bare", "canonical"] as const) {
 		const cwd = makeRoot();
 		const gate = Promise.withResolvers<void>();
@@ -267,7 +299,7 @@ test("public interrupt accepts both bare run ids and canonical child paths", asy
 				runSync(parentCwd, agents, agentName, task, {
 					...options,
 					testSession: {
-						output: "interrupted output",
+						output: "partial output",
 						promptGate: gate.promise,
 						promptLogPath,
 						abortResolvesPrompt: true,
@@ -302,22 +334,41 @@ test("public interrupt accepts both bare run ids and canonical child paths", asy
 		assert.match(childPath, new RegExp(`^${runId}/qa-echo_1$`));
 		const id = form === "bare" ? runId : childPath;
 
-		const interrupted = await execute.execute(
-			`interrupt-${form}`,
-			{ action: "interrupt", id },
+		const killed = await execute.execute(
+			`kill-${form}`,
+			{ action: "kill", ...(form === "bare" ? { runId: id } : { id }) },
 			new AbortController().signal,
 			undefined,
 			ctx,
 		);
-		assert.equal(interrupted.isError, undefined, text(interrupted));
-		assert.match(text(interrupted), /Interrupt requested/);
+		assert.equal(killed.isError, undefined, text(killed));
+		assert.match(text(killed), /Kill requested/);
 		const terminal = await running;
-		assert.match(text(terminal), /Run ended after interrupt/);
+		assert.equal(terminal.details.results[0].status, "killed");
+		assert.match(text(terminal), /Killed/);
+		assert.match(text(terminal), /cannot be resumed/);
+		const stopped = await execute.execute(
+			"stopped-status",
+			{ action: "status", id: childPath },
+			new AbortController().signal,
+			undefined,
+			ctx,
+		);
+		assert.match(text(stopped), /Status: killed/);
+		const repeated = await execute.execute(
+			"repeated-kill",
+			{ action: "kill", id: childPath },
+			new AbortController().signal,
+			undefined,
+			ctx,
+		);
+		assert.equal(repeated.isError, true);
+		assert.match(text(repeated), /No running in-process child/);
 		gate.resolve();
 	}
 });
 
-test("management status, wait and interrupt resolve the launch task ID without starting another child", async () => {
+test("management status, wait and kill resolve the launch task ID without starting another child", async () => {
 	const cwd = makeRoot();
 	const { execute } = executor(cwd, new TestEvents());
 	const host = new AgentTaskHost({ scope: { kind: "session", sessionId: "management-owner" }, authorizeLaunch() {} });
@@ -337,7 +388,7 @@ test("management status, wait and interrupt resolve the launch task ID without s
 		);
 		assert.ok(started.ok);
 		await host.observeAgentLaunch(started.value.taskId);
-		const call = (action: "status" | "wait" | "interrupt") =>
+		const call = (action: "status" | "wait" | "kill") =>
 			execute.execute(
 				`management-${action}`,
 				{ action, id: started.value.taskId, budgetMs: 1 },
@@ -349,12 +400,79 @@ test("management status, wait and interrupt resolve the launch task ID without s
 		assert.equal(status.details?.taskRecords?.[0].execution.kind, "running");
 		const waited = await call("wait");
 		assert.equal(waited.details?.taskResponse?.kind, "admitted");
-		await call("interrupt");
+		await call("kill");
 		await host.waitForTask(started.value.taskId);
 		const stopped = await call("status");
 		assert.equal(stopped.details?.taskRecords?.[0].execution.kind, "settled");
 		assert.equal(stopped.details?.taskRecords?.length, 1);
+		assert.match(text(stopped), /Killed.*cannot be resumed/);
+		assert.match(text(await call("wait")), /Killed.*cannot be resumed/);
 	} finally {
 		await host.close("session-close");
+	}
+});
+
+test("owner task kill reaches a real child and wait preserves raw cancellation under a killed receipt", async () => {
+	for (const field of ["id", "runId"] as const) {
+		const cwd = makeRoot();
+		const gate = Promise.withResolvers<void>();
+		const promptLogPath = join(cwd, "owner-prompt.log");
+		const { execute } = executor(cwd, new TestEvents(), {
+			runSync: (parentCwd, agents, agentName, task, options) =>
+				runSync(parentCwd, agents, agentName, task, {
+					...options,
+					testSession: { promptGate: gate.promise, promptLogPath, abortResolvesPrompt: true },
+				}),
+		});
+		const host = new AgentTaskHost({
+			scope: { kind: "session", sessionId: `owner-kill-${field}` },
+			authorizeLaunch() {},
+		});
+		const ctx = { ...context(cwd), getAgentTaskHost: () => host };
+		try {
+			const launched = await execute.execute(
+				"launch-owner",
+				{ agent: "qa-echo", task: "hold", artifacts: false, wait: { kind: "background" } },
+				new AbortController().signal,
+				undefined,
+				ctx,
+			);
+			const response = launched.details.taskResponse;
+			assert.equal(response?.kind, "admitted");
+			assert.ok(response?.kind === "admitted");
+			const taskId = response.observation.taskId;
+			for (let attempt = 0; attempt < 200 && !existsSync(promptLogPath); attempt++) await sleep(5);
+			assert.ok(existsSync(promptLogPath));
+			const killed = await execute.execute(
+				"kill-owner",
+				{ action: "kill", [field]: taskId },
+				new AbortController().signal,
+				undefined,
+				ctx,
+			);
+			assert.notEqual(killed.isError, true, text(killed));
+			const stopped = await host.waitForTask(taskId);
+			assert.ok(stopped.ok && stopped.value.kind === "settled");
+			assert.equal(stopped.value.result.kind, "cancelled");
+			const waited = await execute.execute(
+				"wait-owner",
+				{ action: "wait", id: taskId },
+				new AbortController().signal,
+				undefined,
+				ctx,
+			);
+			assert.match(text(waited), /Killed.*cannot be resumed/);
+			const status = await execute.execute(
+				"status-child",
+				{ action: "status" },
+				new AbortController().signal,
+				undefined,
+				ctx,
+			);
+			assert.match(text(status), /killed/);
+		} finally {
+			gate.resolve();
+			await host.close("session-close");
+		}
 	}
 });

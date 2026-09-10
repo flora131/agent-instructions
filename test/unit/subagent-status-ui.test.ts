@@ -218,3 +218,14 @@ test("expanded status preserves empty run identities alongside populated runs", 
 		unregisterSubagentControl(control);
 	}
 });
+
+test("killed status cards explicitly reject resumability", () => {
+	initTheme("dark");
+	const snapshot = group();
+	snapshot.children[0]!.status = "killed";
+	for (const expanded of [false, true]) {
+		const output = plain(render([snapshot], expanded));
+		assert.match(output, /Killed \(non-resumable\)/);
+		assert.doesNotMatch(output, /Interrupted|Resume|Continue/);
+	}
+});

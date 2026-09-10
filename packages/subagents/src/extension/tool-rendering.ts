@@ -3,6 +3,7 @@ import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import { type Component, Container, Text, truncateToWidth } from "@earendil-works/pi-tui";
 import { getBurstDisplay } from "../runs/foreground/subagent-executor-burst-display.js";
 import type { SubagentParamsLike } from "../runs/foreground/subagent-executor-types.js";
+import { subagentTaskResultLabel } from "../runs/foreground/task-execution.js";
 import { formatModelThinking } from "../shared/formatters.js";
 import type { Details } from "../shared/types.js";
 import { renderLiveSubagentResult } from "../tui/render.js";
@@ -62,7 +63,8 @@ export function renderSubagentToolResult(
 		return new Text(theme.fg("error", `✗ ${displayText(result.details.taskError)}`), 0, 0);
 	if (result.details?.taskRecords && !result.details.taskResponse) {
 		const lines = result.details.taskRecords.flatMap((task) => {
-			const state = task.execution.kind === "settled" ? task.execution.result.kind : task.execution.kind;
+			const state =
+				task.execution.kind === "settled" ? subagentTaskResultLabel(task.execution.result) : task.execution.kind;
 			return [
 				theme.bold(`${displayText(task.agentName ?? "bash")} · ${state}`),
 				...(task.kind === "agent"
@@ -113,7 +115,9 @@ export function renderSubagentToolResult(
 						? "Completed"
 						: observation.result.kind === "failed"
 							? "Failed"
-							: "Stopped";
+							: subagentTaskResultLabel(observation.result) === "killed (non-resumable)"
+								? "Killed (non-resumable)"
+								: "Stopped";
 			const icon =
 				observation.kind === "yielded"
 					? "∀"

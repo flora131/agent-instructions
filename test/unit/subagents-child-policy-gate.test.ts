@@ -196,11 +196,11 @@ describe("subagent child policy gates fanout, not management", () => {
 		}
 	});
 
-	test("a child without fanout authorization is refused interrupt", async () => {
+	test("a child without fanout authorization is refused kill", async () => {
 		const executor = makeExecutor(policyFor({ fanoutAuthorized: false, managementActions: "full" }));
 
-		// Interrupt is privileged control over a running child, not observation.
-		for (const action of ["interrupt"] as const) {
+		// Kill is privileged control over a running child, not observation.
+		for (const action of ["kill"] as const) {
 			const result = await runAction(executor, {
 				action,
 				id: "victim-run/victim_1",
@@ -213,10 +213,10 @@ describe("subagent child policy gates fanout, not management", () => {
 		assert.deepEqual(runSyncCalls, []);
 	});
 
-	test("a fanout-authorized child still reaches interrupt", async () => {
+	test("a fanout-authorized child still reaches kill", async () => {
 		const executor = makeExecutor(policyFor({ fanoutAuthorized: true, managementActions: "full" }));
 
-		for (const action of ["interrupt"] as const) {
+		for (const action of ["kill"] as const) {
 			const result = await runAction(executor, {
 				action,
 				id: "missing-run/missing_1",
@@ -279,7 +279,7 @@ describe("subagent child policy gates fanout, not management", () => {
 		const executionActions: Parameters<ExecutorForTest["execute"]>[1][] = [
 			{ agent: "alpha", task: "do work" },
 			{ tasks: [{ agent: "alpha", task: "do work" }] },
-			{ action: "interrupt", id: "run-1" },
+			{ action: "kill", id: "run-1" },
 		];
 
 		for (const params of executionActions) {

@@ -25,6 +25,7 @@ export function resolveSubagentResultStatus(input: {
 	interrupted?: boolean;
 	detached?: boolean;
 }): SubagentResultStatus {
+	if (input.status === "killed" || input.state === "killed") return "killed";
 	if (input.detached || input.status === "continued") return "detached";
 	if (input.interrupted || input.status === "interrupted" || input.state === "interrupted") return "interrupted";
 	if (input.status === "ok" || input.success === true || input.state === "complete") return "completed";
@@ -38,6 +39,7 @@ function countStatuses(children: SubagentResultIntercomChild[]): Record<Subagent
 		completed: 0,
 		failed: 0,
 		interrupted: 0,
+		killed: 0,
 		detached: 0,
 	};
 	for (const child of children) {
@@ -50,6 +52,7 @@ function formatStatusCounts(children: SubagentResultIntercomChild[]): string {
 	let completed = 0;
 	let failed = 0;
 	let interrupted = 0;
+	let killed = 0;
 	let cancelled = 0;
 	let detached = 0;
 	for (const child of children) {
@@ -58,6 +61,7 @@ function formatStatusCounts(children: SubagentResultIntercomChild[]): string {
 		else if (label === "completed") completed += 1;
 		else if (label === "failed") failed += 1;
 		else if (label === "interrupted") interrupted += 1;
+		else if (label === "killed") killed += 1;
 		else if (label === "detached") detached += 1;
 	}
 	const parts = [
@@ -65,6 +69,7 @@ function formatStatusCounts(children: SubagentResultIntercomChild[]): string {
 		failed ? `${failed} failed` : undefined,
 		cancelled ? `${cancelled} cancelled` : undefined,
 		interrupted ? `${interrupted} interrupted` : undefined,
+		killed ? `${killed} killed (non-resumable)` : undefined,
 		detached ? `${detached} detached` : undefined,
 	].filter((part): part is string => Boolean(part));
 	return parts.length ? parts.join(", ") : "0 results";
@@ -73,6 +78,7 @@ function formatStatusCounts(children: SubagentResultIntercomChild[]): string {
 function resolveGroupedStatus(children: SubagentResultIntercomChild[]): SubagentResultStatus {
 	const counts = countStatuses(children);
 	if (counts.failed > 0) return "failed";
+	if (counts.killed > 0) return "killed";
 	if (counts.interrupted > 0) return "interrupted";
 	if (counts.completed > 0) return "completed";
 	if (counts.detached > 0) return "detached";

@@ -28,7 +28,7 @@ export function buildMultiProgressLabel(
 
 	if (details.mode === "parallel") {
 		const statuses = new Array(totalCount).fill("pending") as Array<
-			"pending" | "running" | "completed" | "failed" | "interrupted" | "detached"
+			"pending" | "running" | "completed" | "failed" | "interrupted" | "killed" | "detached"
 		>;
 		for (const progress of details.progress ?? []) {
 			if (progress.index >= 0 && progress.index < totalCount) statuses[progress.index] = progress.status;
@@ -42,13 +42,15 @@ export function buildMultiProgressLabel(
 			if (index < 0 || index >= totalCount) continue;
 			const status =
 				result.progress?.status ??
-				(result.interrupted || result.status === "interrupted"
-					? "interrupted"
-					: result.detached || result.status === "continued"
-						? "detached"
-						: result.status === "ok"
-							? "completed"
-							: "failed");
+				(result.status === "killed"
+					? "killed"
+					: result.interrupted || result.status === "interrupted"
+						? "interrupted"
+						: result.detached || result.status === "continued"
+							? "detached"
+							: result.status === "ok"
+								? "completed"
+								: "failed");
 			statuses[index] = status;
 		}
 		const running = statuses.filter((status) => status === "running").length;

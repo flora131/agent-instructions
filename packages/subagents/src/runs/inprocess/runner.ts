@@ -53,10 +53,10 @@ import {
 import { type ChildModePolicy, resolveChildModePolicy } from "./child-policy.js";
 import { createInProcessChildPromptBehavior, createInProcessChildSystemPromptTransform } from "./prompt-behavior.js";
 
-export type ChildStatus = NativeAgentStatus;
+export type ChildStatus = NativeAgentStatus | "killed";
 export type ContinuationReason = "intercom-coordination";
 export type TerminationCauseName = NativeTerminationCause;
-export type TerminalStatus = "ok" | "error" | "skipped" | "interrupted" | "continued";
+export type TerminalStatus = "ok" | "error" | "skipped" | "interrupted" | "killed" | "continued";
 
 export interface ParentContext {
 	readonly path: string;
@@ -209,7 +209,7 @@ export type AttemptOutcome = (
 			readonly attemptedModels?: readonly string[];
 	  }
 	| {
-			readonly status: "interrupted";
+			readonly status: "interrupted" | "killed";
 			readonly cause?: string;
 			readonly stats: AttemptStats;
 			readonly path: string;
@@ -517,7 +517,7 @@ function createTestSession(sessionManager: SessionManager, spec: ChildSpec): Age
 }
 
 function nativeStatus(value: ChildStatus): NativeAgentStatus {
-	return value;
+	return value === "killed" ? "interrupted" : value;
 }
 
 function nativeCause(value: TerminationCauseName): NativeTerminationCause {
@@ -745,6 +745,7 @@ export class SubagentControlRuntime {
 	private readonly attemptTerminators = new Map<string, (cause: TerminationCauseName) => Promise<void>>();
 	private readonly delivered = new Set<string>();
 	private readonly deliveredEnvelopes = new Map<string, ResultEnvelope>();
+	private readonly killedChildren = new Set<string>();
 	private nextAttemptId = 1;
 
 	constructor(parent: ParentContext, sessionRoot?: string) {
@@ -889,7 +890,13 @@ export class SubagentControlRuntime {
 		let unsubscribe: (() => void) | undefined;
 		let skillReport: AttemptSkillReport = {};
 		const terminate = async (cause: TerminationCauseName): Promise<void> => {
-			if (terminating) return terminating;
+			if (terminating) {
+				if (termination !== "interrupt" && !(taskHooks && signals.abort.reason === "user"))
+					this.killedChildren.delete(admitted.identity.path);
+				return terminating;
+			}
+			if (taskHooks && cause === "abort" && signals.abort.reason === "user")
+				this.killedChildren.add(admitted.identity.path);
 			termination = cause;
 			terminating = (async () => {
 				try {
@@ -1132,11 +1139,15 @@ export class SubagentControlRuntime {
 				};
 			if (status === "interrupted")
 				return {
-					status,
-					...(termination === PARENT_CANCEL_CAUSE ? { cause: PARENT_CANCEL_CAUSE } : {}),
+					status: this.killedChildren.has(admitted.identity.path) ? "killed" : status,
+					...(termination === PARENT_CANCEL_CAUSE && !this.killedChildren.has(admitted.identity.path)
+						? { cause: PARENT_CANCEL_CAUSE }
+						: {}),
 					stats,
 					path: admitted.identity.path,
-					envelope,
+					envelope: this.killedChildren.has(admitted.identity.path)
+						? "Killed. This child cannot be resumed."
+						: envelope,
 					sessionFile,
 					...(effectiveModelId === undefined ? {} : { model: effectiveModelId }),
 					...(effectiveThinking === undefined ? {} : { thinking: effectiveThinking }),
@@ -1167,14 +1178,18 @@ export class SubagentControlRuntime {
 			}
 			if (status === "interrupted")
 				return {
-					status,
-					...(termination === PARENT_CANCEL_CAUSE ? { cause: PARENT_CANCEL_CAUSE } : {}),
+					status: this.killedChildren.has(admitted.identity.path) ? "killed" : status,
+					...(termination === PARENT_CANCEL_CAUSE && !this.killedChildren.has(admitted.identity.path)
+						? { cause: PARENT_CANCEL_CAUSE }
+						: {}),
 					stats,
 					path: admitted.identity.path,
 					envelope:
-						termination === PARENT_CANCEL_CAUSE
+						termination === PARENT_CANCEL_CAUSE && !this.killedChildren.has(admitted.identity.path)
 							? cancelledEnvelope(session, admitted.spec, stats)
-							: INTERRUPTED_ENVELOPE,
+							: this.killedChildren.has(admitted.identity.path)
+								? "Killed. This child cannot be resumed."
+								: INTERRUPTED_ENVELOPE,
 					sessionFile: session?.sessionFile,
 					...(effectiveModelId === undefined ? {} : { model: effectiveModelId }),
 					...(effectiveThinking === undefined ? {} : { thinking: effectiveThinking }),
@@ -1356,27 +1371,33 @@ export class SubagentControlRuntime {
 	getDeliveredResult(pathValue: string): ResultEnvelope | undefined {
 		return this.deliveredEnvelopes.get(pathValue);
 	}
-	findChild(pathValue: string): ChildIdentity | undefined {
-		return this.native.listChildren().find((child) => child.path === pathValue);
+	findChild(pathValue: string): (Omit<ChildIdentity, "status"> & { status: ChildStatus }) | undefined {
+		return this.listChildren().find((child) => child.path === pathValue);
 	}
 
-	listChildren(): readonly ChildIdentity[] {
-		return this.native.listChildren();
+	listChildren(): readonly (Omit<ChildIdentity, "status"> & { status: ChildStatus })[] {
+		return this.native.listChildren().map((child) => ({
+			...child,
+			status: child.status === "interrupted" && this.killedChildren.has(child.path) ? "killed" : child.status,
+		}));
 	}
 
-	async interruptChild(pathValue: string): Promise<boolean> {
+	async killChild(pathValue: string): Promise<boolean> {
 		const running = [...this.runningAttempts.values()].find(
 			(attempt) =>
 				attempt.child.identity.path === pathValue &&
 				(attempt.status === "running" || attempt.status === "continued"),
 		);
 		if (!running) return false;
+		this.killedChildren.add(pathValue);
 		await this.terminateChildAttempt(running, "interrupt");
 		return true;
 	}
 
 	subscribe(pathValue: string, callback: (status: ChildStatus) => void): void {
-		this.native.subscribeChildStatus(pathValue, callback);
+		this.native.subscribeChildStatus(pathValue, (status) =>
+			callback(status === "interrupted" && this.killedChildren.has(pathValue) ? "killed" : status),
+		);
 	}
 
 	private async terminateRunningAttempt(running: RunningAttempt, cause: TerminationCauseName): Promise<void> {

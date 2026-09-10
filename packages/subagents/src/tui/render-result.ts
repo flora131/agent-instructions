@@ -112,11 +112,13 @@ export function renderSubagentResult(
 				? theme.fg("warning", "yielded")
 				: r.detached || r.status === "continued"
 					? theme.fg("warning", "detached")
-					: isParentCancellation(r.cause) && (r.interrupted || r.status === "interrupted")
-						? theme.fg("warning", "cancelled")
-						: r.status === "ok"
-							? theme.fg("success", "ok")
-							: theme.fg("error", "failed");
+					: r.status === "killed"
+						? theme.fg("warning", "killed (non-resumable)")
+						: isParentCancellation(r.cause) && (r.interrupted || r.status === "interrupted")
+							? theme.fg("warning", "cancelled")
+							: r.status === "ok"
+								? theme.fg("success", "ok")
+								: theme.fg("error", "failed");
 		const contextBadge = d.context === "fork" ? theme.fg("warning", " [fork]") : "";
 		const output = r.truncation?.text || getSingleResultOutput(r);
 
@@ -351,7 +353,10 @@ export function renderSubagentResult(
 				? theme.fg("error", "failed")
 				: isParentCancellation(r.cause) && (r.interrupted || r.status === "interrupted")
 					? theme.fg("warning", "cancelled")
-					: r.status === "skipped" || r.status === "interrupted" || r.status === "continued"
+					: r.status === "killed" ||
+							r.status === "skipped" ||
+							r.status === "interrupted" ||
+							r.status === "continued"
 						? theme.fg("warning", r.status)
 						: hasEmptyTextOutputWithoutOutputTarget(r.task, resultOutput)
 							? theme.fg("warning", "warning")

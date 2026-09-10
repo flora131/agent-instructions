@@ -136,6 +136,7 @@ export function firstOutputLine(text: string): string {
 export function resultStatusLine(result: Details["results"][number], output: string): string {
 	if (result.detached) return result.detachedReason ? `Detached: ${result.detachedReason}` : "Detached";
 	if (result.status === "continued") return "Continued";
+	if (result.status === "killed") return "Killed (non-resumable)";
 	if (isParentCancellation(result.cause) && (result.interrupted || result.status === "interrupted"))
 		return "Cancelled";
 	if (result.interrupted || result.status === "interrupted") return "Interrupted";
@@ -154,7 +155,12 @@ export function resultGlyph(
 ): string {
 	if (running) return theme.fg("accent", pulseGlyph(pulseFrame));
 	if (result.detached || result.status === "continued") return theme.fg("warning", "■");
-	if (result.interrupted || result.status === "interrupted" || result.status === "skipped")
+	if (
+		result.status === "killed" ||
+		result.interrupted ||
+		result.status === "interrupted" ||
+		result.status === "skipped"
+	)
 		return theme.fg("warning", "■");
 	if (result.status === "error") return theme.fg("error", "✗");
 	if (hasEmptyTextOutputWithoutOutputTarget(result.task, output)) return theme.fg("warning", "✓");

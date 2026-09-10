@@ -191,6 +191,11 @@ const proseNames = new Set([
 	"openai",
 	"anthropic",
 	// Parameter and request-field names, never exports.
+	// Subagent tool/action names and targeting fields are not package-root exports.
+	"subagent",
+	"interrupt",
+	"kill",
+	"runId",
 	"enabled",
 	"inheritEnv",
 	"bash",

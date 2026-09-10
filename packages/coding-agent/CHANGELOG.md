@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Breaking Changes
+
+- Renamed the bundled subagent `interrupt` action to `kill`. Migrate `subagent({ action: "interrupt", id })` to `subagent({ action: "kill", id })`, including calls using `runId`. The old action is no longer accepted. Kill terminally stops the child and cannot be resumed; follow-up work requires a fresh launch. Workflow interrupt commands and parent cancellation behavior are unchanged.
+
 ## [0.9.19-alpha.3] - 2026-09-09
 
 ### Fixed

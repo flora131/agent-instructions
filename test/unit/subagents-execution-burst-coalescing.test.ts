@@ -1241,7 +1241,7 @@ test("preserves shared interrupt guidance while projecting each caller's child r
 			execute(harness, "first", { agent: "echo", task: "A" }),
 			execute(harness, "second", { agent: "echo", task: "B" }),
 		]);
-		const expected = "Parallel run ended after interrupt (echo). Launch fresh subagents for any follow-up.";
+		const expected = "Parallel run ended before completion (echo). Launch fresh subagents for any follow-up.";
 
 		assert.deepEqual(
 			outputs.map((output) => output.content),
