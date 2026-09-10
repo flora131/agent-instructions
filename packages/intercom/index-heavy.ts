@@ -38,6 +38,7 @@ import { InboundMessageAdmission } from "./inbound-message-admission.js";
 import { registerLateStageMessageRouter } from "./late-stage-message-router.js";
 import { retryStableDelivery } from "./stable-delivery-retry.js";
 import type { IntercomExtensionTestOverrides } from "./intercom-test-seams.js";
+import { admitActiveSessionInbound } from "./active-session-admission.js";
 import { admitWorkflowStageInbound } from "./workflow-stage-admission.js";
 import { bindWorkflowReplyTracker, preserveWorkflowReplyTracker } from "./workflow-reply-tracker.js";
 import { routeClosedWorkflowStageMessage } from "./closed-workflow-stage-message.js";
@@ -402,8 +403,9 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
       replyContext,
       currentClient: () => client,
       commit,
+      failurePrefix: liveContext.subagentPolicy?.executionEnded === undefined ? undefined : "Subagent could not admit intercom ask",
     });
-    const stageDelivery = admitWorkflowStageInbound(
+    const activeDelivery = admitActiveSessionInbound(
       liveContext,
       (admissionBarrier) => {
         replyTracker.queueTurnContext(replyContext);
@@ -415,8 +417,8 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
       () => foregroundDetachHandoff.claim(from, message, messageGeneration, () => Boolean(getLiveContext(liveContext, messageGeneration))),
       release,
     );
-    if (stageDelivery !== false) {
-      void stageDelivery.then(commit, release);
+    if (activeDelivery !== false) {
+      void activeDelivery.then(commit, release);
       return;
     }
     return (async () => {

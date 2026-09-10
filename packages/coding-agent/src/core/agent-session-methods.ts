@@ -497,6 +497,7 @@ export interface AgentSessionInternalSurface extends AgentSessionMethodSurface, 
 	_sessionStartEvent: SessionStartEvent;
 	_orchestrationContext?: OrchestrationContext;
 	_subagentPolicy?: import("./extensions/index.js").SubagentChildPolicy;
+	_subagentMessageAdmission?: import("./workflow-stage-admission.ts").WorkflowStageAdmissionBoundary;
 	_extensionUIContext?: ExtensionUIContext;
 	_extensionMode: ExtensionMode;
 	_disposed: boolean;

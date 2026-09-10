@@ -130,6 +130,15 @@ export class WorkflowStageAdmissionBoundary {
 		);
 	}
 
+	/** Join already-reserved queue commits before a native turn polls its input. */
+	async waitForPendingDeliveries(): Promise<void> {
+		await Promise.allSettled([...this.pending]);
+	}
+
+	hasPendingDeliveries(): boolean {
+		return this.pending.size > 0;
+	}
+
 	registerOwnedSubagentRun(runId: string): void {
 		this.ownedSubagentRunIds.add(runId);
 	}

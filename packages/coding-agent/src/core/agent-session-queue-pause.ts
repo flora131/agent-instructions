@@ -76,6 +76,12 @@ export async function resumeQueuedMessages(this: AgentSession, beforeRelease?: (
 export function abort(this: AgentSession): Promise<void> {
 	const owner = resolveWorkflowStageDeliveryTarget(this);
 	if (owner !== this) return owner.abort();
+	if (this._subagentMessageAdmission) {
+		// Cancellation is terminal for a child. Hold even deliveries whose
+		// protocol-safe persistence is still pending so they cannot restart it.
+		this._subagentMessageAdmission.seal();
+		this.pauseQueuedMessages();
+	}
 	this.abortRetry();
 	this.abortCompaction();
 	this.abortBranchSummary();

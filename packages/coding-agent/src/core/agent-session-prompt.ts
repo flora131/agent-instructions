@@ -236,6 +236,10 @@ export async function _runAgentPrompt(
 		return owner._runAgentPrompt(messages, promptStarted);
 	}
 	try {
+		if (this._subagentMessageAdmission) {
+			await this._subagentMessageAdmission.waitForPendingDeliveries();
+			if (!this._subagentMessageAdmission.isOpen()) return;
+		}
 		const turn = this.agent.prompt(messages);
 		if (this.isStreaming) promptStarted?.();
 		await turn;
@@ -250,7 +254,23 @@ export async function _runAgentPrompt(
 			await this._extensionRunner.emit({ type: "agent_settled" });
 		}
 		this._emit?.({ type: "agent_settled" });
+		if (this._subagentMessageAdmission) await settleSubagentMessages(this);
 	}
+}
+
+async function settleSubagentMessages(session: AgentSession): Promise<void> {
+	const admission = session._subagentMessageAdmission!;
+	// A host-requested stop is terminal for a child, like cancellation. Retain
+	// protected input for persistence without restarting work or spinning on it.
+	if (session._stopAfterTurnBlockedContinuation) session.pauseQueuedMessages();
+	// Keep receiving while admitted input is answered. Seal synchronously only
+	// after both producer commits and native continuations have drained.
+	do {
+		await admission.waitForPendingDeliveries();
+		await session._continueQueuedAgentMessages();
+		if (session._stopAfterTurnBlockedContinuation) session.pauseQueuedMessages();
+	} while (admission.hasPendingDeliveries() || (!session._queuedMessagesPaused && session.agent.hasQueuedMessages()));
+	admission.seal();
 }
 
 export async function _runAgentContinue(this: AgentSession): Promise<void> {

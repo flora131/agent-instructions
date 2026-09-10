@@ -10,6 +10,7 @@
 
 - Preserved an explicit kill when parent cancellation arrives during execution-capacity waiting, without allowing a late kill to replace an earlier parent cancellation.
 - Kept grouped Intercom cancellation status consistent when a killed child has parent-cancelled siblings, while retaining each child's outcome.
+- Intercom updates reach the same working foreground or background child at its next model turn without cancellation or relaunch. Messages admitted during startup or final settlement no longer create competing work or disappear ahead of the result.
 
 ## [0.9.19-alpha.3] - 2026-09-09
 

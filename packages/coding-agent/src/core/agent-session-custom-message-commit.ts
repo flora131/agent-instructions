@@ -29,7 +29,12 @@ export async function commitAdmittedCustomMessage<T>(
 		(options.triggerTurn === true || options.stageAdmissionKey !== undefined);
 	if (options?.deliverAs === "nextTurn") {
 		self._pendingNextTurnMessages.push(appMessage);
-	} else if (self._queuedMessagesPaused) {
+	} else if (
+		self._queuedMessagesPaused ||
+		// A child has one host-owned task prompt, including its asynchronous preflight.
+		// Inbound context joins that execution; an idle SDK gap is not a new task.
+		(self._subagentPolicy?.executionEnded !== undefined && options?.triggerTurn && options.deliverAs !== "interrupt")
+	) {
 		if (options?.triggerTurn === true) {
 			const delivery = options.deliverAs === "followUp" ? "followUp" : "steer";
 			if (useProtectedReconciliation) {
@@ -119,7 +124,10 @@ export async function commitAdmittedCustomMessages<T>(
 	const delivery = options?.deliverAs === "followUp" ? "followUp" : "steer";
 	if (options?.deliverAs === "nextTurn") {
 		self._pendingNextTurnMessages.push(...appMessages);
-	} else if (self._queuedMessagesPaused) {
+	} else if (
+		self._queuedMessagesPaused ||
+		(self._subagentPolicy?.executionEnded !== undefined && options?.triggerTurn)
+	) {
 		if (options?.triggerTurn === true) {
 			if (useProtectedReconciliation) {
 				await queueProtectedStreamingCustomMessages(self, appMessages, delivery);

@@ -35,6 +35,20 @@ function serializeInterruptMutation(owner: AgentSession, operation: () => Promis
 	return delivery;
 }
 
+const subagentDeliveryQueues = new WeakMap<AgentSession, Promise<void>>();
+
+/** Reserve in the caller's boundary first, then commit child deliveries in arrival order. */
+function serializeSubagentDelivery(owner: AgentSession, operation: () => Promise<void>): Promise<void> {
+	const previous = subagentDeliveryQueues.get(owner);
+	const delivery = previous ? previous.then(operation) : operation();
+	const settled = delivery.catch(() => undefined);
+	subagentDeliveryQueues.set(owner, settled);
+	void settled.then(() => {
+		if (subagentDeliveryQueues.get(owner) === settled) subagentDeliveryQueues.delete(owner);
+	});
+	return delivery;
+}
+
 export async function _queueSteer(this: AgentSession, text: string, images?: ImageContent[]): Promise<void> {
 	const owner = resolveWorkflowStageDeliveryTarget(this);
 	if (owner !== this) return owner._queueSteer(text, images);
@@ -125,13 +139,15 @@ export async function sendCustomMessage<T = unknown>(
 		...(options?.excludeFromContext === true ? { excludeFromContext: true } : {}),
 		...(options?.stageAdmissionKey === undefined ? {} : { stageAdmissionKey: options.stageAdmissionKey }),
 	} satisfies CustomMessage<T> & { stageAdmissionKey?: string };
-	const boundary = this._workflowStageAdmission;
-	const deliver = async (): Promise<void> => {
+	const boundary = this._subagentMessageAdmission ?? this._workflowStageAdmission;
+	const commit = async (): Promise<void> => {
 		if (boundary && options?.stageAdmissionBarrier) await options.stageAdmissionBarrier();
 		await commitAdmittedCustomMessage(this, appMessage, options);
 	};
+	const deliver = () => (this._subagentMessageAdmission ? serializeSubagentDelivery(this, commit) : commit());
 	if (boundary === undefined) return deliver();
 	await boundary.admit(options?.stageAdmissionKey, deliver, () => {
+		if (this._subagentMessageAdmission) throw new Error("Subagent execution is terminal and cannot accept messages");
 		const router = this._orchestrationContext?.lateMessageRouter;
 		if (router === undefined) throw new Error("Workflow stage closed without a late-message router");
 		return router.routeMessage(message, options);
@@ -161,13 +177,15 @@ export async function sendCustomMessages<T = unknown>(
 			}) satisfies CustomMessage<T> & { stageAdmissionKey?: string },
 	);
 	if (appMessages.length === 0) return;
-	const boundary = this._workflowStageAdmission;
-	const deliver = async (): Promise<void> => {
+	const boundary = this._subagentMessageAdmission ?? this._workflowStageAdmission;
+	const commit = async (): Promise<void> => {
 		if (boundary && options?.stageAdmissionBarrier) await options.stageAdmissionBarrier();
 		await commitAdmittedCustomMessages(this, appMessages, options);
 	};
+	const deliver = () => (this._subagentMessageAdmission ? serializeSubagentDelivery(this, commit) : commit());
 	if (boundary === undefined) return deliver();
 	await boundary.admit(options?.stageAdmissionKey, deliver, () => {
+		if (this._subagentMessageAdmission) throw new Error("Subagent execution is terminal and cannot accept messages");
 		const router = this._orchestrationContext?.lateMessageRouter;
 		if (router === undefined) throw new Error("Workflow stage closed without a late-message router");
 		return router.routeMessages(messages, options);

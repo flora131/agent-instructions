@@ -7,6 +7,7 @@ All notable changes to the `pi-intercom` extension will be documented in this fi
 ### Fixed
 
 - Route lazy initialization, event-relay, and rejected-candidate cleanup diagnostics through the owning interactive session's notifications, including during shutdown, instead of leaking console output and stacks. Retryable initialization uses warning color; non-interactive console diagnostics (including RPC), original failures, acknowledgements, and retry behavior are preserved even when an error cannot be rendered.
+- Admit `send` and `ask` to working subagents instead of refusing them as busy non-interactive recipients. Foreground and background children retain their task identity, ordered delivery and exact reply correlation; unrelated headless protection, workflow routing and group restrictions are unchanged.
 
 ## [0.9.19-alpha.3] - 2026-09-09
 

@@ -148,6 +148,8 @@ export interface SubagentChildPolicy {
 	readonly inheritSkills: boolean;
 	/** Host-owned signal fired when this noninteractive execution ends, before disposal. */
 	readonly executionEnded?: AbortSignal;
+	/** SDK-owned inbound lifetime; closing drains admitted messages without reopening the task. */
+	readonly messageAdmission?: { isOpen(): boolean };
 	/** Current admitted in-process nesting depth; absent for top-level sessions. */
 	readonly depth?: number;
 	/** Undefined preserves MCP configuration defaults; [] explicitly disables direct tools. */
