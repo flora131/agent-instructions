@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "vitest";
 import { type LocalCommandResult, runLocalCommand } from "../../packages/workflows/src/durable/local-command.js";
+import {
+	fileExistsSync as existsSync,
+	makeTempDirectory,
+	readTextSync as readFileSync,
+	removeTempDirectory,
+	writeTextSync as writeFileSync,
+} from "../helpers/runtime.js";
 
 async function waitFor(predicate: () => boolean, label: string): Promise<void> {
 	const deadline = Date.now() + 5_000;
@@ -24,7 +29,7 @@ function processExists(pid: number): boolean {
 }
 
 async function assertSuccessfulExitSettles(): Promise<void> {
-	const root = mkdtempSync(join(tmpdir(), "atomic-local-command-exit-"));
+	const root = makeTempDirectory("atomic-local-command-exit-");
 	const readyPath = join(root, "server.pid");
 	const parentExitPath = join(root, "parent.exit");
 	const publishPath = join(root, "server.publish");
@@ -44,6 +49,9 @@ const { existsSync, writeFileSync } = require("node:fs");
 process.on("exit", () => writeFileSync(${JSON.stringify(parentExitPath)}, "exited"));
 const server = spawn(process.execPath, ["-e", ${JSON.stringify(serverSource)}], {
   stdio: ["ignore", "inherit", "inherit"],
+  // A daemon must outlive its launcher: without detached, libuv's Windows job
+  // kills the server when the parent exits, even though it was unref'ed.
+  detached: true,
   windowsHide: true,
 });
 process.stdout.write("direct stdout");
@@ -88,7 +96,7 @@ const publication = setInterval(() => {
 		await pending;
 		if (!(serverPid > 0) && existsSync(readyPath)) serverPid = Number.parseInt(readFileSync(readyPath, "utf8"), 10);
 		if (serverPid > 0) await waitFor(() => !processExists(serverPid), "the fixture server to exit");
-		rmSync(root, { recursive: true, force: true });
+		removeTempDirectory(root);
 	}
 }
 
