@@ -181,10 +181,15 @@ for (const message of [
 	});
 }
 
+// PR #2973: exercise a real deadline without spending the production 30s on every CI run.
+const COMMAND_TIMEOUT_MS = 1_000;
+const COMMAND_EXIT_HEADROOM_MS = 5_000;
+
 test("an actual command deadline still fails and is not retried", async () => {
 	const cwd = mkdtempSync(join(tmpdir(), "atomic-pg-command-timeout-"));
 	let attempts = 0;
 	let cleanups = 0;
+	const startedAt = performance.now();
 	try {
 		await assert.rejects(
 			startOnAvailablePort(
@@ -193,6 +198,7 @@ test("an actual command deadline still fails and is not retried", async () => {
 					runSmokeCommand(process.execPath, ["-e", "console.log('still starting'); setInterval(() => {}, 1000)"], {
 						cwd,
 						env: process.env,
+						timeout: COMMAND_TIMEOUT_MS,
 					});
 				},
 				() => {
@@ -207,6 +213,12 @@ test("an actual command deadline still fails and is not retried", async () => {
 		);
 		assert.equal(attempts, 1);
 		assert.equal(cleanups, 1);
+		const elapsedMs = performance.now() - startedAt;
+		assert.ok(elapsedMs >= COMMAND_TIMEOUT_MS, `command exited before its deadline: ${elapsedMs}ms`);
+		assert.ok(
+			elapsedMs < COMMAND_TIMEOUT_MS + COMMAND_EXIT_HEADROOM_MS,
+			`command did not honor its ${COMMAND_TIMEOUT_MS}ms deadline: ${elapsedMs}ms`,
+		);
 	} finally {
 		rmSync(cwd, { recursive: true, force: true });
 	}
