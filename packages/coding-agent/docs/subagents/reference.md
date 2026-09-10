@@ -46,3 +46,15 @@ Because the effort travels with each model string, every primary and fallback ca
 ```
 
 `fallbackThinkingLevels` exists only as an optional compatibility helper: it is aligned by index to `fallbackModels` and supplies a fallback candidate's effort only when that fallback entry has no suffix. Prefer suffixed model strings instead. Attempt metadata reports the resolved model and the effective reasoning effort used for each attempt.
+
+## Owner-bound task projection
+
+Host adapters can construct an `OwnerTaskStore` from their existing supervisor and owner lease, check the `store.connect()` result, then call `bindOwnerTaskStore(session, store)` for that exact live session. Binding does not create or connect an owner. The store observes snapshot/cursor reconciliation and notifies already-mounted chats even when the producer binds lazily. Disposing the view does not cancel the owner. Reattachment uses existing identities rather than replaying launch tools.
+
+Native task snapshots retain `wasBackground` once a designated observation yields, so a fresh projection can distinguish completed background work from foreground-only commands. Trusted hosts recover authentic command settlement receipts independently of the bounded event journal. Neither recovery path registers a new wait or restarts execution.
+
+Main and workflow-stage chats use below-prompt background counts instead of persistent task rows in the transcript. Session replacement clears the previous owner's status before a replacement store binds. A workflow question retains the background count below its input area. Completion notifications use the same shared renderer in both chats.
+
+Custom `ChatSessionHost` adapters can still use live task rows; set `taskRowsInChat: false` for footer-only status. Those rows show agent labels, state, duration, and bounded activity previews. Display-colliding labels get a stable short suffix derived from the task ID. Retention is at most 64 reports and 8 KiB of encoded preview records per task; omitted previews are labelled rather than presented as a complete transcript.
+
+This is a host integration API above the SDK task foundation. Existing subagent and command producers are not automatically migrated by binding a projection. Full task transcript retrieval and `/tasks` navigation are separate integrations; unavailable transcript content is not inferred from activity reports.

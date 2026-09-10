@@ -1,0 +1,213 @@
+[
+  {
+    "source_id": "development::006",
+    "dest_path": "development.md",
+    "dest_anchor": "startup-timing-probes",
+    "note": "Preserve still-valid benchmark methodology, full timing sequence, readiness/rollback/cache caveats and ATOMIC_TIMING instructions in the reader-facing reference. Only superseded bytecode paragraph stays historical.",
+    "target": {
+      "path": "packages/coding-agent/docs/development.md",
+      "anchor": "startup-timing-probes",
+      "occurrence": 1
+    },
+    "source_line_numbers": [
+      56,
+      58,
+      60,
+      62,
+      64,
+      65,
+      66,
+      67,
+      69,
+      70,
+      72,
+      74,
+      75,
+      77,
+      79,
+      81,
+      85
+    ],
+    "source_fragments": [],
+    "sha256": "12d5ded277f18a012fdf79f7fae929933055f4d8c45e008a3a4eca45535c24e6"
+  },
+  {
+    "source_id": "development::002",
+    "dest_path": "development.md",
+    "dest_anchor": "setup",
+    "note": "Retain valid package-script examples after current build-first setup.",
+    "target": {
+      "path": "packages/coding-agent/docs/development.md",
+      "anchor": "setup",
+      "occurrence": 1
+    },
+    "source_line_numbers": [
+      5,
+      7,
+      8,
+      9,
+      10,
+      12,
+      16,
+      17,
+      18,
+      19
+    ],
+    "source_fragments": [],
+    "sha256": "2aeb1cc3c4f7511893043ee274f7f52df9c68ac5f59cb7df960b861e94ffaab6"
+  },
+  {
+    "source_id": "development::003",
+    "dest_path": "development.md",
+    "dest_anchor": "forking-/-rebranding",
+    "note": "Retain original app-specific configuration preference and concrete Atomic values.",
+    "target": {
+      "path": "packages/coding-agent/docs/development.md",
+      "anchor": "forking-/-rebranding",
+      "occurrence": 1
+    },
+    "source_line_numbers": [
+      23,
+      25,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34
+    ],
+    "source_fragments": [],
+    "sha256": "b9f0e5bfe29a6e0bfa46201d8ae1bd12fb6aab7fbfc15b1321f1321a541b5a94"
+  },
+  {
+    "source_id": "development::007",
+    "dest_path": "development.md",
+    "dest_anchor": "testing",
+    "note": "Retain the original typecheck-only command alongside current check and test commands.",
+    "target": {
+      "path": "packages/coding-agent/docs/development.md",
+      "anchor": "testing",
+      "occurrence": 1
+    },
+    "source_line_numbers": [
+      87,
+      89,
+      90,
+      97
+    ],
+    "source_fragments": [],
+    "sha256": "73664b34a3a8723e6a4230f800a92b80f4397f67f60971088baff894b078aeee"
+  },
+  {
+    "source_id": "development::008",
+    "dest_path": "development.md",
+    "dest_anchor": "deterministic-installs",
+    "note": "The direct read-only shrinkwrap check remains valid; retain it alongside current npm wrapper guidance.",
+    "target": {
+      "path": "packages/coding-agent/docs/development.md",
+      "anchor": "deterministic-installs",
+      "occurrence": 1
+    },
+    "source_line_numbers": [
+      99,
+      101,
+      103,
+      104,
+      105
+    ],
+    "source_fragments": [],
+    "sha256": "053fb3d566e9fabec4b18c7f2a93dc3d55a67f605c3dd7cabadef73ba20e3112"
+  },
+  {
+    "source_id": "development::009",
+    "dest_path": "development.md",
+    "dest_anchor": "release-security-boundary",
+    "note": "Retain valid versionless release facts; obsolete workflow_run publisher instructions remain historical.",
+    "target": {
+      "path": "packages/coding-agent/docs/development.md",
+      "anchor": "release-security-boundary",
+      "occurrence": 1
+    },
+    "source_line_numbers": [
+      107
+    ],
+    "source_fragments": [
+      {
+        "line": 109,
+        "start": 0,
+        "end": 148
+      }
+    ],
+    "sha256": "3d0e45247d8d8b09a6033155735343d6c28d6467f1d5cb3d1b97ce4b8fc0cbce"
+  },
+  {
+    "source_id": "development::010",
+    "dest_path": "development.md",
+    "dest_anchor": "project-structure",
+    "note": "Retain the original package-role tree example alongside the current tree that adds packages/ai.",
+    "target": {
+      "path": "packages/coding-agent/docs/development.md",
+      "anchor": "project-structure",
+      "occurrence": 1
+    },
+    "source_line_numbers": [
+      111,
+      113,
+      114,
+      115,
+      116,
+      117,
+      118,
+      119,
+      120,
+      121
+    ],
+    "source_fragments": [],
+    "sha256": "73b1d005a6eb60a2cceae9316bddb7119384c31f50622b3b5b903db4170e61b1"
+  },
+  {
+    "source_id": "intercom::020",
+    "dest_path": "intercom.md",
+    "dest_anchor": "what-the-supervisor-sees",
+    "note": "Preserve the still-valid full original handoff example, explicitly scoped to single-child execution; parallel cancellation policy remains historical.",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom.md",
+      "anchor": "what-the-supervisor-sees",
+      "occurrence": 1
+    },
+    "source_line_numbers": [
+      312,
+      316,
+      317,
+      318,
+      319,
+      320,
+      322,
+      323,
+      324,
+      325,
+      326,
+      327
+    ],
+    "source_fragments": [],
+    "sha256": "f5d65e6aee620f85908c92cce8e226d9efd83718cf8f9a014fb4a9fef417749d"
+  },
+  {
+    "source_id": "subagents::005",
+    "dest_path": "subagents.md",
+    "dest_anchor": "single-child-handoff",
+    "note": "Retain the exact actionable fresh-child launch example under its current single-child scope.",
+    "target": {
+      "path": "packages/coding-agent/docs/subagents.md",
+      "anchor": "single-child-handoff",
+      "occurrence": 1
+    },
+    "source_line_numbers": [
+      42
+    ],
+    "source_fragments": [],
+    "sha256": "fa2397638847ed91ce6e6c8fda8560ac4732205aa0c91712feeab99a0688436d"
+  }
+]

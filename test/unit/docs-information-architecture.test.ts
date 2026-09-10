@@ -27,27 +27,35 @@ const repoRoot = resolve(moduleDir(import.meta.url), "../..");
 const docsDir = join(repoRoot, "packages/coding-agent/docs");
 const docsJson = JSON.parse(readFileSync(join(docsDir, "docs.json"), "utf8")) as DocsConfig;
 
+interface NavContainer {
+	tabs?: NavTab[];
+	anchors?: NavAnchor[];
+	groups?: NavGroup[];
+	pages?: (string | NavGroup)[];
+}
+interface NavTab extends NavContainer {
+	tab: string;
+}
+interface NavAnchor extends NavContainer {
+	anchor: string;
+	href?: string;
+}
+interface NavGroup extends NavContainer {
+	group: string;
+}
 interface DocsConfig {
-	navigation?: unknown;
+	navigation?: NavContainer;
 	redirects?: { source: string; destination: string; permanent?: boolean }[];
 }
+type NavValue = string | NavContainer | NavValue[];
+const navChildren = ["tabs", "anchors", "groups", "pages"] as const;
 
-type NavNode = string | { [key: string]: unknown };
-
-function collectNavPages(value: unknown, out: string[] = []): string[] {
-	if (typeof value === "string") {
-		out.push(value);
-		return out;
-	}
-	if (Array.isArray(value)) {
-		for (const item of value as NavNode[]) collectNavPages(item, out);
-		return out;
-	}
-	if (value && typeof value === "object") {
-		const record = value as Record<string, unknown>;
-		for (const key of ["tabs", "anchors", "groups", "pages"]) {
-			if (record[key] !== undefined) collectNavPages(record[key], out);
-		}
+function collectNavPages(value: NavValue | undefined, out: string[] = []): string[] {
+	if (typeof value === "string") out.push(value);
+	else if (Array.isArray(value)) {
+		for (const item of value) collectNavPages(item, out);
+	} else if (value) {
+		for (const key of navChildren) collectNavPages(value[key], out);
 	}
 	return out;
 }
@@ -376,23 +384,6 @@ function baselinePage(page: string): string[] {
 	return lines;
 }
 
-/** The destination block a ledger row names, located by its exact anchor. */
-function destinationBlock(row: LedgerRow): string[] {
-	const slug = row.dest_path.replace(/\.mdx?$/u, "");
-	const text = readFileSync(join(docsDir, row.dest_path), "utf8");
-	const lines = text.split("\n");
-	const headings = headingsOfPage(slug);
-	if (row.dest_anchor === null) {
-		const first = headings[0]?.line ?? lines.length;
-		return lines.slice(0, first);
-	}
-	const index = headings.findIndex((heading) => heading.anchor === row.dest_anchor);
-	assert.notEqual(index, -1, `${row.id}: ${row.dest_path} has no heading with anchor "${row.dest_anchor}"`);
-	const start = headings[index]?.line ?? 0;
-	const end = headings[index + 1]?.line ?? lines.length;
-	return lines.slice(start, end);
-}
-
 /**
  * The 44 routes that existed before the migration. #2847 requires every one of
  * them to keep working, so this list is frozen: a deletion has to fail loudly
@@ -646,13 +637,15 @@ const issueNavigationOrder: Record<string, readonly string[]> = {
  * cluster follows compaction internals because its parents live in Build.
  */
 const generatedNavigationInsertions: Record<string, readonly string[]> = {
-	"/usage": ["/guides/configuration"],
+	"/usage": ["/background-tasks", "/herdr", "/guides/configuration"],
 	"/skills": ["/skills/authoring"],
 	"/subagents": ["/subagents/authoring"],
 	"/intercom": ["/intercom/operations"],
 	"/extensions": ["/extensions/authoring", "/extensions/events", "/extensions/ui", "/extensions/examples"],
 	"/packages": ["/packages/authoring"],
-	"/models": ["/models/model-selection", "/models/pareto-efficiency", "/models/artificial-analysis-index"],
+	"/models": ["/models/model-selection", "/models/pareto-efficiency", "/models/evals"],
+	"/workflows/reliable-design": ["/workflows/verification"],
+	"/changelog": ["/models/artificial-analysis-index"],
 	"/custom-provider": [
 		"/custom-provider/override",
 		"/custom-provider/registration",
@@ -703,16 +696,9 @@ const historicalChangelogAnchors = new Set([
 	"/tui#working-indicator",
 ]);
 
-/** Broken at the baseline on pages #2847 freezes; repairing one would restructure a frozen page. */
-const frozenWorkflowAnchors = new Set([
-	"/workflows/api-reference#fallbackmodels--fallbackthinkinglevels",
-	"/workflows/api-reference#setupgitworktreeoptions",
-	"/workflows/authoring#early-exit-with-ctxexit",
-	"/workflows/operations#ctxtool--durable-cached-tool-execution",
-	"/workflows/operations#workflow-resume--cross-session-resume-selector",
-]);
-
-const brokenBeforeMigration = new Set([...historicalChangelogAnchors, ...frozenWorkflowAnchors]);
+// Workflow content/references now follow the reconciled upstream contracts.
+// None of its formerly broken live citations remains exempt.
+const brokenBeforeMigration = new Set(historicalChangelogAnchors);
 
 /** Shipped prompts and prompt guidance that name repository docs paths. */
 const promptSources = [
@@ -754,7 +740,7 @@ describe("docs information architecture (#2847)", () => {
 	});
 
 	test("navigation uses the three reader-centered tabs", () => {
-		const navigation = docsJson.navigation as { tabs?: { tab?: string }[] } | undefined;
+		const navigation = docsJson.navigation;
 		assert.ok(Array.isArray(navigation?.tabs), "navigation must use the tabs shape");
 		assert.deepEqual(
 			navigation?.tabs?.map((tab) => tab.tab),
@@ -763,7 +749,7 @@ describe("docs information architecture (#2847)", () => {
 	});
 
 	test("each reader tab keeps the route order specified by the issue", () => {
-		const navigation = docsJson.navigation as { tabs?: { tab?: string; [key: string]: unknown }[] } | undefined;
+		const navigation = docsJson.navigation;
 		assert.ok(Array.isArray(navigation?.tabs), "navigation must use the tabs shape");
 		for (const tab of navigation?.tabs ?? []) {
 			const name = tab.tab ?? "";
@@ -779,7 +765,7 @@ describe("docs information architecture (#2847)", () => {
 	});
 
 	test("every generated page keeps its recorded insertion point", () => {
-		const navigation = docsJson.navigation as { tabs?: { tab?: string; [key: string]: unknown }[] } | undefined;
+		const navigation = docsJson.navigation;
 		assert.ok(Array.isArray(navigation?.tabs), "navigation must use the tabs shape");
 		const tabRoutes = (navigation?.tabs ?? []).map((tab) =>
 			collectNavPages(tab).map((slug) => (slug === "index" ? "/" : `/${slug}`)),
@@ -790,7 +776,11 @@ describe("docs information architecture (#2847)", () => {
 			.filter((route) => !enumerated.has(route))
 			.sort();
 		const expectedGenerated = Object.values(generatedNavigationInsertions).flat().sort();
-		assert.equal(expectedGenerated.length, 24, "all 24 migration-created pages have an insertion point");
+		assert.equal(
+			expectedGenerated.length,
+			28,
+			"24 migration routes and all four upstream additions have insertion points",
+		);
 		assert.deepEqual(generated, expectedGenerated, "no generated page may fall outside the insertion contract");
 
 		for (const [anchor, inserted] of Object.entries(generatedNavigationInsertions)) {
@@ -824,19 +814,19 @@ describe("docs information architecture (#2847)", () => {
 		// Mintlify's navigation reference requires each `pages` entry to reference a
 		// page file. An object entry carrying a label is silently accepted by
 		// `validate` but is not a documented shape, so reject it here.
-		const walk = (value: unknown, path: string): void => {
+		const walk = (value: NavValue | undefined, path: string): void => {
 			if (typeof value === "string") return;
 			if (Array.isArray(value)) {
 				for (const [index, item] of value.entries()) walk(item, `${path}[${index}]`);
 				return;
 			}
 			assert.ok(value && typeof value === "object", `${path} must be a page path or a group`);
-			const record = value as Record<string, unknown>;
+			const record = value;
 			assert.ok(
-				"group" in record || "tab" in record || "tabs" in record || "groups" in record,
+				"group" in record || "tab" in record || "anchor" in record || "tabs" in record || "groups" in record,
 				`${path} is an object without a group or tab; a page entry must be a bare path string`,
 			);
-			for (const key of ["tabs", "anchors", "groups", "pages"]) {
+			for (const key of navChildren) {
 				if (record[key] !== undefined) walk(record[key], `${path}.${key}`);
 			}
 		};
@@ -1114,9 +1104,8 @@ describe("docs compatibility headings (#2847)", () => {
 	});
 
 	test("every exempt anchor is cited only by the provenance that exempts it", () => {
-		// The exemption has to be earned, not declared. An anchor stays exempt only
-		// while its citers are the immutable released changelog or a page #2847
-		// freezes; a live reader citation must be corrected instead.
+		// Only immutable released-changelog provenance earns an exemption.
+		// Workflow references are live reader citations and must resolve.
 		const exempt = [...brokenBeforeMigration];
 		const anchors = exempt.map((citation) => citation.split("#")[1] ?? "");
 		const pattern = new RegExp(`\\]\\(([^)\\s]*)#(${anchors.join("|")})\\)`, "gu");
@@ -1185,11 +1174,8 @@ describe("docs compatibility headings (#2847)", () => {
 		for (const citation of exempt) {
 			const found = [...(citers.get(citation) ?? [])].sort();
 			assert.ok(found.length > 0, `${citation} is exempt but nothing cites it; drop the exemption`);
-			const historical = historicalChangelogAnchors.has(citation);
 			for (const file of found) {
-				const allowed = historical
-					? file === "packages/coding-agent/CHANGELOG.md"
-					: /^packages\/coding-agent\/docs\/workflows(\.md|\/)/u.test(file);
+				const allowed = file === "packages/coding-agent/CHANGELOG.md";
 				if (!allowed) wrong.push(`${citation} is cited by ${file}, which is a live reader citation`);
 			}
 		}
@@ -1340,18 +1326,12 @@ describe("docs references and assets (#2847)", () => {
 				`/${row.dest_path.replace(/\.mdx?$/u, "")}#${row.dest_anchor}`,
 			);
 		}
-		const exceptions = new Set(
-			ledger.link_retarget_exceptions.map((entry) => `${entry.source_path}:${entry.target}`),
-		);
+		// Original retarget exceptions remain immutable PR evidence, not current exemptions.
 		const stale: string[] = [];
 		let checked = 0;
 		let checkedRelative = 0;
 		for (const slug of diskSlugs) {
-			// #2847 forbids restructuring the workflow pages, and they are
-			// byte-identical to the launch baseline. Their links stay put and keep
-			// resolving through the preserved compatibility headings; each one is
-			// recorded in the ledger's link_retarget_exceptions with a reason.
-			const frozen = slug === "workflows" || slug.startsWith("workflows/");
+			// Upstream reconciliation authorizes repairing workflow links without restructuring the path.
 			const path = pathForSlug(slug);
 			for (const line of readFileSync(join(docsDir, path), "utf8").split("\n")) {
 				if (line.startsWith("Moved to [")) continue; // the compatibility pointers target destinations already
@@ -1361,7 +1341,6 @@ describe("docs references and assets (#2847)", () => {
 					checked += 1;
 					const destination = moved.get(target);
 					if (destination === undefined) continue;
-					if (frozen && exceptions.has(`${path}:${target}`)) continue;
 					stale.push(`${path} links ${target}, which moved to ${destination}`);
 				}
 				// A relative fragment resolves against its own page, so a hub page's
@@ -1375,7 +1354,6 @@ describe("docs references and assets (#2847)", () => {
 					const destination = moved.get(target);
 					// An in-page link to a section that never moved is ordinary and correct.
 					if (destination === undefined) continue;
-					if (frozen && exceptions.has(`${path}:${written}`)) continue;
 					stale.push(`${path} links ${written}, which moved to ${destination}`);
 				}
 			}
@@ -1407,8 +1385,25 @@ describe("docs references and assets (#2847)", () => {
 			current.set(page, linkTargets(readFileSync(join(docsDir, page), "utf8")));
 			if (baselineSources.has(page)) before.set(page, linkTargets(baselinePage(page).join("\n")));
 		}
+		const supplemental = JSON.parse(
+			readFileSync(join(repoRoot, "docs/migrations/2847-reconciliation/link-retargets.json"), "utf8"),
+		) as (LinkRetarget & { source_rev: string })[];
+		assert.equal(supplemental.length, 1, "the formerly frozen workflow citation is explicitly reconciled");
+		for (const entry of supplemental) {
+			assert.equal(
+				entry.source_rev,
+				"cb13229bebe30ea7cb65689569569494b4bc651c",
+				"supplemental retarget evidence uses immutable main",
+			);
+			const upstream = execFileSync(
+				"git",
+				["-C", repoRoot, "show", `${entry.source_rev}:packages/coding-agent/docs/${entry.source_path}`],
+				{ encoding: "utf8", timeout: 30_000 },
+			);
+			assert.ok(upstream.split("\n")[entry.source_line - 1]?.includes(`](${entry.baseline_target})`));
+		}
 		const recorded = new Set(
-			ledger.link_retargets.map(
+			[...ledger.link_retargets, ...supplemental].map(
 				(entry) => `${entry.source_path}:${entry.baseline_target}:${entry.destination_target}`,
 			),
 		);
@@ -1436,11 +1431,32 @@ describe("docs references and assets (#2847)", () => {
 		assert.ok(proven > 60, `retargeted citations were derived from the tree, not assumed (${proven})`);
 		assert.deepEqual(missing, [], "every citation the migration rewrote needs a link_retargets row");
 
-		// The other direction: a recorded row must still describe the tree. Without
-		// this, a citation rewritten again to a different valid route keeps its
-		// stale row, and route folding hides the change from the block hashes.
-		const stale: string[] = [];
+		// Preserve original line evidence against the original PR, not a later edited page.
+		// The active citation is then checked by its exact target and resolving current anchor.
+		const originalPages = new Map<string, string[]>();
 		for (const entry of ledger.link_retargets) {
+			if (!originalPages.has(entry.source_path)) {
+				originalPages.set(
+					entry.source_path,
+					execFileSync(
+						"git",
+						[
+							"-C",
+							repoRoot,
+							"show",
+							`24f58842493deb8ec15dea44ef7e25936feeea60:packages/coding-agent/docs/${entry.source_path}`,
+						],
+						{ encoding: "utf8", timeout: 30_000 },
+					).split("\n"),
+				);
+			}
+			assert.ok(
+				originalPages.get(entry.source_path)?.[entry.source_line - 1]?.includes(`](${entry.destination_target})`),
+				`${entry.source_path}:${entry.source_line}: original retarget evidence changed`,
+			);
+		}
+		const stale: string[] = [];
+		for (const entry of [...ledger.link_retargets, ...supplemental]) {
 			const targets = current.get(entry.source_path);
 			if (targets === undefined) {
 				stale.push(`${entry.source_path} is recorded as retargeted but is not a docs page`);
@@ -1452,11 +1468,11 @@ describe("docs references and assets (#2847)", () => {
 			if (targets.has(entry.baseline_target)) {
 				stale.push(`${entry.source_path} still cites the baseline target ${entry.baseline_target}`);
 			}
-			// The recorded line is part of the record, and it drifts silently when a
-			// page gains frontmatter or connective text above the citation.
-			const line = readFileSync(join(docsDir, entry.source_path), "utf8").split("\n")[entry.source_line - 1] ?? "";
-			if (!line.includes(`](${entry.destination_target})`)) {
-				stale.push(`${entry.source_path}:${entry.source_line} no longer holds ${entry.destination_target}`);
+			const [route = "", anchor = ""] = entry.destination_target.split("#");
+			const ownRoute = route || `/${entry.source_path.replace(/\.mdx?$/u, "")}`;
+			const slug = routeToSlug.get(ownRoute);
+			if (slug === undefined || !headingsOfPage(slug).some((heading) => heading.anchor === anchor)) {
+				stale.push(`${entry.source_path}: current retarget does not resolve exactly: ${entry.destination_target}`);
 			}
 		}
 		assert.deepEqual(stale, [], "every link_retargets row must still describe the current tree");
@@ -1582,22 +1598,26 @@ describe("docs references and assets (#2847)", () => {
 		}
 	});
 
-	test("workflow pages differ from the baseline by navigation metadata only", () => {
-		// #2847 freezes the workflow learning path. Supplying the label the issue
-		// enumerates for /workflows/api-reference is metadata, not structure, so
-		// this asserts the stronger property directly: outside a leading
-		// frontmatter block, every workflow page is byte-identical to the baseline.
+	test("workflow pages preserve the current upstream structure and learning path", () => {
+		// #2847 freezes the learning path, not obsolete behavior superseded by the authorized merge.
+		// The two-source verifier below separately proves every full main block, including corrections.
 		const workflowPages = diskSlugs.filter((slug) => slug === "workflows" || slug.startsWith("workflows/"));
-		assert.equal(workflowPages.length, 6, "the six workflow pages are all checked");
-		const stripFrontmatter = (text: string): string => {
-			if (!text.startsWith("---\n")) return text;
-			const end = text.indexOf("\n---\n", 3);
-			return end === -1 ? text : text.slice(end + "\n---\n".length).replace(/^\n/u, "");
-		};
+		assert.equal(workflowPages.length, 7, "all six original workflow pages and upstream verification are checked");
 		for (const slug of workflowPages) {
-			const current = stripFrontmatter(readFileSync(join(docsDir, pathForSlug(slug)), "utf8"));
-			const baseline = stripFrontmatter(baselinePage(pathForSlug(slug)).join("\n"));
-			assert.equal(current, baseline, `${slug} changed outside its frontmatter; the workflow pages are frozen`);
+			const current = readFileSync(join(docsDir, pathForSlug(slug)), "utf8");
+			const upstream = execFileSync(
+				"git",
+				[
+					"-C",
+					repoRoot,
+					"show",
+					`cb13229bebe30ea7cb65689569569494b4bc651c:packages/coding-agent/docs/${pathForSlug(slug)}`,
+				],
+				{ encoding: "utf8", timeout: 30_000 },
+			);
+			const structure = (text: string) =>
+				headingsIn(text).map(({ text: heading, level, anchor }) => ({ heading, level, anchor }));
+			assert.deepEqual(structure(current), structure(upstream), `${slug} changed the upstream heading structure`);
 		}
 	});
 
@@ -1641,66 +1661,30 @@ describe("docs content ledger (#2847)", () => {
 		assert.deepEqual(problems, [], "every ledger hash must recompute from the baseline commit");
 	});
 
-	test("every block's destination still contains its baseline content", () => {
-		const problems: string[] = [];
+	test("every original and latest-main block retains its verified reader or explicit historical destination", () => {
+		// The old map remains the original-PR compatibility contract, never a rewritten baseline.
 		for (const row of ledger.blocks) {
 			assert.notEqual(row.status, "unmatched", `${row.id} has no destination`);
 			assert.notEqual(row.status, "deleted", `${row.id} must not be deleted`);
-			// `kept` and `moved` are derived facts, not free-form labels: relabelling
-			// a moved row `kept` would exempt it from the compatibility-stub rules.
-			assert.equal(
-				row.status === "kept",
-				row.source_path === row.dest_path,
-				`${row.id} is recorded ${row.status} while it maps ${row.source_path} to ${row.dest_path}`,
-			);
-			assert.ok(row.dest_path, `${row.id} must record a destination path`);
-			assert.ok(existsSync(join(docsDir, row.dest_path)), `${row.id} points at a missing ${row.dest_path}`);
-
-			const baseline = baselinePage(row.source_path).slice(row.source_lines[0] - 1, row.source_lines[1]);
-			// A block carrying recorded anchor corrections is compared against the
-			// baseline with exactly those corrections applied, so the gate stays
-			// strict: any unrecorded byte change still fails.
-			const corrections = ledger.anchor_corrections.filter((entry) => entry.block_id === row.id);
-			const expectedLines = corrections.length
-				? baseline.map((line) =>
-						corrections.reduce(
-							(text, entry) => text.replaceAll(`](${entry.baseline_target})`, `](${entry.corrected_target})`),
-							line,
-						),
-					)
-				: baseline;
-			const destination = destinationBlock(row);
-			if (row.verification === "exact-hash") {
-				const digest = blockDigest(destination);
-				const expected = corrections.length ? blockDigest(expectedLines) : row.hash;
-				if (digest !== expected) {
-					problems.push(`${row.id}: ${row.dest_path}#${row.dest_anchor} hashes ${digest}, expected ${expected}`);
-				}
-				continue;
-			}
-			if (row.verification !== "ordered-body-containment") {
-				problems.push(`${row.id}: unknown verification mode "${row.verification}"`);
-				continue;
-			}
-			// A destination that gained connective text. The heading line is
-			// excluded because `usage::011` moved `CLI Reference` to `CLI reference`.
-			const wanted = normalizeBlock(baseline)
-				.split("\n")
-				.filter((line) => line && !line.startsWith("# "));
-			const have = normalizeBlock(destination).split("\n");
-			let cursor = 0;
-			for (const line of wanted) {
-				const at = have.indexOf(line, cursor);
-				if (at === -1) {
-					problems.push(
-						`${row.id}: ${row.dest_path}#${row.dest_anchor} no longer contains "${line.slice(0, 70)}"`,
-					);
-					break;
-				}
-				cursor = at + 1;
-			}
+			assert.equal(row.status === "kept", row.source_path === row.dest_path, `${row.id}: false migration status`);
+			assert.ok(existsSync(join(docsDir, row.dest_path)), `${row.id}: missing reader compatibility destination`);
 		}
-		assert.deepEqual(problems, [], "every ledger destination must still carry its baseline content");
+		// Explicit working-tree mode for the uncommitted merge; external losslessness.sh instead
+		// imports the committed verifier and calls verifyCommittedDocumentation at the candidate SHA.
+		const output = execFileSync(process.execPath, ["scripts/verify-docs-preservation.mjs", "--working-tree"], {
+			cwd: repoRoot,
+			encoding: "utf8",
+			timeout: 30_000,
+		});
+		const report = JSON.parse(output) as {
+			baseline: { blocks: number };
+			main: { pages: number; blocks: number };
+			readerPages: number;
+		};
+		assert.equal(report.baseline.blocks, 1038);
+		assert.equal(report.main.pages, 47);
+		assert.equal(report.main.blocks, 1090);
+		assert.equal(report.readerPages, 85);
 	});
 
 	test("the connective-text exceptions are a closed, explicit set", () => {

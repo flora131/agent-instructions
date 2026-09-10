@@ -271,6 +271,21 @@ For a parallel child, the supervisor receives the question with its child/run id
 
 Single-child claimed handoffs instead include terminal run metadata, ordered attachments, the original delegated task, and an explicit fresh-start `[TASK_CONTEXT]` call. That legacy single-child path still requires a new run identity for follow-up work.
 
+For a single-child claimed handoff, the fresh-start instruction has this form:
+
+```text
+Subagent yielded for parent input (worker, child 1).
+Previous run (terminal): 78f659a3
+Question:
+Which API should I use?
+
+Start a fresh subagent with a new run identity, replacing <SUPERVISOR_ANSWER> with your answer:
+subagent({
+  "agent": "worker",
+  "task": "[TASK_CONTEXT] ... Continue with this supervisor answer: <SUPERVISOR_ANSWER>"
+})
+```
+
 ### Structured Interview Replies
 
 `interview_request` questions use the shape `{ id, type, question, options?, context? }` where `type` is `single`, `multi`, `text`, `image`, or `info` (`info` questions are context-only and need no response):
@@ -321,10 +336,6 @@ Moved to [Intercom operations](/intercom/operations#delivery-ordering).
 ## Configuration
 
 Moved to [Intercom reference](/intercom/reference#configuration).
-
-Activity is not reply capability. Session rows include `replyCapability: live` or `terminal` when the host supplies it; terminal noninteractive children cannot answer asks even if activity says `idle`. Closed workflow generations show `closed · reply: post-mortem only` when a late-message router is present, or `closed · reply: unavailable` without one. Post-mortem routing still validates the retained conversation and can return a bounded error if it is unavailable; it never resumes workflow execution. Missing capability metadata is not a guarantee that an ask can succeed. Invocation/subgroup visibility and stale-ID rejection are unchanged.
-
-For a retained post-mortem conversation, use its exact Intercom session ID or the previously listed canonical stage path, including its final-stage-name variant. Alternate materialized run-ID paths resolve active stages through the workflow owner; they are not retained aliases after the stage completes. A stage marked `reply: unavailable` rejects an ask with guidance to contact a live stage or start new work with explicit context.
 
 ## Keyboard Shortcuts
 

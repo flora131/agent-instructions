@@ -1,0 +1,29 @@
+[
+  {
+    "source_rev": "cb13229bebe30ea7cb65689569569494b4bc651c",
+    "source_id": "subagents::004",
+    "source_path": "subagents.md",
+    "source_anchor": "task-inspection",
+    "source_lines": [22, 41],
+    "history": {"path": "docs/migrations/2847-history/citation-corrections.md", "lines": [766, 784]},
+    "active": {"path": "packages/coding-agent/docs/subagents.md", "anchor": "task-inspection", "occurrence": 1},
+    "evidence": [
+      {"source_id": "background-tasks::002", "sha256": "8a0129e9dc2ef4576c31b4ea2e77d95ff6615ebf3c443d104f3cbabd074dfb94"},
+      {"source_id": "background-tasks::009", "sha256": "eaf5b01a0f0c5b75d1b7c337b449f1ac3ffc75150b4dad7aba089159f8d6b668"}
+    ],
+    "reason": "The current background-task guide says terminal tasks leave the live indicator and native Windows Bash/PowerShell use the task owner. Preserve the complete stale paragraph historically, and verify its exact reviewed replacement at the live Task inspection heading."
+  },
+  {
+    "source_rev": "cb13229bebe30ea7cb65689569569494b4bc651c",
+    "source_id": "workflows/reliable-design::006",
+    "source_path": "workflows/reliable-design.md",
+    "source_anchor": "stage-model-and-thinking-level-assignment",
+    "source_lines": [101, 125],
+    "history": {"path": "docs/migrations/2847-history/citation-corrections.md", "lines": [819, 842]},
+    "active": {"path": "packages/coding-agent/docs/workflows/reliable-design.md", "anchor": "stage-model-and-thinking-level-assignment", "occurrence": 1},
+    "evidence": [
+      {"source_id": "models/model-selection::008", "sha256": "716f5937e4f9fe2d1056545aa140e437637d84e338b99ba1e14813ceb02ca303"}
+    ],
+    "reason": "The newer model-selection update (6806f7995) makes low/medium implementation and high/xhigh review/approval the defaults. Max requires task-specific evidence or an explicit request. Preserve the full former source, verify the corrected paragraph and the corrected high-effort approval example, and retain the workflow structure."
+  }
+]

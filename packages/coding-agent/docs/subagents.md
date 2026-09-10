@@ -13,33 +13,6 @@ You do not need to install anything separately when you use `@bastani/atomic`.
 
 Background subagents are supported. See [Background tasks](/background-tasks) for launch examples, the below-prompt status indicator, `/tasks`, shell output, cancellation, and completion notices.
 
-## Browse agents
-
-Open `/agents` to browse the available project, user, and built-in agents. Type to filter by name, description, or source. Use arrows to select an agent and Enter to inspect its description, model and fallbacks, tools, definition path, and system prompt. Escape returns to the catalog, then to chat. `/agents <query>` starts with a filter. Browsing is read-only and never launches an agent.
-
-The catalog is navigation, not an approval prompt. Leaving it open does not mark [Herdr](/herdr) blocked or hide active agent work; separate user-decision prompts still report their normal waits.
-
-The catalog uses the same effective discovery rules as execution, so overridden definitions and disabled agents are not offered as separate launchable choices. Ask Atomic to create or modify an agent; the catalog does not change configuration.
-
-## Task inspection
-
-Hosts with an owner task store expose `/tasks` and `/tasks <id>` for background agents and shells, including their retained terminal results. Foreground-only work is excluded. Enter opens detail; arrows select an explicit action. Cancel asks for confirmation of the selected task. Terminal tasks retain transcript inspection but omit foreground, cancellation, and stdin actions. Escape returns from detail or stdin before returning to the composer.
-
-`/tasks` appears in slash-command autocomplete. The inspector groups agents and shells with counts, status symbols, and a highlighted selection. Task descriptions lead; the selected row shows secondary activity and tool counts. The header and footer remain visible in ordinary terminal sizes, with a compact fallback for short terminals.
-
-The list opens as a compact inline widget, like the `/workflow connect` picker. Detail, transcript, input, and stop-confirmation pages are fullscreen; returning to the list preserves selection. Every agent row includes its resolved model and reasoning level when available, including completed background tasks.
-
-While `/tasks` or its fullscreen transcript/detail view is active, Escape navigates back or closes that view; it does not cancel a pending `ask_user_question`. The questionnaire waits out of the way and returns with its selection intact after task navigation closes. With no task view active, Escape cancels the questionnaire normally.
-
-In the default isolated CLI, background subagents continue running after their launch observation returns. The engine publishes a compact task-status indicator below the prompt box, without task rows or activity previews. Run `/tasks` to open the list and inspect individual tasks; task updates never open it automatically. A compact finished-task summary remains after completion. Inspecting does not restart work or create a second task owner. Top-level model bash commands use this owner on POSIX systems; native Windows and commands inside subagent sessions retain their existing execution path.
-
-Transcript inspection uses a dedicated scrolling view with pinned identity, position, and controls. Retained child messages use the normal message renderers, excluding hidden reasoning and inline images. Missing capture is reported as `Transcript unavailable`; metrics never substitute for missing messages. Arrows scroll, PageUp/PageDown moves one viewport, and PageUp at the top loads earlier retained history. Home/End jumps within loaded history.
-
-Open live transcripts subscribe to child-session events, so streaming text and partial/final tool results refresh without reopening the page or waiting for a task-activity counter. Earlier pages remain anchored while updates arrive. Leaving the transcript releases its subscription without affecting execution.
-
-Detail views pin task identity, state, available metrics, and the selected action while PageUp/PageDown scrolls the body. Recent activity shows up to five retained tool actions; errors and input requests appear explicitly. Left returns to the previous view. `x` requests cancellation without bypassing confirmation or configured task bindings. Shell inspection shows a bounded output tail with omission markers.
-
-After a confirmed `x` stop settles, the owning chat receives a visible **stopped** notification and the parent model receives the stop context, even if the child returns no final message. Repeated stops do not duplicate notifications or replace an already-recorded terminal result. Closing the owner still suppresses late completion delivery.
 ## Where to go next
 
 Subagents are focused child agents you delegate bounded work to. Read this page for natural-language use and execution behavior, then continue:
@@ -64,6 +37,14 @@ Research the upstream library behavior online, then compare it with our local im
 ```
 
 Atomic decides whether delegation adds value, which specialist fits each bounded part, and whether the work should run as a single child, parallel group, or forked-context run. Multiple steps, files, tests, validation, or parallelism alone do not require a workflow; clearly delegated long-running autonomous work that needs durable stages, checkpoints, resumability, HIL, gates, retries, or loops is usually better served by a workflow.
+
+## Browse agents
+
+Open `/agents` to browse the available project, user, and built-in agents. Type to filter by name, description, or source. Use arrows to select an agent and Enter to inspect its description, model and fallbacks, tools, definition path, and system prompt. Escape returns to the catalog, then to chat. `/agents <query>` starts with a filter. Browsing is read-only and never launches an agent.
+
+The catalog is navigation, not an approval prompt. Leaving it open does not mark [Herdr](/herdr) blocked or hide active agent work; separate user-decision prompts still report their normal waits.
+
+The catalog uses the same effective discovery rules as execution, so overridden definitions and disabled agents are not offered as separate launchable choices. Ask Atomic to create or modify an agent; the catalog does not change configuration.
 
 ## Subagent execution is non-interactive
 
@@ -102,6 +83,12 @@ Completed, failed, interrupted, and cancelled noninteractive children cannot ans
 A single-child launch retains its existing terminal handoff: a parent-targeted blocking ask is claimed before send/waiter admission, ends that child, and returns the original question, ordered attachments, agent identity, and a dynamic `[TASK_CONTEXT]` handoff through the parent `subagent` call. The handoff explicitly requests a fresh child with a new run identity and the supervisor answer in its task. This single-child behavior does not apply to parallel runs or collected sibling launches.
 
 When the Intercom bridge is active, the parent may connect to issue the child capability; the child's own connection remains tool-driven. Non-interactive children still run normal extension lifecycle and remain in-process `AgentSession` instances while live.
+
+The handoff explicitly tells the parent to start a fresh child with a normal launch such as `subagent({ agent: "worker", task: "[TASK_CONTEXT] ... Continue with this supervisor answer: ..." })`. The new child receives a new run identity. Completed, interrupted, and parent-question children are terminal for continuation; a prior run ID cannot revive one.
+
+## Foreground supervisor coordination
+
+See [Supervisor coordination](#supervisor-coordination) for parallel requests and [Single-child handoff](#single-child-handoff) for claimed single-child requests. The earlier policy is retained in the repository's [historical subagent documentation](https://github.com/bastani-inc/atomic/blob/main/docs/migrations/2847-history/subagents.md).
 
 ## Migration from acceptance gates
 
@@ -194,17 +181,25 @@ Live progress and completed results show each step's resolved model ID and effec
 
 Owner-task rows, status cards, foreground result receipts, and background completion cards retain these settings too. Background launch receipts include the concrete model and known, capability-clamped reasoning level selected at admission, including inherited defaults, without waiting for child session startup. A launch receipt remains a snapshot; inspect `/tasks` for later session resolution or fallback changes. Settings that are not yet resolved remain unavailable rather than being guessed from the parent's display. Completion metadata is persisted with the notification so it remains visible when replaying chat history.
 
-## Owner-bound task projection
+## Task inspection
 
-Host adapters can construct an `OwnerTaskStore` from their existing supervisor and owner lease, check the `store.connect()` result, then call `bindOwnerTaskStore(session, store)` for that exact live session. Binding does not create or connect an owner. The store observes snapshot/cursor reconciliation and notifies already-mounted chats even when the producer binds lazily. Disposing the view does not cancel the owner. Reattachment uses existing identities rather than replaying launch tools.
+Hosts with an owner task store expose `/tasks` and `/tasks <id>` for background agents and shells, including their retained terminal results. Foreground-only work is excluded. Enter opens detail; arrows select an explicit action. Cancel asks for confirmation of the selected task. Terminal tasks retain transcript inspection but omit foreground, cancellation, and stdin actions. Escape returns from detail or stdin before returning to the composer.
 
-Native task snapshots retain `wasBackground` once a designated observation yields, so a fresh projection can distinguish completed background work from foreground-only commands. Trusted hosts recover authentic command settlement receipts independently of the bounded event journal. Neither recovery path registers a new wait or restarts execution.
+`/tasks` appears in slash-command autocomplete. The inspector groups agents and shells with counts, status symbols, and a highlighted selection. Task descriptions lead; the selected row shows secondary activity and tool counts. The header and footer remain visible in ordinary terminal sizes, with a compact fallback for short terminals.
 
-Main and workflow-stage chats use below-prompt background counts instead of persistent task rows in the transcript. Session replacement clears the previous owner's status before a replacement store binds. A workflow question retains the background count below its input area. Completion notifications use the same shared renderer in both chats.
+The list opens as a compact inline widget, like the `/workflow connect` picker. Detail, transcript, input, and stop-confirmation pages are fullscreen; returning to the list preserves selection. Every agent row includes its resolved model and reasoning level when available, including completed background tasks.
 
-Custom `ChatSessionHost` adapters can still use live task rows; set `taskRowsInChat: false` for footer-only status. Those rows show agent labels, state, duration, and bounded activity previews. Display-colliding labels get a stable short suffix derived from the task ID. Retention is at most 64 reports and 8 KiB of encoded preview records per task; omitted previews are labelled rather than presented as a complete transcript.
+While `/tasks` or its fullscreen transcript/detail view is active, Escape navigates back or closes that view; it does not cancel a pending `ask_user_question`. The questionnaire waits out of the way and returns with its selection intact after task navigation closes. With no task view active, Escape cancels the questionnaire normally.
 
-This is a host integration API above the SDK task foundation. Existing subagent and command producers are not automatically migrated by binding a projection. Full task transcript retrieval and `/tasks` navigation are separate integrations; unavailable transcript content is not inferred from activity reports.
+In the default isolated CLI, background subagents continue running after their launch observation returns. The engine publishes a compact task-status indicator below the prompt box, without task rows or activity previews. Run `/tasks` to open the list and inspect individual tasks; task updates never open it automatically. Completed tasks leave the live indicator and remain available in completion cards and `/tasks`. Inspecting does not restart work or create a second task owner. Top-level model bash commands use this owner on POSIX and native Windows; native Windows PowerShell is also owner-bound. Commands inside subagent sessions retain their existing execution path. See [Background shells](/background-tasks#background-shells) for platform support and the separate execution timeout.
+
+Transcript inspection uses a dedicated scrolling view with pinned identity, position, and controls. Retained child messages use the normal message renderers, excluding hidden reasoning and inline images. Missing capture is reported as `Transcript unavailable`; metrics never substitute for missing messages. Arrows scroll, PageUp/PageDown moves one viewport, and PageUp at the top loads earlier retained history. Home/End jumps within loaded history.
+
+Open live transcripts subscribe to child-session events, so streaming text and partial/final tool results refresh without reopening the page or waiting for a task-activity counter. Earlier pages remain anchored while updates arrive. Leaving the transcript releases its subscription without affecting execution.
+
+Detail views pin task identity, state, available metrics, and the selected action while PageUp/PageDown scrolls the body. Recent activity shows up to five retained tool actions; errors and input requests appear explicitly. Left returns to the previous view. `x` requests cancellation without bypassing confirmation or configured task bindings. Shell inspection shows a bounded output tail with omission markers.
+
+After a confirmed `x` stop settles, the owning chat receives a visible **stopped** notification and the parent model receives the stop context, even if the child returns no final message. Repeated stops do not duplicate notifications or replace an already-recorded terminal result. Closing the owner still suppresses late completion delivery.
 
 ## Orchestrator model and group policy
 
@@ -281,3 +276,7 @@ Moved to [Subagent reference](/subagents/reference#reasoning-levels).
 - [Intercom](/intercom) for cross-session messaging and supervisor escalation.
 - [Skills](/skills) for reusable instructions invoked with `/skill:<name>`.
 - [Settings](/settings) for user and project configuration.
+
+## Owner-bound task projection
+
+Moved to [Subagent reference](/subagents/reference#owner-bound-task-projection).

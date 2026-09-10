@@ -89,6 +89,7 @@
                   "workflows/builtins",
                   "workflows/authoring",
                   "workflows/reliable-design",
+                  "workflows/verification",
                   "workflows/operations",
                   "workflows/api-reference"
                 ]
@@ -116,7 +117,6 @@
               "models/model-selection",
               "models/pareto-efficiency",
               "models/evals",
-              "models/artificial-analysis-index",
               "custom-provider",
               "custom-provider/override",
               "custom-provider/registration",
@@ -187,7 +187,8 @@
             "group": "Project",
             "pages": [
               "development",
-              "changelog"
+              "changelog",
+              "models/artificial-analysis-index"
             ]
           }
         ]

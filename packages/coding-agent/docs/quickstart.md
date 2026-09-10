@@ -33,8 +33,6 @@ Moved to [Installation](/getting-started/installation#package-managers).
 
 Full detail: package manager commands and the `--ignore-scripts` note.
 
-Embedded PostgreSQL is available without install scripts or a first-run download on Linux x64/ARM64 (glibc and musl), macOS x64/ARM64, and Windows x64/ARM64. npm-compatible package managers select the matching `@bastani/atomic-natives` leaf containing the runtime; standalone archives carry a target-selected runtime and resolve its binaries directly from the extracted installation. Keep the complete archive directory, including `node_modules`, libraries and licenses. Older upstream optional packages may also remain in npm installations for compatibility, but the native leaf takes precedence. Windows ARM64 uses Windows x64 PostgreSQL under Windows 11's x64 emulation, not native PostgreSQL ARM64, and requires the Microsoft Visual C++ x64 v14 Redistributable. Windows 10 on ARM cannot run this x64 runtime; Windows ARM64 execution still needs hardware validation.
-
 ### Release archive
 
 Moved to [Installation](/getting-started/installation#release-archive).

@@ -1,0 +1,128 @@
+[
+  {
+    "path": "providers.md",
+    "old": "](#llamacpp)",
+    "new": "](#llama-cpp)",
+    "reason": "github-slugger deletes the dot; Mintlify 4.2.731 maps it to a separator, so only #llama-cpp resolves"
+  },
+  {
+    "path": "models.md",
+    "old": "](/settings#model--thinking)",
+    "new": "](/settings#model-&-thinking)",
+    "reason": "github-slugger deletes the ampersand and doubles the separator; Mintlify preserves `&`"
+  },
+  {
+    "path": "changelog.mdx",
+    "old": "](/extensions#ctxmodelregistry--ctxmodel--ctxscopedmodels)",
+    "new": "](/extensions/api-reference#ctx-modelregistry-/-ctx-model-/-ctx-scopedmodels)",
+    "reason": "the section moved to the extension API reference and its Mintlify id keeps `/` and maps `.` to `-`"
+  },
+  {
+    "path": "extensions.md",
+    "old": "](/herdr#compatibility)",
+    "new": "](/herdr#setup)",
+    "reason": "Retarget to the actual current page and Mintlify heading anchor."
+  },
+  {
+    "path": "extensions.md",
+    "old": "](#workflow-activity-and-lifecycle-hooks)",
+    "new": "](/extensions/events#workflow-activity-and-lifecycle-hooks)",
+    "reason": "Retarget to the actual current page and Mintlify heading anchor."
+  },
+  {
+    "path": "workflows/operations.md",
+    "old": "](/herdr#compatibility)",
+    "new": "](/herdr#setup)",
+    "reason": "Retarget to the actual current page and Mintlify heading anchor."
+  },
+  {
+    "path": "workflows/operations.md",
+    "old": "](/extensions#workflow-activity-and-lifecycle-hooks)",
+    "new": "](/extensions/events#workflow-activity-and-lifecycle-hooks)",
+    "reason": "Retarget to the actual current page and Mintlify heading anchor."
+  },
+  {
+    "path": "workflows/operations.md",
+    "old": "#workflow-resume--cross-session-resume-selector)",
+    "new": "#/workflow-resume-—-cross-session-resume-selector)",
+    "reason": "Retarget to the actual current page and Mintlify heading anchor."
+  },
+  {
+    "path": "workflows/operations.md",
+    "old": "#ctxtool--durable-cached-tool-execution)",
+    "new": "#ctx-tool-—-durable-cached-tool-execution)",
+    "reason": "Retarget to the actual current page and Mintlify heading anchor."
+  },
+  {
+    "path": "workflows/builtins.md",
+    "old": "#ctxtool--durable-cached-tool-execution)",
+    "new": "#ctx-tool-—-durable-cached-tool-execution)",
+    "reason": "Retarget to the actual current page and Mintlify heading anchor."
+  },
+  {
+    "path": "workflows/api-reference.md",
+    "old": "#ctxtool--durable-cached-tool-execution)",
+    "new": "#ctx-tool-—-durable-cached-tool-execution)",
+    "reason": "Retarget to the actual current page and Mintlify heading anchor."
+  },
+  {
+    "path": "workflows/api-reference.md",
+    "old": "#early-exit-with-ctxexit)",
+    "new": "#early-exit-with-ctx-exit)",
+    "reason": "Retarget to the actual current page and Mintlify heading anchor."
+  },
+  {
+    "path": "workflows/api-reference.md",
+    "old": "#fallbackmodels--fallbackthinkinglevels)",
+    "new": "#fallbackmodels-/-fallbackthinkinglevels)",
+    "reason": "Retarget to the actual current page and Mintlify heading anchor."
+  },
+  {
+    "path": "workflows/api-reference.md",
+    "old": "#setupgitworktreeoptions)",
+    "new": "#setupgitworktree-options)",
+    "reason": "Retarget to the actual current page and Mintlify heading anchor."
+  },
+  {
+    "path": "models/model-selection.md",
+    "old": "#coding-agent-index-v14-is-a-different-comparison)",
+    "new": "#coding-agent-index-v1-4-is-a-different-comparison)",
+    "reason": "Retarget to the actual current page and Mintlify heading anchor."
+  },
+  {
+    "path": "subagents.md",
+    "old": "A compact finished-task summary remains after completion. Inspecting does not restart work or create a second task owner. Top-level model bash commands use this owner on POSIX systems; native Windows and commands inside subagent sessions retain their existing execution path.",
+    "new": "Completed tasks leave the live indicator and remain available in completion cards and `/tasks`. Inspecting does not restart work or create a second task owner. Top-level model bash commands use this owner on POSIX and native Windows; native Windows PowerShell is also owner-bound. Commands inside subagent sessions retain their existing execution path. See [Background shells](/background-tasks#background-shells) for platform support and the separate execution timeout.",
+    "reason": "The newer background-tasks.md contract and native Windows shell support supersede the earlier task-inspection paragraph."
+  },
+  {
+    "path": "workflows/reliable-design.md",
+    "old": "Reserve `max` for high-cost-of-error roles or an explicit user request; use `high` for demanding mapping, lifecycle analysis, compatibility, planning, synthesis, triage, and repair; use `medium` for user-impact review and final reporting; and keep deterministic checks as tool nodes with no model call.",
+    "new": "Use `low` or `medium` for implementation and routine fixes, and `high` or `xhigh` for code review, test design, failure analysis, and approval decisions when supported. Use `high` for demanding mapping, lifecycle analysis, compatibility, planning, synthesis, and triage, and `medium` for user-impact review and final reporting. `max` is an exception justified by task-specific evidence or an explicit user request, not a role default. Keep deterministic checks as tool nodes with no model call.",
+    "reason": "Reconcile role defaults with model-selection.md, updated by 6806f7995 after the workflow paragraph."
+  },
+  {
+    "path": "workflows/operations.md",
+    "old": "see its [compatibility matrix](/herdr#setup)",
+    "new": "see its [setup guidance](/herdr#setup)",
+    "reason": "Herdr now documents setup and status rather than a compatibility matrix."
+  },
+  {
+    "path": "extensions.md",
+    "old": "The tested Herdr release and observed CLI behaviour are listed under [Compatibility](/herdr#setup).",
+    "new": "See [Herdr setup](/herdr#setup) for the supported version and [status indicators](/herdr#status-indicators) for reported activity.",
+    "reason": "Link to current user-facing Herdr version and activity guidance instead of the removed compatibility section."
+  },
+  {
+    "path": "workflows/authoring.md",
+    "old": "](/extensions#events)",
+    "new": "](/extensions/events#events)",
+    "reason": "User explicitly authorizes fixing the actual moved reference; workflow structure is unchanged."
+  },
+  {
+    "path": "workflows/reliable-design.md",
+    "old": "approve | <catalog fullId> | max | final approval",
+    "new": "approve | <catalog fullId> | high | final approval",
+    "reason": "The example must follow the reviewed current role policy: model-selection.md specifies high or xhigh for final approval; max is an evidence-backed or explicitly requested exception, not a role default."
+  }
+]

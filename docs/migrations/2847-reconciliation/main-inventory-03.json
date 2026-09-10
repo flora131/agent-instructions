@@ -1,0 +1,5402 @@
+[
+  {
+    "id": "session-format::024",
+    "source_path": "session-format.md",
+    "source_anchor": "sessionsummaryentry",
+    "source_heading": "SessionSummaryEntry",
+    "source_lines": [
+      312,
+      325
+    ],
+    "occurrence": 1,
+    "sha256": "06d855ae3ff59fbe6b8de231cd3766b8fd869ab94c1524a439db887584551d1b",
+    "normalized_sha256": "e3c140206af1d5ed43730e5cb204255a0217df2c1a5600e441c847f5898bec6a",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "session-format::025",
+    "source_path": "session-format.md",
+    "source_anchor": "tree-structure",
+    "source_heading": "Tree Structure",
+    "source_lines": [
+      326,
+      339
+    ],
+    "occurrence": 1,
+    "sha256": "3b3514a2747a08ee8b67081dedfd6c3fcda98a10a4d734f8dda9a85319737c34",
+    "normalized_sha256": "53e31ee60a52601832614ea2cb08ccb028fe71e5beb0d974fb4780ee8568ad6b",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "session-format::026",
+    "source_path": "session-format.md",
+    "source_anchor": "context-building",
+    "source_heading": "Context Building",
+    "source_lines": [
+      340,
+      348
+    ],
+    "occurrence": 1,
+    "sha256": "bf70058e6e1fc7dba0d3def9f39200093223a95ae59d8f4395ee41d96eed210d",
+    "normalized_sha256": "bceda29dcda2079d6f35d027ffb965558e256b7fc66b54f6c3c1a8ca3ebe871f",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "session-format::027",
+    "source_path": "session-format.md",
+    "source_anchor": "parsing-example",
+    "source_heading": "Parsing Example",
+    "source_lines": [
+      349,
+      397
+    ],
+    "occurrence": 1,
+    "sha256": "371f88220979438047637c1afd6e789966e1d8f6d9b96e33e8e8a6b41b3280d8",
+    "normalized_sha256": "499378a6858e9441d121fe0cff598a373df84fcc953a266afd73c8256ab35da4",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "session-format::028",
+    "source_path": "session-format.md",
+    "source_anchor": "sessionmanager-api",
+    "source_heading": "SessionManager API",
+    "source_lines": [
+      398,
+      401
+    ],
+    "occurrence": 1,
+    "sha256": "a518199969e849382eafdd2d5f3b26f02036f14a6d7feb13a3dc57641558768f",
+    "normalized_sha256": "575f424e2ca2ad614244743cbad6aa01c0d761022935623acf4dea2f08eaf0c6",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "session-format::029",
+    "source_path": "session-format.md",
+    "source_anchor": "static-creation-methods",
+    "source_heading": "Static Creation Methods",
+    "source_lines": [
+      402,
+      409
+    ],
+    "occurrence": 1,
+    "sha256": "89f837d88c4557a947980fcc2dc8e15ee04001a40be9536fc1f824446a930da9",
+    "normalized_sha256": "91fc5959db1682b396ab7bc95aecbe49edba145065915100ea07975767db419c",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "session-format::030",
+    "source_path": "session-format.md",
+    "source_anchor": "static-listing-methods",
+    "source_heading": "Static Listing Methods",
+    "source_lines": [
+      410,
+      423
+    ],
+    "occurrence": 1,
+    "sha256": "1d8db966dd7bb0858de3bd85acdd6e729c6fcfc08c9e7cf5cff578081f6a1cb8",
+    "normalized_sha256": "572665517a35043283730f52db0a1bea7940e6468344e1a48b967b9d8e02333c",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "session-format::031",
+    "source_path": "session-format.md",
+    "source_anchor": "instance-methods-session-management",
+    "source_heading": "Instance Methods - Session Management",
+    "source_lines": [
+      424,
+      430
+    ],
+    "occurrence": 1,
+    "sha256": "e91514354bbde193bddec8f150ddd58cdf42a1d0f3a5b66ce65e65a1f6a829c5",
+    "normalized_sha256": "f6491892b66455953035835adb3a1073c56ed2799e528d510840d1eac32ea783",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "session-format::032",
+    "source_path": "session-format.md",
+    "source_anchor": "instance-methods-appending-all-return-entry-id",
+    "source_heading": "Instance Methods - Appending (all return entry ID)",
+    "source_lines": [
+      431,
+      442
+    ],
+    "occurrence": 1,
+    "sha256": "f934cf8fc09abebb0fe8890deb45e3f2e3f6b272a2d10e5c4b6cebc400a399ea",
+    "normalized_sha256": "48dbdb63ed7a51699765b7f4a54c60e01311bcc071ae42a05dc2a84e4563fe3a",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "session-format::033",
+    "source_path": "session-format.md",
+    "source_anchor": "instance-methods-tree-navigation",
+    "source_heading": "Instance Methods - Tree Navigation",
+    "source_lines": [
+      443,
+      454
+    ],
+    "occurrence": 1,
+    "sha256": "27eee687aad87c665656026abdb9c9dafe95f4016a9e1b6a69cd4f4995f15fa2",
+    "normalized_sha256": "7b4caffae3a34294f724f0497a5161974014b32f5a9ab99b83cfc466c2ba793d",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "session-format::034",
+    "source_path": "session-format.md",
+    "source_anchor": "instance-methods-context-&-info",
+    "source_heading": "Instance Methods - Context & Info",
+    "source_lines": [
+      455,
+      466
+    ],
+    "occurrence": 1,
+    "sha256": "e761441879025a88c0ee885170d125af03305f91c84e1c2e84bd3e14435074a5",
+    "normalized_sha256": "19015cb9e6149e2cc6717517905d12c7847fb9f36d979f3daf3d5c871b55a77a",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "sessions::001",
+    "source_path": "sessions.md",
+    "source_anchor": "sessions",
+    "source_heading": "Sessions",
+    "source_lines": [
+      1,
+      4
+    ],
+    "occurrence": 1,
+    "sha256": "900aa6616427ff98c18af032052220c273c5947b29b0fff89e184eea8d45cf66",
+    "normalized_sha256": "b05a80e6ff8d8e64f9e27bfd60b7e7f2089198aeb339a000c3c07212aeb44b87",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "sessions::002",
+    "source_path": "sessions.md",
+    "source_anchor": "session-storage",
+    "source_heading": "Session Storage",
+    "source_lines": [
+      5,
+      21
+    ],
+    "occurrence": 1,
+    "sha256": "4b3472b8c00485639d6fe835797421db6b9ea413c1e172c89ef1ab32d62ac087",
+    "normalized_sha256": "061ae424ffa5296574fd15165932b61ed10f58978572b5bb186bafb891ccfb85",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "sessions::003",
+    "source_path": "sessions.md",
+    "source_anchor": "custom-session-directories",
+    "source_heading": "Custom session directories",
+    "source_lines": [
+      22,
+      27
+    ],
+    "occurrence": 1,
+    "sha256": "bc1a20b1b247327e46a0f1af30325c5fe313921735255b611fc2cb432f02afd0",
+    "normalized_sha256": "a694f4727feb36ed9f840d85f338a3699899a9a1317b6f5bfc0957d5702ff5ac",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "sessions::004",
+    "source_path": "sessions.md",
+    "source_anchor": "session-commands",
+    "source_heading": "Session Commands",
+    "source_lines": [
+      28,
+      42
+    ],
+    "occurrence": 1,
+    "sha256": "4681bb51e40ba44fd2fe401ac5a9682a96e38ca7f10c1ad384db279737c6e2e8",
+    "normalized_sha256": "361d865e83c2fe85aff1ab0f9547b724d386a1f13d7260faefad7fe930955505",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "sessions::005",
+    "source_path": "sessions.md",
+    "source_anchor": "resuming-and-deleting-sessions",
+    "source_heading": "Resuming and Deleting Sessions",
+    "source_lines": [
+      43,
+      59
+    ],
+    "occurrence": 1,
+    "sha256": "de4f566896e9f5bbd48769bf21632ba94da9128fcc051e6608483011855a053f",
+    "normalized_sha256": "461d5bc13f9a15536996a9f1e640188b6971c8e1820d7f7718bf49681e2bf2c3",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "sessions::006",
+    "source_path": "sessions.md",
+    "source_anchor": "session-summaries",
+    "source_heading": "Session summaries",
+    "source_lines": [
+      60,
+      69
+    ],
+    "occurrence": 1,
+    "sha256": "b947abacd28086f1b38de364da9f2f805701f776ed1f8ea99b0d686878c3e094",
+    "normalized_sha256": "abecee31f03653bd8971455e65b30cf21ce87e1ad9f96a96f9335b4d99ce1cd7",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "sessions::007",
+    "source_path": "sessions.md",
+    "source_anchor": "internal-workflow-sessions",
+    "source_heading": "Internal (workflow) sessions",
+    "source_lines": [
+      70,
+      75
+    ],
+    "occurrence": 1,
+    "sha256": "a203808adc282774e2bdf13fff16fcb91fff527ec966ff2d428b7d5d2f92e32b",
+    "normalized_sha256": "60c84ca0f14d60973f5c6accdde8a08087ab505ce5c013d04536b35de9ce53fe",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "sessions::008",
+    "source_path": "sessions.md",
+    "source_anchor": "naming-sessions",
+    "source_heading": "Naming Sessions",
+    "source_lines": [
+      76,
+      92
+    ],
+    "occurrence": 1,
+    "sha256": "438c402a166817826a66288832641f4c0bfc6c7a8ebe5377b7006f09e61e6f84",
+    "normalized_sha256": "79aee701f77ecc964a116f074bfe36f1f8b3c926fa2686d7f469ffb0057264c5",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "sessions::009",
+    "source_path": "sessions.md",
+    "source_anchor": "branching-with-/tree",
+    "source_heading": "Branching with `/tree`",
+    "source_lines": [
+      93,
+      110
+    ],
+    "occurrence": 1,
+    "sha256": "93558dfcb12c167bdb940b16cee3aa2b4e86b1199e8a686e5435043f6bff1828",
+    "normalized_sha256": "509319e28a1eca2edae3d8aac1833f485757c8820e03026f92a21bd04c7a75ae",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "sessions::010",
+    "source_path": "sessions.md",
+    "source_anchor": "tree-controls",
+    "source_heading": "Tree Controls",
+    "source_lines": [
+      111,
+      125
+    ],
+    "occurrence": 1,
+    "sha256": "12399d89d4ecf21d1d45347040f559e4a47b0c805b27af0ed00d1787b2a432eb",
+    "normalized_sha256": "e70acf8014deac7f34088ff2410f1af5adfcf0e962d4f962d092f8a32745bb4a",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "sessions::011",
+    "source_path": "sessions.md",
+    "source_anchor": "selection-behavior",
+    "source_heading": "Selection Behavior",
+    "source_lines": [
+      126,
+      141
+    ],
+    "occurrence": 1,
+    "sha256": "32e0b67f8021a3d5ceb2594ca0438a4a3843bcf7e29a0663399302e9752f6b72",
+    "normalized_sha256": "4c9959a0d78f9eebb7e6f8d17bac6d9e9154ce51b757a89da596b9af31a566a8",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "sessions::012",
+    "source_path": "sessions.md",
+    "source_anchor": "/tree-/fork-and-/clone",
+    "source_heading": "`/tree`, `/fork`, and `/clone`",
+    "source_lines": [
+      142,
+      152
+    ],
+    "occurrence": 1,
+    "sha256": "61dca12a4ba52d7b03a8354023427035cf01e5f6c54d6da1b8809634eaad56c8",
+    "normalized_sha256": "b27170d23dbc50ee74cb2f276355e10725f4e49a38ee24cf7947e8463c0384f8",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "sessions::013",
+    "source_path": "sessions.md",
+    "source_anchor": "branch-summaries",
+    "source_heading": "Branch Summaries",
+    "source_lines": [
+      153,
+      166
+    ],
+    "occurrence": 1,
+    "sha256": "04cfd922301f47c1f3857311460966c35cb5f5f7da4f9d24688255ecbbd38040",
+    "normalized_sha256": "8e7948deff9d3924469daffcb21af1611448ed0da7a9639af135c0d707754e9c",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "sessions::014",
+    "source_path": "sessions.md",
+    "source_anchor": "session-format",
+    "source_heading": "Session Format",
+    "source_lines": [
+      167,
+      172
+    ],
+    "occurrence": 1,
+    "sha256": "97c8f6cf5a5cd42228c84cd8a482a62fe0cf82b2374a83b3cfdc4825e615445a",
+    "normalized_sha256": "857b743e98bc88c300d44967f1f9dc12747796b85254abc02e30809f5aec66ca",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::001",
+    "source_path": "settings.md",
+    "source_anchor": "settings",
+    "source_heading": "Settings",
+    "source_lines": [
+      1,
+      13
+    ],
+    "occurrence": 1,
+    "sha256": "6d678d6bb62221b20cf417d8d8b2da300daae6ed81c435c7b94e7f7c5a159299",
+    "normalized_sha256": "5daef6e79d18d9ee9ca2da2de15db50ccd44132a5fd034d12d76cf565ef4c9aa",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::002",
+    "source_path": "settings.md",
+    "source_anchor": "project-trust",
+    "source_heading": "Project Trust",
+    "source_lines": [
+      14,
+      31
+    ],
+    "occurrence": 1,
+    "sha256": "a92408f22006d1eb76bee05791900670661bef220a2bb34d516f6d56d8a786f9",
+    "normalized_sha256": "ec7c5381ad426eb29481f8aba540dd147309bc20fd2c5c0392f5c0b7655ab5ec",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::003",
+    "source_path": "settings.md",
+    "source_anchor": "all-settings",
+    "source_heading": "All Settings",
+    "source_lines": [
+      32,
+      33
+    ],
+    "occurrence": 1,
+    "sha256": "fc89087ce6a8adc53f3ea1e2be59b78e7d3d0de05f571fbb892c847c760bdbec",
+    "normalized_sha256": "b718359750a6003d4a10ce5ab6bbfdd2ede089a63d975029af41540703f4e1f3",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "settings::004",
+    "source_path": "settings.md",
+    "source_anchor": "herdr",
+    "source_heading": "Herdr",
+    "source_lines": [
+      34,
+      41
+    ],
+    "occurrence": 1,
+    "sha256": "2975ac9ce541063f000e42a63258c025f831858f1be366e77a45d23472d13de0",
+    "normalized_sha256": "8965fbeb0a9cd1d3af9703d3c8800572a1d413e5923be23dd56b62b7c636c42d",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::005",
+    "source_path": "settings.md",
+    "source_anchor": "model-&-thinking",
+    "source_heading": "Model & Thinking",
+    "source_lines": [
+      42,
+      56
+    ],
+    "occurrence": 1,
+    "sha256": "340b0c88a4616e0676926a0ac105c1ae6625df798d9f1f1c01ea80c82b1bc9b4",
+    "normalized_sha256": "c41ed18f3198f2778727806a7cb5713a2518d335b3fd0091c62e0e70567e4ada",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::006",
+    "source_path": "settings.md",
+    "source_anchor": "thinkingbudgets",
+    "source_heading": "thinkingBudgets",
+    "source_lines": [
+      57,
+      69
+    ],
+    "occurrence": 1,
+    "sha256": "b5acfc2ce75346ddc4c335d38e9bce8e4bb45119d1c026a109cb69dfe995ecc1",
+    "normalized_sha256": "72d282b81cf617e3de3e91248cf535f5cea80935f6c6d1e2342f2bc70090191b",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::007",
+    "source_path": "settings.md",
+    "source_anchor": "fallbackmodels",
+    "source_heading": "fallbackModels",
+    "source_lines": [
+      70,
+      99
+    ],
+    "occurrence": 1,
+    "sha256": "2be7619c955c966836731cf81d392f73ab69b0b6190a4026ef00ff3f0d7b3382",
+    "normalized_sha256": "29d19b443f5b39f1392e03db6f813ce83771677e500f2ff1a9b96b911d466bd0",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::008",
+    "source_path": "settings.md",
+    "source_anchor": "fast-models",
+    "source_heading": "Fast models",
+    "source_lines": [
+      100,
+      116
+    ],
+    "occurrence": 1,
+    "sha256": "7518cfce5bd44b7d733c0625e32d7e09539f1a90c3d2c2cb692953c6e8028620",
+    "normalized_sha256": "d60f8d364bd0d2ada32c9ecb9852eb56380857968cbae8a371e8c83986527520",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::009",
+    "source_path": "settings.md",
+    "source_anchor": "ui-&-display",
+    "source_heading": "UI & Display",
+    "source_lines": [
+      117,
+      148
+    ],
+    "occurrence": 1,
+    "sha256": "bb5634092fa068b8f894ce7015967c9dbce56dbfea7b3e2d6b249af6879c5840",
+    "normalized_sha256": "dead28683f9fe42750865243edeef61529a2ff820b4e2d0a3caf75ab30127097",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::010",
+    "source_path": "settings.md",
+    "source_anchor": "telemetry-and-update-checks",
+    "source_heading": "Telemetry and update checks",
+    "source_lines": [
+      149,
+      157
+    ],
+    "occurrence": 1,
+    "sha256": "9249b3703b79aa9b6155c9c7adb24be3b042b74f936c44beea6b01772fd8d4d2",
+    "normalized_sha256": "533a451627403b0c7f4cbce95b70626d6c09c479cf90610e7f7686b0e4625a4d",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::011",
+    "source_path": "settings.md",
+    "source_anchor": "network-proxy",
+    "source_heading": "Network proxy",
+    "source_lines": [
+      158,
+      167
+    ],
+    "occurrence": 1,
+    "sha256": "8949e69dcc43710d93857b20ed1f26653929247089ceb33b64f5c13ffd23904c",
+    "normalized_sha256": "94dc16fe17542f64a9cd6b7825b9529cd1007e9a5c9996129da1e184fc6b5420",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::012",
+    "source_path": "settings.md",
+    "source_anchor": "warnings",
+    "source_heading": "Warnings",
+    "source_lines": [
+      168,
+      181
+    ],
+    "occurrence": 1,
+    "sha256": "7cff24afba957afe9a80444c1c20e2edfb08c7ee61ec89964ce323f33980d4f6",
+    "normalized_sha256": "90c803e3a73e10c417d0d205e59ce27bc40f877a6d9b39590eb7548fe461d042",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::013",
+    "source_path": "settings.md",
+    "source_anchor": "compaction",
+    "source_heading": "Compaction",
+    "source_lines": [
+      182,
+      205
+    ],
+    "occurrence": 1,
+    "sha256": "6a0b20e8302389c95a576b5b11d5dd824b6541134555123cb759d30a5e7d60a5",
+    "normalized_sha256": "d080f68b218dfacc7617b663bc95620a8746dc562b7ba83cbc6dcd7bc0a66bd8",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::014",
+    "source_path": "settings.md",
+    "source_anchor": "branch-summary",
+    "source_heading": "Branch Summary",
+    "source_lines": [
+      206,
+      212
+    ],
+    "occurrence": 1,
+    "sha256": "3513ef08f88db48928aea021c75af53aea13c0ff71e6e98fcc4eddef7973f27d",
+    "normalized_sha256": "8d77333842de2d6fb98ddc96920bf79e5f34712d20b2c1c6cb0b41ba8016df85",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::015",
+    "source_path": "settings.md",
+    "source_anchor": "session-summary",
+    "source_heading": "Session Summary",
+    "source_lines": [
+      213,
+      218
+    ],
+    "occurrence": 1,
+    "sha256": "cae97337272d789079d99d3397d62a088c7869b0c8fcd66dd6aa847e79b787dd",
+    "normalized_sha256": "e287b47a474e8098575c3ef8fde4d7422cd220f069d2143e07e94bcafbb736d1",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::016",
+    "source_path": "settings.md",
+    "source_anchor": "retry",
+    "source_heading": "Retry",
+    "source_lines": [
+      219,
+      252
+    ],
+    "occurrence": 1,
+    "sha256": "77ede1ab1b1fa88fe83b3e38c8eb3ed92c78d6dcee8651ad6f775bf6444f171a",
+    "normalized_sha256": "f9ab833571dd6f06c587cd28016ed41b1ee403e0b53d7129a5ec806b5fa19e02",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::017",
+    "source_path": "settings.md",
+    "source_anchor": "http",
+    "source_heading": "HTTP",
+    "source_lines": [
+      253,
+      277
+    ],
+    "occurrence": 1,
+    "sha256": "74c64078c51944519fa40585475df4c6ae5eca1951011f7a9f2d1b788aa0da3c",
+    "normalized_sha256": "e977923231ab39fd7c37f214d463c2ae7e5a3208a1c6065deee9bc154d78c02b",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 2,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::018",
+    "source_path": "settings.md",
+    "source_anchor": "message-delivery",
+    "source_heading": "Message Delivery",
+    "source_lines": [
+      278,
+      290
+    ],
+    "occurrence": 1,
+    "sha256": "c429122fd91a83533051218df2c59d0ff1f8ff4dc25c594f6fc61be3fa868a3f",
+    "normalized_sha256": "82f65193ef48e2be2d35127c3f335bf6b96540fc852969c3848e6e658ae62dc8",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::019",
+    "source_path": "settings.md",
+    "source_anchor": "terminal-&-images",
+    "source_heading": "Terminal & Images",
+    "source_lines": [
+      291,
+      308
+    ],
+    "occurrence": 1,
+    "sha256": "56a23c7f09f2cd2f4b3fa44028fc72ba61e97a03ed65301c4631530df9f4734d",
+    "normalized_sha256": "3cd2ed29bc2b767406682772e70abf1b45dbc11438145358b34c03922e99b716",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::020",
+    "source_path": "settings.md",
+    "source_anchor": "shell",
+    "source_heading": "Shell",
+    "source_lines": [
+      309,
+      345
+    ],
+    "occurrence": 1,
+    "sha256": "f71f1dcd71cb21c348f3cc8325c7f346a86693e8eee8c0f34df917ac0647f60b",
+    "normalized_sha256": "8128e7887cddae8db10e44abf9d1a2ab0f993ec553a57994ec500d3cb0c1189c",
+    "kind": "h3",
+    "fences": 3,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::021",
+    "source_path": "settings.md",
+    "source_anchor": "tools",
+    "source_heading": "Tools",
+    "source_lines": [
+      346,
+      369
+    ],
+    "occurrence": 1,
+    "sha256": "f561847c7944c3f84e66d7dc50341c13e0b6eacfa8046b49ebb8ede153a94742",
+    "normalized_sha256": "70b9b79ffe1a80cea588f94c939dd323cfd80780fffe4dce2c3373e296a9bdb0",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::022",
+    "source_path": "settings.md",
+    "source_anchor": "sessions",
+    "source_heading": "Sessions",
+    "source_lines": [
+      370,
+      381
+    ],
+    "occurrence": 1,
+    "sha256": "7619c6247808896ad1c6ad527e9c990e1fae1f24f3b48fe7441c62c5a23d576c",
+    "normalized_sha256": "a3fb9165df28b7fa865c1159b0381b89ccec717d30c69bdcdca343354c10f8b8",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::023",
+    "source_path": "settings.md",
+    "source_anchor": "models",
+    "source_heading": "Models",
+    "source_lines": [
+      382,
+      396
+    ],
+    "occurrence": 1,
+    "sha256": "5a43783d14068363dbb9d4862b08beae9d93bcfd7c1baf2519c0c39ab6f42d9c",
+    "normalized_sha256": "59017ee4c29df282ea7a67a236150669dbfecca1cda95bcf013cbfc7cb72ff51",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::024",
+    "source_path": "settings.md",
+    "source_anchor": "markdown",
+    "source_heading": "Markdown",
+    "source_lines": [
+      397,
+      408
+    ],
+    "occurrence": 1,
+    "sha256": "d370fa8313f7f24450745b19a232852419d5fee91501951104437ce35203bed8",
+    "normalized_sha256": "6f42ad14c5f8c1b832d195cf4cf6d776feb5670ddbc6e4d986b4d53b7446daf9",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::025",
+    "source_path": "settings.md",
+    "source_anchor": "resources",
+    "source_heading": "Resources",
+    "source_lines": [
+      409,
+      426
+    ],
+    "occurrence": 1,
+    "sha256": "aa67dee7b27955ba189798b98cbb24d66269dffe538e152894f4677fff92527d",
+    "normalized_sha256": "37aa9d34878a8e55d987124b60e59d06cdf50ed8bb51dc20f6bf126d6dd9d7c8",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::026",
+    "source_path": "settings.md",
+    "source_anchor": "packages",
+    "source_heading": "packages",
+    "source_lines": [
+      427,
+      455
+    ],
+    "occurrence": 1,
+    "sha256": "51181570b9a7e89cbd3b1220b19cc343a5092fcdb0c692b0f0bc3e43d26bddcc",
+    "normalized_sha256": "474c801b30560c5156209c6fa095d4decda032f130a40b6e8bfa2990de1f14d6",
+    "kind": "h4",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::027",
+    "source_path": "settings.md",
+    "source_anchor": "example",
+    "source_heading": "Example",
+    "source_lines": [
+      456,
+      483
+    ],
+    "occurrence": 1,
+    "sha256": "c5770048a9626642c88fae87c1debe384ae23330b2d60f5be7b65284ab3d4172",
+    "normalized_sha256": "64c076e5519ab68fb1536d0730cb88ad7d6edd6f9f8f131032c3273d4c774fe7",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "settings::028",
+    "source_path": "settings.md",
+    "source_anchor": "project-overrides",
+    "source_heading": "Project Overrides",
+    "source_lines": [
+      484,
+      506
+    ],
+    "occurrence": 1,
+    "sha256": "2e944cd2d2b2a03d4a79799cbebc631e400a8388651dcbd88ff3210e6da96aa1",
+    "normalized_sha256": "e85f2a2e30d8114918c6cfe4c9a2eb33599a0c6712d78507fef9358740ea963a",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "shell-aliases::001",
+    "source_path": "shell-aliases.md",
+    "source_anchor": "shell-aliases",
+    "source_heading": "Shell Aliases",
+    "source_lines": [
+      1,
+      14
+    ],
+    "occurrence": 1,
+    "sha256": "0fdd1520a5bb13b61d33bc16f8689016d9a1a6e8c1a1214aed134c87f89f6a56",
+    "normalized_sha256": "6825efcc79ddb4efef8a4feda97a153d0c030f44181f0f8d088d27adecaee2e8",
+    "kind": "h1",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::001",
+    "source_path": "skills.md",
+    "source_anchor": null,
+    "source_heading": null,
+    "source_lines": [
+      1,
+      2
+    ],
+    "occurrence": null,
+    "sha256": "af893664d6417b33b8b149665f2946bf1fc5f301279783d24d096976460b44c4",
+    "normalized_sha256": "24f1f76e45b29871d3196403197a9ffb73e843cfa6211288833c7c08f20e7746",
+    "kind": "preamble",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 1,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::002",
+    "source_path": "skills.md",
+    "source_anchor": "skills",
+    "source_heading": "Skills",
+    "source_lines": [
+      3,
+      8
+    ],
+    "occurrence": 1,
+    "sha256": "f53298a32b27159d4a145921fe162dda37750a9eedc1ba14b27bd1b65aa21a25",
+    "normalized_sha256": "de1fa028630f99d13d66ceea156bebdb4a6c2a7435047ebdd2620b80adb6a2e6",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::003",
+    "source_path": "skills.md",
+    "source_anchor": "table-of-contents",
+    "source_heading": "Table of Contents",
+    "source_lines": [
+      9,
+      19
+    ],
+    "occurrence": 1,
+    "sha256": "fe0dc23c4d9fc2954dd5cdb77872b3fa57072bc4612a49fdda1753b617559143",
+    "normalized_sha256": "9c9a4e73ca51f23728c8796ece2828fd54e2313633359c4a55e82dc9a77f6c6f",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "skills::004",
+    "source_path": "skills.md",
+    "source_anchor": "locations",
+    "source_heading": "Locations",
+    "source_lines": [
+      20,
+      43
+    ],
+    "occurrence": 1,
+    "sha256": "96ddc6c258908f6cc31a7f94db30b7de2cf3502f52879ce9af6fb80b7087a8b8",
+    "normalized_sha256": "4b3de19c10cdd4fcc0781206bc53948c8ce3059fd84ccd74f8cac98580316f6a",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 1,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::005",
+    "source_path": "skills.md",
+    "source_anchor": "using-skills-from-other-harnesses",
+    "source_heading": "Using Skills from Other Harnesses",
+    "source_lines": [
+      44,
+      64
+    ],
+    "occurrence": 1,
+    "sha256": "83623f910f1510cb95ae2f9f6906b9183a28fb6e364ce6c0dce0418cb2a4841f",
+    "normalized_sha256": "e57f373dbc5d1dcfa54361b5eb97606f619bc403d4451cfd0921558e2d3d4844",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::006",
+    "source_path": "skills.md",
+    "source_anchor": "how-skills-work",
+    "source_heading": "How Skills Work",
+    "source_lines": [
+      65,
+      73
+    ],
+    "occurrence": 1,
+    "sha256": "591338c711c7dfeeaada8522d9549b9957468c4c1c9ea2385967052e0399c3b0",
+    "normalized_sha256": "3dd4977f2a1062068642e4eec4fa007ee0095aa5f29e12892b9ef399c97f895a",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::007",
+    "source_path": "skills.md",
+    "source_anchor": "built-in-prompt-engineering-guidance",
+    "source_heading": "Built-in prompt engineering guidance",
+    "source_lines": [
+      74,
+      81
+    ],
+    "occurrence": 1,
+    "sha256": "ec917b47dee5b256a0ea0cfa9917179586680ec8df57b648a223512b36988f4e",
+    "normalized_sha256": "e80fb38a61c03c083f6b161a36498dbc6852d4e211295304ecf6c608d89c3dbe",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::008",
+    "source_path": "skills.md",
+    "source_anchor": "built-in-visual-explanation-guidance",
+    "source_heading": "Built-in visual explanation guidance",
+    "source_lines": [
+      82,
+      85
+    ],
+    "occurrence": 1,
+    "sha256": "ffc5bfadf53268c7a743b39b10acb97169516aa4bdd254ba48be839bbfd49f44",
+    "normalized_sha256": "67f13258cf4d629018d209c618037fc34cf7efe20f5e2158381930d06f5c747a",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::009",
+    "source_path": "skills.md",
+    "source_anchor": "built-in-code-quality-guidance",
+    "source_heading": "Built-in code quality guidance",
+    "source_lines": [
+      86,
+      89
+    ],
+    "occurrence": 1,
+    "sha256": "f7a271bdb81c6a7001310c487311b5bc120a515d01cb74510a940aa29f3f3ef7",
+    "normalized_sha256": "7f8cb450942116e335484d8c90185ba3f7a5d07b1e77805005719f586a7d9b70",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::010",
+    "source_path": "skills.md",
+    "source_anchor": "built-in-computer-use-and-automation-guidance",
+    "source_heading": "Built-in computer-use and automation guidance",
+    "source_lines": [
+      90,
+      95
+    ],
+    "occurrence": 1,
+    "sha256": "8615fe95ce8c8f64d128e59eb0f883015d1f7a17c636a276a6181e94453cea40",
+    "normalized_sha256": "5a43600c6ec6d693be0b8d2e1e44ba85980a33fc1e2f24b01213428ec51e00f2",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::011",
+    "source_path": "skills.md",
+    "source_anchor": "skill-commands",
+    "source_heading": "Skill Commands",
+    "source_lines": [
+      96,
+      129
+    ],
+    "occurrence": 1,
+    "sha256": "8d62699af888be1a4185de5caf628b97d3ff3c3f218603397bcb635572a8d4e0",
+    "normalized_sha256": "6dcf75ebb746daf27b4ebc73746a416b92e99f2857d683027e5de25a7e152b37",
+    "kind": "h2",
+    "fences": 3,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::012",
+    "source_path": "skills.md",
+    "source_anchor": "skills-in-workflow-stage-chats",
+    "source_heading": "Skills in workflow stage chats",
+    "source_lines": [
+      130,
+      145
+    ],
+    "occurrence": 1,
+    "sha256": "ba91c5d1808608bc9052c673cdb1870774b1aaff734296c434db8f094e088f37",
+    "normalized_sha256": "05e292e7f0f9f0520d34d405ee3d41288fb4a452f498b811c2adf303c1050fdb",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::013",
+    "source_path": "skills.md",
+    "source_anchor": "skill-structure",
+    "source_heading": "Skill Structure",
+    "source_lines": [
+      146,
+      160
+    ],
+    "occurrence": 1,
+    "sha256": "3138abc44af76483ee1af09c52f4a7f912cfeef0a0503f5372f75f09364965ca",
+    "normalized_sha256": "78b575fae917fbab2209d35c33a4ec28ed7a3d5d3ef13ccab8f252c2cf8f8e77",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::014",
+    "source_path": "skills.md",
+    "source_anchor": "skill-md-format",
+    "source_heading": "SKILL.md Format",
+    "source_lines": [
+      161,
+      192
+    ],
+    "occurrence": 1,
+    "sha256": "8e42f75ad839e0374921747512d1160c58c704baab41142ec60294f91a7022b5",
+    "normalized_sha256": "700a354fb723efa905e27737db2156a420bb6e63728ffca5f73aa3e61478d7b2",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::015",
+    "source_path": "skills.md",
+    "source_anchor": "frontmatter",
+    "source_heading": "Frontmatter",
+    "source_lines": [
+      193,
+      206
+    ],
+    "occurrence": 1,
+    "sha256": "6c08387b42e37106dfbc8692f55601cba7a7c168bcd69de0cef64a3a496ddecf",
+    "normalized_sha256": "2457e90e8d9f314097d985b94d525c93f2d4c4ebc41ae8e5328e5c7f9f5dc3ba",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::016",
+    "source_path": "skills.md",
+    "source_anchor": "name-rules",
+    "source_heading": "Name Rules",
+    "source_lines": [
+      207,
+      217
+    ],
+    "occurrence": 1,
+    "sha256": "05c9d68c013900f879ca71dfac525cb93e1014fbd49c763ada583591924e2818",
+    "normalized_sha256": "c9e962e7d2a5b9a04b791ce9c194ee6eaa2c58b7b211870b69fe441370c6d617",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::017",
+    "source_path": "skills.md",
+    "source_anchor": "description-best-practices",
+    "source_heading": "Description Best Practices",
+    "source_lines": [
+      218,
+      231
+    ],
+    "occurrence": 1,
+    "sha256": "221c40ab79cbcca7ae4d7e533ad52da598461d5048678a9a17f37a7589bccf29",
+    "normalized_sha256": "bc13d4c16072bd20731d61bdf2d9a2eca2c1da417553f980717c524a242c9c63",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::018",
+    "source_path": "skills.md",
+    "source_anchor": "validation",
+    "source_heading": "Validation",
+    "source_lines": [
+      232,
+      246
+    ],
+    "occurrence": 1,
+    "sha256": "03ee5eb87af373505d335ae6a837b9bb89669303db52a9e76133639982e0866c",
+    "normalized_sha256": "314711d45a9654e527a33bec037421f949bfcdfab0ebe2f3a73f0bd93982aed6",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::019",
+    "source_path": "skills.md",
+    "source_anchor": "example",
+    "source_heading": "Example",
+    "source_lines": [
+      247,
+      284
+    ],
+    "occurrence": 1,
+    "sha256": "8d2f7231c83fd025f555dd57b93e30b6ee1c3fcc4f2269cf7b599c5238fdea2b",
+    "normalized_sha256": "a212b4dd304af496f3a50d04d0e36d8ec27cf3f929a132b3746599839d401180",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "skills::020",
+    "source_path": "skills.md",
+    "source_anchor": "skill-repositories",
+    "source_heading": "Skill Repositories",
+    "source_lines": [
+      285,
+      289
+    ],
+    "occurrence": 1,
+    "sha256": "52d6b4dd877c208e0300b9fcd050cd5b657aefd1f4192ae525343c5ce0a09215",
+    "normalized_sha256": "be41aaa3b8f3fa88e7e30b5f8e66a01d0158c876427ce81c36fd26a7ebf75ca3",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::001",
+    "source_path": "subagents.md",
+    "source_anchor": null,
+    "source_heading": null,
+    "source_lines": [
+      1,
+      5
+    ],
+    "occurrence": null,
+    "sha256": "be5561094644f06b7e8298deb245bc7e42f81ad99474331c8d00c70918282fc1",
+    "normalized_sha256": "2250b8ef605e526344647ac0eff372c359b9651c00a66cfb9c98446805beb53f",
+    "kind": "preamble",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::002",
+    "source_path": "subagents.md",
+    "source_anchor": "subagents",
+    "source_heading": "Subagents",
+    "source_lines": [
+      6,
+      13
+    ],
+    "occurrence": 1,
+    "sha256": "8c3f66b313592c50abff815cdff1ab0f03540cc4ed3c73a7c34e7cf1003280e4",
+    "normalized_sha256": "2de0518581acf7210a6239528847f1ef276f1fcb2f5731982327da26fd003c4a",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::003",
+    "source_path": "subagents.md",
+    "source_anchor": "browse-agents",
+    "source_heading": "Browse agents",
+    "source_lines": [
+      14,
+      21
+    ],
+    "occurrence": 1,
+    "sha256": "e7196d13be025b56f2811cdffee6880c3cc37acb6b587bcddf1d68923bd0753a",
+    "normalized_sha256": "54b4bc1ea4f0f56bc1e20f58ed02834fa46f9110cf2c3ffc656f1da47db8609c",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::004",
+    "source_path": "subagents.md",
+    "source_anchor": "task-inspection",
+    "source_heading": "Task inspection",
+    "source_lines": [
+      22,
+      41
+    ],
+    "occurrence": 1,
+    "sha256": "dc9a7cce79d9245dd48d348fa9bfb9d843765f19893d262d0b0221ac77ad8262",
+    "normalized_sha256": "c82936f750760dae91202b73604e70e9c6ccc4349dfec871ce360e77bbfd945b",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::005",
+    "source_path": "subagents.md",
+    "source_anchor": "start-with-natural-language",
+    "source_heading": "Start with natural language",
+    "source_lines": [
+      42,
+      59
+    ],
+    "occurrence": 1,
+    "sha256": "15c3c0cc17bed1318be66e52b4a99530cdc0fc7d44e3eb4e199d4dd10245b0ac",
+    "normalized_sha256": "6997fdb62c444d190316cd79503208e1398652d3030057b7e58800235e2dbfd0",
+    "kind": "h2",
+    "fences": 3,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::006",
+    "source_path": "subagents.md",
+    "source_anchor": "subagent-execution-is-non-interactive",
+    "source_heading": "Subagent execution is non-interactive",
+    "source_lines": [
+      60,
+      67
+    ],
+    "occurrence": 1,
+    "sha256": "d54ecf8953014cf51f37d9723dd9ca24e99b933b0bad3433d4642d4f94921a44",
+    "normalized_sha256": "537e73fb3fadac8156d2ce5d3ae1a9e995227a53127521ad505da08c6014f75c",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::007",
+    "source_path": "subagents.md",
+    "source_anchor": "owner-bound-task-observation",
+    "source_heading": "Owner-bound task observation",
+    "source_lines": [
+      68,
+      79
+    ],
+    "occurrence": 1,
+    "sha256": "aeda5ce820ab6eb2dd3f72f8b2f48e5caa4a5b6dff20fe6a2703ca04f582ce43",
+    "normalized_sha256": "2f28786ed8d4f2dfaa4c9d57c51aa6c585a1187640976c6885fdb120f24abe0d",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::008",
+    "source_path": "subagents.md",
+    "source_anchor": "supervisor-coordination",
+    "source_heading": "Supervisor coordination",
+    "source_lines": [
+      80,
+      89
+    ],
+    "occurrence": 1,
+    "sha256": "d4498e6bea58af4b1163f137047bb690d71b712b2830e6f62a65a62781bfd639",
+    "normalized_sha256": "f07c7f21785094740dfdebf8a864084ba7803d0a1b49fcff2df2430dcd5f5730",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::009",
+    "source_path": "subagents.md",
+    "source_anchor": "single-child-handoff",
+    "source_heading": "Single-child handoff",
+    "source_lines": [
+      90,
+      95
+    ],
+    "occurrence": 1,
+    "sha256": "3da236bcc6d17d2180814039e2775100560acc54e9b4614f245344661539b078",
+    "normalized_sha256": "4eb5963c9c67e7e3b82e4c5c9d2f725a715864d0e8dba45bf14d32380d1f2357",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::010",
+    "source_path": "subagents.md",
+    "source_anchor": "migration-from-acceptance-gates",
+    "source_heading": "Migration from acceptance gates",
+    "source_lines": [
+      96,
+      103
+    ],
+    "occurrence": 1,
+    "sha256": "25016c450baaee9043dd8a35c00fc7c9341cd30cb13f160990081f07eefcf4d7",
+    "normalized_sha256": "47c0c64ac64424b220b43ac967b6c0424e0cc5a3440cda347621e48c411a570d",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::011",
+    "source_path": "subagents.md",
+    "source_anchor": "bundled-agents",
+    "source_heading": "Bundled agents",
+    "source_lines": [
+      104,
+      123
+    ],
+    "occurrence": 1,
+    "sha256": "feec86a020f5c8cae5cb62d8a8dc15635d4e2172e8637fed0486431d517254a1",
+    "normalized_sha256": "a768d3e42e4c81b445b7795022b06b477a2ba90de988ff162767cb2c692849d0",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::012",
+    "source_path": "subagents.md",
+    "source_anchor": "review-compositions",
+    "source_heading": "Review compositions",
+    "source_lines": [
+      124,
+      145
+    ],
+    "occurrence": 1,
+    "sha256": "7172460ca4b6a678313e32478e5227f98a2e42c38d4621ce48decf157405a5fc",
+    "normalized_sha256": "26afca7066dd394c2400d9a63c59515fef76a751d4c467cc1d06f7077477e20b",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::013",
+    "source_path": "subagents.md",
+    "source_anchor": "foreground-work-and-control",
+    "source_heading": "Foreground work and control",
+    "source_lines": [
+      146,
+      186
+    ],
+    "occurrence": 1,
+    "sha256": "f07e0b62b460fa96958621b7cf4f25c095b108503455009c68545c9dded7e719",
+    "normalized_sha256": "566de57650626f10d289d05bc3aa8b00482c4b0b82bc82d056030f87900ab4ff",
+    "kind": "h2",
+    "fences": 3,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::014",
+    "source_path": "subagents.md",
+    "source_anchor": "owner-bound-task-projection",
+    "source_heading": "Owner-bound task projection",
+    "source_lines": [
+      187,
+      198
+    ],
+    "occurrence": 1,
+    "sha256": "1c893cc17c516417f339056c11647b9b3d83164818e9af383d843ba19c11cffd",
+    "normalized_sha256": "5e450ceceb46453d031d0956ea7123da759a9fb6d82a45c5c76097fa1c5f27a8",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::015",
+    "source_path": "subagents.md",
+    "source_anchor": "orchestrator-model-and-group-policy",
+    "source_heading": "Orchestrator model and group policy",
+    "source_lines": [
+      199,
+      206
+    ],
+    "occurrence": 1,
+    "sha256": "962379c76f33acd2fd84c1a46a0a2d7a818adbd04bc0c89610e412d385658375",
+    "normalized_sha256": "2a1e71fb47069f65b96097b1e472f91aec90e0ec0a5efa9c56088f7065b641f2",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::016",
+    "source_path": "subagents.md",
+    "source_anchor": "context-and-execution-modes",
+    "source_heading": "Context and execution modes",
+    "source_lines": [
+      207,
+      243
+    ],
+    "occurrence": 1,
+    "sha256": "01165ea8852f09e3162c3b73b2d79af5bd6091b083dda49823effc984df12054",
+    "normalized_sha256": "867a7da217a043325dd44fb59540a1cd616ddbb5a4d2a8c1cefd1eeb09ee457b",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::017",
+    "source_path": "subagents.md",
+    "source_anchor": "delegation-and-child-boundaries",
+    "source_heading": "Delegation and child boundaries",
+    "source_lines": [
+      244,
+      255
+    ],
+    "occurrence": 1,
+    "sha256": "c459ed8db87cedf0897ecfd121c87be2838bf9efd4d1cfebc8060adfa6447433",
+    "normalized_sha256": "b0cf0040a77e161109ea891ba4ad7e5f399ce8b6cb85165f976cf312e4ad0233",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::018",
+    "source_path": "subagents.md",
+    "source_anchor": "custom-agents",
+    "source_heading": "Custom agents",
+    "source_lines": [
+      256,
+      286
+    ],
+    "occurrence": 1,
+    "sha256": "05c40e428dff7d6bd51bc4fe722af971973ea30ac39a0f3592eb13687e6e13f5",
+    "normalized_sha256": "6ea7bc4823844cdc7a19b04c1db16b38024dd73cebb40788a6c34e1c4bd1c58f",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::019",
+    "source_path": "subagents.md",
+    "source_anchor": "fallback-models",
+    "source_heading": "Fallback models",
+    "source_lines": [
+      287,
+      300
+    ],
+    "occurrence": 1,
+    "sha256": "ddf7217e1e07b9b06496830f9b9fa3396041406fe2b0ef35b6327fa0a806c241",
+    "normalized_sha256": "f49c735f522a3de5fb250a32bbab44e9055fa5266961bd9558be64414a1f6f92",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::020",
+    "source_path": "subagents.md",
+    "source_anchor": "reasoning-levels",
+    "source_heading": "Reasoning levels",
+    "source_lines": [
+      301,
+      328
+    ],
+    "occurrence": 1,
+    "sha256": "6673e544599dc3353e6aef63d314f3da2b1d1cf8da59b815a8203d793d861362",
+    "normalized_sha256": "fa09e5b3f916d5d0a3c66943252ae0f5f657eb4725ef58db6b1707249d9956ef",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "subagents::021",
+    "source_path": "subagents.md",
+    "source_anchor": "related-docs",
+    "source_heading": "Related docs",
+    "source_lines": [
+      329,
+      335
+    ],
+    "occurrence": 1,
+    "sha256": "eac5782af496130e98a11b2317a6f0b8fd073cd71161619658f6d85aeb1ee732",
+    "normalized_sha256": "3c2fe526e4d128b6fbed70b7ba10e53a5a296b3019c0136cc0a65f9e7efd8104",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "terminal-setup::001",
+    "source_path": "terminal-setup.md",
+    "source_anchor": "terminal-setup",
+    "source_heading": "Terminal Setup",
+    "source_lines": [
+      1,
+      4
+    ],
+    "occurrence": 1,
+    "sha256": "258bf606d67f0a913e96cc7cfeff46bfac22ae83d8ffbc33c6b623b74b385f45",
+    "normalized_sha256": "b50f87c37bee1755b5fb4c881e79058453bfd44183ab225fe043c2f3fdce6cbb",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "terminal-setup::002",
+    "source_path": "terminal-setup.md",
+    "source_anchor": "startup-typing",
+    "source_heading": "Startup typing",
+    "source_lines": [
+      5,
+      8
+    ],
+    "occurrence": 1,
+    "sha256": "d75ca8fe6ba38362fce0e7abb7e9109186aae7635944444f7d104f5f08b4d69b",
+    "normalized_sha256": "5332cd59cd9758a31b1c9c85bc1ab46612151611a30d91df592c351f3ca50f91",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "terminal-setup::003",
+    "source_path": "terminal-setup.md",
+    "source_anchor": "kitty",
+    "source_heading": "Kitty",
+    "source_lines": [
+      9,
+      12
+    ],
+    "occurrence": 1,
+    "sha256": "5227b686f7e2d335a3d14b63ec485c92fd0b15cee6fb4ebbe504f2c3b048738f",
+    "normalized_sha256": "aac90d312a71a806d833eda9deca27c9a7f789fa8466f4503d84bbbe74425447",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "terminal-setup::004",
+    "source_path": "terminal-setup.md",
+    "source_anchor": "iterm2",
+    "source_heading": "iTerm2",
+    "source_lines": [
+      13,
+      23
+    ],
+    "occurrence": 1,
+    "sha256": "4e12d8e7b321268ce11ff041cf32d0d95d5712f409079c8ac624654b35bd9827",
+    "normalized_sha256": "77eaefddd94fa424127805bf97b1e5ad4527a9b6ae84b5025c60544aa787e09f",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "terminal-setup::005",
+    "source_path": "terminal-setup.md",
+    "source_anchor": "apple-terminal",
+    "source_heading": "Apple Terminal",
+    "source_lines": [
+      24,
+      29
+    ],
+    "occurrence": 1,
+    "sha256": "ef4c27ff06bc4073206d88d643180ece9c158b2980d79467872cea1bb1f1398d",
+    "normalized_sha256": "c285ff18cb0bf4e0d42274c8b1690856e992e33141d5f31c3e57a0a43833fc82",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "terminal-setup::006",
+    "source_path": "terminal-setup.md",
+    "source_anchor": "ghostty",
+    "source_heading": "Ghostty",
+    "source_lines": [
+      30,
+      57
+    ],
+    "occurrence": 1,
+    "sha256": "7ef01997152703e676b8f88c7e56e8bb18f5e309b441d18baea449532d72d989",
+    "normalized_sha256": "972144f79342ed0445392347da2e3c468c400b081a40a98b5504a7f2ed5ae04a",
+    "kind": "h2",
+    "fences": 3,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "terminal-setup::007",
+    "source_path": "terminal-setup.md",
+    "source_anchor": "wezterm",
+    "source_heading": "WezTerm",
+    "source_lines": [
+      58,
+      87
+    ],
+    "occurrence": 1,
+    "sha256": "e64afe1cc216c2a83c278681bd96f61ced8d6206ec6dc7163d32b6649d601db5",
+    "normalized_sha256": "3974a143d7897026813fd44abb42141cd0e341f4a84709ce5a3b96a1ab0ac056",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "terminal-setup::008",
+    "source_path": "terminal-setup.md",
+    "source_anchor": "alacritty",
+    "source_heading": "Alacritty",
+    "source_lines": [
+      88,
+      100
+    ],
+    "occurrence": 1,
+    "sha256": "825666750dfe4e5dfaa085005ff7801a469d1b4cb3bdae6578bf84cc181c05c3",
+    "normalized_sha256": "df68bef2b1869ccdf8d57c213b07a38f427dde7746d445e41d3fa48d75ce4b26",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "terminal-setup::009",
+    "source_path": "terminal-setup.md",
+    "source_anchor": "vs-code-integrated-terminal",
+    "source_heading": "VS Code (Integrated Terminal)",
+    "source_lines": [
+      101,
+      122
+    ],
+    "occurrence": 1,
+    "sha256": "7eb8349d3d1f790c50167ab400b2ce964ff70fdf4979f9b863bcd093c1f01400",
+    "normalized_sha256": "44381629a626f128b2709a47111e0db1ee4f30f727539da84c8a3c170f8fdb2d",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "terminal-setup::010",
+    "source_path": "terminal-setup.md",
+    "source_anchor": "zed-integrated-terminal",
+    "source_heading": "Zed (Integrated Terminal)",
+    "source_lines": [
+      123,
+      137
+    ],
+    "occurrence": 1,
+    "sha256": "a6e7fd311f10b43cde3043f469a6711abaa72ee548841923fd7e8ba504ab710f",
+    "normalized_sha256": "a374c682f019015a48f07ad804a79f209cfee1ea2961ad0572482066856279eb",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "terminal-setup::011",
+    "source_path": "terminal-setup.md",
+    "source_anchor": "windows-terminal",
+    "source_heading": "Windows Terminal",
+    "source_lines": [
+      138,
+      162
+    ],
+    "occurrence": 1,
+    "sha256": "f49a4144bb93132e8409ccbe77722efcb1e73986b63a0db34411a3118767dad1",
+    "normalized_sha256": "485e3f83a488be8c737e96bf6875d1689fd6bc38d503df133a931f443d172b61",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "terminal-setup::012",
+    "source_path": "terminal-setup.md",
+    "source_anchor": "xfce4-terminal-terminator",
+    "source_heading": "xfce4-terminal, terminator",
+    "source_lines": [
+      163,
+      173
+    ],
+    "occurrence": 1,
+    "sha256": "cacad2f1109f5c2de8f5c71d91a2dd2b493cf183cb043c4cbb9e3b8e58d984cd",
+    "normalized_sha256": "af597212b53d8a73bb03b09ec159364685f75c9985d0432a4c7be5d0d8cb654e",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "terminal-setup::013",
+    "source_path": "terminal-setup.md",
+    "source_anchor": "intellij-idea-integrated-terminal",
+    "source_heading": "IntelliJ IDEA (Integrated Terminal)",
+    "source_lines": [
+      174,
+      181
+    ],
+    "occurrence": 1,
+    "sha256": "4ebf8f0d8376576ba54e60ca0416cc5c733e9f8c6d0a544f6a1b82af1db9d11b",
+    "normalized_sha256": "9a1b03b4c299f2b7ff0b44acd56afcaa20886d876683a2248ffd8429e87c4eed",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "termux::001",
+    "source_path": "termux.md",
+    "source_anchor": "termux-android-setup",
+    "source_heading": "Termux (Android) Setup",
+    "source_lines": [
+      1,
+      6
+    ],
+    "occurrence": 1,
+    "sha256": "f322e4d202df2b729f21a49caba4ad1ee479547b9c16b08c1bd8285eae2bc28d",
+    "normalized_sha256": "193b898809d6e6742eb361c9af64c40e0cb35005b8652d3d5bfc75a96342d22f",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "termux::002",
+    "source_path": "termux.md",
+    "source_anchor": "prerequisites",
+    "source_heading": "Prerequisites",
+    "source_lines": [
+      7,
+      11
+    ],
+    "occurrence": 1,
+    "sha256": "bdb511079a5c76cf1db35d30bb7c58f46562bf18e0879f2baf57291a14d858a6",
+    "normalized_sha256": "9147cd81f68e8d0a4256cf916a794346e23e868746ae89a738727c8a701e5b3b",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "termux::003",
+    "source_path": "termux.md",
+    "source_anchor": "installation",
+    "source_heading": "Installation",
+    "source_lines": [
+      12,
+      35
+    ],
+    "occurrence": 1,
+    "sha256": "a893518b242bd7cdc09fefb7a09f1376fa61a70cc2d1543574e299acf2c113f2",
+    "normalized_sha256": "c336dd4a626a4a2c433b0f375e28612ed395cc19852dd1d08f63669ce956197a",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "termux::004",
+    "source_path": "termux.md",
+    "source_anchor": "clipboard-support",
+    "source_heading": "Clipboard Support",
+    "source_lines": [
+      36,
+      41
+    ],
+    "occurrence": 1,
+    "sha256": "fe1484da28ce01d58208caddffcffff60026bd3b3fab69dbe2428c5e2905747c",
+    "normalized_sha256": "59c8ea7c10fa61b6f92339a05059aeced6aa38b97afad52866b04e5c896d928e",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "termux::005",
+    "source_path": "termux.md",
+    "source_anchor": "example-agents-md-for-termux",
+    "source_heading": "Example AGENTS.md for Termux",
+    "source_lines": [
+      42,
+      102
+    ],
+    "occurrence": 1,
+    "sha256": "e211d1b3b12f89c76cc55224c7b58fa427047a5aaeec67a6690ef734991e1a36",
+    "normalized_sha256": "405a380d34ad4f9804dde342f1f86f67f1160c29afbf284297834b3a083d8478",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "termux::006",
+    "source_path": "termux.md",
+    "source_anchor": "limitations",
+    "source_heading": "Limitations",
+    "source_lines": [
+      103,
+      108
+    ],
+    "occurrence": 1,
+    "sha256": "67fca2268c01bcfabff343bd1c5777036901f12cf8f2dbe9d237665b0585654e",
+    "normalized_sha256": "c3ef074341894fd5463f66805512e5a8dc530853fc5af28fcbc28a84775c0e39",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "termux::007",
+    "source_path": "termux.md",
+    "source_anchor": "troubleshooting",
+    "source_heading": "Troubleshooting",
+    "source_lines": [
+      109,
+      110
+    ],
+    "occurrence": 1,
+    "sha256": "ab082ac24e8895d9bf32d90891535ef59cc1bf43da0f618458302fd132a48b00",
+    "normalized_sha256": "d64b982d3128dfaf9c6a47aa18bdb50729acad7d81a3b5213a10a6d68bc59317",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "termux::008",
+    "source_path": "termux.md",
+    "source_anchor": "clipboard-not-working",
+    "source_heading": "Clipboard not working",
+    "source_lines": [
+      111,
+      121
+    ],
+    "occurrence": 1,
+    "sha256": "507e95246b143a55f5ab8848be99f7bad8b87768beb368493b55c3e1125a0c96",
+    "normalized_sha256": "a4379ea52fe289e91e2fec8a995d2041897b0f5b8a336ede98260cb2537ad5d9",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "termux::009",
+    "source_path": "termux.md",
+    "source_anchor": "permission-denied-for-shared-storage",
+    "source_heading": "Permission denied for shared storage",
+    "source_lines": [
+      122,
+      128
+    ],
+    "occurrence": 1,
+    "sha256": "8c1124e692c6061d3c6bf7e8418f53fb44b080b9f3e26fb8577e20632b0c676e",
+    "normalized_sha256": "d00f7e3d51d769e33137ea36632aa452374b60cd1c3fc9b1c43a98292fa7b168",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "termux::010",
+    "source_path": "termux.md",
+    "source_anchor": "package-installation-issues",
+    "source_heading": "Package installation issues",
+    "source_lines": [
+      129,
+      139
+    ],
+    "occurrence": 1,
+    "sha256": "4745b219f47cdacb4e96aabd03e095be12d791916b14f92e80c9ef30b5ced79f",
+    "normalized_sha256": "7dd00986deb8d25e769cc864300454cba2493440c37db47037d7f97aff6a935a",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::001",
+    "source_path": "themes.md",
+    "source_anchor": null,
+    "source_heading": null,
+    "source_lines": [
+      1,
+      2
+    ],
+    "occurrence": null,
+    "sha256": "de2f137b83831898ecba85a7e15d905950aec91223b649fb493505abbb4d3663",
+    "normalized_sha256": "41221deefa1db22f9d34c8a7f46561b496ca5be29e39e4a7bc945792bb3e20bf",
+    "kind": "preamble",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 1,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::002",
+    "source_path": "themes.md",
+    "source_anchor": "themes",
+    "source_heading": "Themes",
+    "source_lines": [
+      3,
+      6
+    ],
+    "occurrence": 1,
+    "sha256": "9c3dff678d3439f8e66b3d981f08f55439d2340ff72c1de9beda331da0273c57",
+    "normalized_sha256": "47ed98c1f486f6ca2f55c86cfc91a22205129aa0762be6572ee5a59321f4680d",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::003",
+    "source_path": "themes.md",
+    "source_anchor": "table-of-contents",
+    "source_heading": "Table of Contents",
+    "source_lines": [
+      7,
+      16
+    ],
+    "occurrence": 1,
+    "sha256": "eb04c94858f5643c0efcb226bfeb97faa9c78141c9ddaf47006feeb3a17c6407",
+    "normalized_sha256": "1f13bb63b0fed434f1602d15691b16760785cd637717d2c7d0d15d200e4a5f80",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "themes::004",
+    "source_path": "themes.md",
+    "source_anchor": "locations",
+    "source_heading": "Locations",
+    "source_lines": [
+      17,
+      29
+    ],
+    "occurrence": 1,
+    "sha256": "1c1d6c21e90bac3204fbea2857af4edbcc18b79d514125b52ae063ace1e21b7d",
+    "normalized_sha256": "99b67c6b2a301d3e7392dd5d741e002066f2bfc18a1a5820e7fa7449788fde87",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::005",
+    "source_path": "themes.md",
+    "source_anchor": "selecting-a-theme",
+    "source_heading": "Selecting a Theme",
+    "source_lines": [
+      30,
+      47
+    ],
+    "occurrence": 1,
+    "sha256": "450d9333a4121cf030526ba18f4b1db3fea530c6878bb844a867bf34c53e93c3",
+    "normalized_sha256": "2a9e26ba2bce4cdb8e1c382982346f33c4e7c05e1ee160d4860ac172ff54a9f6",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::006",
+    "source_path": "themes.md",
+    "source_anchor": "initial-theme",
+    "source_heading": "Initial Theme",
+    "source_lines": [
+      48,
+      63
+    ],
+    "occurrence": 1,
+    "sha256": "7f0f40a54851c459b84959ace2600fd5307d9bd5a65d06d01da7f418344d6970",
+    "normalized_sha256": "7a6a573e0a09a55ce520322ffbc4a03b5638c43dd23c8da9c827f8694575a563",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::007",
+    "source_path": "themes.md",
+    "source_anchor": "creating-a-custom-theme",
+    "source_heading": "Creating a Custom Theme",
+    "source_lines": [
+      64,
+      143
+    ],
+    "occurrence": 1,
+    "sha256": "df6b4dc0b3e3458663648c0bbddc4600177910785bfc5b186365e9f941449333",
+    "normalized_sha256": "ffa3d4ca8a55f0d149aac0c7e8470cec379a8545eb22701c2b89c76943306cb3",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::008",
+    "source_path": "themes.md",
+    "source_anchor": "theme-format",
+    "source_heading": "Theme Format",
+    "source_lines": [
+      144,
+      177
+    ],
+    "occurrence": 1,
+    "sha256": "5ad9a59f26715e1ea4967feec4930feaa58afb2a9e96e6deba6f6a255a3c1446",
+    "normalized_sha256": "61ad895800707944965a7fa45c13b40f604b6a133193235bc5baefce22318ae4",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::009",
+    "source_path": "themes.md",
+    "source_anchor": "color-tokens",
+    "source_heading": "Color Tokens",
+    "source_lines": [
+      178,
+      181
+    ],
+    "occurrence": 1,
+    "sha256": "f691ecb7e22487524c52d6ecfe9580554361de6f366e94decbc44421c07d5ba5",
+    "normalized_sha256": "81ad346af3c4890a544d69ed3a5c37cf3e17cd7b18913dfd225fa06c2afc5527",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::010",
+    "source_path": "themes.md",
+    "source_anchor": "core-ui-11-colors",
+    "source_heading": "Core UI (11 colors)",
+    "source_lines": [
+      182,
+      197
+    ],
+    "occurrence": 1,
+    "sha256": "fededf08333cd86201df2b33b5e359e3332af4c093cc77f0394ce23ba04aed7c",
+    "normalized_sha256": "3e1bf832c938422ded5bc2d25291d2dbc9da82b8d4076aa1614e4cc478ce43a1",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::011",
+    "source_path": "themes.md",
+    "source_anchor": "backgrounds-&-content-11-required-3-optional",
+    "source_heading": "Backgrounds & Content (11 required, 3 optional)",
+    "source_lines": [
+      198,
+      216
+    ],
+    "occurrence": 1,
+    "sha256": "1d0c0a659b393dc88769e7330dd7425046ff9edaa7880e5c96591632d3bee15e",
+    "normalized_sha256": "e6b3b073c339eebe7b941aca6b3d721e2f41f73778b0cd2801c0f67ee45ab772",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::012",
+    "source_path": "themes.md",
+    "source_anchor": "markdown-10-colors",
+    "source_heading": "Markdown (10 colors)",
+    "source_lines": [
+      217,
+      231
+    ],
+    "occurrence": 1,
+    "sha256": "aa7d909074af8e771f1c9e52d3303a08ca56faf8f658051c5046c7ed60a3d4e7",
+    "normalized_sha256": "6ce910045e09bf3dbf647ed49feae7d147d8d129609d4fd3867f4af9961e8ac4",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::013",
+    "source_path": "themes.md",
+    "source_anchor": "tool-diffs-3-colors",
+    "source_heading": "Tool Diffs (3 colors)",
+    "source_lines": [
+      232,
+      239
+    ],
+    "occurrence": 1,
+    "sha256": "eb50568b5ab527c55cb1d7814a21395df0e71f832fedd1db057513313f0e2079",
+    "normalized_sha256": "8374129646a42c054e53adec4921e89be99d7cec3e5dabb2cde41037bcdc6599",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::014",
+    "source_path": "themes.md",
+    "source_anchor": "syntax-highlighting-9-colors",
+    "source_heading": "Syntax Highlighting (9 colors)",
+    "source_lines": [
+      240,
+      253
+    ],
+    "occurrence": 1,
+    "sha256": "f15bca52f4945e42c1b3f71c73a12dd0f9642837aca006e86236170a87bc367c",
+    "normalized_sha256": "a9b3112b70bf4b00888cf7d28981c93529f82594dd328af48629a8575439a187",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::015",
+    "source_path": "themes.md",
+    "source_anchor": "thinking-level-borders-6-colors",
+    "source_heading": "Thinking Level Borders (6 colors)",
+    "source_lines": [
+      254,
+      266
+    ],
+    "occurrence": 1,
+    "sha256": "93503c20902c391c9f09ffdd60428c4c46dcdf113de571d2e182d983db47c3e3",
+    "normalized_sha256": "813e6fb00b5d6ab0d015999354413f7f672a65fd3a27934a3b086fb56181e4a6",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::016",
+    "source_path": "themes.md",
+    "source_anchor": "bash-mode-1-color",
+    "source_heading": "Bash Mode (1 color)",
+    "source_lines": [
+      267,
+      272
+    ],
+    "occurrence": 1,
+    "sha256": "73074e3e5880b8c44936f16f12ec8aebf157a4c00c459ba63a3ac6d2d034e728",
+    "normalized_sha256": "8c182d8885d43d328bd041ca00a7753f27071f81febddaece84b60f57f6f5b87",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::017",
+    "source_path": "themes.md",
+    "source_anchor": "html-export-optional",
+    "source_heading": "HTML Export (optional)",
+    "source_lines": [
+      273,
+      286
+    ],
+    "occurrence": 1,
+    "sha256": "3a014d62a5b13e45d892e1cc2f2b8724286cbc5bff61ce1fb61e97e76ca72da5",
+    "normalized_sha256": "3aae0a97741abf1ecf61c9ea644845c599f4953beb299387b238febc7865c0cd",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::018",
+    "source_path": "themes.md",
+    "source_anchor": "color-values",
+    "source_heading": "Color Values",
+    "source_lines": [
+      287,
+      297
+    ],
+    "occurrence": 1,
+    "sha256": "33883eae9bf4aa16c380974841614378016acd25d11bdeabce650a29dd4a2266",
+    "normalized_sha256": "6c5eee9b15068f425fb5f1cbfd374289990b2c07cfdc4bf0bcb66c2b0500129e",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::019",
+    "source_path": "themes.md",
+    "source_anchor": "256-color-palette",
+    "source_heading": "256-Color Palette",
+    "source_lines": [
+      298,
+      303
+    ],
+    "occurrence": 1,
+    "sha256": "d0a01576d9b1c633ff8d8b835ff31027513c7434861eab762c9f0689da17019b",
+    "normalized_sha256": "8d19b5565b55b2a3adff41f0daf0d20a915b2fa1114195674942b94196321c94",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::020",
+    "source_path": "themes.md",
+    "source_anchor": "terminal-compatibility",
+    "source_heading": "Terminal Compatibility",
+    "source_lines": [
+      304,
+      313
+    ],
+    "occurrence": 1,
+    "sha256": "1be338f6df2fe80e211980ff553a5129aeec22639cac4cd7453e43fb83cd5a27",
+    "normalized_sha256": "405ab509f9aa351cd5d753beb5e060d748e88da40413d6d81d269803c93c1771",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::021",
+    "source_path": "themes.md",
+    "source_anchor": "tips",
+    "source_heading": "Tips",
+    "source_lines": [
+      314,
+      325
+    ],
+    "occurrence": 1,
+    "sha256": "1b69ac4e777fa3373a9b1d91628d803ab76dadec5b17be38c2eeaa48972145a7",
+    "normalized_sha256": "7d050634914ac4dfe58a987eea9ab1637cddbecb14918bc017b21391a78c946c",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "themes::022",
+    "source_path": "themes.md",
+    "source_anchor": "examples",
+    "source_heading": "Examples",
+    "source_lines": [
+      326,
+      335
+    ],
+    "occurrence": 1,
+    "sha256": "7d958a2af04796e85d0fc8cc9747e618c9a4bf4d516e07f9aca7dfb980897110",
+    "normalized_sha256": "c35e6fbf1c3243cfdda9bc319fa9507fd16eea5a9834b21603949812df4140a3",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tmux::001",
+    "source_path": "tmux.md",
+    "source_anchor": "tmux-setup",
+    "source_heading": "tmux Setup",
+    "source_lines": [
+      1,
+      4
+    ],
+    "occurrence": 1,
+    "sha256": "51feee589ff200962ce3c4195b3c01786ab6aeee2358fd3b767b4b1147dda83c",
+    "normalized_sha256": "cff205f530e740687961abf35613ad134977c6a75ff8406b09f1d15203ab91b0",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tmux::002",
+    "source_path": "tmux.md",
+    "source_anchor": "recommended-configuration",
+    "source_heading": "Recommended Configuration",
+    "source_lines": [
+      5,
+      22
+    ],
+    "occurrence": 1,
+    "sha256": "4e7d3b3061d88ea19d9f8457748246a9330e8cbba017f5a120ee957445355760",
+    "normalized_sha256": "53a7be2ad6f3da83a031c696b6278e4ac8c198cf7064e1a931a3bd39417dab25",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tmux::003",
+    "source_path": "tmux.md",
+    "source_anchor": "why-csi-u-is-recommended",
+    "source_heading": "Why `csi-u` Is Recommended",
+    "source_lines": [
+      23,
+      44
+    ],
+    "occurrence": 1,
+    "sha256": "988792b991c30cd47f5e23acc1d134ab4722751498305afc3780d0f2369e2218",
+    "normalized_sha256": "78f01108396cc5f5a4e00463bb8f1bd249c879ba06a9aa251730ae11487aebab",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tmux::004",
+    "source_path": "tmux.md",
+    "source_anchor": "what-this-fixes",
+    "source_heading": "What This Fixes",
+    "source_lines": [
+      45,
+      57
+    ],
+    "occurrence": 1,
+    "sha256": "592a1c3c04e1d0bd1000c1770e7e06aea616e57088c7e0f2cbdda51a90845f20",
+    "normalized_sha256": "97172b0d07429b6dd474329ef316b868d3db8e8b6fc53567fa76dc239b541e88",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tmux::005",
+    "source_path": "tmux.md",
+    "source_anchor": "requirements",
+    "source_heading": "Requirements",
+    "source_lines": [
+      58,
+      64
+    ],
+    "occurrence": 1,
+    "sha256": "1d800489b7718dc065c17370ffca629e676dc7d3ef600c9989b225d507701b59",
+    "normalized_sha256": "35afc923b6e051b68a4a589a25f3104d67fb5419518f2c906999d2475cd82585",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools::001",
+    "source_path": "tools.md",
+    "source_anchor": "built-in-tools",
+    "source_heading": "Built-in tools",
+    "source_lines": [
+      1,
+      4
+    ],
+    "occurrence": 1,
+    "sha256": "aff523b06d2aefce00d347e4b5accb71422b97deb01419ade0d2077aafb1fb6b",
+    "normalized_sha256": "5fefa4fea5f47dcfd09f90a0ec3a18d8f11996dbc7867240bbcccbd58cc54418",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools::002",
+    "source_path": "tools.md",
+    "source_anchor": "hashline-editing-anchors",
+    "source_heading": "Hashline editing anchors",
+    "source_lines": [
+      5,
+      26
+    ],
+    "occurrence": 1,
+    "sha256": "8aa7b775c4a9c9f76550ba523f1f8713c6ac9fd5d68459f4cd292bfc9712343b",
+    "normalized_sha256": "1987165822ad539d612a89db14d2c0c381d3ea2a44a6f4cf9c7017bbed71e659",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools::003",
+    "source_path": "tools.md",
+    "source_anchor": "bash-and-bashinterceptor",
+    "source_heading": "`bash` and `bashInterceptor`",
+    "source_lines": [
+      27,
+      44
+    ],
+    "occurrence": 1,
+    "sha256": "45c33446db09f40d0025555238b3aad5c964ba6cf6a2366ac39c186526d964d5",
+    "normalized_sha256": "90c3b8e7fea8bbd95c07e4cb4f042a83c38c0e91e36546caffcaf22cfe599eb2",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools::004",
+    "source_path": "tools.md",
+    "source_anchor": "find-and-search",
+    "source_heading": "`find` and `search`",
+    "source_lines": [
+      45,
+      54
+    ],
+    "occurrence": 1,
+    "sha256": "50336692583943530ba3593fe71fab27fa989dcda2eb5889310cce28a1024801",
+    "normalized_sha256": "a9b6137c6faa4f0bf03d7c0b6cb9e18d6213a08c7c862947a9f14ab56609cf2b",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools::005",
+    "source_path": "tools.md",
+    "source_anchor": "ask_user_question",
+    "source_heading": "`ask_user_question`",
+    "source_lines": [
+      55,
+      77
+    ],
+    "occurrence": 1,
+    "sha256": "2d6e80f976ba3e667e135b0d02cf2d1037a648bfd79bc84a92754f6449a7923f",
+    "normalized_sha256": "6ca65ec8404f6622e7317f7c4598975679a940d1d1fb70980db1035eabe97c67",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools::006",
+    "source_path": "tools.md",
+    "source_anchor": "persisted-tool-output",
+    "source_heading": "Persisted tool output",
+    "source_lines": [
+      78,
+      97
+    ],
+    "occurrence": 1,
+    "sha256": "6de74dce89c075352c36e60d82ddab6a40c72f45a9408a8f3540745bdb8a50b9",
+    "normalized_sha256": "79e7acfb3aabb6d792d64929871ece596551001b1bfb07b697c8801780aa761c",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools/edit::001",
+    "source_path": "tools/edit.md",
+    "source_anchor": "edit",
+    "source_heading": "`edit`",
+    "source_lines": [
+      1,
+      4
+    ],
+    "occurrence": 1,
+    "sha256": "a1315e84fc5e9e9ae0d0f53a21aefb4b9d4bbf235a9072de1a6b624c962b626b",
+    "normalized_sha256": "bfbba3eb6de7566844b67d8cf0d4132aedb827dcfad6025237c2bfc98b462c96",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 1,
+    "class": "substantive"
+  },
+  {
+    "id": "tools/edit::002",
+    "source_path": "tools/edit.md",
+    "source_anchor": "source",
+    "source_heading": "Source",
+    "source_lines": [
+      5,
+      22
+    ],
+    "occurrence": 1,
+    "sha256": "334be6a72a9194fb6471baf7b1cd6cd79c84ae2d975a5dc3bf7450ffd2addd70",
+    "normalized_sha256": "15d959b4c4468d8ea63cdbdb9792d05735d84f22b03cc31d481aa6393ac989e5",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools/edit::003",
+    "source_path": "tools/edit.md",
+    "source_anchor": "inputs",
+    "source_heading": "Inputs",
+    "source_lines": [
+      23,
+      49
+    ],
+    "occurrence": 1,
+    "sha256": "8aeb5e9ca52b890ab8bad2d558285375d2fe834e11fac070e858ba89ce9e2391",
+    "normalized_sha256": "7fb44e281b76fbb00445139323e7114d2b7d6a542a81be28dede8fa93ba6d5d0",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools/edit::004",
+    "source_path": "tools/edit.md",
+    "source_anchor": "block-resolution",
+    "source_heading": "Block resolution",
+    "source_lines": [
+      50,
+      70
+    ],
+    "occurrence": 1,
+    "sha256": "d151d7a224874444a3d2581aaae70a57e370e0be705fec76fa8b797545ee532a",
+    "normalized_sha256": "8b1d37e51f5c19abf9a33db5c0dbaa50dc4ccbe703e2107a173ddd3e246e4e28",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools/edit::005",
+    "source_path": "tools/edit.md",
+    "source_anchor": "tolerated-input-shapes",
+    "source_heading": "Tolerated input shapes",
+    "source_lines": [
+      71,
+      103
+    ],
+    "occurrence": 1,
+    "sha256": "2a52c2b6eeadc8819d5f343308a32671ab1a4adbdc2dc6fb8a8f405ff2d93d2f",
+    "normalized_sha256": "213f25a911b7e2e0b23c63356ae7a19d71086e83f4a30dde2fdbb9d2dff4f538",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools/edit::006",
+    "source_path": "tools/edit.md",
+    "source_anchor": "outputs",
+    "source_heading": "Outputs",
+    "source_lines": [
+      104,
+      146
+    ],
+    "occurrence": 1,
+    "sha256": "de2284911e8c339305a3c1cc7928c46ccd93ccf5ec4750fdbd9f746e8a67cf93",
+    "normalized_sha256": "10c62d1ebc67d05bda5e03863ed6af864458811cde3f9c6c796b56aae20861e7",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools/edit::007",
+    "source_path": "tools/edit.md",
+    "source_anchor": "worked-examples",
+    "source_heading": "Worked examples",
+    "source_lines": [
+      147,
+      217
+    ],
+    "occurrence": 1,
+    "sha256": "3db4e07848371a07cbdc6f9d58136e72c48de589718068f1a0c3c0c0d4e67126",
+    "normalized_sha256": "3cb14dffbd50f6cf3e84f453e5f3d542478ef84334ae69f3f2c2443b92010b88",
+    "kind": "h2",
+    "fences": 7,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools/edit::008",
+    "source_path": "tools/edit.md",
+    "source_anchor": "limits-&-caps",
+    "source_heading": "Limits & Caps",
+    "source_lines": [
+      218,
+      237
+    ],
+    "occurrence": 1,
+    "sha256": "5135ecc9b7dfa7070468c2a009c7230cd20040449cbcd4eeeecd61fa55d179c4",
+    "normalized_sha256": "c23f3e511a70f7818a50d3c36f5fed34a8aa4b109fce5db8259ac8df72742dd3",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools/edit::009",
+    "source_path": "tools/edit.md",
+    "source_anchor": "errors",
+    "source_heading": "Errors",
+    "source_lines": [
+      238,
+      243
+    ],
+    "occurrence": 1,
+    "sha256": "e2308d315275d43425d47b09542112215ba6ac0d88b6ffd2b9719e46ec2545b4",
+    "normalized_sha256": "a5bd35163179155ac0b5b9dc6d43cc8d2dde48cb5910181a4b00f26cc11f9414",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools/edit::010",
+    "source_path": "tools/edit.md",
+    "source_anchor": "tool-boundary-and-filesystem",
+    "source_heading": "Tool boundary and filesystem",
+    "source_lines": [
+      244,
+      253
+    ],
+    "occurrence": 1,
+    "sha256": "605c4ce76a58e6d22d4805fa8ebe98218877db291c0d297bd937e270b2481823",
+    "normalized_sha256": "9b1395895cdf9c50d3345f77c6126c8e8594bb2ee3ebe1d9e46cc59ddc8a7102",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools/edit::011",
+    "source_path": "tools/edit.md",
+    "source_anchor": "section-headers-and-snapshot-tags",
+    "source_heading": "Section headers and snapshot tags",
+    "source_lines": [
+      254,
+      264
+    ],
+    "occurrence": 1,
+    "sha256": "96c533ca199f31fd996b14c8887baa126db2b5eec2113dd5a64b5d9199f8e907",
+    "normalized_sha256": "443d9fd6b3390338afa71c87e1f823c22a6f0fac2fd1c1d8e4db0ded25fa6202",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools/edit::012",
+    "source_path": "tools/edit.md",
+    "source_anchor": "tokenizer-and-anchors",
+    "source_heading": "Tokenizer and anchors",
+    "source_lines": [
+      265,
+      276
+    ],
+    "occurrence": 1,
+    "sha256": "7a33c556c39bd1986d300f5f5e58268adef82bed32e7b3582d7916c242601091",
+    "normalized_sha256": "482be85e7a23d663fdab8c1920ae72efbfa68093c3f8aa9027c7721eb0f64c3c",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools/edit::013",
+    "source_path": "tools/edit.md",
+    "source_anchor": "ranges-bodies-and-hunk-conflicts",
+    "source_heading": "Ranges, bodies, and hunk conflicts",
+    "source_lines": [
+      277,
+      293
+    ],
+    "occurrence": 1,
+    "sha256": "770063f4db6c95a6e5abc8bcce18df36aa60cf72b12a854cb55a130c693ee2e0",
+    "normalized_sha256": "d2d9c6e5ce741cda70d18377b5f380526609dfdb3f8709350fc46ee323414a6d",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools/edit::014",
+    "source_path": "tools/edit.md",
+    "source_anchor": "contamination-and-malformed-hunk-headers",
+    "source_heading": "Contamination and malformed hunk headers",
+    "source_lines": [
+      294,
+      303
+    ],
+    "occurrence": 1,
+    "sha256": "0715c1a8ca24536d4b560a4ac9ea742f30889742a47b6b6d1655f669f9bbf387",
+    "normalized_sha256": "34165fae5661c9dfc4b2fc79af66b96a563e449eb81ce54f65fb8486b96c7fe2",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools/edit::015",
+    "source_path": "tools/edit.md",
+    "source_anchor": "block-resolution-and-internal-apply-invariants",
+    "source_heading": "Block resolution and internal apply invariants",
+    "source_lines": [
+      304,
+      315
+    ],
+    "occurrence": 1,
+    "sha256": "c1f5b2cc9883a18c8ea55ec3e4e29e7079468cdb501173450d63f485457c5deb",
+    "normalized_sha256": "cda7a6d3e87df84a3eda3190195e152b203b3239272e7a2e6db20aad2ba26f32",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools/edit::016",
+    "source_path": "tools/edit.md",
+    "source_anchor": "snapshot-mismatch",
+    "source_heading": "Snapshot mismatch",
+    "source_lines": [
+      316,
+      333
+    ],
+    "occurrence": 1,
+    "sha256": "190252bf297bef1f87c5d07f2d4d7154d15e547220eddb279d8b70779ce9baf8",
+    "normalized_sha256": "1b6fc55043cba7a56516a52066dc8d71311f3e14480c55a0c140a64f88e28572",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools/edit::017",
+    "source_path": "tools/edit.md",
+    "source_anchor": "no-op-edits",
+    "source_heading": "No-op edits",
+    "source_lines": [
+      334,
+      346
+    ],
+    "occurrence": 1,
+    "sha256": "6a98c0430c704fe1fb5135009a6342f7b53d371dc4ee67454a7edb1e9fa98483",
+    "normalized_sha256": "3bf3171f7361b45aa3201a23cdfaf21a22e78bab22ea62dfecd28605e8d3fbf2",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tools/edit::018",
+    "source_path": "tools/edit.md",
+    "source_anchor": "warnings",
+    "source_heading": "Warnings",
+    "source_lines": [
+      347,
+      374
+    ],
+    "occurrence": 1,
+    "sha256": "ff5b29d3590878e46805ddae0de0d96e29dde11a58321af8b958c4143396b361",
+    "normalized_sha256": "dc1a90b8985661043459119beb14283831d3f9c44e89202bca27a88b170288fa",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::001",
+    "source_path": "tui.md",
+    "source_anchor": null,
+    "source_heading": null,
+    "source_lines": [
+      1,
+      2
+    ],
+    "occurrence": null,
+    "sha256": "3a09375eced24de3b917f24d25d995dfc18ecdda6901e9fdfb2242e61e9027e9",
+    "normalized_sha256": "a548dac27f616bfa72060da9d7a00399cff909d784c4718932e236e3f74f971c",
+    "kind": "preamble",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 1,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::002",
+    "source_path": "tui.md",
+    "source_anchor": "tui-components",
+    "source_heading": "TUI Components",
+    "source_lines": [
+      3,
+      8
+    ],
+    "occurrence": 1,
+    "sha256": "a90dc4b3e65f7a8f30bf8a5b8d4bd3cd4170c379593a533ed580c3ea2b29d2c5",
+    "normalized_sha256": "20f50eed92826120705d3093e7ada008f03fe12329ad182c15a823787180d34c",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::003",
+    "source_path": "tui.md",
+    "source_anchor": "component-interface",
+    "source_heading": "Component Interface",
+    "source_lines": [
+      9,
+      36
+    ],
+    "occurrence": 1,
+    "sha256": "cb15e1f38b7b2c4bf034e566ff203fe53ea01c84fcc94b02ca46d827b443a565",
+    "normalized_sha256": "d0ccc2da62320b59f51efc9e8d884e53a90384e0ea1cbfa9d752a9d52cec591c",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::004",
+    "source_path": "tui.md",
+    "source_anchor": "focusable-interface-ime-support",
+    "source_heading": "Focusable Interface (IME Support)",
+    "source_lines": [
+      37,
+      62
+    ],
+    "occurrence": 1,
+    "sha256": "2fdf5636f5d6efae35e419e69443cbbe5491dff88261857efc4af0caab4b268b",
+    "normalized_sha256": "7ce1a9ffb2adf5f3685f2ed7470a8602b79d7ae08495c9685f3a75a3bc615010",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::005",
+    "source_path": "tui.md",
+    "source_anchor": "container-components-with-embedded-inputs",
+    "source_heading": "Container Components with Embedded Inputs",
+    "source_lines": [
+      63,
+      92
+    ],
+    "occurrence": 1,
+    "sha256": "4a668649cf06b69753848209af67af85e669ebcb9cbfc2ce6fe068b252301e4a",
+    "normalized_sha256": "b0aa5636abc55ec3147e1a3961addf9f856263a71b14475c7368507a48e143cc",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::006",
+    "source_path": "tui.md",
+    "source_anchor": "using-components",
+    "source_heading": "Using Components",
+    "source_lines": [
+      93,
+      117
+    ],
+    "occurrence": 1,
+    "sha256": "2ea8176c011d88ac92acd216e6382ccbd3e4fb65d319c21b413b65bb45748de7",
+    "normalized_sha256": "33402e1c36bb775a3602311a527b9b801a6c0db02b134b9f84da86eef116043e",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::007",
+    "source_path": "tui.md",
+    "source_anchor": "host-terminal-modes-from-an-isolated-component",
+    "source_heading": "Host terminal modes from an isolated component",
+    "source_lines": [
+      118,
+      130
+    ],
+    "occurrence": 1,
+    "sha256": "fab201cbea69a1182fed81acbd08676c9745b693f8007ff826a2e085b3d0095c",
+    "normalized_sha256": "112154b87ec86baadfcff7f1fd4b6bcc88f1378b7d10d01c0d866337b1f4346c",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::008",
+    "source_path": "tui.md",
+    "source_anchor": "host-native-session-picker",
+    "source_heading": "Host-native session picker",
+    "source_lines": [
+      131,
+      154
+    ],
+    "occurrence": 1,
+    "sha256": "336cd2d8eedb5f43bcad66f57636cacccb005e159b769f77f14b9d896faf0ff3",
+    "normalized_sha256": "d31d0aa2958aca3d9287a7536e1e3bdf8088c6f32ea7b14f27ee5cda9dcf46cb",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::009",
+    "source_path": "tui.md",
+    "source_anchor": "host-native-input-form",
+    "source_heading": "Host-native input form",
+    "source_lines": [
+      155,
+      173
+    ],
+    "occurrence": 1,
+    "sha256": "79d95604337d0a5964eaf37184a0f05b0df735ec61df5ac857756cc2685529e2",
+    "normalized_sha256": "3696cd3a18179bb7bda24c31a2c2672f157b97cf97a53c28bae815de6f43c9ba",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::010",
+    "source_path": "tui.md",
+    "source_anchor": "overlays",
+    "source_heading": "Overlays",
+    "source_lines": [
+      174,
+      224
+    ],
+    "occurrence": 1,
+    "sha256": "0310cf1e7199172cac8a0b116783ad3668449e4cb555b77bf01f5f196e13fdd9",
+    "normalized_sha256": "bd6c77f5d840edaa698c4e382eb51448786c88ee154f2849a8e63082c57991b1",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::011",
+    "source_path": "tui.md",
+    "source_anchor": "overlay-focus",
+    "source_heading": "Overlay Focus",
+    "source_lines": [
+      225,
+      230
+    ],
+    "occurrence": 1,
+    "sha256": "79eca4762057443d9ef68f84935ceba217faff956be568315f645353ad7c67fb",
+    "normalized_sha256": "753df426d8ec29b3b9aa2734ed3e504315642740a2c210214f09e3dabb1e068d",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::012",
+    "source_path": "tui.md",
+    "source_anchor": "overlay-lifecycle",
+    "source_heading": "Overlay Lifecycle",
+    "source_lines": [
+      231,
+      253
+    ],
+    "occurrence": 1,
+    "sha256": "c54d8a5ceec357256009f2b124e7a55935ab5b79b6b9b6e897f58b2c3d704a5f",
+    "normalized_sha256": "9feaa3e38ad73c0d98dde19acd4c8b6ca5a16295159d0b6d620dcc49be1ba21b",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::013",
+    "source_path": "tui.md",
+    "source_anchor": "built-in-components",
+    "source_heading": "Built-in Components",
+    "source_lines": [
+      254,
+      261
+    ],
+    "occurrence": 1,
+    "sha256": "baac6d4b472e99bd8747f05c16d67a8d5fc93c3b0503195999283be0b105334d",
+    "normalized_sha256": "6b2491075ea9e24eabeec84f55ecaab1f32108f5a7ba7b4bfb29be88efc69965",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::014",
+    "source_path": "tui.md",
+    "source_anchor": "text",
+    "source_heading": "Text",
+    "source_lines": [
+      262,
+      275
+    ],
+    "occurrence": 1,
+    "sha256": "624efb124917264c11500a45afc7e1191d742d4aefeaad2b0bcfb0450bc3ab52",
+    "normalized_sha256": "1b504652b91a6df7934b2258f8fbfa4363d8960e900da2d5347b3b92f67ba544",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::015",
+    "source_path": "tui.md",
+    "source_anchor": "box",
+    "source_heading": "Box",
+    "source_lines": [
+      276,
+      289
+    ],
+    "occurrence": 1,
+    "sha256": "e4121c1f9983cf875ae828a7a92ba12d78eb040f04d9070466e6e3e2dce768a0",
+    "normalized_sha256": "9815f42da56e6fe8cdf3df7fb1a071c4a1f96fe52cdb023045c777747a17338c",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::016",
+    "source_path": "tui.md",
+    "source_anchor": "container",
+    "source_heading": "Container",
+    "source_lines": [
+      290,
+      300
+    ],
+    "occurrence": 1,
+    "sha256": "22ae1f48cd91de0aafd47938778f659739a1d8710bbbad6531f42d6815139c23",
+    "normalized_sha256": "c58020221dcbc543b62c13484e4bda4adfbffa13a7c3f52e4aa8390f004f5814",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::017",
+    "source_path": "tui.md",
+    "source_anchor": "spacer",
+    "source_heading": "Spacer",
+    "source_lines": [
+      301,
+      308
+    ],
+    "occurrence": 1,
+    "sha256": "7364c641c79d05fcc4fd3f5701221eea7e4144ff42c4cabeb9230b9a041589c8",
+    "normalized_sha256": "1bf855f8d95e4e9a6ce42b68b20c9e7255c07269fe7678906e476d2ef4db589b",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::018",
+    "source_path": "tui.md",
+    "source_anchor": "markdown",
+    "source_heading": "Markdown",
+    "source_lines": [
+      309,
+      322
+    ],
+    "occurrence": 1,
+    "sha256": "103a8f8aa39896e4c0fa18afbc04ff55bd36c509a9909e643e20ed8de1e180db",
+    "normalized_sha256": "78ae57b714bd3a5c614adb0eb9fe75b2b29990aa47aa184382e7ad121f290f41",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::019",
+    "source_path": "tui.md",
+    "source_anchor": "image",
+    "source_heading": "Image",
+    "source_lines": [
+      323,
+      335
+    ],
+    "occurrence": 1,
+    "sha256": "c05f057c751e5d8e5807cf431ade6ec0b0ad946d34419a2415919bb77c1e7497",
+    "normalized_sha256": "8e291c0b1242d392b659173f21cb95fb86cfa3609ccf7c2eafb776467a702a66",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::020",
+    "source_path": "tui.md",
+    "source_anchor": "keyboard-input",
+    "source_heading": "Keyboard Input",
+    "source_lines": [
+      336,
+      366
+    ],
+    "occurrence": 1,
+    "sha256": "ab84b07141e0924637860793b0ab179c0bf079bc5f99f752d2c2490308ccf0ed",
+    "normalized_sha256": "396a3a504265caf2903d70f6df1ff76f895d2467aa047e46cd0a6892147bae9a",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::021",
+    "source_path": "tui.md",
+    "source_anchor": "line-width",
+    "source_heading": "Line Width",
+    "source_lines": [
+      367,
+      384
+    ],
+    "occurrence": 1,
+    "sha256": "1e4eb2da11497a1250f106cbf5137b78af79e1affe18d26bda13ea6b01a4fe1b",
+    "normalized_sha256": "1c7d96942631643d55b8000e20093f4201b376f3decd748def5f70543e82148e",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::022",
+    "source_path": "tui.md",
+    "source_anchor": "creating-custom-components",
+    "source_heading": "Creating Custom Components",
+    "source_lines": [
+      385,
+      468
+    ],
+    "occurrence": 1,
+    "sha256": "5abdc43e3291b6a0a4e8c07856aab7b6da692e1c278e02eb3870f6aa2a044141",
+    "normalized_sha256": "415b8588a10305ceeaf34f1c80e446cbba58645677822375e8a09710090c69cc",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::023",
+    "source_path": "tui.md",
+    "source_anchor": "theming",
+    "source_heading": "Theming",
+    "source_lines": [
+      469,
+      524
+    ],
+    "occurrence": 1,
+    "sha256": "4a3e000065d326fb3c04597ab27be6a11ce225c3ecb28cca6baf5f1ac3a1e48a",
+    "normalized_sha256": "887c47ed735fc34a7ef206aa7307cc446d61260e9686620637c085c77663fb11",
+    "kind": "h2",
+    "fences": 3,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::024",
+    "source_path": "tui.md",
+    "source_anchor": "debug-logging",
+    "source_heading": "Debug logging",
+    "source_lines": [
+      525,
+      537
+    ],
+    "occurrence": 1,
+    "sha256": "823dbb0ce5b72ec4883081edc97d63c5eddecb4c011f5b09474196d86e361329",
+    "normalized_sha256": "f624d57736685070bbf1456b7254601e2026b089ada7884b682c6d8864d9c171",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::025",
+    "source_path": "tui.md",
+    "source_anchor": "performance",
+    "source_heading": "Performance",
+    "source_lines": [
+      538,
+      565
+    ],
+    "occurrence": 1,
+    "sha256": "e2bbc04eb854784b5958551c0c51251f78c5f46f3000e50f4081ab127ea2f402",
+    "normalized_sha256": "3252f34257590e72951cfe628b8a6520bc0f06a9c29b2a471569c94a2b613c6c",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::026",
+    "source_path": "tui.md",
+    "source_anchor": "invalidation-and-theme-changes",
+    "source_heading": "Invalidation and Theme Changes",
+    "source_lines": [
+      566,
+      569
+    ],
+    "occurrence": 1,
+    "sha256": "85571312813e4ed3e4a4d518c3c12ee339eef203eb48475ffab7a8dcc0fde0ed",
+    "normalized_sha256": "df5a751181bb80eb4b28f43f61bd5756787ac0a2b4216f425de01b3de26dd9c9",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::027",
+    "source_path": "tui.md",
+    "source_anchor": "the-problem",
+    "source_heading": "The Problem",
+    "source_lines": [
+      570,
+      590
+    ],
+    "occurrence": 1,
+    "sha256": "7a86024fd3bfd01c3677a9950e4c6851c65c99f7cee24a8d0d0081b2772f7d1c",
+    "normalized_sha256": "657baf481f2d48c05108900041eef7a91394845ecd2cb2c65377081c15f94021",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::028",
+    "source_path": "tui.md",
+    "source_anchor": "the-solution",
+    "source_heading": "The Solution",
+    "source_lines": [
+      591,
+      619
+    ],
+    "occurrence": 1,
+    "sha256": "9bd7b56207016fe3eb78a7395905863642de644fdf0a97c1ecff6525f0d55633",
+    "normalized_sha256": "0869225c353614575f91ad9905cd8c51eb3ebe8de7800662a66034a5d83825b1",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::029",
+    "source_path": "tui.md",
+    "source_anchor": "pattern-rebuild-on-invalidate",
+    "source_heading": "Pattern: Rebuild on Invalidate",
+    "source_lines": [
+      620,
+      653
+    ],
+    "occurrence": 1,
+    "sha256": "fe0d2b74d6bb3cb0758bd8058c99fcf303f632070bdde92e715c4ce624d8da97",
+    "normalized_sha256": "cb53e96b52e612d5b76f87ebab193de4f5343e0b7c711e80fa9673d110adaf8c",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::030",
+    "source_path": "tui.md",
+    "source_anchor": "when-this-matters",
+    "source_heading": "When This Matters",
+    "source_lines": [
+      654,
+      667
+    ],
+    "occurrence": 1,
+    "sha256": "e7295774ea97860cf98a03315b3bcac91bba55061c975f1b238e04c6ede5e102",
+    "normalized_sha256": "e28a4535c671ba1c8b5477ba8253708ba61fae60a94f566caa0f168b5a5fb4ab",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::031",
+    "source_path": "tui.md",
+    "source_anchor": "common-patterns",
+    "source_heading": "Common Patterns",
+    "source_lines": [
+      668,
+      671
+    ],
+    "occurrence": 1,
+    "sha256": "044fc8937629467f2bc45855d8bf1b4a393f4ab13c5275eaf1a97a616fe113fc",
+    "normalized_sha256": "cf4f650937338ea687c1587dc6f3692de19137553981ff3041a45598c2c88897",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::032",
+    "source_path": "tui.md",
+    "source_anchor": "pattern-1-selection-dialog-selectlist",
+    "source_heading": "Pattern 1: Selection Dialog (SelectList)",
+    "source_lines": [
+      672,
+      735
+    ],
+    "occurrence": 1,
+    "sha256": "6b0687a56df302da46636910376f8957534b32400f0084050bd13fc4ba3fe58d",
+    "normalized_sha256": "c779c3c39d769a5d6eac2cfe8a9596d6e4b3607ac324fcf756d2711fa0015866",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::033",
+    "source_path": "tui.md",
+    "source_anchor": "pattern-2-async-operation-with-cancel-borderedloader",
+    "source_heading": "Pattern 2: Async Operation with Cancel (BorderedLoader)",
+    "source_lines": [
+      736,
+      767
+    ],
+    "occurrence": 1,
+    "sha256": "c9d18ae54451e1c52c72bbc5c1994468d705dd1cbce06ad379b95f2985c47b44",
+    "normalized_sha256": "f0193b32c6655b11037929065f3555fdc35399a0270c0d2f4c581c72892d2d61",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::034",
+    "source_path": "tui.md",
+    "source_anchor": "pattern-3-settings/toggles-settingslist",
+    "source_heading": "Pattern 3: Settings/Toggles (SettingsList)",
+    "source_lines": [
+      768,
+      814
+    ],
+    "occurrence": 1,
+    "sha256": "cb40ed32c17c1ccef7f5abf8e0eb4a7fd928912be74417f6001adf56791485c7",
+    "normalized_sha256": "092b107a9412e92842aa9403f0fd0601f7d38fb819ac84eabb6305dee415ed21",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::035",
+    "source_path": "tui.md",
+    "source_anchor": "pattern-4-persistent-status-indicator",
+    "source_heading": "Pattern 4: Persistent Status Indicator",
+    "source_lines": [
+      815,
+      828
+    ],
+    "occurrence": 1,
+    "sha256": "612165eae1a8b311b6a1f6a3516b64e83e8a4ba2dddaed52469989ad0ba03c6f",
+    "normalized_sha256": "86677f83710660de3b3ba6e01d4f79d023e14401bc42f65d3834e1b4835d8802",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::036",
+    "source_path": "tui.md",
+    "source_anchor": "pattern-4b-working-indicator-customization",
+    "source_heading": "Pattern 4b: Working Indicator Customization",
+    "source_lines": [
+      829,
+      860
+    ],
+    "occurrence": 1,
+    "sha256": "60c3fd58dce69025dd39a09d58967b338cf257e6214560b43e5e1442f922c03b",
+    "normalized_sha256": "46ba3856554652277a928497f5cf6d17d2a00bed5bec2350d6265c9071c43e43",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::037",
+    "source_path": "tui.md",
+    "source_anchor": "pattern-5-widgets-above/below-editor",
+    "source_heading": "Pattern 5: Widgets Above/Below Editor",
+    "source_lines": [
+      861,
+      893
+    ],
+    "occurrence": 1,
+    "sha256": "610b8f5213ab43e5786e533bbe321bcd60caf5de9016b59f53bd53565c9200aa",
+    "normalized_sha256": "457e877c7778b3845b4a351c86773458d9fcf40a40d87f7d92bcdc5231f999b9",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::038",
+    "source_path": "tui.md",
+    "source_anchor": "pattern-6-custom-footer",
+    "source_heading": "Pattern 6: Custom Footer",
+    "source_lines": [
+      894,
+      934
+    ],
+    "occurrence": 1,
+    "sha256": "e60d8f49ec040e3b78fdf3c83d97aa3f22ef0e773644d54fc586acc73b39655b",
+    "normalized_sha256": "155f3679ed3e8357074fb0ed6b0ecabd065664b20655dbebf90974d616dd6fee",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::039",
+    "source_path": "tui.md",
+    "source_anchor": "pattern-7-custom-editor-vim-mode-etc",
+    "source_heading": "Pattern 7: Custom Editor (vim mode, etc.)",
+    "source_lines": [
+      935,
+      1010
+    ],
+    "occurrence": 1,
+    "sha256": "76d1fda758bf38bdf970e9258e846537798c4ddd8f7e65696a60f6afff80919a",
+    "normalized_sha256": "178a5a832d6cc914c5fcdd61b36938482c520eee5f1dd50561028d761fda317d",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::040",
+    "source_path": "tui.md",
+    "source_anchor": "key-rules",
+    "source_heading": "Key Rules",
+    "source_lines": [
+      1011,
+      1022
+    ],
+    "occurrence": 1,
+    "sha256": "c462475f2ca3635219b6d4e070737fe544f4145b61e30bf20a27c092289944f8",
+    "normalized_sha256": "8eeb1842c77a3d43894bc886e90d96556e5621f3ab8289c730a413d6855106fc",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "tui::041",
+    "source_path": "tui.md",
+    "source_anchor": "examples",
+    "source_heading": "Examples",
+    "source_lines": [
+      1023,
+      1034
+    ],
+    "occurrence": 1,
+    "sha256": "8f0c823ad8b4215f9dd8017ff69b96a958050cc8a509b84f6032a7620e728520",
+    "normalized_sha256": "2d481a8d37bd78645f6ea3845ed06f21f00aeb08c25139c3b48c2a3cb3b3e3ef",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::001",
+    "source_path": "usage.md",
+    "source_anchor": "using-atomic",
+    "source_heading": "Using Atomic",
+    "source_lines": [
+      1,
+      4
+    ],
+    "occurrence": 1,
+    "sha256": "1a4fcab1ee9da17abc88deb1346e6616c9fcc23eee39a7e31c91e6b57b608083",
+    "normalized_sha256": "c85bedf9cf657c5c8112ecc5915eecc09ac61acac5b59b810596d1f70b94b990",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::002",
+    "source_path": "usage.md",
+    "source_anchor": "interactive-mode",
+    "source_heading": "Interactive Mode",
+    "source_lines": [
+      5,
+      17
+    ],
+    "occurrence": 1,
+    "sha256": "2f8b889a24fa4a66b2e0c4c71ef531c688bf3c12d035fc804417b16938883097",
+    "normalized_sha256": "a6cadd495f4c64c4c08878add4dade74e22739151846e24f00699a8497cec719",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::003",
+    "source_path": "usage.md",
+    "source_anchor": "startup-and-working-identity",
+    "source_heading": "Startup and Working Identity",
+    "source_lines": [
+      18,
+      25
+    ],
+    "occurrence": 1,
+    "sha256": "66ee4a4715debe500e3310e43d7ff289ad8db914f24e15b77e7b31494f4b1e75",
+    "normalized_sha256": "06f75bc3aea43fb33a30476e0539bd3d91fd1f2d1ea411f230b934d782c93060",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::004",
+    "source_path": "usage.md",
+    "source_anchor": "editor-features",
+    "source_heading": "Editor Features",
+    "source_lines": [
+      26,
+      43
+    ],
+    "occurrence": 1,
+    "sha256": "6b757d87b8d134548e768b7fe0e3ccaa7b11f2acf09b2c333f433735fdec50cc",
+    "normalized_sha256": "252cabcef5fb5c3bb84314b1937a760e0076991d4b53838e3677b1c647488483",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::005",
+    "source_path": "usage.md",
+    "source_anchor": "slash-commands",
+    "source_heading": "Slash Commands",
+    "source_lines": [
+      44,
+      72
+    ],
+    "occurrence": 1,
+    "sha256": "5924270916e26568fb2d15a22bdd5ae8b516ac52ec777959ae08b5c4c9b11560",
+    "normalized_sha256": "cd783f3155ed901bb93caa256c7a874c2cf9b05c40f972036f0f03b42607efc1",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::006",
+    "source_path": "usage.md",
+    "source_anchor": "message-queue",
+    "source_heading": "Message Queue",
+    "source_lines": [
+      73,
+      90
+    ],
+    "occurrence": 1,
+    "sha256": "b19c7a608342b6ab1e94c3b42f62fe6bbd8ca96acf75c7768444c8b7882aa5c9",
+    "normalized_sha256": "502ea9dc0e89b27e8232a6df3457c60804f0f85c7b93dfbef96db2a879028a25",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::007",
+    "source_path": "usage.md",
+    "source_anchor": "sessions",
+    "source_heading": "Sessions",
+    "source_lines": [
+      91,
+      116
+    ],
+    "occurrence": 1,
+    "sha256": "bed439edf301c82fa23d87bd01945484b9888155f7ac333031d7b59d8fa82dd6",
+    "normalized_sha256": "313a27759e5be4dbdac47ac488caba18b2dad3e30a2f6de563a4b9082ba6ad42",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::008",
+    "source_path": "usage.md",
+    "source_anchor": "context-files",
+    "source_heading": "Context Files",
+    "source_lines": [
+      117,
+      128
+    ],
+    "occurrence": 1,
+    "sha256": "c134dc91648fc51518f027dcceaded9a83d104c9820e3f49822ef43d0811a552",
+    "normalized_sha256": "c93a098931297e21e1758fb070dd697545fa1b83e0fa29c9cfc0573c1748c35d",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::009",
+    "source_path": "usage.md",
+    "source_anchor": "system-prompt-files",
+    "source_heading": "System Prompt Files",
+    "source_lines": [
+      129,
+      137
+    ],
+    "occurrence": 1,
+    "sha256": "2dc08c0ad9c7502ef9ab050f02b069fb7a9dd5b8b50e4d888fa64b0c41de550c",
+    "normalized_sha256": "b3aa0e83a92b9c8d5d339a0442e1c0174ce7f71abeb74b5b267420ab437ed679",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::010",
+    "source_path": "usage.md",
+    "source_anchor": "exporting-and-sharing-sessions",
+    "source_heading": "Exporting and Sharing Sessions",
+    "source_lines": [
+      138,
+      145
+    ],
+    "occurrence": 1,
+    "sha256": "3274db1252561cc06abf836d36836e2f4305024041118c8f670b50eed565adbb",
+    "normalized_sha256": "b776fef294f74b4f49f508d3d79de62af2b91bc68732d50b4d99581e6c98c1ad",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::011",
+    "source_path": "usage.md",
+    "source_anchor": "cli-reference",
+    "source_heading": "CLI Reference",
+    "source_lines": [
+      146,
+      157
+    ],
+    "occurrence": 1,
+    "sha256": "f12883ff010bcbe957f69eddb855addf02060807e6a34e55d7d7c352882e277c",
+    "normalized_sha256": "f995a87ebe555b04119addc2d8f84ed1fe8b0a87640bd900b4f5c4cb005d55f0",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::012",
+    "source_path": "usage.md",
+    "source_anchor": "package-commands",
+    "source_heading": "Package Commands",
+    "source_lines": [
+      158,
+      177
+    ],
+    "occurrence": 1,
+    "sha256": "f7bcd2667a148722426ae13736e7c74c8df38d2ec410190f11a92c46f3af1231",
+    "normalized_sha256": "807d051fdaa6dbc45bd2ec26cb03dec84f0dbe80442e2e3c5dee26917bc0a904",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::013",
+    "source_path": "usage.md",
+    "source_anchor": "credential-commands",
+    "source_heading": "Credential Commands",
+    "source_lines": [
+      178,
+      228
+    ],
+    "occurrence": 1,
+    "sha256": "f84e9abfe350532235043bf7e3392f544d5392935b92147f40d2dc2f07bc0422",
+    "normalized_sha256": "c7a1fbff637dcfdf7f8f5af7ef4ba799e7c3f41c06354ff47fb77863d8b57226",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 2,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::014",
+    "source_path": "usage.md",
+    "source_anchor": "modes",
+    "source_heading": "Modes",
+    "source_lines": [
+      229,
+      248
+    ],
+    "occurrence": 1,
+    "sha256": "6bfb10f6bcfd661dd698a4aa5cbe88044b8bb9d0a8630844f73da3fbf43867ab",
+    "normalized_sha256": "d28a2d289c2bc97bea6e88f43de712e452e6a347c45ccb51d5fafb77a54c37b2",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::015",
+    "source_path": "usage.md",
+    "source_anchor": "model-options",
+    "source_heading": "Model Options",
+    "source_lines": [
+      249,
+      259
+    ],
+    "occurrence": 1,
+    "sha256": "3740c2be9c92ba840e8e87f1509827edbd9e36ca8932ba39fc47886cb5b23644",
+    "normalized_sha256": "733920b7e53e8b2d1e078bcc369049b0cf0c014aa607ca27581a0d27a429d70c",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::016",
+    "source_path": "usage.md",
+    "source_anchor": "session-options",
+    "source_heading": "Session Options",
+    "source_lines": [
+      260,
+      272
+    ],
+    "occurrence": 1,
+    "sha256": "49b899f9ea2171ea4e3fb2538738759398768da5d698e51407cbb4afd90b808b",
+    "normalized_sha256": "5999682eac0a8cd19e8954c50afe4d8b16c52ce78450acbcf21d1b1a779cc5dc",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::017",
+    "source_path": "usage.md",
+    "source_anchor": "tool-options",
+    "source_heading": "Tool Options",
+    "source_lines": [
+      273,
+      283
+    ],
+    "occurrence": 1,
+    "sha256": "b58dc14020ec5a8fc99577c042e265ff798b5c32cce1d294bae0f1288696f8c5",
+    "normalized_sha256": "817133459c3bb8794acca704f34c51ca22cea30b7885839d4f0d968e43a9dfe3",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::018",
+    "source_path": "usage.md",
+    "source_anchor": "project-trust-options",
+    "source_heading": "Project Trust Options",
+    "source_lines": [
+      284,
+      292
+    ],
+    "occurrence": 1,
+    "sha256": "f1cca9c2896803ed6b125fad0cc682b20c19626e85fc190bf1de9bcfbda2ffcb",
+    "normalized_sha256": "890048373608f1dbee1c5661d6af6fe5a38f74e6d81f8f3985557f623f1703df",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::019",
+    "source_path": "usage.md",
+    "source_anchor": "resource-options",
+    "source_heading": "Resource Options",
+    "source_lines": [
+      293,
+      312
+    ],
+    "occurrence": 1,
+    "sha256": "96eef37dcae2d450f8556de294c3393e92574ec5ae8cb05acc9b1f0f13a1a4ae",
+    "normalized_sha256": "aa06a48e60de561362f5b2b8419877729dcf9e642d3fc7e6f8793b18a13d4cf6",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::020",
+    "source_path": "usage.md",
+    "source_anchor": "other-options",
+    "source_heading": "Other Options",
+    "source_lines": [
+      313,
+      324
+    ],
+    "occurrence": 1,
+    "sha256": "588a46297598ff37b04d986a3abe3b4112ec0e0f71c44d2adfaa2398dd5bafcb",
+    "normalized_sha256": "efbd5979f59affbd14632ff25deaaaa1f053cabfe68b67fecf2800869b3e4bc9",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::021",
+    "source_path": "usage.md",
+    "source_anchor": "file-arguments",
+    "source_heading": "File Arguments",
+    "source_lines": [
+      325,
+      334
+    ],
+    "occurrence": 1,
+    "sha256": "74e73e6bcf96717775880e880f0f82c4c556648fed5c7ef3d638bbe08aed3402",
+    "normalized_sha256": "df4e86311ef611db4c5dfe3e27dd9cdf016f3e2754bf28291ec32eb0a4d46d9d",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::022",
+    "source_path": "usage.md",
+    "source_anchor": "examples",
+    "source_heading": "Examples",
+    "source_lines": [
+      335,
+      362
+    ],
+    "occurrence": 1,
+    "sha256": "63a2f2b024ee7da98e85cfc73088f573af3e8653e927dffe82b42ca6ad35b12e",
+    "normalized_sha256": "5633899ae79139a8357bf8ad0d24fe58c8f018313a4c7fa92ec54644b92858dd",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::023",
+    "source_path": "usage.md",
+    "source_anchor": "environment-variables",
+    "source_heading": "Environment Variables",
+    "source_lines": [
+      363,
+      393
+    ],
+    "occurrence": 1,
+    "sha256": "7b90618b2abc295564ecc3dd4092941f27deaec51e7015fc00e884c18c89e2e1",
+    "normalized_sha256": "60231a1c80416fc770498901071567ad69bed7546ec5e13f20212215f71fec42",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 2,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "usage::024",
+    "source_path": "usage.md",
+    "source_anchor": "design-principles",
+    "source_heading": "Design Principles",
+    "source_lines": [
+      394,
+      399
+    ],
+    "occurrence": 1,
+    "sha256": "cf0b00fddecb2b8849f5d16ac54b7fe3a4a6de4a2a48abec1f1e0ef99507ebe1",
+    "normalized_sha256": "b56822b99a3f9a954121c163c1df615413d1efbed2be2467b01d2db36b3db6f4",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "windows::001",
+    "source_path": "windows.md",
+    "source_anchor": "windows-setup",
+    "source_heading": "Windows Setup",
+    "source_lines": [
+      1,
+      2
+    ],
+    "occurrence": 1,
+    "sha256": "f6f4f1a28ba60cb839861c336ccf7658a635635c5f5ecc20df69cde1cf0b0462",
+    "normalized_sha256": "5fc458bd44be9c67cf46a2a441829e8b54316a5f882d9527606de78e9c3c201f",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "windows::002",
+    "source_path": "windows.md",
+    "source_anchor": "install",
+    "source_heading": "Install",
+    "source_lines": [
+      3,
+      32
+    ],
+    "occurrence": 1,
+    "sha256": "f78d819825b3d59a9e9a452c27fc18eed9bd2b1af8d0c13d70bc0a0de790cb19",
+    "normalized_sha256": "0c3e498cb66ae871b789599c9f02720563f205f02d158025f8534d77513691f1",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "windows::003",
+    "source_path": "windows.md",
+    "source_anchor": "custom-shell-path",
+    "source_heading": "Custom Shell Path",
+    "source_lines": [
+      33,
+      43
+    ],
+    "occurrence": 1,
+    "sha256": "162dbae5e3f11c40d872773639a9e8e239be8bac1967d252208b22a98c003629",
+    "normalized_sha256": "a304fb43b8808f4126e7cf5de2917029084ddba13f2b29ca67fd92242b23bda5",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "windows::004",
+    "source_path": "windows.md",
+    "source_anchor": "interactive-startup",
+    "source_heading": "Interactive Startup",
+    "source_lines": [
+      44,
+      50
+    ],
+    "occurrence": 1,
+    "sha256": "a17109dccd3b430acfe53af7b258168441da32e40c2f17b40cd5af376716619a",
+    "normalized_sha256": "c8a86d8e1c90a95095325475a1f5b797c00508a4f4adad53e983e522d9f79264",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "windows::005",
+    "source_path": "windows.md",
+    "source_anchor": "filesystem-watchers",
+    "source_heading": "Filesystem Watchers",
+    "source_lines": [
+      51,
+      54
+    ],
+    "occurrence": 1,
+    "sha256": "2b45c114a0a874dffdd4a4d8a23652984af3377173a7fc9ae2e7a1c4d7b80e03",
+    "normalized_sha256": "e4516016520fa6d2c06de033163544db5fa4bdd2a6c38343375fae5ed54301cc",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "windows::006",
+    "source_path": "windows.md",
+    "source_anchor": "self-update-behavior",
+    "source_heading": "Self-Update Behavior",
+    "source_lines": [
+      55,
+      62
+    ],
+    "occurrence": 1,
+    "sha256": "af94ecde8f1b4c85fb4eb6c25e0fdce9cb89c37963903ab38d24764c43a612cb",
+    "normalized_sha256": "b0bfc2d9ef4d4463a3ae16bd308db85986935d788628e92ff6fec984e5c172c3",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "windows::007",
+    "source_path": "windows.md",
+    "source_anchor": "powershell-tool",
+    "source_heading": "PowerShell tool",
+    "source_lines": [
+      63,
+      70
+    ],
+    "occurrence": 1,
+    "sha256": "1084b7482caf34fbffb49f1367710c784fe950e5f3ece4a265a8f9267678f510",
+    "normalized_sha256": "03846f630e76e0b0d3786f71f69be72f1928ceb3d97cda1902c5baa406f5fac4",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows::001",
+    "source_path": "workflows.md",
+    "source_anchor": null,
+    "source_heading": null,
+    "source_lines": [
+      1,
+      2
+    ],
+    "occurrence": null,
+    "sha256": "9fdede774689b4020fa70d2f203480f9d9214e802194a340c663331d84122fab",
+    "normalized_sha256": "3d74ae8e6d220804a47c06df2947bc39e41000d21a439351e2541902ed4ac40d",
+    "kind": "preamble",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 1,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows::002",
+    "source_path": "workflows.md",
+    "source_anchor": "workflows",
+    "source_heading": "Workflows",
+    "source_lines": [
+      3,
+      30
+    ],
+    "occurrence": 1,
+    "sha256": "6e3ea1f3615fd1f8dba85d383825bb735a89a35ef0989a0fc5673a57e1953904",
+    "normalized_sha256": "35e8a67b5cb613f6e4ba86ac13ff60a39998a7f7cc2fd2e51cfb713f7d73d471",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows::003",
+    "source_path": "workflows.md",
+    "source_anchor": "choose-your-path",
+    "source_heading": "Choose your path",
+    "source_lines": [
+      31,
+      42
+    ],
+    "occurrence": 1,
+    "sha256": "6569b7107f60c0be94a982555cc20bc6eab9888d8d27bba941f88b5012cd6392",
+    "normalized_sha256": "9574a4936346d0e169a8eafdfc7944e5f58d5402dbfe8e91cb5e55d9206cac69",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows::004",
+    "source_path": "workflows.md",
+    "source_anchor": "when-to-use-workflows",
+    "source_heading": "When to Use Workflows",
+    "source_lines": [
+      43,
+      74
+    ],
+    "occurrence": 1,
+    "sha256": "4325d964fe73e06a867365f6c135ee0f59a91db436c9bb80c800b8f8b7a150a8",
+    "normalized_sha256": "004b27e36f16dba719f0c0f1d36388a03230069f088bf230031a649711f02375",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::001",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "workflow-api-reference",
+    "source_heading": "Workflow API Reference",
+    "source_lines": [
+      1,
+      4
+    ],
+    "occurrence": 1,
+    "sha256": "1f9b94338fd4e25a7f74956920c4dc79a282f7716763f1a0fa117d404097b695",
+    "normalized_sha256": "55dad9061591ac867b8c7832cb7d8c5fe15dd692b3562bbfbf9646d675c107e8",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::002",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "the-workflow-definition",
+    "source_heading": "The `workflow()` definition",
+    "source_lines": [
+      5,
+      18
+    ],
+    "occurrence": 1,
+    "sha256": "dcc42bf4a8c893a8bdc46a584c23c5fae3713a731d8a05fc85a79439ace8b00d",
+    "normalized_sha256": "31bf93be386b453390ca1029016554e4997bfc24cdf3de4cd37f75adaf61fc0b",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::003",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "name",
+    "source_heading": "`name`",
+    "source_lines": [
+      19,
+      26
+    ],
+    "occurrence": 1,
+    "sha256": "bf910de5f14d3f227dba2bcc420280e4594b068090a35470a39eca40724adf2b",
+    "normalized_sha256": "7c4919f9c669b62e4f197787a2588686bdb49edc481c10bbd99aba35a37513fc",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::004",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "description",
+    "source_heading": "`description`",
+    "source_lines": [
+      27,
+      34
+    ],
+    "occurrence": 1,
+    "sha256": "c66f1c05406878b0483f2d7e035c14a244efde82bd0a6fbaec34b2c1e68b3b0d",
+    "normalized_sha256": "76913f1a3f0d92b03343a1cbd4dc1735b28d332c22daa26dffb79dcfd194abab",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::005",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "autoattach",
+    "source_heading": "`autoAttach`",
+    "source_lines": [
+      35,
+      42
+    ],
+    "occurrence": 1,
+    "sha256": "7cd21504c551bde45636cf4deb914b169426faa74e853ed2a99781f5d1b31b34",
+    "normalized_sha256": "89e6b3cbf4701cc27bae92dff63bd4f8b2d8ce097705e38505b7d36d417b5fc1",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::006",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "heartbeatintervalminutes",
+    "source_heading": "`heartbeatIntervalMinutes`",
+    "source_lines": [
+      43,
+      76
+    ],
+    "occurrence": 1,
+    "sha256": "d5252dba0a95f12d5be61c162de46103ce3760741fba5af6390094c2a0407b7e",
+    "normalized_sha256": "ef670b45e132cbfb02e33e90f450de2d495cf9cd2d4175aa32a71c24edb8234b",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::007",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "budget",
+    "source_heading": "`budget`",
+    "source_lines": [
+      77,
+      89
+    ],
+    "occurrence": 1,
+    "sha256": "7b07b639d981135c3f1f3499d1b2f6199f020426a02cb6b59bbf44342cf2ddc6",
+    "normalized_sha256": "137c7ea5d59ce173943554e61af7cd4ff67fa225c4c263f61b1df61910f8a6aa",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::008",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "inputs",
+    "source_heading": "`inputs`",
+    "source_lines": [
+      90,
+      98
+    ],
+    "occurrence": 1,
+    "sha256": "400b6c55ed1b185880718de9b3ce765d129d06de3110330df9f113dd09f60f8a",
+    "normalized_sha256": "9c36f7ee5b4b4ffba117edc054d4d21f89b27940d19f387d7fee551c19824da6",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::009",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "outputs",
+    "source_heading": "`outputs`",
+    "source_lines": [
+      99,
+      107
+    ],
+    "occurrence": 1,
+    "sha256": "99ba25de0acb1df5765e72e6b83ad7e6b58dbc56e988b953626d6ee58f5c6b37",
+    "normalized_sha256": "f110e47d433a09bdf33c6c53ece46600aa8ca4738016a9d1ff629040ee176988",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::010",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "worktreefrominputs",
+    "source_heading": "`worktreeFromInputs`",
+    "source_lines": [
+      108,
+      138
+    ],
+    "occurrence": 1,
+    "sha256": "1406717443e4c9bec652e09cfebc9f2fbbe93cd8f6190194e998558fd1e37ffb",
+    "normalized_sha256": "e644d9b6d001094d39e72d97c90f8033dc6fa1942765763eed7033a9e664f6f3",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::011",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "run-ctx",
+    "source_heading": "`run(ctx)`",
+    "source_lines": [
+      139,
+      150
+    ],
+    "occurrence": 1,
+    "sha256": "baf7e3d3bab4785444ee1a38df70f1288574f7331f4619ca0707243eab4fa0d3",
+    "normalized_sha256": "f12087e523b71fcf60a0d424e8402615016effa89dd83a9947e2ef0c85fffdca",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::012",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "compiled-definition-fields",
+    "source_heading": "Compiled definition fields",
+    "source_lines": [
+      151,
+      175
+    ],
+    "occurrence": 1,
+    "sha256": "39308548898be943935872df1aae066dc928d571cec10faf86c0b8e6ce24c3ac",
+    "normalized_sha256": "42997012b21cde108bf48bbc89990933790fc1b2bab3139eebbefc41ffaeb25f",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::013",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "workflowcontext",
+    "source_heading": "WorkflowContext",
+    "source_lines": [
+      176,
+      190
+    ],
+    "occurrence": 1,
+    "sha256": "0fadb9c57a490545358ca5ffb742679ad06fb2a05d8a85f43c9f30dd30bce63c",
+    "normalized_sha256": "2b44bcfb35f2a29b5a5490679fe9a0fb98024ae796ed615c189a86dc6edfeb37",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::014",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "ctx-inputs",
+    "source_heading": "`ctx.inputs`",
+    "source_lines": [
+      191,
+      198
+    ],
+    "occurrence": 1,
+    "sha256": "74d40f8dab83d68dbe3a1ad1382aefaae6c4fd08807d37b3d137433b8c9f6dff",
+    "normalized_sha256": "782a33a7cd774ce6bfca219995308f292ec71a818bb59c01357aca75fac97daf",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::015",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "ctx-cwd",
+    "source_heading": "`ctx.cwd`",
+    "source_lines": [
+      199,
+      206
+    ],
+    "occurrence": 1,
+    "sha256": "0649cd7a8bf04005a9b3decbf70752899d9fb0d5febcd2853e7a3bfc56d7e72f",
+    "normalized_sha256": "3866af7e8139634d76d33bc39d4063fb159b39cf95314b13036ac3af83eed326",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::016",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "ctx-models",
+    "source_heading": "`ctx.models`",
+    "source_lines": [
+      207,
+      214
+    ],
+    "occurrence": 1,
+    "sha256": "6e0f29fb89fa4d7bf118771f0456015390b11cb95a707ffbb319bddf3a65526f",
+    "normalized_sha256": "eb32b94ff74c4b1b5b98bc63125bfd9db77610fdd67777a9858b639fb1888c46",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::017",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "ctx-task-name-options",
+    "source_heading": "`ctx.task(name, options)`",
+    "source_lines": [
+      215,
+      229
+    ],
+    "occurrence": 1,
+    "sha256": "8828960ce59e05c72c68820a43c275a57b49d79e82858aacb90871a244b5f478",
+    "normalized_sha256": "aa1dbc6e0b057c638e2a9e451a3ffe41e579cdadcba8db37956816703f62a8ff",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::018",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "ctx-chain-steps-options",
+    "source_heading": "`ctx.chain(steps, options?)`",
+    "source_lines": [
+      230,
+      240
+    ],
+    "occurrence": 1,
+    "sha256": "d5e2f62a775a5cef80e127238de8c8ed7ba59cb19c5e60d379acc82decd317f3",
+    "normalized_sha256": "d2cfe22348942f1a8e63d9a6069df098f6d4cf8a97fc07545ab092e220d94cca",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::019",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "ctx-parallel-steps-options",
+    "source_heading": "`ctx.parallel(steps, options?)`",
+    "source_lines": [
+      241,
+      251
+    ],
+    "occurrence": 1,
+    "sha256": "3be5c401d18a0f7b83dc732f0c4b3cd6e9dd0dfc0d0d384ef816ab744b81e1ae",
+    "normalized_sha256": "50b5a539d40c45604cd7055e2d30c0085731853ec1f4d2cba293d272fe4b2cb8",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::020",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "ctx-workflow-definition-options",
+    "source_heading": "`ctx.workflow(definition, options?)`",
+    "source_lines": [
+      252,
+      291
+    ],
+    "occurrence": 1,
+    "sha256": "0c9f317c0628f0990eebed47b307d841d5ff416446d471cb5bee8f4c65c388a2",
+    "normalized_sha256": "12a99efc64cd3a14c3621c4d23edb0b979c6033fd51caa4d3ded82e71dd6eccd",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::021",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "ctx-stage-name-options",
+    "source_heading": "`ctx.stage(name, options?)`",
+    "source_lines": [
+      292,
+      303
+    ],
+    "occurrence": 1,
+    "sha256": "15876d7aebf23497f955fd00790ff10db13d7a24a39ba93134ea2b71c158ad1b",
+    "normalized_sha256": "2bad9b3977e586a1745a3c6aef250d1f5a5d37f26f4975ebd361cf6a4385cd88",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::022",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "ctx-ui",
+    "source_heading": "`ctx.ui`",
+    "source_lines": [
+      304,
+      311
+    ],
+    "occurrence": 1,
+    "sha256": "91bb1fdf1a9d7253ac0746db83fa51b00e09ecdb3572d00eff5be4a089742ac7",
+    "normalized_sha256": "f137545c0b415d00209e19118fc96822338c36cd7ed3e8657e675a808ab60ad1",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::023",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "ctx-ui-input-prompt",
+    "source_heading": "`ctx.ui.input(prompt)`",
+    "source_lines": [
+      312,
+      319
+    ],
+    "occurrence": 1,
+    "sha256": "35907ccab8007f56717d5514cb1b51d56eb9547e9bd9337e517840d447183408",
+    "normalized_sha256": "9ebb7e8df390ac5d8f12f1c712e161b9b8666ce690cefe5959372468dfb602f8",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::024",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "ctx-ui-confirm-message",
+    "source_heading": "`ctx.ui.confirm(message)`",
+    "source_lines": [
+      320,
+      327
+    ],
+    "occurrence": 1,
+    "sha256": "073d770c5fbbf82c33a4547bb94242e07e165e4d897ec5da7924c3ad77e2f184",
+    "normalized_sha256": "a261cd88f4dbe887beccfc80de8629712f2207e3375b3e070591c13f80826ce3",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::025",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "ctx-ui-select-message-options",
+    "source_heading": "`ctx.ui.select(message, options)`",
+    "source_lines": [
+      328,
+      335
+    ],
+    "occurrence": 1,
+    "sha256": "21a73c8c351d3bcd2f08898d523378276656700b7ab3b6d19026fa81a9b74ade",
+    "normalized_sha256": "90eb0568290845720700b378fdc140f97cebdcca13817d9f6f2b6d7731eae60d",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::026",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "ctx-ui-editor-initial",
+    "source_heading": "`ctx.ui.editor(initial?)`",
+    "source_lines": [
+      336,
+      343
+    ],
+    "occurrence": 1,
+    "sha256": "e8079a41c2d84ef0f038cb9e1956c38f7b4fbdf478f7b8463bcb52745ba15358",
+    "normalized_sha256": "5eff8e86c468a862b15b206851f86d5d8d64ad770f184b0b1cbbdf66082b046b",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::027",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "ctx-ui-custom-factory-options",
+    "source_heading": "`ctx.ui.custom(factory, options?)`",
+    "source_lines": [
+      344,
+      368
+    ],
+    "occurrence": 1,
+    "sha256": "7beaabfa940d7deb558478d1f25e3b457a595e5bb588c236599b19fede7aed0d",
+    "normalized_sha256": "c92360ba517c8a4db0d7ce32db424d5194ec8deb792edae5fef697af39714a59",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::028",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "ctx-tool-name-args-fn-options",
+    "source_heading": "`ctx.tool(name, args, fn, options?)`",
+    "source_lines": [
+      369,
+      436
+    ],
+    "occurrence": 1,
+    "sha256": "431cad1091e6153b6a1d0c421eefba0a3f7ef8c479f2649cd0a130d1deeabb34",
+    "normalized_sha256": "73e87f932a9aaacc20af7951058ff2f9281404e06fa820366458ea1258a270c1",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::029",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "ctx-exit-options",
+    "source_heading": "`ctx.exit(options?)`",
+    "source_lines": [
+      437,
+      458
+    ],
+    "occurrence": 1,
+    "sha256": "0cc4e47cd6cf15df686e57518257766444af348f634df5fc1b56f542eba86285",
+    "normalized_sha256": "0a16c7583ba20b478e898d8b4bc4ef8c66d55c71ec383b47fca757a39a226201",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::030",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "task-and-stage-options",
+    "source_heading": "Task and Stage Options",
+    "source_lines": [
+      459,
+      462
+    ],
+    "occurrence": 1,
+    "sha256": "825fc9725f2137388e79ae04f1b4e4d89429bcc2cdbe86ac97c7be2dcad757e2",
+    "normalized_sha256": "1dde6c6d45fbd0c2c848b78973efd40f8a28245e36df0982dd9e165b7cbb3a79",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::031",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "prompt-/-task",
+    "source_heading": "`prompt` / `task`",
+    "source_lines": [
+      463,
+      471
+    ],
+    "occurrence": 1,
+    "sha256": "6bf229aa3017f7d3c98bae295de30a14828f2e3c1ebf2f11711dbed4cb9e9fe9",
+    "normalized_sha256": "04d6df728843bafa3502f054005752d3933732770045f02509fb7146b583a800",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::032",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "previous",
+    "source_heading": "`previous`",
+    "source_lines": [
+      472,
+      486
+    ],
+    "occurrence": 1,
+    "sha256": "e8d105d553222fae968dbccb431466c8c52479ad237e63f2aea8dda3c87f640d",
+    "normalized_sha256": "c6f333c1d6b8f0758e1271d822f5c6d70c4eaf6b235ba24b3b12056bbe0bd1a5",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::033",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "context-/-forkfromsessionfile",
+    "source_heading": "`context` / `forkFromSessionFile`",
+    "source_lines": [
+      487,
+      495
+    ],
+    "occurrence": 1,
+    "sha256": "3df7baeb8c908dc60ddb901b889489bcac432d51356be9729e0efd8bf154fdcc",
+    "normalized_sha256": "751833011c9989916ecd2b93c78f21d755caae198bb6b17a9f53298c9f8fcf4a",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::034",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "group",
+    "source_heading": "`group`",
+    "source_lines": [
+      496,
+      509
+    ],
+    "occurrence": 1,
+    "sha256": "ffe863c7e7c1d0751c353eb77438b8d9bb7c74af208144e0c11b4e3ec5c37d73",
+    "normalized_sha256": "1fac67522dbf04a7999a60a632435ba92640787f9b1b4b5059d4041e9254cf65",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::035",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "model",
+    "source_heading": "`model`",
+    "source_lines": [
+      510,
+      517
+    ],
+    "occurrence": 1,
+    "sha256": "d3cf2aaa66e7764c40c044ad5e65a186a8a3873cbaf59d4d577c886369844de4",
+    "normalized_sha256": "4c211696684386fc2734c82a4fdac03fdad7f4a7716e52d2f0ea80386a79a784",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::036",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "fallbackmodels-/-fallbackthinkinglevels",
+    "source_heading": "`fallbackModels` / `fallbackThinkingLevels`",
+    "source_lines": [
+      518,
+      541
+    ],
+    "occurrence": 1,
+    "sha256": "3ff8a7a4ad735a8d3794ebc8e2e46b9c6cb9d81b136649474cb921a8d4e950ce",
+    "normalized_sha256": "e62269ce40699b0609f771a7c5d67eab25bab1aba33c5d600aee7fd87346f2b4",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::037",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "thinkinglevel-deprecated",
+    "source_heading": "`thinkingLevel` (deprecated)",
+    "source_lines": [
+      542,
+      550
+    ],
+    "occurrence": 1,
+    "sha256": "23397f41451b5e3159d7a8ae9e6e3f25562eb63884e0485056eb06906b3098ad",
+    "normalized_sha256": "68050b4a67f1e62ee477e8ffcee6128253339e47546b5d2f4267cf1ca82c8a67",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::038",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "scopedmodels",
+    "source_heading": "`scopedModels`",
+    "source_lines": [
+      551,
+      563
+    ],
+    "occurrence": 1,
+    "sha256": "9b36d833beee9f435b007d87e665cc1f4b24c0946e697be7c647979ff2cfefef",
+    "normalized_sha256": "742b605d554660c2e3cfaae0b2a7366368bac405d39f3ce1c8b81f3fed9bfd69",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::039",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "tools-/-notools-/-excludedtools",
+    "source_heading": "`tools` / `noTools` / `excludedTools`",
+    "source_lines": [
+      564,
+      577
+    ],
+    "occurrence": 1,
+    "sha256": "7644ea18a2641d18051f936dada70996c7eb8f0d4dc3f9cc860840c3352eab84",
+    "normalized_sha256": "c89565427d7f9d39e6a064190ba202836b4508ee1075cc265a6cd93cafad8d86",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::040",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "customtools",
+    "source_heading": "`customTools`",
+    "source_lines": [
+      578,
+      585
+    ],
+    "occurrence": 1,
+    "sha256": "d216cbfafec5b3ad51e59f1ceebccc824a9862a50ca49c2b05f564e22b5144ed",
+    "normalized_sha256": "60ed8207211f1f1fc231f1be74df9e88daa2e3f298f672c14d9c9ba8029d0967",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::041",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "mcp",
+    "source_heading": "`mcp`",
+    "source_lines": [
+      586,
+      596
+    ],
+    "occurrence": 1,
+    "sha256": "1f4aaa3e1e4d5c096f2fd604c128f4bfa2fbb468c6b52494b8bb4fe19280703e",
+    "normalized_sha256": "54ec19e3b29ac9f71156170f6c9105c1edbed1ad45c3d1ce3f13b83e0f8b9711",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::042",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "schema",
+    "source_heading": "`schema`",
+    "source_lines": [
+      597,
+      608
+    ],
+    "occurrence": 1,
+    "sha256": "8508195c0ecbaaf8658fb7c2acfb2db62b63c5b396686159c57e0676ec5f7591",
+    "normalized_sha256": "4cc7555e7153ed339f397599382c68a6ae6f2f56b6af5ccbe1e9e859720f5bef",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::043",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "output-/-outputmode",
+    "source_heading": "`output` / `outputMode`",
+    "source_lines": [
+      609,
+      629
+    ],
+    "occurrence": 1,
+    "sha256": "23c769173094e871018fe943f2f48f3651dde70be2958d3c0cde5a9568e0f907",
+    "normalized_sha256": "9cb403fde2687032e0645ce0721dab5b1a18c507aec5aece64d2fd2c70e4ac6f",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::044",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "reads",
+    "source_heading": "`reads`",
+    "source_lines": [
+      630,
+      639
+    ],
+    "occurrence": 1,
+    "sha256": "8d8ee5f2efb3f31c3af34e357066661d4c7abd7e16ea83a3225721173b195d36",
+    "normalized_sha256": "6b40ed6dfd25ea0a270030bad2e90e314190b72c28d7febc699da962d0cabb22",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::045",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "maxoutput",
+    "source_heading": "`maxOutput`",
+    "source_lines": [
+      640,
+      650
+    ],
+    "occurrence": 1,
+    "sha256": "600b1263b807c0235d356c6faecb039246de701d5584c532caddc6c54d160a6a",
+    "normalized_sha256": "5df88a308e982e6303c1df914747442059ac1a7368e6fae011e27f848c0036e3",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::046",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "artifacts",
+    "source_heading": "`artifacts`",
+    "source_lines": [
+      651,
+      658
+    ],
+    "occurrence": 1,
+    "sha256": "573e06c75238ebbe125df407eff44ee166f22743bce9ad6aab62b053b6f68eb1",
+    "normalized_sha256": "694982b8ae9b1aa0bf5e7a28a435fbda6c2eef1da6aa2227deda54c7015c4838",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::047",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "worktree",
+    "source_heading": "`worktree`",
+    "source_lines": [
+      659,
+      666
+    ],
+    "occurrence": 1,
+    "sha256": "6faf8790c886d8311131f34a27287041659ac98d1d386f954e35172b7eda186e",
+    "normalized_sha256": "843e332f0e4339c2510f293a6d50c02e698ada54ebeb2dc56fe7bf0bcaea91ca",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::048",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "gitworktreedir-/-basebranch",
+    "source_heading": "`gitWorktreeDir` / `baseBranch`",
+    "source_lines": [
+      667,
+      683
+    ],
+    "occurrence": 1,
+    "sha256": "22682f4c95ca9076c05ce682b9ae1efe4cfd54456b250e21acbaa36450542a4b",
+    "normalized_sha256": "34ab06172ec49b4ee978d005a0495b7811a5101307bb4fa758cd734f4e92bf73",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::049",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "sessiondir",
+    "source_heading": "`sessionDir`",
+    "source_lines": [
+      684,
+      691
+    ],
+    "occurrence": 1,
+    "sha256": "d956e4f294c50a4a64aafdcff0e38d2908b039257ca5b98f3454647fcbee5db1",
+    "normalized_sha256": "641f43d64be6eb1e868817a7aef9b4dad7c2b0ba20e369f9793744a55806217f",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::050",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "cwd-/-agentdir",
+    "source_heading": "`cwd` / `agentDir`",
+    "source_lines": [
+      692,
+      700
+    ],
+    "occurrence": 1,
+    "sha256": "0a9660b8b7dbe556d1f35d9b1820a06da5f270bef796e36548c95e8e6020b776",
+    "normalized_sha256": "33313ec6aabe8e7d83168d1586cc359a1fe61d1843be143ca356c3d8141ee5ef",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::051",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "host-supplied-sdk-seams",
+    "source_heading": "Host-supplied SDK seams",
+    "source_lines": [
+      701,
+      717
+    ],
+    "occurrence": 1,
+    "sha256": "cb3b75358dc516b3583b17e430b0c8e9d664b7b047f727525d8844d9e4ffcb8a",
+    "normalized_sha256": "556b047f7459ba6120bb8e0069355abe9f6d387b1f2a2522da849fa76806cfeb",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::052",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "name-step-items",
+    "source_heading": "`name` (step items)",
+    "source_lines": [
+      718,
+      727
+    ],
+    "occurrence": 1,
+    "sha256": "9de2b44924717bc50df1aa2b592e07288dd641dc4d2cb9b109d00db52b00c3cd",
+    "normalized_sha256": "0edc3c65b1790520306740bd78d9c31079d2901844bd1a2d409bc98fbe2cf153",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::053",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "chaindir",
+    "source_heading": "`chainDir`",
+    "source_lines": [
+      728,
+      731
+    ],
+    "occurrence": 1,
+    "sha256": "999e50bfff8acf968a10abc48ba4f22d4eda96634c4f8c2a0edf09c01e53a3d2",
+    "normalized_sha256": "916050211274e743f2f53d29a12c4f6ed9205b9af1855dcaf1b299d7056ab63e",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::054",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "concurrency-/-failfast",
+    "source_heading": "`concurrency` / `failFast`",
+    "source_lines": [
+      732,
+      740
+    ],
+    "occurrence": 1,
+    "sha256": "04cd9ef719a78a4b9308bf85299cd3e6fd87fc00abf8557d95d6686a41d61016",
+    "normalized_sha256": "e11b6672dc2b65a5581e10729a3bba8272fb9be37ce48002286d759042fe0ead",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "workflows/api-reference::055",
+    "source_path": "workflows/api-reference.md",
+    "source_anchor": "stage-prompt-options-stagepromptoptions",
+    "source_heading": "Stage prompt options (`StagePromptOptions`)",
+    "source_lines": [
+      741,
+      764
+    ],
+    "occurrence": 1,
+    "sha256": "f93c95b08d80adb348d0f68cff89d55c2a1107cbb104b1de59c3414e2580dd48",
+    "normalized_sha256": "ef3c52601c9254dacb0ff92efffa7ff8a0f355873506651af62438e0ecf895e2",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  }
+]

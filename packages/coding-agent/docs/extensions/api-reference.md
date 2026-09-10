@@ -63,6 +63,8 @@ Access models, auth state, and provider-aware requests.
 
 Use `ctx.modelRegistry.complete()` for an extension model request that must use Atomic's provider composition. It dispatches through the active `ModelRuntime`, retaining registered custom providers and resolved request auth: the credential-specific `baseUrl`, headers (including `null` suppression markers), and environment values.
 
+For streaming requests, use `ctx.modelRegistry.streamSimple(model, context, options)` with provider-neutral options, or `stream()` with API-specific options. Both use configured providers and request-time authentication, including extension registrations. Iterate the returned `AssistantMessageEventStream` for events and await `.result()` for the final message. Setup failures produce error events and error results. The global compatibility streaming functions do not see extension provider registrations.
+
 ```typescript
 const model = ctx.modelRegistry.find("github-copilot", "gpt-5.5");
 if (!model) throw new Error("Model not found");
@@ -301,7 +303,7 @@ Options:
 
 ### ctx.navigateTree(targetId, options?)
 
-Navigate to a different point in the session tree:
+Navigate to a different point in the session tree. Navigation rejects while a response, compaction, or branch summarization is active, even with `summarize: false`. Rejection leaves the active branch unchanged. Wait for the active operation to finish and retry.
 
 ```typescript
 const result = await ctx.navigateTree("entry-id-456", {

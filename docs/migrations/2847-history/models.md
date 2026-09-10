@@ -1,0 +1,271 @@
+# Historical models documentation
+
+These blocks preserve the documentation at baseline `59586efd26afd32a27c999ac8bcce102777e40e4` for issue #2847. They are historical evidence, not current instructions. Current documentation incorporates main `cb13229bebe30ea7cb65689569569494b4bc651c`. The original baseline inventory and destination map remain unchanged.
+
+<!-- baseline-block: models::002 -->
+
+Source: `packages/coding-agent/docs/models.md` lines 10–23 at `59586efd26afd32a27c999ac8bcce102777e40e4`. Current destination: `packages/coding-agent/docs/models.md#table-of-contents`.
+
+## Table of Contents
+
+- [Minimal Example](#minimal-example)
+- [Full Example](#full-example)
+- [Supported APIs](#supported-apis)
+- [Provider Configuration](#provider-configuration)
+- [Model Configuration](#model-configuration)
+- [Request-wide Cost Tiers](#request-wide-cost-tiers)
+- [Overriding Built-in Providers](#overriding-built-in-providers)
+- [Per-model Overrides](#per-model-overrides)
+- [Derived Fast Model Variants](#derived-fast-model-variants)
+- [Anthropic Messages Compatibility](#anthropic-messages-compatibility)
+- [OpenAI Compatibility](#openai-compatibility)
+
+<!-- baseline-block: models::021 -->
+
+Source: `packages/coding-agent/docs/models.md` lines 553–602 at `59586efd26afd32a27c999ac8bcce102777e40e4`. Current destination: `packages/coding-agent/docs/models/reference.md#openai-compatibility`.
+
+## OpenAI Compatibility
+
+For providers with partial OpenAI compatibility, use the `compat` field.
+
+- Provider-level `compat` applies defaults to all models under that provider.
+- Model-level `compat` overrides provider-level values for that model.
+
+```json
+{
+  "providers": {
+    "local-llm": {
+      "baseUrl": "http://localhost:8080/v1",
+      "api": "openai-completions",
+      "compat": {
+        "supportsUsageInStreaming": false,
+        "maxTokensField": "max_tokens"
+      },
+      "models": [...]
+    }
+  }
+}
+```
+
+| Field                                         | Description                                                                                                                                                                                                                          |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `supportsStore`                               | Provider supports `store` field                                                                                                                                                                                                      |
+| `supportsDeveloperRole`                       | Use `developer` vs `system` role                                                                                                                                                                                                     |
+| `supportsReasoningEffort`                     | Support for `reasoning_effort` parameter                                                                                                                                                                                             |
+| `supportsUsageInStreaming`                    | Supports `stream_options: { include_usage: true }` (default: `true`)                                                                                                                                                                 |
+| `supportsFinishReason`                       | Whether streamed responses include `finish_reason`. When `false`, Atomic infers `stop` or `toolUse` when the stream ends. Default: `true`. |
+| `supportsThinkingTokenBudget`                | Alias for `thinkingTokenBudgetField: "thinking_token_budget"` (vLLM). Prefer `thinkingTokenBudgetField`. Default: `false`. |
+| `thinkingTokenBudgetField`                   | Top-level request field used to cap reasoning tokens from `thinkingBudgets`, clamped so at least 1024 tokens remain for the answer. `"thinking_token_budget"` (vLLM), `"thinking_budget"` (Qwen/DashScope/SGLang), `"thinking_budget_tokens"` (llama.cpp). Off by default; not set on the generated catalog. |
+| `maxTokensField`                              | Use `max_completion_tokens` or `max_tokens`                                                                                                                                                                                          |
+| `requiresToolResultName`                      | Include `name` on tool result messages                                                                                                                                                                                               |
+| `requiresAssistantAfterToolResult`            | Insert an assistant message before a user message after tool results                                                                                                                                                                 |
+| `requiresThinkingAsText`                      | Convert thinking blocks to plain text                                                                                                                                                                                                |
+| `requiresReasoningContentOnAssistantMessages` | Include empty `reasoning_content` on all replayed assistant messages when reasoning is enabled                                                                                                                                       |
+| `thinkingFormat`                              | Use `reasoning_effort`, `openrouter`, `deepseek`, `together`, `zai`, `qwen`, `chat-template`, or `qwen-chat-template` thinking parameters                                                                                            |
+| `chatTemplateKwargs`                          | `chat_template_kwargs` values for `thinkingFormat: "chat-template"`; use `{ "$var": "thinking.enabled" }`, `{ "$var": "thinking.effort" }`, or `{ "$var": "thinking.budget" }` for Atomic-controlled thinking values |
+| `chatTemplateArgs`                            | `chat_template_args` values for `thinkingFormat: "baseten"`; use `{ "$var": "thinking.enabled" }`, `{ "$var": "thinking.effort" }`, or `{ "$var": "thinking.budget" }` for Atomic-controlled thinking values |
+| `cacheControlFormat`                          | Use Anthropic-style `cache_control` markers on the system prompt, last tool definition, and last user/assistant text content. Currently only `anthropic` is supported.                                                               |
+| `supportsStrictMode`                          | OpenAI-compatible strict JSON-schema function tools. This is not a general guarantee for every API. |
+| `supportsStrictTools`                         | Anthropic/Bedrock strict-tool capability, normally generated from verified model metadata. |
+| `supportsOpenAIGrammarTools`                  | Canonical Pi capability for OpenAI Lark/regex custom tools. Keep false unless the endpoint passes custom tools through unchanged. |
+| `supportsGrammarTools`                        | Atomic compatibility alias for `supportsOpenAIGrammarTools`; the canonical field wins if both disagree. |
+| `supportsLongCacheRetention`                  | Whether the provider accepts long cache retention when cache retention is `long`: `prompt_cache_retention: "24h"` for OpenAI prompt caching, or `cache_control.ttl: "1h"` when `cacheControlFormat` is `anthropic`. Default: `true`. |
+| `vllmPriority`                                | vLLM scheduler priority sent as the top-level `priority` request field. Lower values are handled earlier and the server default is `0`, so it only takes effect when vLLM runs with `--scheduling-policy priority`. Off by default; not set on the generated catalog. |
+| `openRouterRouting`                           | OpenRouter provider routing preferences. This object is sent as-is in the `provider` field of the [OpenRouter API request](https://openrouter.ai/docs/guides/routing/provider-selection).                                            |
+| `vercelGatewayRouting`                        | Vercel AI Gateway routing config for provider selection (`only`, `order`)                                                                                                                                                            |
+
+<!-- baseline-block: models/model-selection::002 -->
+
+Source: `packages/coding-agent/docs/models/model-selection.md` lines 6–19 at `59586efd26afd32a27c999ac8bcce102777e40e4`. Current destination: `packages/coding-agent/docs/models/model-selection.md#model-selection`.
+
+# Model Selection
+
+This page gives workflow authors and runtime policy code a practical way to answer:
+
+- Which model should a workflow use by default?
+- Which model should it use for judgment gates, debugging, planning, research, cheap worker loops, and fallback diversity?
+- Which models are dominated on cost/accuracy and should be avoided unless they have a specific role fit?
+
+It is a **static reference**. It does not change runtime model routing — routing is configured elsewhere. Treat these recommendations as a starting point and validate against your own workflow evals.
+
+<Note>
+The table below is a snapshot of the [DeepSWE](https://deepswe.datacurve.ai/) leaderboard (v1.1, highest published thinking level per model), a long-horizon coding-agent benchmark reporting `pass@1` and average dollars per task. The source reports 113 tasks and was updated September 3, 2026. DeepSWE's own default table view is **Best** — the best-scoring configuration per model — so four models show a different row there than the highest-effort row used here; the snapshot note below the table names them. Benchmarks and pricing drift and new models ship constantly, so **treat the live leaderboards as authoritative** and refresh this page from them rather than hand-maintaining scores. See [Benchmark sources & when to reference each](/models/artificial-analysis-index). **Last compiled: 2026-09-03.**
+</Note>
+
+<!-- baseline-block: models/model-selection::003 -->
+
+Source: `packages/coding-agent/docs/models/model-selection.md` lines 20–23 at `59586efd26afd32a27c999ac8bcce102777e40e4`. Current destination: `packages/coding-agent/docs/models/model-selection.md#benchmark-levels-are-measurement-settings`.
+
+## Benchmark levels are measurement settings
+
+The thinking level in brackets in the chart is the **measurement configuration used for that benchmark result**, not a universal workflow default. A score measured at `max` does not mean every stage using that model should use `max`; benchmark model identity and production thinking effort are separate choices. When authoring a workflow, choose effort from the stage role and cost of being wrong, then verify that the configured model catalog supports the level.
+
+<!-- baseline-block: models/model-selection::005 -->
+
+Source: `packages/coding-agent/docs/models/model-selection.md` lines 31–85 at `59586efd26afd32a27c999ac8bcce102777e40e4`. Current destination: `packages/coding-agent/docs/models/model-selection.md#recommendation-chart`.
+
+## Recommendation chart
+
+The current highest-effort-config Pareto frontier is **gemini-3.8-flash** (accuracy ceiling), **gpt-5.6-luna**, and **glm-5.3-flash** (cheapest point). It collapsed from five members to three when Gemini 3.8 Flash landed on September 1, 2026: at 73.83% unrounded it edges out claude-opus-5's 73.65% — both display 74% — for $2.36 against $11.84, which pushes claude-opus-5, gpt-5.6-sol, and glm-5.3 off the frontier. Everything else displayed on the live DeepSWE leaderboard is dominated on cost and accuracy and earns a place only through role fit or provider diversity. For the frontier reasoning, see [Pareto Efficiency](/models/pareto-efficiency).
+
+| Model [benchmark measurement level] | pass@1 | $/task | Verdict | Use it for |
+| --- | --- | --- | --- | --- |
+| gemini-3.8-flash [high] | 74% | $2.36 | Frontier — accuracy ceiling and best value | Judgment gates, hard debugging, and any role that wants top accuracy without top-tier cost; budget for 166 average steps and 143k output tokens per task |
+| claude-opus-5 [max] | 74% | $11.84 | Dominated — top-tier role fit | Final approval and the hardest debugging when Anthropic-family behavior is specifically wanted; it matches Gemini 3.8 Flash's rounded 74% but costs $9.48 more per task |
+| gpt-6-astra [max] | 73% | $12.37 | Dominated — new arrival | Added September 3, 2026 at DeepSWE's expected launch pricing rather than billed rates; its 28 average steps are the fewest of any row in this table, but Opus 5 scores higher for less |
+| gpt-5.6-sol [max] | 73% | $6.46 | Near-peer, no longer on the frontier | High-cost judgment gates where OpenAI-family behavior is wanted; still about half Opus 5's task cost, but Gemini 3.8 Flash is more accurate at just over a third of Sol's task cost |
+| gpt-5.6-terra [max] | 70% | $3.96 | Historical — outside the default selection | Last published measurement, re-verified unchanged in the September 3, 2026 artifact; DeepSWE deselects it by default, so re-enable it on the live page before relying on it |
+| claude-fable-5 [max] | 70% | $21.63 | Drop | Sol matches or beats its score for much less, and Gemini 3.8 Flash is four rounded points better for about a ninth of the task cost |
+| glm-5.3 [max] | 69% | $3.99 | Best open-weights value, off the frontier | Best open-weights mid-tier cost/accuracy point; matches Kimi K3's rounded score for less, though Gemini 3.8 Flash is five rounded points better for $1.63 less |
+| kimi-k3 [max] | 69% | $4.65 | Dominated | GLM-5.3 matches its rounded score for $0.66 less; Moonshot-family diversity only |
+| gpt-5.6-luna [max] | 67% | $0.61 | Frontier — cheapest broadly-capable point | Research, orchestration, workers, and code simplification |
+| gpt-5.5 [xhigh] | 67% | $7.23 | Superseded | Luna matches its score for less than one tenth of the task cost |
+| grok-4.6 [xhigh] | 67% | $5.50 | Provider fallback | xAI diversity; Luna has the same rounded score at lower DeepSWE task cost |
+| gemini-3.7-flash [high] | 65% | $2.18 | Provider fallback | Strong Google-family result, but Luna is cheaper and more accurate, and Gemini 3.8 Flash supersedes it inside the Google family at 74% for $2.36 |
+| glm-5.3-flash [max] | 63% | $0.24 | Frontier — cheapest | Budget worker loops that can accept lower accuracy and 123 average steps |
+| deepseek-v4-pro [max] | 63% | $1.67 | Dominated / provider fallback | DeepSeek diversity only; GLM-5.3 Flash has a higher unrounded score, fewer steps, and about one seventh of the cost |
+| claude-opus-4.8 [max] | 59% | $13.22 | Fallback only | Anthropic diversity and long-context behavior, not cost efficiency |
+| qwen3.8-max [xhigh] | 57% | $3.73 | Provider fallback | Qwen diversity only; GLM-5.3 Flash and Luna dominate it |
+| muse-spark-1.2 [xhigh] | 55% | $3.70 | Drop | GLM-5.3 Flash is cheaper and more accurate |
+| claude-sonnet-5 [max] | 54% | $26.40 | Drop everywhere | Highest task cost and 268 average steps for a mid-table score |
+| grok-4.5 [high] | 54% | $2.42 | Historical — outside the default selection | Last published measurement, re-verified unchanged; superseded by Grok 4.6 and dominated by current frontier models |
+| deepseek-v4-flash [max] | 53% | $0.46 | Dominated / provider fallback | DeepSeek diversity only; GLM-5.3 Flash is ten points more accurate for about half the cost |
+| muse-spark-1.1 [xhigh] | 53% | $2.36 | Historical — outside the default selection | Last published measurement, re-verified unchanged; replaced by Muse Spark 1.2 and dominated by current frontier models |
+| gpt-5.4 [xhigh] | 52% | $5.65 | Historical — outside the default selection | Last published measurement, re-verified unchanged; Luna is cheaper and 15 points more accurate |
+| gemini-3.6-flash [high] | 47% | $2.21 | Drop from reasoning | Superseded by Gemini 3.7 Flash |
+| glm-5.2 [max] | 44% | $3.92 | Superseded | Measured predecessor only; do not relabel this as GLM-5.3 |
+| gemini-3.5-flash [high] | 36% | $3.45 | Drop from reasoning | Retain only where a low-effort retrieval role has separate evidence |
+| kimi-k2.7-code | 31% | $2.82 | Historical — outside the default selection | Last published measurement had no effort level; Kimi K3 is the current family fallback |
+| claude-sonnet-4.6 [high] | 30% | $5.52 | Historical — outside the default selection | Last published measurement, re-verified unchanged; removed from all chains |
+| gemini-3.1-pro-preview [high] | 12% | $2.14 | Historical — outside the default selection | Last published measurement, re-verified unchanged; the live page labels it `gemini-3.1-pro`; removed from all chains |
+
+<Note>
+DeepSWE values above use the v1.1 results published in the September 3, 2026 snapshot, including the August 21 pricing corrections for GPT-5.6 Sol and DeepSeek V4. Sol's cost reflects OpenAI's promotional input and output price cut through at least November 21, 2026. DeepSWE uses DeepSeek's peak rates; its off-peak rates are half as much. GPT-6 Astra's costs are DeepSWE's expected-launch-pricing estimate rather than billed rates, and every Astra dollar figure on these pages carries that caveat. `pass@1` is rounded as on the live leaderboard and confidence intervals are omitted here — but note that the top of the board is a cluster: the top three rows span less than a point unrounded, well inside DeepSWE's published run-to-run intervals, so read a one-row lead as a tie. The highest published thinking level is a measurement choice, not a production default, and DeepSWE's own data shows effort saturation: for GPT-6 Astra, Claude Fable 5, Grok 4.6, and Gemini 3.7 Flash the best-scoring configuration is *not* the highest one. That is why DeepSWE's default "Best" table view displays four rows this table does not: `gpt-6-astra [xhigh]` at 74% for $6.52 with 29 average steps, `claude-fable-5 [xhigh]` at 70% for $13.41, `grok-4.6 [medium]` at 67% for $3.45, and `gemini-3.7-flash [medium]` at 65% for $2.03. Seven measured configurations are retained here with their last published values because DeepSWE excludes them from its default model selection, not because they were withdrawn; each was re-verified unchanged against the September 3, 2026 artifact and can be re-enabled in the site's model picker: GPT-5.6 Terra, Grok 4.5, Muse Spark 1.1, GPT-5.4, Kimi K2.7 Code, Claude Sonnet 4.6, and Gemini 3.1 Pro Preview. A DeepSWE row is not a claim that Atomic can route the model: run `workflow({ action: "models" })` or `--list-models` to confirm that Gemini 3.8 Flash or GPT-6 Astra is in your configured catalog before pinning either. See the live page for intervals, output tokens, steps, lower-effort configurations, and later corrections.
+</Note>
+
+<Note>
+**Claude Fable 5.1 is in Atomic's catalog and is not in the table above.** It was released September 1, 2026 and is still absent from the September 3, 2026 DeepSWE snapshot this page is compiled from — DeepSWE has not measured it — so it has no measured `pass@1` or `$/task` here. Do not read the `claude-fable-5` row as a Fable 5.1 result: the two models differ in price and behavior, and an unmeasured model must not inherit its predecessor's score. Benchmark it on your own workflow evals before promoting it into a stage.
+
+What is source-backed for `claude-fable-5-1` today, from [Anthropic's model overview](https://platform.claude.com/docs/en/models/fable-5-1/overview): a 1M-token context window and 128K maximum output; adaptive thinking that is always on, with effort `low`, `medium`, `high`, `xhigh`, and `max` and an Anthropic default of `high`; a June 2026 knowledge cutoff; and $10 input, $50 output, $12.50 five-minute cache write, $20 one-hour cache write, and $0.25 cache read per million tokens. The cache read is a quarter of Fable 5's $1.00, which is the main pricing reason to prefer it for long agentic sessions that re-read a cached prefix. Non-default `temperature`, `top_p`, and `top_k` return a 400 on every request, so Atomic omits `temperature` for this model.
+
+Atomic generates Fable 5.1 for the providers it has a matching runtime integration for. At the time of writing that is Anthropic, three Amazon Bedrock inference profiles (`anthropic.`, `global.`, and `us.`), OpenRouter, and the Vercel AI Gateway; a provider "latest" alias such as OpenRouter's `~anthropic/claude-fable-latest` may also route to it without naming it. That set genuinely moves — opencode zen published the model and then withdrew it while this page was being written — so run `workflow({ action: "models" })` or `--list-models` for the current list rather than trusting this one. Published catalogs also list the model on Google Vertex, Google Vertex (Anthropic), Azure, and Azure Cognitive Services; Atomic has no Claude runtime integration for those providers and generates no entries for them, which is a current limitation rather than a roadmap commitment. What does *not* vary is the invariant that matters: **Atomic's preserved-thinking handling is scoped to `provider: "anthropic"` on the `anthropic-messages` API and applies to none of the other mirrors** — including the Vercel AI Gateway, which rides `anthropic-messages` but is deliberately excluded. See [Preserved thinking and model switches](/models#preserved-thinking-and-model-switches).
+</Note>
+
+<Note>
+**Gemini 3.8 Flash is in Atomic's catalog and is not in the table above.** It became generally available September 2, 2026, after the August 26, 2026 DeepSWE snapshot this page is compiled from, so it has no measured `pass@1` or `$/task` here. Do not read the `gemini-3.7-flash [high] | 65% | $2.18` row as a 3.8 Flash result; an unmeasured model must not inherit its predecessor's score. Benchmark it on your own workflow evals before promoting it into a stage.
+
+What is source-backed for `gemini-3.8-flash` today, from [Google's model page](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-8-flash), the [developer's guide](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/guides/gemini-3-8-flash), and the [model card](https://deepmind.google/models/model-cards/gemini-3-8-flash/): a 1,048,576-token context window and 65,536 maximum output tokens; text, image, video, audio, and PDF input with text output; thinking with effort `low`, `medium`, and `high`; and $0.75 input, $3.75 output, and $0.075 cache read per million tokens. Google publishes no knowledge cutoff for it. Atomic advertises `text` and `image` input for this model because those are the modalities it can serialize on the Gemini path, not because Google accepts only those. Thinking cannot be turned off, exactly as on Gemini 3.6 and 3.7 Flash, and Google's guide states that `MINIMAL` is unsupported for this model — so Atomic offers exactly `low`, `medium`, and `high` on Google, Google Vertex, opencode zen, GitHub Copilot, and OpenRouter. Google stopped publishing `MINIMAL` from Gemini 3.7 Flash onward; it is still published for 3.5 and 3.6 Flash, and Atomic's 3.7 Flash entries still offer it, which is a separate pre-existing gap rather than something this model's metadata implies.
+
+Atomic generates the model for Google, Google Vertex (as the plain `gemini-3.8-flash`, with no `publishers/google/models/` prefix), GitHub Copilot, opencode zen, OpenRouter (`google/gemini-3.8-flash` and a `:batch` variant), and the Vercel AI Gateway. That set follows the upstream catalogs and moves, so run `workflow({ action: "models" })` or `--list-models` for the current list. Two provider-specific caveats matter. **GitHub Copilot serves Gemini through its own OpenAI-compatible endpoint** rather than Google's API; Copilot publishes the same 1,048,576 / 65,536 limits and the same `low`, `medium`, and `high` efforts for this model, which Atomic sends as `reasoning_effort`, but availability follows GitHub's staged rollout and administrator policy, so the model can be absent from your account's list. **The Vercel AI Gateway routes the whole `google/*` family through `anthropic-messages`**, publishes a 1,000,000-token context window, and publishes no per-model thinking levels, so its entry offers `off` and `minimal` alongside the three Google levels. All three are pre-existing for every Gemini generation on that gateway — 3.6 and 3.7 Flash behave identically — and none is specific to 3.8 Flash.
+</Note>
+
+<!-- baseline-block: models/model-selection::006 -->
+
+Source: `packages/coding-agent/docs/models/model-selection.md` lines 86–98 at `59586efd26afd32a27c999ac8bcce102777e40e4`. Current destination: `packages/coding-agent/docs/models/model-selection.md#role-based-thinking-effort`.
+
+## Role-based thinking effort
+
+Use this table when the user has not requested a thinking level. It is a production default by stage role, not a claim about the level used by any benchmark row:
+
+| Stage role | Default thinking level | Why |
+| --- | --- | --- |
+| Security, identity, adversarial challenge, final approval | `max` | A wrong judgment can create a high-risk false approval or waste a full downstream loop. |
+| Codebase mapping, lifecycle analysis, compatibility, planning, synthesis, triage, repair | `high` | These stages must resolve demanding uncertainty and preserve evidence across handoffs; routine synthesis may use `medium` when evidence quality holds. |
+| User-impact review and final reporting | `medium` | Clear evidence-backed summaries usually do not need the deepest reasoning. |
+| Deterministic checks | No model call | Run typechecks, tests, schema checks, runtime probes, and artifact checks as durable tool nodes. |
+
+Reserve `max` for a high-cost-of-error role or an explicit user request. An explicit request wins over this role default, but the requested level still must appear in the configured catalog; do not invent an unsupported suffix. For each primary and fallback, choose a level for the same stage role independently. A fallback is not a reason to inherit `max` mechanically: use the role default at a supported level, choose another catalog model when needed, or leave the stage unpinned rather than guessing.
+
+<!-- baseline-block: models/model-selection::007 -->
+
+Source: `packages/coding-agent/docs/models/model-selection.md` lines 99–112 at `59586efd26afd32a27c999ac8bcce102777e40e4`. Current destination: `packages/coding-agent/docs/models/model-selection.md#scenario-based-guidance`.
+
+## Scenario-based guidance
+
+Pick by the cost of being wrong in each role, not by raw accuracy. Match the role to the benchmark that best measures it (see [Benchmark sources](/models/artificial-analysis-index)).
+
+- **Reviewer / judgment gates** — use `max` when the reviewer makes a security, identity, adversarial, or final-approval decision whose wrong verdict discards an entire loop. `gemini-3.8-flash` is the DeepSWE accuracy ceiling and reaches it at a fraction of top-tier cost; `claude-opus-5` and `gpt-5.6-sol` are the near-peers when a different family is wanted. Use another family when decorrelated errors matter.
+- **Codebase mapping / planner** — start at `high` for repository mapping, lifecycle analysis, compatibility, and plans. `gemini-3.8-flash` is the strongest top-tier value at its measured `high` configuration, `gpt-5.6-sol` is the OpenAI-family near-peer, and `glm-5.3` holds the open-weights mid tier; raise production effort to `max` only when the plan gates a high-cost loop or the user asks for it.
+- **Debugger / triage / repair** — start at `high`; deep reasoning pays off when root-causing or repairing is costly. Weight DeepSWE and Terminal-Bench together rather than treating either as a complete measure.
+- **Research / synthesis** — use `high` for demanding research and evidence reconciliation; use `medium` for routine synthesis when the evidence is already strong. `gpt-5.6-luna` remains the workhorse. Benchmark to weight: AA-LCR and AA-Omniscience.
+- **Orchestrator / worker / cheap loops** — Luna offers the best broad cost/accuracy balance. GLM-5.3 Flash is the cheapest live frontier point at 63% for $0.24 with 123 average steps. Gemini 3.8 Flash is the most accurate frontier point but averages 166 steps and 143k output tokens per task, which makes it a judgment-gate choice rather than an automatic worker default. DeepSeek V4 Pro and Flash are provider-diversity options, not budget-frontier choices.
+- **User-impact review / final reporting** — use `medium` for impact summaries and reports that preserve the evidence needed by the user. Do not spend `max` here unless the user explicitly requests it or the role has become a high-cost-of-error approval.
+- **Design** — a quality-first, unbenchmarked domain; keep a top-tier model (`gpt-5.6-sol` or `claude-fable-5`) when the design decision has high failure cost, and choose effort by the review or approval role rather than by the benchmark row. `claude-fable-5-1` is the newer Anthropic model in this family and is also unmeasured here; treat it as a candidate to evaluate rather than a drop-in replacement, and do not carry Fable 5's row over to it.
+- **Interactive coding sessions** — use `high` for complex, multi-step coding and `medium` for routine edits; reserve `max` for a high-cost-of-error judgment or an explicit user request.
+- **Deterministic checks** — make typechecks, tests, schema validation, runtime probes, and artifact inspection tool nodes with no model call. Model self-report is not verification evidence.
+
+<!-- baseline-block: models/model-selection::008 -->
+
+Source: `packages/coding-agent/docs/models/model-selection.md` lines 113–118 at `59586efd26afd32a27c999ac8bcce102777e40e4`. Current destination: `packages/coding-agent/docs/models/model-selection.md#related`.
+
+## Related
+
+- [Pareto Efficiency](/models/pareto-efficiency) — cost-vs-accuracy frontier, dominated models, and provider-diversity exceptions.
+- [Benchmark sources & when to reference each](/models/artificial-analysis-index) — what Artificial Analysis and DeepSWE measure, per benchmark, and how to keep these docs fresh from the live source.
+- [Custom models](/models) — how to add model entries for supported provider APIs.
+
+<!-- baseline-block: models/pareto-efficiency::002 -->
+
+Source: `packages/coding-agent/docs/models/pareto-efficiency.md` lines 6–15 at `59586efd26afd32a27c999ac8bcce102777e40e4`. Current destination: `packages/coding-agent/docs/models/pareto-efficiency.md#pareto-efficiency`.
+
+# Pareto Efficiency
+
+A model is **Pareto-efficient** (on the frontier) if no other model is both cheaper and more accurate. Everything not on the frontier is **dominated**: some other option matches or beats it on accuracy for less money. Avoid a dominated model unless it earns a slot through a specific role fit or provider diversity.
+
+The axes here are `pass@1` (accuracy) and `average dollars per task` (cost), taken from the [DeepSWE](https://deepswe.datacurve.ai/) coding-agent leaderboard. For the full table and role guidance, see [Model Selection](/models/model-selection).
+
+<Note>
+Figures are a snapshot of DeepSWE v1.1 using the highest published thinking level for each of the 21 models displayed on the September 3, 2026 leaderboard. They include the August 21 pricing corrections for GPT-5.6 Sol and DeepSeek V4, and GPT-6 Astra's costs are DeepSWE's expected launch pricing rather than billed rates. DeepSWE's own default table view is **Best** — the best-scoring configuration per model — which picks a different row for four models; the frontier under that reading is stated below. DeepSWE publishes a live cost-vs-score scatter, so **read the frontier off the live chart** rather than trusting a static list. **Last compiled: 2026-09-03.**
+</Note>
+
+<!-- baseline-block: models/pareto-efficiency::005 -->
+
+Source: `packages/coding-agent/docs/models/pareto-efficiency.md` lines 44–61 at `59586efd26afd32a27c999ac8bcce102777e40e4`. Current destination: `packages/coding-agent/docs/models/pareto-efficiency.md#dominated-models-and-why`.
+
+## Dominated models and why
+
+- **claude-opus-5 [max]**: Gemini 3.8 Flash is more accurate unrounded (73.83% versus 73.65%; both display 74%) and costs $9.48 less per task. Opus 5 keeps a role only as the Anthropic entry in the accuracy-ceiling class.
+- **gpt-6-astra [max]**: dominated twice over — Claude Opus 5 scores higher for $0.53 less, and Gemini 3.8 Flash scores higher for $10.01 less. Its costs are expected launch pricing, not billed rates.
+- **gpt-5.6-sol [max]**: Gemini 3.8 Flash is more accurate and costs just over a third as much. Sol remains the OpenAI-family near-peer at about half of Opus 5's task cost.
+- **glm-5.3 [max]**: Gemini 3.8 Flash is five rounded points more accurate and costs $1.63 less. GLM-5.3 stays the best open-weights point on the board.
+- **deepseek-v4-pro [max]**: GLM-5.3 Flash has a higher unrounded score, costs $1.43 less, and averages 123 steps instead of 155.
+- **deepseek-v4-flash [max]**: GLM-5.3 Flash is ten rounded points more accurate and costs $0.22 less.
+- **claude-fable-5 [max]**: Sol is more accurate and much cheaper; GLM-5.3 comes within a point for less than one fifth of the task cost. This row is Fable 5 only; `claude-fable-5-1` is still unmeasured in the September 3, 2026 snapshot and has no measured position on the frontier.
+- **kimi-k3 [max]**: GLM-5.3 matches its rounded score and is $0.66 cheaper; Kimi remains useful for Moonshot-family diversity.
+- **gpt-5.5 [xhigh]** and **grok-4.6 [xhigh]**: Luna matches their rounded 67% for $0.61.
+- **gemini-3.7-flash [high]**: Luna is two points more accurate and costs less than one third as much. This row is Gemini 3.7 Flash only; `gemini-3.8-flash` became generally available September 2, 2026, after this snapshot, and has no measured position on the frontier.
+- **muse-spark-1.2 [xhigh]**: GLM-5.3 Flash is eight points more accurate and costs $3.46 less.
+- **claude-opus-4.8 [max]** and **claude-sonnet-5 [max]**: each is dominated on both cost and accuracy.
+- **qwen3.8-max [xhigh]**, **gemini-3.6-flash [high]**, **gemini-3.5-flash [high]**, and **glm-5.2 [max]**: each has a cheaper, more accurate displayed alternative.
+
+Seven measured configurations are excluded from DeepSWE's default model selection and therefore from this frontier calculation. They are still in the current v1.1 artifact and can be re-enabled in the site's model picker, so this is a display default rather than a withdrawal. [Model Selection](/models/model-selection) keeps their last published values as clearly labeled history, each re-verified unchanged against the September 3, 2026 artifact: GPT-5.6 Terra, Grok 4.5, Muse Spark 1.1, GPT-5.4, Kimi K2.7 Code, Claude Sonnet 4.6, and Gemini 3.1 Pro Preview.
+
+<!-- baseline-block: models/pareto-efficiency::006 -->
+
+Source: `packages/coding-agent/docs/models/pareto-efficiency.md` lines 62–78 at `59586efd26afd32a27c999ac8bcce102777e40e4`. Current destination: `packages/coding-agent/docs/models/pareto-efficiency.md#diversity-and-role-fit-exceptions`.
+
+## Diversity and role-fit exceptions
+
+Efficiency is not the only axis. A dominated model can still earn a slot when it decorrelates errors or fills a niche:
+
+- **deepseek-v4-pro** and **deepseek-v4-flash** remain DeepSeek provider-diversity options, not budget-frontier choices.
+- **grok-4.6** remains the operational xAI and OpenRouter provider-diversity fallback.
+- **glm-5.2 [max]** remains only as a measured predecessor; its results are never relabeled as GLM-5.3 or GLM-5.3 Flash.
+- **kimi-k3** remains a Moonshot-family provider-diversity option despite GLM-5.3's strict DeepSWE dominance.
+- **claude-opus-4.8 [max]** remains useful where Anthropic diversity or its long-context behavior has separate value.
+- **claude-opus-5 [max]** is dominated now but remains the Anthropic model in the accuracy-ceiling class, which matters when a judgment gate needs decorrelated errors from a different family than the frontier ceiling.
+- **gpt-5.6-sol [max]** is the OpenAI-family near-peer to the ceiling and stays the top-tier choice when Google-family routing is unavailable or unwanted.
+- **glm-5.3 [max]** remains the best open-weights point; the new frontier ceiling is closed-weights, so the open-weights niche survives the frontier change intact.
+- **gemini-3.8-flash [high]** holds the frontier ceiling but is Google-family and step-heavy at 166 average steps; pair it with a model from another family for fallback diversity rather than routing every stage through one provider.
+- **claude-fable-5** remains useful where Anthropic-family behavior is specifically wanted, such as the quality-first, unbenchmarked design chain.
+- **claude-fable-5-1** is available in Atomic's catalog but was released September 1, 2026 and is still absent from the September 3, 2026 snapshot, so it is unmeasured here and holds no frontier position. Its published cache-read price is $0.25 per million tokens against Fable 5's $1.00, which can change the economics of a long cached-prefix session, but that is a price fact and not an accuracy result. Evaluate it before substituting it for a measured configuration.
+- **Unmeasured models** may remain operational defaults when a family lacks current DeepSWE or Artificial Analysis coverage, but they should not inherit a predecessor's score.
+
+<!-- baseline-block: models/pareto-efficiency::008 -->
+
+Source: `packages/coding-agent/docs/models/pareto-efficiency.md` lines 85–89 at `59586efd26afd32a27c999ac8bcce102777e40e4`. Current destination: `packages/coding-agent/docs/models/pareto-efficiency.md#related`.
+
+## Related
+
+- [Model Selection](/models/model-selection)
+- [Benchmark sources & when to reference each](/models/artificial-analysis-index)

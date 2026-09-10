@@ -32,6 +32,8 @@ Omitting `handleInput` altogether is the same answer as declining: a focused ove
 
 The TUI appends a full SGR reset and OSC 8 reset at the end of each rendered line. Styles do not carry across lines. If you emit multi-line text with styling, reapply styles per line or use `wrapTextWithAnsi()` so styles are preserved for each wrapped line.
 
+Bundled MCP tools render their server name in the call header before results arrive. Direct calls use the registered server; gateway calls use the explicit target or an unambiguous match in available metadata or configured prefixes. Unresolved calls still show the tool or operation without guessing a server. This display does not open connections or expose tool arguments.
+
 ## Focusable Interface (IME Support)
 
 Components that display a text cursor and need IME (Input Method Editor) support should implement the `Focusable` interface:

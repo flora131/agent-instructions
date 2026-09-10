@@ -208,7 +208,7 @@ Messages are `AgentMessage` objects (see [Types](#types)).
 
 #### set_model
 
-Switch to a specific model. Omit `persist` (or set it false) to change only the current session. Set `"persist": true` to also write `defaultProvider`/`defaultModel` in settings, matching Ctrl+S in the interactive `/model` picker.
+Switch to a specific model. Omit `persist` (or set it false) to change only the current session. Set `"persist": true` to also save `defaultProvider`, `defaultModel`, and the effective thinking level in settings, matching an interactive `/model` selection.
 
 ```json
 {"type": "set_model", "provider": "anthropic", "modelId": "claude-sonnet-4-20250514"}
@@ -219,7 +219,7 @@ Persist as the startup default:
 {"type": "set_model", "provider": "anthropic", "modelId": "claude-sonnet-4-20250514", "persist": true}
 ```
 
-Response contains the full [Model](#model) object:
+Response contains the full [Model](/rpc/protocol#model) object:
 ```json
 {
   "type": "response",
@@ -314,7 +314,7 @@ Response:
 
 #### set_thinking_level
 
-Set the reasoning/thinking level for models that support it. Omit `persist` (or set it false) to change only the current session. Set `"persist": true` to also save the startup thinking default, matching Ctrl+S in the interactive `/thinking` picker. When a model is active, that writes the per-model override; otherwise it writes `defaultThinkingLevel`.
+Set the reasoning/thinking level for models that support it. Omit `persist` (or set it false) to change only the current session. Set `"persist": true` to also save `defaultThinkingLevel` and, when a model is active, its per-model override. Interactive `/thinking` choices request persistence automatically.
 
 ```json
 {"type": "set_thinking_level", "level": "high"}
@@ -1186,6 +1186,7 @@ For branch summaries, `source` is `"branchSummary"` and no `reason` is present. 
 ```json
 {"type": "summarization_retry_finished"}
 ```
+
 ### extension_error
 
 Emitted when an extension throws an error.

@@ -100,14 +100,14 @@ Workflow-authored `ctx.ui` gates remain supported. `workflow answer` relays an a
 
 ### Stage model and thinking-level assignment
 
-Before launching an authored workflow, assign every model stage a **role**, **failure cost**, **primary model**, **thinking level**, and **fallback policy**. Read [Model Selection](/models/model-selection) for the role defaults and [Evals](/models/evals) for the measured per-evaluation scores — its task-type picker maps each stage type (terminal debugging, knowledge-work planning, tool-calling loops, document research, code-reading review) to the eval that measures it and the models that lead it — but treat thinking levels in benchmark rows as measurement configurations, not production defaults. Reserve `max` for high-cost-of-error roles or an explicit user request; use `high` for demanding mapping, lifecycle analysis, compatibility, planning, synthesis, triage, and repair; use `medium` for user-impact review and final reporting; and keep deterministic checks as tool nodes with no model call.
+Before launching an authored workflow, assign every model stage a **role**, **failure cost**, **primary model**, **thinking level**, and **fallback policy**. Read [Model Selection](/models/model-selection) for the role defaults and [Evals](/models/evals) for the measured per-evaluation scores — its task-type picker maps each stage type (terminal debugging, knowledge-work planning, tool-calling loops, document research, code-reading review) to the eval that measures it and the models that lead it — but treat thinking levels in benchmark rows as measurement configurations, not production defaults. Use `low` or `medium` for implementation and routine fixes, and `high` or `xhigh` for code review, test design, failure analysis, and approval decisions when supported. Use `high` for demanding mapping, lifecycle analysis, compatibility, planning, synthesis, and triage, and `medium` for user-impact review and final reporting. `max` is an exception justified by task-specific evidence or an explicit user request, not a role default. Keep deterministic checks as tool nodes with no model call.
 
 Print this compact assignment before launch, with a short cost/quality rationale for each model stage:
 
 ```text
 Stage | Model | Thinking | Role
 map | <catalog fullId> | high | codebase mapping
-approve | <catalog fullId> | max | final approval
+approve | <catalog fullId> | high | final approval
 report | <catalog fullId> | medium | final reporting
 tests | — | — | deterministic check (tool node)
 ```
@@ -410,7 +410,7 @@ Humans can steer the shape directly:
 - **State the loop.** "Iterate until tests pass" or "review and fix until approved" defines a hard workflow stop condition.
 - **State the evidence.** A QA video, test output, generated artifact, or reviewer sign-off tells the graph which gates it needs.
 - **State the boundary.** "Work in a separate worktree", "do not create a PR", or "stop after implementation" separates implementation from final actions.
-- **State the queue policy.** Say how to split, order, isolate, and bound queued items; otherwise Atomic runs the [dependency-triage and bounded-dispatch playbook](#task-queues-and-software-factories) before implementation. Ordinary list order and per-item "create a PR after" wording do not create a cross-item dependency.
+- **State the queue policy.** Say how to split, order, isolate, and bound queued items; otherwise Atomic runs the [dependency-triage and bounded-dispatch playbook](/workflows/reliable-design#task-queues-and-software-factories) before implementation. Ordinary list order and per-item "create a PR after" wording do not create a cross-item dependency.
 
 Absent these controls, Atomic applies the self-prompt and rubric above; a prompt that names none of them delegates the shape decision rather than avoiding it.
 

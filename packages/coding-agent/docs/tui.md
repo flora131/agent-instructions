@@ -19,8 +19,6 @@ This page covers writing your first component and the common interaction pattern
 
 Moved to [TUI API reference](/tui/reference#component-interface).
 
-Bundled MCP tools render their server name in the call header before results arrive. Direct calls use the registered server; gateway calls use the explicit target or an unambiguous match in available metadata or configured prefixes. Unresolved calls still show the tool or operation without guessing a server. This display does not open connections or expose tool arguments.
-
 ## Focusable Interface (IME Support)
 
 Moved to [TUI API reference](/tui/reference#focusable-interface-ime-support).

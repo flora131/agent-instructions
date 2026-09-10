@@ -1,0 +1,5402 @@
+[
+  {
+    "id": "background-tasks::001",
+    "source_path": "background-tasks.md",
+    "source_anchor": null,
+    "source_heading": null,
+    "source_lines": [
+      1,
+      5
+    ],
+    "occurrence": null,
+    "sha256": "c598fbc841e93dbaebf24dc23ecd73faafa7d2e4f6a97f40dcdae69e2f1736ff",
+    "normalized_sha256": "18772f82301283265091d21f6c41cc276641f4e40ceaaed3e202fb907f524513",
+    "kind": "preamble",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "background-tasks::002",
+    "source_path": "background-tasks.md",
+    "source_anchor": "background-tasks",
+    "source_heading": "Background tasks",
+    "source_lines": [
+      6,
+      23
+    ],
+    "occurrence": 1,
+    "sha256": "8a0129e9dc2ef4576c31b4ea2e77d95ff6615ebf3c443d104f3cbabd074dfb94",
+    "normalized_sha256": "dae856faba443766fea5146b40b6a78cd8f108b6c2cf00e61c9e08259e70a64a",
+    "kind": "h1",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "background-tasks::003",
+    "source_path": "background-tasks.md",
+    "source_anchor": "choose-how-long-to-wait",
+    "source_heading": "Choose how long to wait",
+    "source_lines": [
+      24,
+      41
+    ],
+    "occurrence": 1,
+    "sha256": "ff61db02d87e990c52a3dcf47a353ebb020506ab094201d82998917afb3a2181",
+    "normalized_sha256": "79f93e1b668a2ec5e26408bd2182ce2d320627fe7d635920c22a3c1f5f273082",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "background-tasks::004",
+    "source_path": "background-tasks.md",
+    "source_anchor": "background-subagents",
+    "source_heading": "Background subagents",
+    "source_lines": [
+      42,
+      75
+    ],
+    "occurrence": 1,
+    "sha256": "e2f4aab28be668d670cf27e732feab2d9653e29417cae2974fdf93f12090531d",
+    "normalized_sha256": "bc8e93e9e1b00e593bfc11c228bbf3c63ac6fc877dd0acec29ca3555effcadef",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "background-tasks::005",
+    "source_path": "background-tasks.md",
+    "source_anchor": "waiting-is-not-restarting",
+    "source_heading": "Waiting is not restarting",
+    "source_lines": [
+      76,
+      98
+    ],
+    "occurrence": 1,
+    "sha256": "7ec0b3520e2e2e94cf891273e1f84635a889896b32673a03b2549ef55d622b89",
+    "normalized_sha256": "9e37eb38e7351601227a6e6f0bd4f94df7dc9ed7f3553a5939d76b6e5fc3d985",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "background-tasks::006",
+    "source_path": "background-tasks.md",
+    "source_anchor": "completion-messages",
+    "source_heading": "Completion messages",
+    "source_lines": [
+      99,
+      116
+    ],
+    "occurrence": 1,
+    "sha256": "5866d38041c006a55eb34d89772665e44c6e20d1e075a1155b11e91212175f7c",
+    "normalized_sha256": "fb5703dec630ed47c5e66a73d82bdf32ca4e4943bb45ae77f9d505dcf9bbe19d",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "background-tasks::007",
+    "source_path": "background-tasks.md",
+    "source_anchor": "inspect-tasks",
+    "source_heading": "Inspect tasks",
+    "source_lines": [
+      117,
+      139
+    ],
+    "occurrence": 1,
+    "sha256": "41d3f2d9015d0596281fb6218cd81a97ce324a70bb9f4d2522402a9d3a7b2061",
+    "normalized_sha256": "5874a053ef2e0bc5d67c4248d2c01dd1d9e56dd4f9ed147badb0d926713ca43c",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "background-tasks::008",
+    "source_path": "background-tasks.md",
+    "source_anchor": "states",
+    "source_heading": "States",
+    "source_lines": [
+      140,
+      153
+    ],
+    "occurrence": 1,
+    "sha256": "97f5a5478d1ca3fa6b2ff781819621a7cde94326ddb280aa0f31b16b2bce0574",
+    "normalized_sha256": "bd93e57bbcc9cae12202b94769a25ef8a8253478b66a123389e16a9208aba132",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "background-tasks::009",
+    "source_path": "background-tasks.md",
+    "source_anchor": "background-shells",
+    "source_heading": "Background shells",
+    "source_lines": [
+      154,
+      176
+    ],
+    "occurrence": 1,
+    "sha256": "eaf5b01a0f0c5b75d1b7c337b449f1ac3ffc75150b4dad7aba089159f8d6b668",
+    "normalized_sha256": "baa637857e90a8b423e96f30d1cb4a8e8d83f0716ee87b3d7cf6e8b8cb4f2637",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "background-tasks::010",
+    "source_path": "background-tasks.md",
+    "source_anchor": "lifetime-and-scope",
+    "source_heading": "Lifetime and scope",
+    "source_lines": [
+      177,
+      190
+    ],
+    "occurrence": 1,
+    "sha256": "47da0e25c90a2565eee1216bbbfba139d2fc5f5a3d24a25a9668f65c11be413d",
+    "normalized_sha256": "f9830f40d9220afb7c357de6b0c36d8fa622c965b0ac01ee16f0ccaf05ed0ff3",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "background-tasks::011",
+    "source_path": "background-tasks.md",
+    "source_anchor": "task-state-and-completion-delivery",
+    "source_heading": "Task state and completion delivery",
+    "source_lines": [
+      191,
+      200
+    ],
+    "occurrence": 1,
+    "sha256": "427c3451df221caa67e3634d190e509d476adee210272fee240d15039356bee9",
+    "normalized_sha256": "a6841d381825d94a48b12992933486e2cae7d1ec05ecfad059ac029228afce6a",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "background-tasks::012",
+    "source_path": "background-tasks.md",
+    "source_anchor": "related-documentation",
+    "source_heading": "Related documentation",
+    "source_lines": [
+      201,
+      206
+    ],
+    "occurrence": 1,
+    "sha256": "849183a73a2d268102b7fafc5cb5d93156733978563df9e4ade70d3e2890df3c",
+    "normalized_sha256": "f6628282d6d90271c036ea72c256d9046874d277c46bedcd14cbe20f3a7fcacd",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "changelog::001",
+    "source_path": "changelog.mdx",
+    "source_anchor": null,
+    "source_heading": null,
+    "source_lines": [
+      1,
+      7
+    ],
+    "occurrence": null,
+    "sha256": "d9c73667dc2cd40fda6c6ff1e70d50a791a7d7a6ae116d37f218e736a7263da6",
+    "normalized_sha256": "20bf0021ec3e0ab022657a5a4a33344f63493e9f9738ed391f57e499640470cc",
+    "kind": "preamble",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "changelog::002",
+    "source_path": "changelog.mdx",
+    "source_anchor": "pi-0-83-0-parity",
+    "source_heading": "Pi 0.83.0 parity",
+    "source_lines": [
+      8,
+      18
+    ],
+    "occurrence": 1,
+    "sha256": "9660cce8dc6fe19e07ea8a14d89b4b9ae76043f051668f5c7f681313cfb2138a",
+    "normalized_sha256": "027025e14597509e1b78d91bb825fcb96f79e9efc8abeaf270567bea383c6da5",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "changelog::003",
+    "source_path": "changelog.mdx",
+    "source_anchor": "pi-0-82-1-parity",
+    "source_heading": "Pi 0.82.1 parity",
+    "source_lines": [
+      19,
+      29
+    ],
+    "occurrence": 1,
+    "sha256": "516d09482614b4d663847d20df9e142e16a4ea551341372375f1224b017563ab",
+    "normalized_sha256": "ddbfe3d3c0743eab9a1592326f403b7818bb4502b24dd316c71b077dd4ccc2d4",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "changelog::004",
+    "source_path": "changelog.mdx",
+    "source_anchor": "model-catalogs-and-provider-authentication",
+    "source_heading": "Model catalogs and provider authentication",
+    "source_lines": [
+      30,
+      40
+    ],
+    "occurrence": 1,
+    "sha256": "3094d4a81bc23230bad46234f391cbb8ed74673d4f2e5ea2665967906c7ae7e5",
+    "normalized_sha256": "b305830c773aeaef4ebf1dcbc7c788741ab5b17835fc82b3bb1ab2487170b4ae",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "changelog::005",
+    "source_path": "changelog.mdx",
+    "source_anchor": "pi-0-80-6-compatibility",
+    "source_heading": "Pi 0.80.6 compatibility",
+    "source_lines": [
+      41,
+      51
+    ],
+    "occurrence": 1,
+    "sha256": "aa7da2ef8583dcda9a4f2a1abab19bd5610668bd0b965094688fe4fd2aae7a0f",
+    "normalized_sha256": "9a672b04211b05fcef8086bbf98e490ad1ec057f02ad70eb14aaaf3a231186cc",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "changelog::006",
+    "source_path": "changelog.mdx",
+    "source_anchor": "dependency-refresh",
+    "source_heading": "Dependency refresh",
+    "source_lines": [
+      52,
+      59
+    ],
+    "occurrence": 1,
+    "sha256": "c90251f969ca54ffa7539a60c3d94f4a4819ee110be4165aaa5197aef4c7a3aa",
+    "normalized_sha256": "d3f539587c905e141d38e4ddaf2925f78dd67e141bb06794136d81c7362c0727",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "changelog::007",
+    "source_path": "changelog.mdx",
+    "source_anchor": "upstream-pi-sync",
+    "source_heading": "Upstream Pi sync",
+    "source_lines": [
+      60,
+      66
+    ],
+    "occurrence": 1,
+    "sha256": "3cf426dd5d281d73e0216ca49688d7005d436dee0797718bb2ea16a19fedb909",
+    "normalized_sha256": "e3a9ad29f254cbdf4afec6cce66fac2eb24bee82d3d0974cc6f7a7d4d83b112b",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "changelog::008",
+    "source_path": "changelog.mdx",
+    "source_anchor": "fixes",
+    "source_heading": "Fixes",
+    "source_lines": [
+      67,
+      74
+    ],
+    "occurrence": 1,
+    "sha256": "9f11953eccbb00e86d1c2b2a92cdc16bd96b4d9d75a630057f9907aec72ecb86",
+    "normalized_sha256": "1dce7b12b1df512ab94d98855e5452a6621c42e43c62f523af1f80490871b568",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "changelog::009",
+    "source_path": "changelog.mdx",
+    "source_anchor": "stable-release",
+    "source_heading": "Stable release",
+    "source_lines": [
+      75,
+      81
+    ],
+    "occurrence": 1,
+    "sha256": "ce9f52284d44eb6a6e7f4049db01cb679d63a2a47e34d6483619d3123742f984",
+    "normalized_sha256": "20c3515d08c9d78884ca3bda8edd70f70068bfcc12d331677d32ca39e07dd97a",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "changelog::010",
+    "source_path": "changelog.mdx",
+    "source_anchor": "fixes-2",
+    "source_heading": "Fixes",
+    "source_lines": [
+      82,
+      90
+    ],
+    "occurrence": 2,
+    "sha256": "0f0ad55260795005b865c8abf7d7b073382593392b54a823250571a420739c47",
+    "normalized_sha256": "8914a603b441d05cf55063957e62958acf5433bf952b6efb1c442e7f9044c80b",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "changelog::011",
+    "source_path": "changelog.mdx",
+    "source_anchor": "stable-release-2",
+    "source_heading": "Stable release",
+    "source_lines": [
+      91,
+      94
+    ],
+    "occurrence": 2,
+    "sha256": "459c916c71794b441b96fa73088d341d168cf3f8a290bb72191999a674a93301",
+    "normalized_sha256": "b8900a81dd0238367102f91e8756d330054f4ff46518b349d6254a627c59b911",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "changelog::012",
+    "source_path": "changelog.mdx",
+    "source_anchor": "fixes-3",
+    "source_heading": "Fixes",
+    "source_lines": [
+      95,
+      104
+    ],
+    "occurrence": 3,
+    "sha256": "60f65a60d7f1333b9464f283f5738611caaf12ab49ee59c2fa87d4af978ed422",
+    "normalized_sha256": "ba826631514d798e4951a9574c505172818329503c0d7a9dcafbc53851b3b7df",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "changelog::013",
+    "source_path": "changelog.mdx",
+    "source_anchor": "new-features",
+    "source_heading": "New features",
+    "source_lines": [
+      105,
+      109
+    ],
+    "occurrence": 1,
+    "sha256": "f22e1fc458b12e136034b93c2023d04492465510c55ff001a1c5ac0842a86592",
+    "normalized_sha256": "b43f18548fcc5ee50fd14e50d307eed76084984cadc9993d298a5aa1a7b796e0",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "changelog::014",
+    "source_path": "changelog.mdx",
+    "source_anchor": "updates",
+    "source_heading": "Updates",
+    "source_lines": [
+      110,
+      115
+    ],
+    "occurrence": 1,
+    "sha256": "2c44b88c049b148fe71db2d8f0cb15c01f7648650d235e4455a0c01827a14501",
+    "normalized_sha256": "bc728e024392c54a3e317c1502ebebad2077206bd25d1844692d8e1b335ce984",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "changelog::015",
+    "source_path": "changelog.mdx",
+    "source_anchor": "fixes-4",
+    "source_heading": "Fixes",
+    "source_lines": [
+      116,
+      124
+    ],
+    "occurrence": 4,
+    "sha256": "56b11d6655b83ab6b1c80824d506328e2faf2683710dae9672cba7181449b4cd",
+    "normalized_sha256": "062ae92fb61119bc90364d5219659b94a3d611bfb5c72e5245b993c866426144",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::001",
+    "source_path": "compaction.md",
+    "source_anchor": "compaction-&-branch-summarization",
+    "source_heading": "Compaction & Branch Summarization",
+    "source_lines": [
+      1,
+      6
+    ],
+    "occurrence": 1,
+    "sha256": "afe65c7a6313f699ff4430d400bc0d2b034f33851462f6c8c3ec4f7f603b923a",
+    "normalized_sha256": "31dc03ce6535870c0a0567ef62b1f3e369e5019ce835ce64c1e47d1cb0b0a0f1",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::002",
+    "source_path": "compaction.md",
+    "source_anchor": "overview",
+    "source_heading": "Overview",
+    "source_lines": [
+      7,
+      17
+    ],
+    "occurrence": 1,
+    "sha256": "c0985ff9e680e49984d7b62b0f4cb5ddc64da61e1cbcd4d0fa12c8ee5a03519e",
+    "normalized_sha256": "aa971b2cf7b854593698595a869db9d53646302858fe83f961975a473707c96f",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::003",
+    "source_path": "compaction.md",
+    "source_anchor": "verbatim-line-compaction",
+    "source_heading": "Verbatim Line Compaction",
+    "source_lines": [
+      18,
+      19
+    ],
+    "occurrence": 1,
+    "sha256": "9bdd264caa2f66b3c4974b10e0d3b557a457b9374a90594e7b95760e489db517",
+    "normalized_sha256": "9b4350fa1a87a0017cf7c0636fcbe1e30aba5686b8200e6bf72d18bb29a7d07f",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "compaction::004",
+    "source_path": "compaction.md",
+    "source_anchor": "what-verbatim-means",
+    "source_heading": "What \"verbatim\" means",
+    "source_lines": [
+      20,
+      40
+    ],
+    "occurrence": 1,
+    "sha256": "8d214b1738233a45760febd1f1e9639e5131534ece5b9c3c58596a4aadff40b8",
+    "normalized_sha256": "ea8baa3c21849930b45e989aa8224ec990bce3fd7f2bf1688b31ac569d50b64e",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::005",
+    "source_path": "compaction.md",
+    "source_anchor": "markers-and-repeated-compaction",
+    "source_heading": "Markers and repeated compaction",
+    "source_lines": [
+      41,
+      50
+    ],
+    "occurrence": 1,
+    "sha256": "34661f98a31de528aeaabe687fcb2a20b6d9fa0f9c5b21f78ccd06a752a454fa",
+    "normalized_sha256": "febfe40f86eb7b35936e55f5bd78cd888a9cd0e2b978c2cceb8ef516d5fd73ed",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::006",
+    "source_path": "compaction.md",
+    "source_anchor": "protected-structure",
+    "source_heading": "Protected structure",
+    "source_lines": [
+      51,
+      56
+    ],
+    "occurrence": 1,
+    "sha256": "be132e3dbdec163fc7e27148f02bcbdc3e40916a33166360b6ebd204c1f98701",
+    "normalized_sha256": "3b77e20a525a32b824449a95ac62e6760e890a9f2b5dbff1b35baf65ddcb8b2d",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::007",
+    "source_path": "compaction.md",
+    "source_anchor": "keepcontext-tags",
+    "source_heading": "`keepContext` tags",
+    "source_lines": [
+      57,
+      78
+    ],
+    "occurrence": 1,
+    "sha256": "fa02faaf6a9a2363936c8cbcac65c2a9a0dd591027ad96a35c74d1ad3630acb9",
+    "normalized_sha256": "83c3c31f733990a4a41a423eeeb4e5a7bde8092d8962e890b79182a56058684c",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::008",
+    "source_path": "compaction.md",
+    "source_anchor": "parameters",
+    "source_heading": "Parameters",
+    "source_lines": [
+      79,
+      110
+    ],
+    "occurrence": 1,
+    "sha256": "4e5a259db73d7c5c9e52f6b5be6fbd407927a6a995e958baed9b5ae5f1603696",
+    "normalized_sha256": "2e9c2d317c4e6c4be3b8498d0e966337cccaedaacda5c8d44ad05c379d7a0b60",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::009",
+    "source_path": "compaction.md",
+    "source_anchor": "when-compaction-runs",
+    "source_heading": "When compaction runs",
+    "source_lines": [
+      111,
+      125
+    ],
+    "occurrence": 1,
+    "sha256": "6b9068e66eec5a4370d9ead4ffc749e9233122439da01a7ffd687616939281bf",
+    "normalized_sha256": "846e22c2607a6df891f0a927f601cf212fecbe7d2117dbf86861e0c5567ac287",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::010",
+    "source_path": "compaction.md",
+    "source_anchor": "planning-rungs-and-failure-behavior",
+    "source_heading": "Planning rungs and failure behavior",
+    "source_lines": [
+      126,
+      180
+    ],
+    "occurrence": 1,
+    "sha256": "b03017e04479545b48e77fa204d1af52059ec182e04a1be2a21043757ec274ac",
+    "normalized_sha256": "e3c1da52b8d7c9c7ea5c422f989422c0e24b93a3c8c97f5178f54a85f7e261d8",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 2,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::011",
+    "source_path": "compaction.md",
+    "source_anchor": "the-fresh-context-window-rung",
+    "source_heading": "The fresh context window rung",
+    "source_lines": [
+      181,
+      190
+    ],
+    "occurrence": 1,
+    "sha256": "0909b080def57c9b2937d140164b1ddaa2369bf91bf0d5879397ee990464bacd",
+    "normalized_sha256": "45917ceb6ff57030af6756af9294fc54abc78e82a70887db7d689c7f45a24312",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::012",
+    "source_path": "compaction.md",
+    "source_anchor": "length-truncated-response-recovery",
+    "source_heading": "Length-truncated response recovery",
+    "source_lines": [
+      191,
+      208
+    ],
+    "occurrence": 1,
+    "sha256": "7d365f9046cedf210c1b78969cbc007bc866a82fa682663dbfa99888b1e91b64",
+    "normalized_sha256": "7a6615f4f6f5b29d96df843ff50af914b578706a4c214ad4c28bb99023dc1d27",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::013",
+    "source_path": "compaction.md",
+    "source_anchor": "planner-failure-diagnostics",
+    "source_heading": "Planner failure diagnostics",
+    "source_lines": [
+      209,
+      224
+    ],
+    "occurrence": 1,
+    "sha256": "95c4b2b27308dd97b55985da1df7234981fbdf107631a1a2a8966bcf89566fe4",
+    "normalized_sha256": "21cf1ffc2e0b61d920dc57c664f00efd84ccceeafd01005e47805ad030986512",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::014",
+    "source_path": "compaction.md",
+    "source_anchor": "persistence-and-resume",
+    "source_heading": "Persistence and resume",
+    "source_lines": [
+      225,
+      264
+    ],
+    "occurrence": 1,
+    "sha256": "24e45a27ad506ca9ceeadda93ee5f6d08369da0d43ab2db5c684eaab1011e140",
+    "normalized_sha256": "e0402bd8516f0ace2e1f86ede49a0d05b3b413c2f02bbad0ea29940165e8417a",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::015",
+    "source_path": "compaction.md",
+    "source_anchor": "extension-hooks",
+    "source_heading": "Extension hooks",
+    "source_lines": [
+      265,
+      266
+    ],
+    "occurrence": 1,
+    "sha256": "19423de28a336e4618694a4dd395e56c653ef5e48bbdc2ed30098d20e4017144",
+    "normalized_sha256": "c7a8a397eae5177e9c4a5216275b4facf8237e02871c7905f54b00c3a06be189",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "compaction::016",
+    "source_path": "compaction.md",
+    "source_anchor": "session_before_compact",
+    "source_heading": "`session_before_compact`",
+    "source_lines": [
+      267,
+      284
+    ],
+    "occurrence": 1,
+    "sha256": "cfd4ebee355b2f804a3052bf45fe5d7d81b7caebd908dc1bf4ce1397b3e0726a",
+    "normalized_sha256": "e49b4082a5c8ffd74e9db922f0a794621047a7de735471ebc9a87a70a0c15d15",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::017",
+    "source_path": "compaction.md",
+    "source_anchor": "session_compact",
+    "source_heading": "`session_compact`",
+    "source_lines": [
+      285,
+      299
+    ],
+    "occurrence": 1,
+    "sha256": "45989ed30ee0d7f3573b492e25d96ac4f4a5371d0821796df1db3f14cb6d85ed",
+    "normalized_sha256": "d5291251472685008543e61f5c30354add5353b187e085f340cb1f1b90a79622",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::018",
+    "source_path": "compaction.md",
+    "source_anchor": "session_compact_failed",
+    "source_heading": "`session_compact_failed`",
+    "source_lines": [
+      300,
+      312
+    ],
+    "occurrence": 1,
+    "sha256": "53e67feb0ced0904d062fe7c28b9087bdc829d5d508735e81005a8e5d04f6630",
+    "normalized_sha256": "e7deecf16e08babca7de3cd846ceebf1c685c0ca1c10a70cb53376bf5e37c364",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::019",
+    "source_path": "compaction.md",
+    "source_anchor": "branch-summarization",
+    "source_heading": "Branch Summarization",
+    "source_lines": [
+      313,
+      314
+    ],
+    "occurrence": 1,
+    "sha256": "3868222be7eb4caae39c9eb7a6348f1c9db48d0ddcd0e6a5e9ecd189cd475cab",
+    "normalized_sha256": "edfbf671760a011001099fea53c09c5bc80cdb6ecea1dc88fa80feee75f9d726",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "compaction::020",
+    "source_path": "compaction.md",
+    "source_anchor": "when-it-triggers",
+    "source_heading": "When It Triggers",
+    "source_lines": [
+      315,
+      320
+    ],
+    "occurrence": 1,
+    "sha256": "8e160ffa30963a031f6a99d26419899d9da1b5730e6de91e5f2089dadb7f75f9",
+    "normalized_sha256": "d044d001bf7e9b06aa8500376f2c6836988b696deec598dcbdeac20fa606fe77",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::021",
+    "source_path": "compaction.md",
+    "source_anchor": "how-it-works",
+    "source_heading": "How It Works",
+    "source_lines": [
+      321,
+      359
+    ],
+    "occurrence": 1,
+    "sha256": "0689b50ef1ceff1ca358efe9bb0abf648d094bea99a65ccf58bd41821467e60d",
+    "normalized_sha256": "841e4a3a81c48c010175e263bb44af175c866f0f698e35ca69aa7b5d2e0b89fa",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::022",
+    "source_path": "compaction.md",
+    "source_anchor": "cumulative-file-tracking",
+    "source_heading": "Cumulative File Tracking",
+    "source_lines": [
+      360,
+      368
+    ],
+    "occurrence": 1,
+    "sha256": "a682b8ced2266be352d3d8634fa42f4bf848714cd67916558813025ff1227a0a",
+    "normalized_sha256": "bf70a57148bb3da27713d1c77882da8ed76e92b9046fd247736e4dc7d876215a",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::023",
+    "source_path": "compaction.md",
+    "source_anchor": "branchsummaryentry-structure",
+    "source_heading": "BranchSummaryEntry Structure",
+    "source_lines": [
+      369,
+      395
+    ],
+    "occurrence": 1,
+    "sha256": "4e03b33b902ebc585287e5217a861e08a5e6849d3bf56541816edb3ee3597ed0",
+    "normalized_sha256": "e036aae9504c70864464f82829d104817b9fa7861d52d5fd278f99286d63545e",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::024",
+    "source_path": "compaction.md",
+    "source_anchor": "branch-summary-format",
+    "source_heading": "Branch Summary Format",
+    "source_lines": [
+      396,
+      435
+    ],
+    "occurrence": 1,
+    "sha256": "1908c62cad86415472edc2d667d7e1d6679c644c735b7cfdbcaf0490636e7f11",
+    "normalized_sha256": "e7b942b28cc9960f36af30457d0ab50a3c9aa9ac5a2ed858cf697b9444b20163",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::025",
+    "source_path": "compaction.md",
+    "source_anchor": "message-serialization-for-branch-summaries",
+    "source_heading": "Message Serialization for Branch Summaries",
+    "source_lines": [
+      436,
+      451
+    ],
+    "occurrence": 1,
+    "sha256": "706b2e58c2cdf58bb6bfc0d81860ea127b46d558a2c35973371c2d4291f134fa",
+    "normalized_sha256": "acf3e1cb860d728297f904dd7bfecb93582a319cd2b52158724cba2aa8d4846e",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::026",
+    "source_path": "compaction.md",
+    "source_anchor": "extension-hooks-for-branch-summarization",
+    "source_heading": "Extension Hooks for Branch Summarization",
+    "source_lines": [
+      452,
+      453
+    ],
+    "occurrence": 1,
+    "sha256": "4cb8d868fd5719896870254ccad5dcd54a42a1f02a5d84fa929f862593821978",
+    "normalized_sha256": "cec768d39183564e2dd017b4c471499d16be2f3ad7b294fe6894bf853e566272",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "compaction::027",
+    "source_path": "compaction.md",
+    "source_anchor": "session_before_tree",
+    "source_heading": "session_before_tree",
+    "source_lines": [
+      454,
+      484
+    ],
+    "occurrence": 1,
+    "sha256": "cf56aaf4e2df47de0f53f1c610c25d9f86b427bd62340e7dc63a124673f60da2",
+    "normalized_sha256": "88c54b82a759291dec3aecd902a226c22aaeb775d97a33bc07617f46575652fb",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::028",
+    "source_path": "compaction.md",
+    "source_anchor": "summary-request-isolation",
+    "source_heading": "Summary request isolation",
+    "source_lines": [
+      485,
+      490
+    ],
+    "occurrence": 1,
+    "sha256": "5491eda6d66b0a6ed2f38b61425e3904cbd86672dff1a9472a428d19656f80a1",
+    "normalized_sha256": "333aba28b2deeb662b2ebf01fc98e415f633d40f8374532594cf1e4690e2529f",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::029",
+    "source_path": "compaction.md",
+    "source_anchor": "settings",
+    "source_heading": "Settings",
+    "source_lines": [
+      491,
+      512
+    ],
+    "occurrence": 1,
+    "sha256": "fc873076f6fcb2057157b4f831a8da778277c65f703f859504870d3511609c08",
+    "normalized_sha256": "a85c1938dcc133e5688aac8e72928d816f7d728a6034f9d5ca7eb1424fb7fed8",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "compaction::030",
+    "source_path": "compaction.md",
+    "source_anchor": "historical-formats",
+    "source_heading": "Historical formats",
+    "source_lines": [
+      513,
+      521
+    ],
+    "occurrence": 1,
+    "sha256": "4078fe2fe5ab1a81f7a539a7c824c7d8fe3511d3fb17f182d85c9948ae178aa1",
+    "normalized_sha256": "3c1203254b29897746ebf7c4d0b19d5ca9688934e2592c3e113ed358b11e2433",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "containerization::001",
+    "source_path": "containerization.md",
+    "source_anchor": "containerization",
+    "source_heading": "Containerization",
+    "source_lines": [
+      1,
+      8
+    ],
+    "occurrence": 1,
+    "sha256": "db11fa1486c5b7f040afe11756f614b6815477770973cd0930e7cbeac1e90243",
+    "normalized_sha256": "7626674be8792c4aef9b063666ff76b19dbded8c6d3fa565f359629e9efa8c59",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "containerization::002",
+    "source_path": "containerization.md",
+    "source_anchor": "choose-a-pattern",
+    "source_heading": "Choose a pattern",
+    "source_lines": [
+      9,
+      18
+    ],
+    "occurrence": 1,
+    "sha256": "0b9b995a17e8b33c396ad9f31efe71a58fe46af45d91ac2e44c81b943085bed0",
+    "normalized_sha256": "cb2f44ef22f3b8c48cd09c4e313cf584c8ce660e216246782c77cc702cd15a41",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "containerization::003",
+    "source_path": "containerization.md",
+    "source_anchor": "gondolin",
+    "source_heading": "Gondolin",
+    "source_lines": [
+      19,
+      44
+    ],
+    "occurrence": 1,
+    "sha256": "de89934cc006ddf53a3403ced7afc8a0b817ab9c2cfdfc79748361273e42d460",
+    "normalized_sha256": "2e536d0dd06b4d040cd6e7e294f59090deab05632b1650721018da145a798ed7",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "containerization::004",
+    "source_path": "containerization.md",
+    "source_anchor": "plain-docker",
+    "source_heading": "Plain Docker",
+    "source_lines": [
+      45,
+      95
+    ],
+    "occurrence": 1,
+    "sha256": "caa2c1a1a30369ae67f3360989956c7d3d3068ad1fe55b3ea2ea3c62cf56c883",
+    "normalized_sha256": "0465c14e5c0fb6bf746118ed6d7cf697b2aeac5f2a54bad0587afc2688a057b2",
+    "kind": "h2",
+    "fences": 3,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "containerization::005",
+    "source_path": "containerization.md",
+    "source_anchor": "openshell",
+    "source_heading": "OpenShell",
+    "source_lines": [
+      96,
+      129
+    ],
+    "occurrence": 1,
+    "sha256": "b0898aee0175a8162167fd1a1fb38fbb23becf1a07804f5fc580d350a9fc1ef8",
+    "normalized_sha256": "c8586a075b0813730dc6c688b9dd94ced28f84a99e6df8d7da274c315864fa4c",
+    "kind": "h2",
+    "fences": 3,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::001",
+    "source_path": "custom-provider.md",
+    "source_anchor": "custom-providers",
+    "source_heading": "Custom Providers",
+    "source_lines": [
+      1,
+      9
+    ],
+    "occurrence": 1,
+    "sha256": "b0adf1575c29f4b2dfb1aee92f54360ecf11f1c2887aa77e0524d5e155495835",
+    "normalized_sha256": "32f789144b62775fa6c9184d2f91064c502be472bc05629c19c3e006f34323d5",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::002",
+    "source_path": "custom-provider.md",
+    "source_anchor": "example-extensions",
+    "source_heading": "Example Extensions",
+    "source_lines": [
+      10,
+      16
+    ],
+    "occurrence": 1,
+    "sha256": "3d3b70571d19116109b4c419912c1552ab246ffc14b8abfe5471b6ba318bcde1",
+    "normalized_sha256": "3d68f2d32db06195f44b0e2d904beb3fc527f36d7b6d1b0bc0b1cb2a8a53b015",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::003",
+    "source_path": "custom-provider.md",
+    "source_anchor": "table-of-contents",
+    "source_heading": "Table of Contents",
+    "source_lines": [
+      17,
+      29
+    ],
+    "occurrence": 1,
+    "sha256": "f303ac0d4b0055abd1fa483c0dcb478868b11c158fb9efae69a38707005cb540",
+    "normalized_sha256": "a040b46edac6a4243cb9841ba9dd52eb9881d1120ba71d71e0df350d9ebad8b7",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "custom-provider::004",
+    "source_path": "custom-provider.md",
+    "source_anchor": "quick-reference",
+    "source_heading": "Quick Reference",
+    "source_lines": [
+      30,
+      63
+    ],
+    "occurrence": 1,
+    "sha256": "56d3539d0aa7082a30c6f8c21098a0f1a99176939e0e859c0a8cd991af62dff9",
+    "normalized_sha256": "2b729c1cabadcceda489561d3aa59a57db8151dbac13579028dbdfff77e9997e",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::005",
+    "source_path": "custom-provider.md",
+    "source_anchor": "override-existing-provider",
+    "source_heading": "Override Existing Provider",
+    "source_lines": [
+      64,
+      91
+    ],
+    "occurrence": 1,
+    "sha256": "926c1c6f742a1934328da7a2fea43a894cfe6d643adce59dafccb8f766408f54",
+    "normalized_sha256": "2e220c4459dc712437eae7998895ea2d8df1c114c7866e2f23e38f1d1dac1614",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::006",
+    "source_path": "custom-provider.md",
+    "source_anchor": "register-new-provider",
+    "source_heading": "Register New Provider",
+    "source_lines": [
+      92,
+      156
+    ],
+    "occurrence": 1,
+    "sha256": "71217fd21d413e94de769c62d2763adf3283d155a4085bd3876553d1129deb8d",
+    "normalized_sha256": "ce539df2a7eafc97e3a706822c59511b300913472deb08703d87e871ec6608ef",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::007",
+    "source_path": "custom-provider.md",
+    "source_anchor": "unregister-provider",
+    "source_heading": "Unregister Provider",
+    "source_lines": [
+      157,
+      187
+    ],
+    "occurrence": 1,
+    "sha256": "3dd7a45c7ccb2467ead2b1691c83c8a40b9e76c4dccd9c8891655562da37ed2a",
+    "normalized_sha256": "53f06f6fd5fcad289910bc9e8d0f3ed236078065e20c241b16ef1c985a49c556",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::008",
+    "source_path": "custom-provider.md",
+    "source_anchor": "api-types",
+    "source_heading": "API Types",
+    "source_lines": [
+      188,
+      234
+    ],
+    "occurrence": 1,
+    "sha256": "566e7bcd4743366d426a6880de92e49cb68e05bea721d3a9dee06571d354c10f",
+    "normalized_sha256": "538c85bb953f11a26b3866261bd92c84270cf358b6baa156dc2c49f798e2a4de",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::009",
+    "source_path": "custom-provider.md",
+    "source_anchor": "auth-header",
+    "source_heading": "Auth Header",
+    "source_lines": [
+      235,
+      248
+    ],
+    "occurrence": 1,
+    "sha256": "3a78a235814c8e3861fecd82fe3b4f454996664fd916838fc77c77f26993897c",
+    "normalized_sha256": "51c7954e275598f4c9acc7da8a423552d32395630d5ca4a26e626bb4a7d94ef8",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::010",
+    "source_path": "custom-provider.md",
+    "source_anchor": "oauth-support",
+    "source_heading": "OAuth Support",
+    "source_lines": [
+      249,
+      324
+    ],
+    "occurrence": 1,
+    "sha256": "29aa0aa1ef761d2daa330adc182f952060f00496c31cfb69361529ab45c14eb5",
+    "normalized_sha256": "302124b1644707cd161d7f7e16a8586abd805b201e2c5a76463083298ec9e40b",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::011",
+    "source_path": "custom-provider.md",
+    "source_anchor": "dynamic-model-catalog-refresh",
+    "source_heading": "Dynamic model catalog refresh",
+    "source_lines": [
+      325,
+      344
+    ],
+    "occurrence": 1,
+    "sha256": "fbe9bc433212b57518edf9ef25e4b6890da96319f55292f9ebe8a5803cf0a2cc",
+    "normalized_sha256": "04ea59705c9a4c782a6c0110cf6566985ff6b5a613841912238aa2f392a69641",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::012",
+    "source_path": "custom-provider.md",
+    "source_anchor": "oauthlogincallbacks",
+    "source_heading": "OAuthLoginCallbacks",
+    "source_lines": [
+      345,
+      361
+    ],
+    "occurrence": 1,
+    "sha256": "90db63bf4619d4c070b90da05abbf012065ca89d688015001a7801f1477d7566",
+    "normalized_sha256": "d8d9730523defd57f609cf51990fad9b46b9c58456fbee5471ce03d627910bee",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::013",
+    "source_path": "custom-provider.md",
+    "source_anchor": "oauthcredentials",
+    "source_heading": "OAuthCredentials",
+    "source_lines": [
+      362,
+      373
+    ],
+    "occurrence": 1,
+    "sha256": "3eb80c7fdd650b2f9edcf5a49acf8e0d172b3fa7fc9ba1f2429dc130962e0999",
+    "normalized_sha256": "9f5d8e1d994f6ab5554748aff35c317de1fcd40d76549a2126e3634c8298c61e",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::014",
+    "source_path": "custom-provider.md",
+    "source_anchor": "custom-streaming-api",
+    "source_heading": "Custom Streaming API",
+    "source_lines": [
+      374,
+      388
+    ],
+    "occurrence": 1,
+    "sha256": "8a41ab632679d83f905bb9a0b90b9f101972dcf6a2b9f05751ad8441ada20335",
+    "normalized_sha256": "3500e3bcd85bf4bbf051dc7dc5e645b07934375527e1b190b16ad0b84ce03b6e",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::015",
+    "source_path": "custom-provider.md",
+    "source_anchor": "stream-pattern",
+    "source_heading": "Stream Pattern",
+    "source_lines": [
+      389,
+      464
+    ],
+    "occurrence": 1,
+    "sha256": "7fcfb728e6c1f104da9bd2e20612bbca7ed82ac9121f9cbb308715a50204108f",
+    "normalized_sha256": "d454e3384661fb19f2b2a11ccba5e4393963be670435d173c4916ac1172c5c7c",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::016",
+    "source_path": "custom-provider.md",
+    "source_anchor": "event-types",
+    "source_heading": "Event Types",
+    "source_lines": [
+      465,
+      485
+    ],
+    "occurrence": 1,
+    "sha256": "bde711a777ca059ff7b4bc29c0485313ff89d7fda9f518b8c6091a9cca342f7e",
+    "normalized_sha256": "ce0376fd2fac7facb5947f2b30f0cd223cb2dba7f173347b26212218aaf825d6",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::017",
+    "source_path": "custom-provider.md",
+    "source_anchor": "stop-reasons",
+    "source_heading": "Stop Reasons",
+    "source_lines": [
+      486,
+      500
+    ],
+    "occurrence": 1,
+    "sha256": "16229cb66fca07e942e7ee1539e90c573e44a206c3d94976c2f788b52b9715d4",
+    "normalized_sha256": "79d14822be84ec2e7b768e3b8d1b905da15bff1ec14d6a4c1d43deaf159c6912",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::018",
+    "source_path": "custom-provider.md",
+    "source_anchor": "content-blocks",
+    "source_heading": "Content Blocks",
+    "source_lines": [
+      501,
+      520
+    ],
+    "occurrence": 1,
+    "sha256": "2657faae873a082748eef8da5523935d6f4b027df3c5e73c9c5c6e83b78b3972",
+    "normalized_sha256": "a065d735ff41e4a04c4ca394d45ab607a700b8d83d485f099386375cd399ee32",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::019",
+    "source_path": "custom-provider.md",
+    "source_anchor": "tool-calls",
+    "source_heading": "Tool Calls",
+    "source_lines": [
+      521,
+      551
+    ],
+    "occurrence": 1,
+    "sha256": "7b2a645e290011bb11bd58ba4d30aa801e3845431870cc9be378ca68dd05ad8a",
+    "normalized_sha256": "2281724f0d87abd13d56af25841a769ecf5c9db6bab652681cb86f5767efa9a7",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::020",
+    "source_path": "custom-provider.md",
+    "source_anchor": "usage-and-cost",
+    "source_heading": "Usage and Cost",
+    "source_lines": [
+      552,
+      567
+    ],
+    "occurrence": 1,
+    "sha256": "614916200cfe82d4756a4f8a1389778b4945add2aa4d7317af771e9783208730",
+    "normalized_sha256": "b15de597bfad0fe7cc232fc959f056bcdb334a3906f6dcb6fd9611afc04c717c",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::021",
+    "source_path": "custom-provider.md",
+    "source_anchor": "registration",
+    "source_heading": "Registration",
+    "source_lines": [
+      568,
+      581
+    ],
+    "occurrence": 1,
+    "sha256": "848da5d4d41b6a27836f008c59f4de5f76f246ea8bb1d80de3b7863334b43050",
+    "normalized_sha256": "f1435304fb60703000763b7de48bbea687611ad1d6ca092bc0702da8f674c895",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::022",
+    "source_path": "custom-provider.md",
+    "source_anchor": "testing-your-implementation",
+    "source_heading": "Testing Your Implementation",
+    "source_lines": [
+      582,
+      601
+    ],
+    "occurrence": 1,
+    "sha256": "51add78515915423a15e62f9d445a432fdf4717777c71a1648aef3ca3fcfc0ad",
+    "normalized_sha256": "b0ff239dc1a88f20d249468f03286ad77574edf174076acafb7192fc2b7b5e16",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::023",
+    "source_path": "custom-provider.md",
+    "source_anchor": "config-reference",
+    "source_heading": "Config Reference",
+    "source_lines": [
+      602,
+      644
+    ],
+    "occurrence": 1,
+    "sha256": "e3acfcc4db8ae14168ee7986c2b6ba1ccecdfb5e98a297ec1920222210fa620d",
+    "normalized_sha256": "fcbf9a7dc751707903e09ae6be87bb381c0e2841327d3421e909b255c38eeade",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "custom-provider::024",
+    "source_path": "custom-provider.md",
+    "source_anchor": "model-definition-reference",
+    "source_heading": "Model Definition Reference",
+    "source_lines": [
+      645,
+      740
+    ],
+    "occurrence": 1,
+    "sha256": "e39390ea80c8a71665f724b712388ce806b6b74cd0adf0bde22c6aa8edc53a5c",
+    "normalized_sha256": "776807e4dddc834828772607acf5efc0156ed6cbbd1b168eb0523e6f9421408f",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "development::001",
+    "source_path": "development.md",
+    "source_anchor": "development",
+    "source_heading": "Development",
+    "source_lines": [
+      1,
+      4
+    ],
+    "occurrence": 1,
+    "sha256": "f91b81751d4b5e7ee4475fdd42c5c60f7e776c940474f8ed92ba4ae3cdd2d211",
+    "normalized_sha256": "4450f18456aa8100ec4eb851058494090fce4299e8e14a25c314d0e047c26a63",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "development::002",
+    "source_path": "development.md",
+    "source_anchor": "setup",
+    "source_heading": "Setup",
+    "source_lines": [
+      5,
+      17
+    ],
+    "occurrence": 1,
+    "sha256": "0c70f808d16a70f5c9032ea60ea74016c7ea17c8520549a5051fa05b3af27fe0",
+    "normalized_sha256": "3ca172e8161152f3ebd817aaad67b01206bdb5de0d17b704bf8f7e043385f581",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "development::003",
+    "source_path": "development.md",
+    "source_anchor": "forking-/-rebranding",
+    "source_heading": "Forking / Rebranding",
+    "source_lines": [
+      18,
+      32
+    ],
+    "occurrence": 1,
+    "sha256": "db2679818b252a698ae5db93752390aea1f8aa9ab6b9d3ae85349951d17d485d",
+    "normalized_sha256": "276de34e42cda64faecaec3a8394f58c8953e59672100af63e12288776a723e6",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "development::004",
+    "source_path": "development.md",
+    "source_anchor": "path-resolution",
+    "source_heading": "Path Resolution",
+    "source_lines": [
+      33,
+      44
+    ],
+    "occurrence": 1,
+    "sha256": "2253c0ab38215a0647253d365aa90a7266693a7d109ca695cb2fe3921dd0c58b",
+    "normalized_sha256": "115fbc8c726abf4dd27ed97ed16b5e17f5992b184bf125b37bb464eef135b3a1",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "development::005",
+    "source_path": "development.md",
+    "source_anchor": "debug-command",
+    "source_heading": "Debug Command",
+    "source_lines": [
+      45,
+      52
+    ],
+    "occurrence": 1,
+    "sha256": "b0d1112a4fc1fb31c89a89dc484b302ce52ba6313887a2bd862c8ecd2784a68e",
+    "normalized_sha256": "17b1cebbf45c8556947c956d01b1510af83cf6aab1dc82dd3c8348e75f19ba66",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "development::006",
+    "source_path": "development.md",
+    "source_anchor": "testing",
+    "source_heading": "Testing",
+    "source_lines": [
+      53,
+      65
+    ],
+    "occurrence": 1,
+    "sha256": "fbd3dc9f6fb236e0b873fe1ff3b2ba2a2a49b5a706cd8051078d40f3aab70569",
+    "normalized_sha256": "424cc2f59a604d3d65efbceec86b29c4b4688d1bfa2441d08192fd73ed348913",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "development::007",
+    "source_path": "development.md",
+    "source_anchor": "installed-package-smoke-test",
+    "source_heading": "Installed package smoke test",
+    "source_lines": [
+      66,
+      77
+    ],
+    "occurrence": 1,
+    "sha256": "51114f2eb5655898bc76f0edb5db402f1730cd6d81f7800b66151d3de0aa0a6e",
+    "normalized_sha256": "dc04a558415a357dfbec42069c72fd846d1607ba3e8df21dabd46166f920dea1",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "development::008",
+    "source_path": "development.md",
+    "source_anchor": "project-structure",
+    "source_heading": "Project Structure",
+    "source_lines": [
+      78,
+      90
+    ],
+    "occurrence": 1,
+    "sha256": "a92e1b52afa24c8eb694f2b42d2a3b3de70720fc9aac6be8e7c90e67ed352214",
+    "normalized_sha256": "c30aa74ff0fe9efeafcd1fdde7f3099cda062c050752b81d5f8fea3d01088446",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "environment-variables::001",
+    "source_path": "environment-variables.md",
+    "source_anchor": "environment-variables",
+    "source_heading": "Environment Variables",
+    "source_lines": [
+      1,
+      4
+    ],
+    "occurrence": 1,
+    "sha256": "fd914160d3d403aefab0f6098ac165b0356083aed8c3ee9ce38c73b482003650",
+    "normalized_sha256": "e4b598be2b6b82886c0c7b168444632d4c7e76e961c596b17ff00fc3dd37e0ba",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "environment-variables::002",
+    "source_path": "environment-variables.md",
+    "source_anchor": "application-configuration",
+    "source_heading": "Application configuration",
+    "source_lines": [
+      5,
+      23
+    ],
+    "occurrence": 1,
+    "sha256": "fc8ad7957d52eb0b7b7ba30f6399953456c910bf7d0cfa56a39d579ae6a18e6b",
+    "normalized_sha256": "c4c2ee897ea7dadd1f8d5c8d7184fc29656596e0c0dff99f59eb423577df4786",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "environment-variables::003",
+    "source_path": "environment-variables.md",
+    "source_anchor": "subprocess-attribution",
+    "source_heading": "Subprocess attribution",
+    "source_lines": [
+      24,
+      27
+    ],
+    "occurrence": 1,
+    "sha256": "3e517e0e9c6d855b76103edb04fc230cbf664682e4e261a550a1b54a1da372df",
+    "normalized_sha256": "896b34415bc9bbffe95ae0bf235f04c5d17c3051b9168abb65017f80d2623067",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "environment-variables::004",
+    "source_path": "environment-variables.md",
+    "source_anchor": "provider-credentials",
+    "source_heading": "Provider credentials",
+    "source_lines": [
+      28,
+      31
+    ],
+    "occurrence": 1,
+    "sha256": "fadc8f2a2411746da17582bbbcd57bf417f84f8970c2a4fb26a4976374d38fa5",
+    "normalized_sha256": "dd92ad3458331c9c3c86c22507fcf1b4f57e07d2d781c67281a252431a21b42c",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "environment-variables::005",
+    "source_path": "environment-variables.md",
+    "source_anchor": "bash-and-powershell-session-environment",
+    "source_heading": "Bash and PowerShell session environment",
+    "source_lines": [
+      32,
+      47
+    ],
+    "occurrence": 1,
+    "sha256": "7710a91d40ec5953858f6a899c02d1e22e3ea3d8d566afaccc0bf115f5aa11ef",
+    "normalized_sha256": "29b49892e5f90c438af5f7a94fb7ef8188cdbf275d629a9c4b90948a60d507c0",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::001",
+    "source_path": "extensions.md",
+    "source_anchor": null,
+    "source_heading": null,
+    "source_lines": [
+      1,
+      2
+    ],
+    "occurrence": null,
+    "sha256": "5a64f5d70dc73eff82f99e717032f4f5ca490cb517687f12525d45091a1805bc",
+    "normalized_sha256": "7e327eed946974afd31d8c11854ab3d491aa4be8b38fcb34fea949f8bda4361e",
+    "kind": "preamble",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 1,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::002",
+    "source_path": "extensions.md",
+    "source_anchor": "extensions",
+    "source_heading": "Extensions",
+    "source_lines": [
+      3,
+      33
+    ],
+    "occurrence": 1,
+    "sha256": "0c363fe322ef491d6963876073f54b8bbfea8e5b377fb5391c7fee137b1b9ea7",
+    "normalized_sha256": "3253d82f5f1a90148833e16159794d96a6dce0ae29347bbbcac741f866c08acc",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 1,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::003",
+    "source_path": "extensions.md",
+    "source_anchor": "table-of-contents",
+    "source_heading": "Table of Contents",
+    "source_lines": [
+      34,
+      61
+    ],
+    "occurrence": 1,
+    "sha256": "bf24425738af2b88dac3098a6d300d54af0e77ac0d64018a592ffd25868cb4ba",
+    "normalized_sha256": "897052bdaac4b626934cc8329ea204f881c8c29552af3f459cf513ed0e5a22d6",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "extensions::004",
+    "source_path": "extensions.md",
+    "source_anchor": "startup-and-lazy-discovery",
+    "source_heading": "Startup and lazy discovery",
+    "source_lines": [
+      62,
+      69
+    ],
+    "occurrence": 1,
+    "sha256": "548cce31ec0e895af6e02f3d011ff324edc1e746507b194f91177832d2b56889",
+    "normalized_sha256": "be374761de0fd6a2fc88c62fbe80345a2ac079f70c21c65c160176f4f79850a6",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::005",
+    "source_path": "extensions.md",
+    "source_anchor": "interactive-callback-isolation",
+    "source_heading": "Interactive callback isolation",
+    "source_lines": [
+      70,
+      115
+    ],
+    "occurrence": 1,
+    "sha256": "5dad4f21619a1fcacee5aa244736c762835d238ff2bf149deb22133044a56f15",
+    "normalized_sha256": "c51c7f0cba2ed97b44d6504f44332459c067fd11460e2f32aaa7492e9b1fb780",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::006",
+    "source_path": "extensions.md",
+    "source_anchor": "quick-start",
+    "source_heading": "Quick Start",
+    "source_lines": [
+      116,
+      168
+    ],
+    "occurrence": 1,
+    "sha256": "e8b13af638e70af5b5b1b191bdf2eeab45921b33936a53c46a37293b9507bb21",
+    "normalized_sha256": "89db8ecfa19a523c2449fef94a1232a2ca009eb4d66c4960f16804fc745e104d",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::007",
+    "source_path": "extensions.md",
+    "source_anchor": "extension-locations",
+    "source_heading": "Extension Locations",
+    "source_lines": [
+      169,
+      202
+    ],
+    "occurrence": 1,
+    "sha256": "7c08ceb02a0bd9107036d55f82ed023e213c6dd905b97a99954acd1dfbc4d70c",
+    "normalized_sha256": "19bb3bd05bcaaa9a3bcb6d781ecf6b72dc89b2865685f844b91d54da624cceed",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 1,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::008",
+    "source_path": "extensions.md",
+    "source_anchor": "available-imports",
+    "source_heading": "Available Imports",
+    "source_lines": [
+      203,
+      223
+    ],
+    "occurrence": 1,
+    "sha256": "cb1d0838cc4ea1360976c3494fe6cb7ede813c940a68ed1357004e5c0951f29a",
+    "normalized_sha256": "50f385df7c94b93252d4bf8c11a569e08e387d4819c5c4bd7d1e8af3282bdccd",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::009",
+    "source_path": "extensions.md",
+    "source_anchor": "writing-an-extension",
+    "source_heading": "Writing an Extension",
+    "source_lines": [
+      224,
+      256
+    ],
+    "occurrence": 1,
+    "sha256": "cbb82aa514b97767da98023b03d912d8720df537463a24cd4f4f3339d5ab2873",
+    "normalized_sha256": "528039d7c19150c767de02f322b26c1bc43204a54aed45be7685185c5b4d6250",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::010",
+    "source_path": "extensions.md",
+    "source_anchor": "async-factory-functions",
+    "source_heading": "Async factory functions",
+    "source_lines": [
+      257,
+      293
+    ],
+    "occurrence": 1,
+    "sha256": "7bd35c4804a0bc5ebf7c9ae8ebf7ffed5f6c08cc535de9d59a20d80299b5c0f5",
+    "normalized_sha256": "e90fd7b7a077406c7816372c34269b5fb6c7a182ca49e466467db5081d56d48d",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::011",
+    "source_path": "extensions.md",
+    "source_anchor": "long-lived-resources-and-shutdown",
+    "source_heading": "Long-lived resources and shutdown",
+    "source_lines": [
+      294,
+      299
+    ],
+    "occurrence": 1,
+    "sha256": "d2ab12a82c22845b1e46908e24be2ad89af5b96c473ec7b5fabfa110255895e7",
+    "normalized_sha256": "c136e04cd30d43432a94b19b32e19aea824afac9f39088decf832e2e48bb663c",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::012",
+    "source_path": "extensions.md",
+    "source_anchor": "extension-styles",
+    "source_heading": "Extension Styles",
+    "source_lines": [
+      300,
+      346
+    ],
+    "occurrence": 1,
+    "sha256": "41998e7829a7b1383959ad537be7e60d477d9007005c15b8138203ab23a9fc11",
+    "normalized_sha256": "ebfe8192136d597df53cd0168691429975f87df6c82fdbd06c489b632d0175c6",
+    "kind": "h3",
+    "fences": 4,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::013",
+    "source_path": "extensions.md",
+    "source_anchor": "events",
+    "source_heading": "Events",
+    "source_lines": [
+      347,
+      348
+    ],
+    "occurrence": 1,
+    "sha256": "d43f16307842973f0887f1f5049d2ff21c72c0b3a866132f77be59ef1acd662d",
+    "normalized_sha256": "3f672ecd900458ab4b1580bce31c327cb90567ed6f4b88e81c44015b488a7abf",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "extensions::014",
+    "source_path": "extensions.md",
+    "source_anchor": "lifecycle-overview",
+    "source_heading": "Lifecycle Overview",
+    "source_lines": [
+      349,
+      424
+    ],
+    "occurrence": 1,
+    "sha256": "1fb02bb92e7a437a28fec3c1fcfd0a53d766c7a5acdfcd980e94a74b646fa4c6",
+    "normalized_sha256": "937a04f3ad4a076e1ec84a0ba54e99d5949a6dcc1b77a5f3841910148f8dbd37",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::015",
+    "source_path": "extensions.md",
+    "source_anchor": "startup-events",
+    "source_heading": "Startup Events",
+    "source_lines": [
+      425,
+      426
+    ],
+    "occurrence": 1,
+    "sha256": "0f762c2c5b70624e10465d5e9cb1ecaf07523dbfba8070fb2fbe31dcd0cf5d15",
+    "normalized_sha256": "1fb2d05c75f049fb51f205e2b4c3e28e003dec98c355452b66de2af68ea3b2d5",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "extensions::016",
+    "source_path": "extensions.md",
+    "source_anchor": "project_trust",
+    "source_heading": "project_trust",
+    "source_lines": [
+      427,
+      443
+    ],
+    "occurrence": 1,
+    "sha256": "dd437c84acd89cf53d68ea8bf423ca2dbb2be270cd5e2d97202aaab4633fef93",
+    "normalized_sha256": "f0f029f44e4d9737616ce1bb409a630aee811aee896d726455f2d4a26bea0036",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::017",
+    "source_path": "extensions.md",
+    "source_anchor": "resource-events",
+    "source_heading": "Resource Events",
+    "source_lines": [
+      444,
+      445
+    ],
+    "occurrence": 1,
+    "sha256": "64e9b25f0a909cbd2af03a4324147825b33697fc19470c50bb961fa42b039523",
+    "normalized_sha256": "615e706ce9ea00df10d2b7845c149a8ffeda6c7764246fb14f6dd49a2be777ea",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "extensions::018",
+    "source_path": "extensions.md",
+    "source_anchor": "resources_discover",
+    "source_heading": "resources_discover",
+    "source_lines": [
+      446,
+      462
+    ],
+    "occurrence": 1,
+    "sha256": "40a965508136d82ececfdb726a84af8b062cf9ed3a57bcf6f34dd31cdb4d8da5",
+    "normalized_sha256": "9d8ba465d542ce62b1dc32268c437923e94578bba5d92b5deee2430429143614",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::019",
+    "source_path": "extensions.md",
+    "source_anchor": "session-events",
+    "source_heading": "Session Events",
+    "source_lines": [
+      463,
+      466
+    ],
+    "occurrence": 1,
+    "sha256": "0afbd1ccdb073e0cf536dbc26dee5df6fd185342abde17d38f7ffc3e45af65a2",
+    "normalized_sha256": "a38296accef0734a98b1501a7d33a63cf872dcff2cf81c42505503bcf3f61c29",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::020",
+    "source_path": "extensions.md",
+    "source_anchor": "session_start",
+    "source_heading": "session_start",
+    "source_lines": [
+      467,
+      478
+    ],
+    "occurrence": 1,
+    "sha256": "a17fa8ff082dd15714d980dc06b250e8613e89a62aa3ed0dd94797194e48bf3a",
+    "normalized_sha256": "26c6e642fd4cf0c58fcc09e14c8eb0af0b12acbcaa72b310c0d264c9321c7536",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::021",
+    "source_path": "extensions.md",
+    "source_anchor": "session_info_changed",
+    "source_heading": "session_info_changed",
+    "source_lines": [
+      479,
+      489
+    ],
+    "occurrence": 1,
+    "sha256": "46042ee9580ae1773ba036341b3bbbe833ef3c66d9e833efc0cacfdc0dc1754c",
+    "normalized_sha256": "06a084c28946801906ca6d338efd0e7d0fcb61fadeb88d5d4b46045ac7671b27",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::022",
+    "source_path": "extensions.md",
+    "source_anchor": "session_before_switch",
+    "source_heading": "session_before_switch",
+    "source_lines": [
+      490,
+      508
+    ],
+    "occurrence": 1,
+    "sha256": "722b45078869a7e3ccbe806c635ca0f7bbb965e4630f049210b5ee1007c3b593",
+    "normalized_sha256": "d757eabe3a0ec4c8d3bc1ed8065e704e6361f2d7f1948a5d45c19568b6dae54e",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::023",
+    "source_path": "extensions.md",
+    "source_anchor": "session_before_fork",
+    "source_heading": "session_before_fork",
+    "source_lines": [
+      509,
+      525
+    ],
+    "occurrence": 1,
+    "sha256": "60f8661b9d9188272b166dc5cda413fc37684b3d90e07aeb825bcb68755aa1d7",
+    "normalized_sha256": "a200b9a3168050c6ab6b5726e679479fe957de5cd0e6e13925c3aee2c92fb84a",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::024",
+    "source_path": "extensions.md",
+    "source_anchor": "session_before_compact-/-session_compact-/-session_compact_failed",
+    "source_heading": "session_before_compact / session_compact / session_compact_failed",
+    "source_lines": [
+      526,
+      567
+    ],
+    "occurrence": 1,
+    "sha256": "d49795827ca02b8103e237adac10ace3741e4cea5159eafc8449f61cbce88afd",
+    "normalized_sha256": "e7c62a58a9a643b1d3e975def235ed08c246d5828789be184a1fe2c390fd7173",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::025",
+    "source_path": "extensions.md",
+    "source_anchor": "session_before_tree-/-session_tree",
+    "source_heading": "session_before_tree / session_tree",
+    "source_lines": [
+      568,
+      584
+    ],
+    "occurrence": 1,
+    "sha256": "ab37903554f6271ea5f295bff8dc2605270d1890b4bf4054a4f85df9dd742eed",
+    "normalized_sha256": "ed412c64ac45abcc8321e22c047bb56313cea43d761a9353589bb7e583e0d515",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::026",
+    "source_path": "extensions.md",
+    "source_anchor": "session_shutdown",
+    "source_heading": "session_shutdown",
+    "source_lines": [
+      585,
+      596
+    ],
+    "occurrence": 1,
+    "sha256": "42b89c2bcea16ce1e4a033f46e4c8b4e2217542de259d12b6787d31079f964eb",
+    "normalized_sha256": "58abe2944275e3f20533434c9fb19adc6e40474d3cd435b140e32631f3d7a568",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::027",
+    "source_path": "extensions.md",
+    "source_anchor": "agent-events",
+    "source_heading": "Agent Events",
+    "source_lines": [
+      597,
+      598
+    ],
+    "occurrence": 1,
+    "sha256": "f5938bf430ff355d58797318e7d17b70e189fb529c3211ffa420705659464223",
+    "normalized_sha256": "d7dbf2298d66262bff4fdd507844fe01c43a1100814e6ec02e9fa3fd164b8795",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "extensions::028",
+    "source_path": "extensions.md",
+    "source_anchor": "before_agent_start",
+    "source_heading": "before_agent_start",
+    "source_lines": [
+      599,
+      635
+    ],
+    "occurrence": 1,
+    "sha256": "7544393e7015226856e09d68f1c2e8052def3ea3d7be58f0472f018b20efedad",
+    "normalized_sha256": "d5cae11dd33c27ea61eaa7a18dd9fe49605590eabb9d4053d17b2bd16ab643c4",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::029",
+    "source_path": "extensions.md",
+    "source_anchor": "agent_start-/-agent_end-/-agent_settled",
+    "source_heading": "agent_start / agent_end / agent_settled",
+    "source_lines": [
+      636,
+      649
+    ],
+    "occurrence": 1,
+    "sha256": "946d742f912e260b019f7d7fc37b415c5cb8d7ab12682714b73b64854e5529eb",
+    "normalized_sha256": "baf125d1b5d1796f734a14f74004c17e18ae0a4b6bef814dc3b7dc514f93965f",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::030",
+    "source_path": "extensions.md",
+    "source_anchor": "ui_prompt_start-/-ui_prompt_end",
+    "source_heading": "ui_prompt_start / ui_prompt_end",
+    "source_lines": [
+      650,
+      679
+    ],
+    "occurrence": 1,
+    "sha256": "fcbebd830321555836aa00d5e554cce1d4ae8341f4949bca07e05a93387debd9",
+    "normalized_sha256": "8683cc5a4a0f2a4cb8d0d06df40e6f4366d9bab72794ca5290902a110df050b5",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::031",
+    "source_path": "extensions.md",
+    "source_anchor": "turn_start-/-turn_end",
+    "source_heading": "turn_start / turn_end",
+    "source_lines": [
+      680,
+      693
+    ],
+    "occurrence": 1,
+    "sha256": "0d684fb17fe43855c36de54e286c0e87f2f1cb5cf40f19d36488bd7402c3adea",
+    "normalized_sha256": "52da74ce4c0a35c4e3e24fa33fe7f9789aa11dafd1d6bb0fe1873195444cc77c",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::032",
+    "source_path": "extensions.md",
+    "source_anchor": "message_start-/-message_update-/-message_end",
+    "source_heading": "message_start / message_update / message_end",
+    "source_lines": [
+      694,
+      728
+    ],
+    "occurrence": 1,
+    "sha256": "ee094bd5e715dfc6c580f26f35e188996d7d345795ce9ae7a981dc64cb8052d7",
+    "normalized_sha256": "0bff736f984705807d4ff575281bb4fd4f5e0c3893041a3b1cda77e72eec2c92",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::033",
+    "source_path": "extensions.md",
+    "source_anchor": "tool_execution_start-/-tool_execution_update-/-tool_execution_end",
+    "source_heading": "tool_execution_start / tool_execution_update / tool_execution_end",
+    "source_lines": [
+      729,
+      752
+    ],
+    "occurrence": 1,
+    "sha256": "9e55264125f730f8ee793e1abdc9882d72fed325ac0f95c8695b64fe01a3c4a9",
+    "normalized_sha256": "9b82d54d673f5de9f07aa6eed190b396dc2456440e1e136dd1eac9ce87115073",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::034",
+    "source_path": "extensions.md",
+    "source_anchor": "context",
+    "source_heading": "context",
+    "source_lines": [
+      753,
+      764
+    ],
+    "occurrence": 1,
+    "sha256": "d27af8e6de1e57809e5d38a19d3ed16bdea81c508717824cfbeaf457993a0172",
+    "normalized_sha256": "3578b26bc53570083368d9b4cf7f4d277c1742315b3c092ee12d60ea719378c0",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::035",
+    "source_path": "extensions.md",
+    "source_anchor": "before_provider_headers",
+    "source_heading": "before_provider_headers",
+    "source_lines": [
+      765,
+      775
+    ],
+    "occurrence": 1,
+    "sha256": "317b8290e13cdf2e9dc4a403100b8e8af75d5394b5eb2165720ce332a5fed0e6",
+    "normalized_sha256": "5489fe8e598321f91b954c45c5e67404ef578ed22d6764a819bb9eb551f9b8d3",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::036",
+    "source_path": "extensions.md",
+    "source_anchor": "before_provider_request",
+    "source_heading": "before_provider_request",
+    "source_lines": [
+      776,
+      792
+    ],
+    "occurrence": 1,
+    "sha256": "eaae1986857a9e62105bf160514f1c0c7d8a475f570f9a7c017556da291c5f64",
+    "normalized_sha256": "0f20eb1539091cd230dba4208e13b77abc689551d8bc565cfdfcdf5032545473",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::037",
+    "source_path": "extensions.md",
+    "source_anchor": "after_provider_response",
+    "source_heading": "after_provider_response",
+    "source_lines": [
+      793,
+      808
+    ],
+    "occurrence": 1,
+    "sha256": "3971dd6ca431cb6190c7f2f9d75452083850c130afa5a78d89bce19c2506a43f",
+    "normalized_sha256": "5d93b638631b5799532b62261e490b76aafae244974a8abad6cd491734b6364f",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::038",
+    "source_path": "extensions.md",
+    "source_anchor": "model-events",
+    "source_heading": "Model Events",
+    "source_lines": [
+      809,
+      810
+    ],
+    "occurrence": 1,
+    "sha256": "75d6afab728b1282e931cac0b84370d1d648251440bb98f06cc860d7534fccbc",
+    "normalized_sha256": "a2231dc4bf96cd843a43bd0e10902d47369cc7dc617cba4ff60d9c764cf3649f",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "extensions::039",
+    "source_path": "extensions.md",
+    "source_anchor": "model_select",
+    "source_heading": "model_select",
+    "source_lines": [
+      811,
+      831
+    ],
+    "occurrence": 1,
+    "sha256": "31c70bd5ec24bbc36d3fa2278e189694f0d2ae823e0586bcaea680daa0304bed",
+    "normalized_sha256": "ce2db402a11b5d05893ca3bec9300b230e175f83cc7df4520efc00dbfdc42a86",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::040",
+    "source_path": "extensions.md",
+    "source_anchor": "thinking_level_select",
+    "source_heading": "thinking_level_select",
+    "source_lines": [
+      832,
+      846
+    ],
+    "occurrence": 1,
+    "sha256": "f026e5e88968d9583c4f8088c7b4813ef7aac7f6569332e9d92188061b2d8f29",
+    "normalized_sha256": "7d6165c1d6147cd5c66f72f947e71795a51c13c48d858fed980fde9402093904",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::041",
+    "source_path": "extensions.md",
+    "source_anchor": "tool-events",
+    "source_heading": "Tool Events",
+    "source_lines": [
+      847,
+      848
+    ],
+    "occurrence": 1,
+    "sha256": "dd5dc3d8192b17d36dbb54ca251963735c58042299c23c680af34981d29308fc",
+    "normalized_sha256": "2eb1d1fb405c05e6e116826e42570c205800c7c9f63c08116d3a248009cc90b6",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "extensions::042",
+    "source_path": "extensions.md",
+    "source_anchor": "tool_call",
+    "source_heading": "tool_call",
+    "source_lines": [
+      849,
+      901
+    ],
+    "occurrence": 1,
+    "sha256": "2bee0af5266585b3b5b82c56ef3f601ec3e02a9bd217815e7c28249afc346087",
+    "normalized_sha256": "a94e059c25911dbed27952ce8d8dbef3058687f899cb476cf726435060d85d77",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::043",
+    "source_path": "extensions.md",
+    "source_anchor": "typing-custom-tool-input",
+    "source_heading": "Typing custom tool input",
+    "source_lines": [
+      902,
+      923
+    ],
+    "occurrence": 1,
+    "sha256": "a628130f34f651e1ba2f4ff1f40c87043e1c97b9a0d00d39d10f840f6923588b",
+    "normalized_sha256": "deaa5de9c2f5f9b8dbde247c6407475eedea16d30742caf9128c3c3ce4bc9c05",
+    "kind": "h4",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::044",
+    "source_path": "extensions.md",
+    "source_anchor": "tool_result",
+    "source_heading": "tool_result",
+    "source_lines": [
+      924,
+      968
+    ],
+    "occurrence": 1,
+    "sha256": "065ad45a8363b97fdc0197c6b35599c9b5d57ac1b3677c27f6889a9c1a82be66",
+    "normalized_sha256": "2409a861f8fc97a71fae0f4b9693901acf6d90b54119157c67376ae4553eb90b",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::045",
+    "source_path": "extensions.md",
+    "source_anchor": "user-bash-events",
+    "source_heading": "User Bash Events",
+    "source_lines": [
+      969,
+      970
+    ],
+    "occurrence": 1,
+    "sha256": "5594daec0040d0cbc629ba4e61151a5547f95328a3b4a4d94cc79e200134bcfd",
+    "normalized_sha256": "978eb965f90d2e372f5badffc6cf0f759bea0e6b91f1895cdcdf9a66813ecea2",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "extensions::046",
+    "source_path": "extensions.md",
+    "source_anchor": "user_bash",
+    "source_heading": "user_bash",
+    "source_lines": [
+      971,
+      1000
+    ],
+    "occurrence": 1,
+    "sha256": "e214ea98766af49734d6ddfe9a833e80859c0e91e0838cd4e880a5891f66b5eb",
+    "normalized_sha256": "fa9f479885e1e35225ab13610dc9c67a1e7c9ab5a9f765d08685e9828024a878",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::047",
+    "source_path": "extensions.md",
+    "source_anchor": "input-events",
+    "source_heading": "Input Events",
+    "source_lines": [
+      1001,
+      1002
+    ],
+    "occurrence": 1,
+    "sha256": "a05162ad9942800f09dfa72f86c66a5c01c61e9965e128a80fa337dce9577b4f",
+    "normalized_sha256": "f5ad8fc1d8726c0b8c831c88c6b08bf2f9cdd368c3715212f7ae616c436df8ad",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "extensions::048",
+    "source_path": "extensions.md",
+    "source_anchor": "input",
+    "source_heading": "input",
+    "source_lines": [
+      1003,
+      1050
+    ],
+    "occurrence": 1,
+    "sha256": "9f1102a94bb05e3d57b7191db2ecac47299dc9ec70028d06801a6d5f6d0d8f20",
+    "normalized_sha256": "284bd2fe721dcc66b887a26aed7c3484577b5f5aab80d13d0a3038a9d3c63a59",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::049",
+    "source_path": "extensions.md",
+    "source_anchor": "workflow-activity-and-lifecycle-hooks",
+    "source_heading": "Workflow activity and lifecycle hooks",
+    "source_lines": [
+      1051,
+      1129
+    ],
+    "occurrence": 1,
+    "sha256": "b829c8874b138f0450717a9864842c9adb3ae1285c46b25d4c7b2ae579fef732",
+    "normalized_sha256": "25ba09c83aff76a45b483ce07ed093f88774f5c6ec40ed52ff1f21435197cc46",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::050",
+    "source_path": "extensions.md",
+    "source_anchor": "extensioncontext",
+    "source_heading": "ExtensionContext",
+    "source_lines": [
+      1130,
+      1133
+    ],
+    "occurrence": 1,
+    "sha256": "1a4cb024ffdccc9d90a30855b5c8ea032af031f64e7deae30c3d8a74585d294f",
+    "normalized_sha256": "256ae92653c00c3175fa5a080f6aa9ecd8d4ac5ff2167e00f8ec81b0e0829a3a",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::051",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-ui",
+    "source_heading": "ctx.ui",
+    "source_lines": [
+      1134,
+      1137
+    ],
+    "occurrence": 1,
+    "sha256": "41ff3cd91947d530753e61611b70358ed9a89a827fcbca04209d64cf06c163ee",
+    "normalized_sha256": "1682e0be64f6f741bce2602557fe8355ccebc99cc29dd09240920059806b5f76",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::052",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-hasui",
+    "source_heading": "ctx.hasUI",
+    "source_lines": [
+      1138,
+      1141
+    ],
+    "occurrence": 1,
+    "sha256": "89451908675265eabef34453d0b4666bb8409aed19b61d2a0327d5976ad77eef",
+    "normalized_sha256": "e06a45b4fa0580f47736c5647c0b11806c8609ef6a3897a1fdaa1562f68d9583",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::053",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-cwd",
+    "source_heading": "ctx.cwd",
+    "source_lines": [
+      1142,
+      1161
+    ],
+    "occurrence": 1,
+    "sha256": "33ee7342da1a9450de1bb01226183f3bd94ab92901b41f51f29755e8d7f4d610",
+    "normalized_sha256": "39a5e4425556f739eec01737ca5587c5f0fe4985547977b2e85d4fc827e13a4c",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::054",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-isprojecttrusted",
+    "source_heading": "ctx.isProjectTrusted()",
+    "source_lines": [
+      1162,
+      1168
+    ],
+    "occurrence": 1,
+    "sha256": "8b2c8301cd262a4ee06a0cf1041f584668efb7bbcea5ee1d2fc3d446c1150926",
+    "normalized_sha256": "3c14b1ea7485d33e1b342e3c13b6985c99fdffaeadcac67ae8a2f349b3c4792d",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::055",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-sessionmanager",
+    "source_heading": "ctx.sessionManager",
+    "source_lines": [
+      1169,
+      1180
+    ],
+    "occurrence": 1,
+    "sha256": "c7bab33b54439710287484b3eb93c2ea952f9b81b03334d7ac63f47e2f99372d",
+    "normalized_sha256": "62ea58ce7918848feff59b0ccbdad4ec68592b51e20dece9904d558f8018a1bc",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::056",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-modelregistry-/-ctx-model-/-ctx-scopedmodels",
+    "source_heading": "ctx.modelRegistry / ctx.model / ctx.scopedModels",
+    "source_lines": [
+      1181,
+      1225
+    ],
+    "occurrence": 1,
+    "sha256": "9c299ce8c48fd3ddd9b7f64955631da6623b135673ded2ea113c35e5de9edde1",
+    "normalized_sha256": "f77f40b710a3daa113c2e33b6fe67d7d23e22b783518eaa6c289054c2e7072b6",
+    "kind": "h3",
+    "fences": 3,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::057",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-signal",
+    "source_heading": "ctx.signal",
+    "source_lines": [
+      1226,
+      1250
+    ],
+    "occurrence": 1,
+    "sha256": "264baf6845dc837c1c0db918318bf26e526df815a95c9893e9c9b40bb2c27639",
+    "normalized_sha256": "b4460b35198cf5ca85a014ad2beb9f693dfcb73dfe5ad25c3cd61c85024d2d5f",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::058",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-isidle-/-ctx-abort-/-ctx-haspendingmessages",
+    "source_heading": "ctx.isIdle() / ctx.abort() / ctx.hasPendingMessages()",
+    "source_lines": [
+      1251,
+      1254
+    ],
+    "occurrence": 1,
+    "sha256": "ec7891ea7bfc10c4751284fa941d7a7c0b862ae8c2e4757a926a78e156ca4dd6",
+    "normalized_sha256": "3aa179d0d54bdecfcd813ca504f12ee631739e9bd26f3484796d1db8ca2370c3",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::059",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-isprojecttrusted-2",
+    "source_heading": "ctx.isProjectTrusted()",
+    "source_lines": [
+      1255,
+      1267
+    ],
+    "occurrence": 2,
+    "sha256": "669779f27ba38cb41ea747d78bcfd0dcb9a5ba082feea2bed8223bce139afb3c",
+    "normalized_sha256": "73a6f5f0b5dcdfd06efe481123d9e90f3a6664b7a95a7de4a66feebec9278e50",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::060",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-shutdown",
+    "source_heading": "ctx.shutdown()",
+    "source_lines": [
+      1268,
+      1285
+    ],
+    "occurrence": 1,
+    "sha256": "b627aab457a11076595bdd01d6fa1d8defb58de0f62c556613fcbbefcace60a3",
+    "normalized_sha256": "4da861c118e2022fa2a59899afcbf6fc4c577caf1749877ca58774831d58e74e",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::061",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-getcontextusage",
+    "source_heading": "ctx.getContextUsage()",
+    "source_lines": [
+      1286,
+      1296
+    ],
+    "occurrence": 1,
+    "sha256": "625589af71f9c647e210d2bce6366e0ba3e976f441b6b4ac84a3c658c5674a0a",
+    "normalized_sha256": "24a4d27945f97408b6aaa420b06ac1f515983234bce46e0579f00f6113e1eee3",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::062",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-compact",
+    "source_heading": "ctx.compact()",
+    "source_lines": [
+      1297,
+      1316
+    ],
+    "occurrence": 1,
+    "sha256": "8ebf6317704556ecd86c123742656e4ba26b4f85a5583c4421394be0b5007efe",
+    "normalized_sha256": "9c87d51dd541cab81149dfa4ffd6c5eb1904da50c554aac5f3c95c3b7dd1d2a1",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::063",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-getsystemprompt",
+    "source_heading": "ctx.getSystemPrompt()",
+    "source_lines": [
+      1317,
+      1332
+    ],
+    "occurrence": 1,
+    "sha256": "41d7de1a79bdeb46b5a745dd1bb55f264044c676851c147310fada5bdb32211e",
+    "normalized_sha256": "b828935cfb2fdcf3c1901f2a99ad2ee44a72ba25b126619b69798d8a961e3305",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::064",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-getskillcatalog",
+    "source_heading": "ctx.getSkillCatalog()",
+    "source_lines": [
+      1333,
+      1348
+    ],
+    "occurrence": 1,
+    "sha256": "0f7a5f52f6e8f79ada928b10d64750df880cccdc5d54b839b41081f04eac9bef",
+    "normalized_sha256": "b6599a1f7d606905164cd9780b9d23718ae5573b803a0db701083a23784ea2c4",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::065",
+    "source_path": "extensions.md",
+    "source_anchor": "extensioncommandcontext",
+    "source_heading": "ExtensionCommandContext",
+    "source_lines": [
+      1349,
+      1352
+    ],
+    "occurrence": 1,
+    "sha256": "4de36be1193558ca6f2bbd4429565b1cb63557c07693373b3405fc5b53517781",
+    "normalized_sha256": "5cff076db673c5708fe4f792299b6311ae88b642bf1bba4d6d4886920815cd7f",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::066",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-waitforidle",
+    "source_heading": "ctx.waitForIdle()",
+    "source_lines": [
+      1353,
+      1365
+    ],
+    "occurrence": 1,
+    "sha256": "e4118d41f9cd2d65eba0cdb34cb475f3fb85117f1fb8b46aba7093d3391643de",
+    "normalized_sha256": "cf4c473040aaa9abc934f37e54e09ba51092116c59e2a82a7e558c846bb96b40",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::067",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-newsession-options",
+    "source_heading": "ctx.newSession(options?)",
+    "source_lines": [
+      1366,
+      1398
+    ],
+    "occurrence": 1,
+    "sha256": "26148090a2107855f7b22c9a2bc945e3303613bb06e4e8fd287a98dac3be7602",
+    "normalized_sha256": "a5dc569c89f8ebe40445c39fbb53ae610754413de5a5fc875b5265dad7844c09",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::068",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-fork-entryid-options",
+    "source_heading": "ctx.fork(entryId, options?)",
+    "source_lines": [
+      1399,
+      1424
+    ],
+    "occurrence": 1,
+    "sha256": "2d5b49b963c42c9ae6204655bad0d284593271ccdd1a6ca6108b12a9ab72e308",
+    "normalized_sha256": "6dcbdd281992cb70303f2aaf1c0fce741c0624d5af66683967ed5ae2bb8652da",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::069",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-navigatetree-targetid-options",
+    "source_heading": "ctx.navigateTree(targetId, options?)",
+    "source_lines": [
+      1425,
+      1443
+    ],
+    "occurrence": 1,
+    "sha256": "1f0de20c92b16f45d959e54bc4414586911ce06b2b04d507b1b81e2954295066",
+    "normalized_sha256": "ec81d17b5f2fef554e804dbed71b55fdf60263a16d9809a057486bd8205683fd",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::070",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-switchsession-sessionpath-options",
+    "source_heading": "ctx.switchSession(sessionPath, options?)",
+    "source_lines": [
+      1444,
+      1486
+    ],
+    "occurrence": 1,
+    "sha256": "329ba05d20f6c136b24222c822fe6b4b28dfd2eb6218762d20a4f593d51355d8",
+    "normalized_sha256": "96de7613de74b3e9a803904842ceeba517b0d77cb95199045816f88bd38b95eb",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::071",
+    "source_path": "extensions.md",
+    "source_anchor": "session-replacement-lifecycle-and-footguns",
+    "source_heading": "Session replacement lifecycle and footguns",
+    "source_lines": [
+      1487,
+      1530
+    ],
+    "occurrence": 1,
+    "sha256": "da593371a8ab0340ae52be4a220c43377102834b1487e85a1367a5a8805890f6",
+    "normalized_sha256": "d9a00ed40b39070a1822fff2ff219babc49eb0b916868c9064ca4cdbf4ec473f",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::072",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-reload",
+    "source_heading": "ctx.reload()",
+    "source_lines": [
+      1531,
+      1586
+    ],
+    "occurrence": 1,
+    "sha256": "d65ca72d99b5b15ebfd5bbdc142a3d2737208c94e9e273056a0368d365ad352e",
+    "normalized_sha256": "54f9dd51ea29ebf336c5b1616eb7b8d331b30087300705cfc2030a8a17b8395c",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::073",
+    "source_path": "extensions.md",
+    "source_anchor": "extensionapi-methods",
+    "source_heading": "ExtensionAPI Methods",
+    "source_lines": [
+      1587,
+      1588
+    ],
+    "occurrence": 1,
+    "sha256": "bbc0b198ea8173f91a67945c2bc1e5189b1510f1d7dcbcb3475234ac61ea4288",
+    "normalized_sha256": "644d84e13c28825af3f11f92391a4b3d8830c0d0f5256a75c710278ff81081d8",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "extensions::074",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-on-event-handler",
+    "source_heading": "pi.on(event, handler)",
+    "source_lines": [
+      1589,
+      1592
+    ],
+    "occurrence": 1,
+    "sha256": "a39046a4cd20293c7965810fb32fe79b1dee073b82e2d3886fb782adfd45c170",
+    "normalized_sha256": "d3a424dfb2984c974dbe39e1b2572b012100e3c64d9ad370a5fa26a98dbed0e4",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::075",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-registertool-definition",
+    "source_heading": "pi.registerTool(definition)",
+    "source_lines": [
+      1593,
+      1606
+    ],
+    "occurrence": 1,
+    "sha256": "4fe991ee783a767fc0175a7b502acc657699ba6e6800bd701ecb1e1c4804081c",
+    "normalized_sha256": "e4f6f01c7ce259421b5ad4e3161ba876fdfa4cb96b407be692e2e52ad184c8d7",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::076",
+    "source_path": "extensions.md",
+    "source_anchor": "built-in-tool-prompt-contributions",
+    "source_heading": "Built-in tool prompt contributions",
+    "source_lines": [
+      1607,
+      1665
+    ],
+    "occurrence": 1,
+    "sha256": "3f0f89fb89a342adcbbf95050256aa82c721568c0b0d57e747ea997862e043ce",
+    "normalized_sha256": "c353301c19190a73bb7f4c186e9a3e71ebaae9da4d18437184a29ea0d6e28eeb",
+    "kind": "h4",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::077",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-sendmessage-message-options",
+    "source_heading": "pi.sendMessage(message, options?)",
+    "source_lines": [
+      1666,
+      1691
+    ],
+    "occurrence": 1,
+    "sha256": "75c769df6df8008dc4a57265e77bdebe7c33a43a47ac708272a4b9eb11ba7ea2",
+    "normalized_sha256": "1ae672cd752ae3235daa425d9591d72cd6e200736c6071b8ebbb5dcc108557e4",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::078",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-sendmessages-messages-options",
+    "source_heading": "pi.sendMessages(messages, options?)",
+    "source_lines": [
+      1692,
+      1704
+    ],
+    "occurrence": 1,
+    "sha256": "94e300134c03edded35d0ac8ce2bc0e74de92902d9abcab01eb0c74841bbda2d",
+    "normalized_sha256": "6c0a39863f2100f302e63c50fdde09319d914eee2cf1c29a2c214aaeeac89cf6",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::079",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-sendusermessage-content-options",
+    "source_heading": "pi.sendUserMessage(content, options?)",
+    "source_lines": [
+      1705,
+      1737
+    ],
+    "occurrence": 1,
+    "sha256": "2e993d4775c67156be5ab2df2bbcd8f185d323776202bf516849ae07fe5b2c70",
+    "normalized_sha256": "65367a4eb3997fc817db3ffc9b724e20d9860eeb12ec3a33044b908c84aa6eb3",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::080",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-appendentry-customtype-data",
+    "source_heading": "pi.appendEntry(customType, data?)",
+    "source_lines": [
+      1738,
+      1756
+    ],
+    "occurrence": 1,
+    "sha256": "d8183d2405ddf06188862091feb5d922bec05b1aaff17524c0f72b04a31a857b",
+    "normalized_sha256": "9dde36cfe70ba79bcedcb048d1d64d8862a79a982ef5feef4aa054744bedd578",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::081",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-registerentryrenderer-customtype-renderer",
+    "source_heading": "pi.registerEntryRenderer(customType, renderer)",
+    "source_lines": [
+      1757,
+      1769
+    ],
+    "occurrence": 1,
+    "sha256": "ecd5e118d094b20f130c55690ce2c9a70875ade1bf719195cec00fc650a8cfb0",
+    "normalized_sha256": "7fee4a99f2496bd13ba67998f621bed87ef2845729f5f805c0c87991c0504e52",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::082",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-setsessionname-name",
+    "source_heading": "pi.setSessionName(name)",
+    "source_lines": [
+      1770,
+      1777
+    ],
+    "occurrence": 1,
+    "sha256": "413893e0caf08844d4d8349f438efef38fabccd05b2baed96adcc03fc39bfa68",
+    "normalized_sha256": "b50d6b90e2196828c1bdc7fd89a06288ec6d2c7921a1667619b82f84d413ec0d",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::083",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-getsessionname",
+    "source_heading": "pi.getSessionName()",
+    "source_lines": [
+      1778,
+      1788
+    ],
+    "occurrence": 1,
+    "sha256": "9c543dbbcae8b5cfcf1f0aab9ceea7ffa473ee01201d62a931f279604e419e12",
+    "normalized_sha256": "536795fcaea6c4dfa754e465e04f4bb59282357bb20047839f9e1abbfb112b32",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::084",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-setlabel-entryid-label",
+    "source_heading": "pi.setLabel(entryId, label)",
+    "source_lines": [
+      1789,
+      1805
+    ],
+    "occurrence": 1,
+    "sha256": "b9eebfd5df4ed44bc9654310abcfb61919bc99f64434c5add51316d2d1fc2c85",
+    "normalized_sha256": "5a882d6c932862ccb406a73b4c0e31da4277700d7b2a18cd4a0f829deebd2019",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::085",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-registercommand-name-options",
+    "source_heading": "pi.registerCommand(name, options)",
+    "source_lines": [
+      1806,
+      1840
+    ],
+    "occurrence": 1,
+    "sha256": "5cb1d6bd90554e301a804d056f170e63fd423c21c6fd014485854153857f1efa",
+    "normalized_sha256": "820ed207cde5d7c399884fc0b7a69193088b04b26ec547f9c581e46f848de740",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::086",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-getcommands",
+    "source_heading": "pi.getCommands()",
+    "source_lines": [
+      1841,
+      1873
+    ],
+    "occurrence": 1,
+    "sha256": "7ad15787a8768fa632e33f944c4caa6889b1848ec5e8a49791d5f85f1abbdbd1",
+    "normalized_sha256": "240488d7b9a9eee8f605ab0737aa9273b37dd71a3a42ed0cb49ccc6467b8af7d",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::087",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-registermessagerenderer-customtype-renderer",
+    "source_heading": "pi.registerMessageRenderer(customType, renderer)",
+    "source_lines": [
+      1874,
+      1877
+    ],
+    "occurrence": 1,
+    "sha256": "ce7948195c7f1a40f6da1f8d934b9215dcd1e20551708dfaeeed3292ec91378f",
+    "normalized_sha256": "9bf00d0a5c449d5c501dd16248ab61c3c164b2a198ac42b5d3165f5b106e9d87",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::088",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-registermarkdowntransformer-transformer",
+    "source_heading": "pi.registerMarkdownTransformer(transformer)",
+    "source_lines": [
+      1878,
+      1898
+    ],
+    "occurrence": 1,
+    "sha256": "ffac0de600d322b6de9ab94caa4a2fa3f7a791d4a1789c7d1b195d97caae39bb",
+    "normalized_sha256": "f223f36bce50e24fafebf80359e2422ea04c1b6ea7cf7c1feefdda3e4ab2921f",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::089",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-registershortcut-shortcut-options",
+    "source_heading": "pi.registerShortcut(shortcut, options)",
+    "source_lines": [
+      1899,
+      1911
+    ],
+    "occurrence": 1,
+    "sha256": "73c17fb3bb4690ac7b9c69308b6e60479bf6d0c312ffaddc0db1fc3e2ec9dd2d",
+    "normalized_sha256": "e551abeea84390b08c50d64ee5f2e15f532604c9983f95f4e58a25083924f075",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::090",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-registerflag-name-options",
+    "source_heading": "pi.registerFlag(name, options)",
+    "source_lines": [
+      1912,
+      1928
+    ],
+    "occurrence": 1,
+    "sha256": "2c180885c7cbca48b30a2636693237f55afa5c565634feb8d22f95c90b0e285b",
+    "normalized_sha256": "021e61de5b3e15a1717950dc4202036faa219bbd2a31e5d01bb4e755932d047e",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::091",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-exec-command-args-options",
+    "source_heading": "pi.exec(command, args, options?)",
+    "source_lines": [
+      1929,
+      1937
+    ],
+    "occurrence": 1,
+    "sha256": "3c30732084a074c3f66dc7bdf9d81078ad920dec640d2e97af04c0370371eaab",
+    "normalized_sha256": "e4704d6318695d27ca8509cafda1ec38dd30aea982bbdd81c6c887716b7cc42b",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::092",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-getactivetools-/-pi-getalltools-/-pi-setactivetools-names",
+    "source_heading": "pi.getActiveTools() / pi.getAllTools() / pi.setActiveTools(names)",
+    "source_lines": [
+      1938,
+      1964
+    ],
+    "occurrence": 1,
+    "sha256": "3479c36258eebd9bd6d975d24c101349f5b363009b749f5ce441999e6f76a274",
+    "normalized_sha256": "4d43a8dbab659cd55593e5540aa0a068b49feb365f59c743a2b17510c5ca7fb4",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::093",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-setmodel-model",
+    "source_heading": "pi.setModel(model)",
+    "source_lines": [
+      1965,
+      1978
+    ],
+    "occurrence": 1,
+    "sha256": "a01efa37e2dfba42f36da93b49e3111e54555106301cb23aee601f8887dbc089",
+    "normalized_sha256": "430732288fc011b3434a6706b2c7d5c23f47103e95049f77da82481b73abf591",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::094",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-getthinkinglevel-/-pi-setthinkinglevel-level",
+    "source_heading": "pi.getThinkingLevel() / pi.setThinkingLevel(level)",
+    "source_lines": [
+      1979,
+      1989
+    ],
+    "occurrence": 1,
+    "sha256": "427f17a07485cc4bae01d48f807c412e052edebf678918ebc66f4270a4fd0108",
+    "normalized_sha256": "78beade383c3bf4898a266d349c035e0a21a6beff89735d45ed478ba455a5585",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::095",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-events",
+    "source_heading": "pi.events",
+    "source_lines": [
+      1990,
+      2004
+    ],
+    "occurrence": 1,
+    "sha256": "40ea30c7ef069a2bea527913fd72dd421566b02dac6d96e8f9d6fce956ce5443",
+    "normalized_sha256": "02708dd95ea69162f4528f33fb8e608ba7d4d4662ffc3623ba9542a172cac7c0",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::096",
+    "source_path": "extensions.md",
+    "source_anchor": "native-providers",
+    "source_heading": "Native providers",
+    "source_lines": [
+      2005,
+      2008
+    ],
+    "occurrence": 1,
+    "sha256": "f6d181ceaaec6d0fcfac33e4d95b7b9f82a6306c2d26a838fc01f96cc9453b17",
+    "normalized_sha256": "9674f2daa243afb5aa25ce653868b017087980b7a0022918d75b62123e447564",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::097",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-registerprovider-name-config",
+    "source_heading": "pi.registerProvider(name, config)",
+    "source_lines": [
+      2009,
+      2100
+    ],
+    "occurrence": 1,
+    "sha256": "494215a4fb4875ffc468564d16323760b34947f4be7e1211f290bd60a33a4962",
+    "normalized_sha256": "83e47f32f0de5d6a4d558fedaec093ceff49e7b088062ac18d99f168ff5b88b6",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::098",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-unregisterprovider-name",
+    "source_heading": "pi.unregisterProvider(name)",
+    "source_lines": [
+      2101,
+      2115
+    ],
+    "occurrence": 1,
+    "sha256": "8ccbce90d7275e8aa75da891253e95f0d40777ab5ae3fa72760efbdf69bcdef7",
+    "normalized_sha256": "f65cb086f63e4cb34143f4f49b654a6944d6a14bd9fb3ceb35d001af07128ded",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::099",
+    "source_path": "extensions.md",
+    "source_anchor": "state-management",
+    "source_heading": "State Management",
+    "source_lines": [
+      2116,
+      2157
+    ],
+    "occurrence": 1,
+    "sha256": "adbc041fae508435261dae1b5ea2d6d2a0465f154caef696c7a603c7672802b8",
+    "normalized_sha256": "80f2594d5f894c4128f59f6e6f9b31973136fa418437ef5dc3fa8d1016795a1b",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::100",
+    "source_path": "extensions.md",
+    "source_anchor": "session-scoped-in-memory-state",
+    "source_heading": "Session-scoped in-memory state",
+    "source_lines": [
+      2158,
+      2194
+    ],
+    "occurrence": 1,
+    "sha256": "a8489a765d5fc6ba5e839ff88afcbe5fda1778373b9c0715036ba5eab0516845",
+    "normalized_sha256": "0061fd8a4cba459db0f15cb782eb92476b31269fabc8165f80a7cc93a0881c37",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::101",
+    "source_path": "extensions.md",
+    "source_anchor": "custom-tools",
+    "source_heading": "Custom Tools",
+    "source_lines": [
+      2195,
+      2236
+    ],
+    "occurrence": 1,
+    "sha256": "16d19395eea4e5149338e0b8419c59ea8455906ddd7a862e2499dd1b34422403",
+    "normalized_sha256": "23c4a761f1bc4e7fa4e056d0477256c95c8fd76eb12d0daf90d558c8cef75fac",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::102",
+    "source_path": "extensions.md",
+    "source_anchor": "tool-definition",
+    "source_heading": "Tool Definition",
+    "source_lines": [
+      2237,
+      2313
+    ],
+    "occurrence": 1,
+    "sha256": "ee0a81a010bd07406458589ea6861ba30e2b9ccd996f8736091dc76354efbfd7",
+    "normalized_sha256": "b9e8fe34018820f5967c899373099b438b6fdbd5d55aca9a2abbecd9c62ec92d",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::103",
+    "source_path": "extensions.md",
+    "source_anchor": "constrained-sampling",
+    "source_heading": "Constrained sampling",
+    "source_lines": [
+      2314,
+      2370
+    ],
+    "occurrence": 1,
+    "sha256": "10c490fc29efe3b65121f78b2b81179d6c5e6433ec91f591e6b548c0fe8a7551",
+    "normalized_sha256": "47c89d78c11e03e1bdee4c8367cc78d2c8fc01d1b90073a3d26148f1decf6bab",
+    "kind": "h4",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::104",
+    "source_path": "extensions.md",
+    "source_anchor": "overriding-built-in-tools",
+    "source_heading": "Overriding Built-in Tools",
+    "source_lines": [
+      2371,
+      2402
+    ],
+    "occurrence": 1,
+    "sha256": "923793f9a94f24db259bcd1e686c6e4b21121815346946bd3d418a9a0710be13",
+    "normalized_sha256": "4ef9783e3c79842643b8ab9727e53fc719e281d51f82bda405b091f333bbdb70",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::105",
+    "source_path": "extensions.md",
+    "source_anchor": "remote-execution",
+    "source_heading": "Remote Execution",
+    "source_lines": [
+      2403,
+      2453
+    ],
+    "occurrence": 1,
+    "sha256": "8ead3c13665c66022bfe803d950d9633e41b4f8148a8b5560a45a4788a5b7daa",
+    "normalized_sha256": "025ae69ba438fe08bbad303b5f1d2fb92a192616736cec6de2d7679921c3f4aa",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::106",
+    "source_path": "extensions.md",
+    "source_anchor": "output-truncation",
+    "source_heading": "Output Truncation",
+    "source_lines": [
+      2454,
+      2505
+    ],
+    "occurrence": 1,
+    "sha256": "a3dc254f16fcc7868fe4711482ba4620464fbb57ff769f24eaebbc75a7595361",
+    "normalized_sha256": "51fb9a5061814c9d7ba753535c4b7105a7864f588af5a574fc55a56a8173a57b",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::107",
+    "source_path": "extensions.md",
+    "source_anchor": "multiple-tools",
+    "source_heading": "Multiple Tools",
+    "source_lines": [
+      2506,
+      2523
+    ],
+    "occurrence": 1,
+    "sha256": "529da09c314e91e081dd7092b594346a91212ea6dac0f30c2da4405758cdbc81",
+    "normalized_sha256": "b988c714aeb5cebdfc29c342525d80a79db53b08e1113d791f5733e9ad01103a",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::108",
+    "source_path": "extensions.md",
+    "source_anchor": "custom-rendering",
+    "source_heading": "Custom Rendering",
+    "source_lines": [
+      2524,
+      2556
+    ],
+    "occurrence": 1,
+    "sha256": "0d03a0d88902a7aa59754d6476fcf27515b55869e71911b1e8fef2909a60216f",
+    "normalized_sha256": "5cbaf3f1c9ccbff79dcb78d0c062a76bada3a4bee8769e70ad7113a1aa28d5cc",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::109",
+    "source_path": "extensions.md",
+    "source_anchor": "rendercall",
+    "source_heading": "renderCall",
+    "source_lines": [
+      2557,
+      2575
+    ],
+    "occurrence": 1,
+    "sha256": "2f472c2c3b2b476c45c0f768e18d35c04e3ca2b18fd7c13878cdf3d034fe2727",
+    "normalized_sha256": "b788b09764f2f947c677a5094e39902431bf44665dc6ee9ddd08dafb736330cc",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::110",
+    "source_path": "extensions.md",
+    "source_anchor": "renderresult",
+    "source_heading": "renderResult",
+    "source_lines": [
+      2576,
+      2601
+    ],
+    "occurrence": 1,
+    "sha256": "d6e0659278c1cfbb51d462061643856ef77bfea0294244602d64c5ac4e4d1caf",
+    "normalized_sha256": "eb14e3cba3808deb07d2b53941dc8b974cb57cbb7fa40ec294ea29d1d236621f",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::111",
+    "source_path": "extensions.md",
+    "source_anchor": "keybinding-hints",
+    "source_heading": "Keybinding Hints",
+    "source_lines": [
+      2602,
+      2632
+    ],
+    "occurrence": 1,
+    "sha256": "ab3918cbcd5024653dc9c239447b1c5fa9f98835e05e494c8e162a041a26aa56",
+    "normalized_sha256": "88f9c7727a2577ba8b2ef11700d7cdcd106acd799bee644243c34e82ecf29e33",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::112",
+    "source_path": "extensions.md",
+    "source_anchor": "best-practices",
+    "source_heading": "Best Practices",
+    "source_lines": [
+      2633,
+      2644
+    ],
+    "occurrence": 1,
+    "sha256": "cc67c3667fdc1fea880e17cd9b486da7a9328559cccde994a9567e9e7e61d859",
+    "normalized_sha256": "c6c40285ff5dcbc2561aa871b1ac4f2211513928d26ed8645e826c80d9909205",
+    "kind": "h4",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::113",
+    "source_path": "extensions.md",
+    "source_anchor": "fallback",
+    "source_heading": "Fallback",
+    "source_lines": [
+      2645,
+      2650
+    ],
+    "occurrence": 1,
+    "sha256": "ca6fcd357058f401b1e9b6b50a57c6f7a3fce7560b7949588ef4209d93948629",
+    "normalized_sha256": "45253ce5ea835a83ae61abf425c7cba26c33dde085a61cb8cfd67646ae05fa87",
+    "kind": "h4",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::114",
+    "source_path": "extensions.md",
+    "source_anchor": "custom-ui",
+    "source_heading": "Custom UI",
+    "source_lines": [
+      2651,
+      2664
+    ],
+    "occurrence": 1,
+    "sha256": "469e064a81ff705bedd2bb543b012412a8427ae3fc02067e7715d965aee05ad2",
+    "normalized_sha256": "14e55f9070a2ae0f206f5aa754291109cc96ed673d71335a5162bc6ba332e73f",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::115",
+    "source_path": "extensions.md",
+    "source_anchor": "dialogs",
+    "source_heading": "Dialogs",
+    "source_lines": [
+      2665,
+      2685
+    ],
+    "occurrence": 1,
+    "sha256": "301e5e455664c2fbbe94ad0d2cc25d23fb05bc29c1788bc06ec9a3e527b7ed5a",
+    "normalized_sha256": "015821dcfa6de203d79c18035cab0870d561d8733bc2bb65db76cf3922455472",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::116",
+    "source_path": "extensions.md",
+    "source_anchor": "timed-dialogs-with-countdown",
+    "source_heading": "Timed Dialogs with Countdown",
+    "source_lines": [
+      2686,
+      2709
+    ],
+    "occurrence": 1,
+    "sha256": "4d2d13c34ff0c9e8bf14ea458eb970c24231e1376766358b9c67481130006fd3",
+    "normalized_sha256": "7e6f4568eab85098a0dd4c6d80eaa553057a103a59915d0aefe814fffbf1816d",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::117",
+    "source_path": "extensions.md",
+    "source_anchor": "manual-dismissal-with-abortsignal",
+    "source_heading": "Manual Dismissal with AbortSignal",
+    "source_lines": [
+      2710,
+      2736
+    ],
+    "occurrence": 1,
+    "sha256": "a7c334c9cd21e0996c3324845a36068b132322baaff8b494bbec6f81a1e7db8c",
+    "normalized_sha256": "c66cfb27f3bcde1bb1aee6af0324e08f2ab18c61009cace0504c8da8fcffcef8",
+    "kind": "h4",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::118",
+    "source_path": "extensions.md",
+    "source_anchor": "widgets-status-and-footer",
+    "source_heading": "Widgets, Status, and Footer",
+    "source_lines": [
+      2737,
+      2841
+    ],
+    "occurrence": 1,
+    "sha256": "e28f96175fd9b0ac7a673d739f12bacea6fffa68a12e10a5c75fe09404ef1dd9",
+    "normalized_sha256": "5d7b53c9473c66a1002df07d4dfa21799fa2254cf38c8977d96fa3c90bbdbbdf",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::119",
+    "source_path": "extensions.md",
+    "source_anchor": "autocomplete-providers",
+    "source_heading": "Autocomplete Providers",
+    "source_lines": [
+      2842,
+      2885
+    ],
+    "occurrence": 1,
+    "sha256": "b0b98d448c116a56bf3e3c25d32807e8c9b2ec8822273cb691d19cde98956807",
+    "normalized_sha256": "28c50fac7122a94684c28329ec0828e3eb2a2d31e2147d1a0b4cf13f098b3fb4",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::120",
+    "source_path": "extensions.md",
+    "source_anchor": "custom-components",
+    "source_heading": "Custom Components",
+    "source_lines": [
+      2886,
+      2940
+    ],
+    "occurrence": 1,
+    "sha256": "c9b260184137ce5626d0a25d1dc5d2958d781a3fe2ded010fbf5d8df2bebc12a",
+    "normalized_sha256": "809eb560f4f532897af33905807ed360de1ebc45d317920f70eaeb81c357957b",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::121",
+    "source_path": "extensions.md",
+    "source_anchor": "overlay-mode-experimental",
+    "source_heading": "Overlay Mode (Experimental)",
+    "source_lines": [
+      2941,
+      2993
+    ],
+    "occurrence": 1,
+    "sha256": "b9afed76d4976a01688b0f59f2de0e8348ad329b8abe38ccd22d4da62917b81c",
+    "normalized_sha256": "26f96cfb4b2763c7e2124f9d23312df3ed360aca6eef9065279a6a5d1d0ce4be",
+    "kind": "h4",
+    "fences": 4,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::122",
+    "source_path": "extensions.md",
+    "source_anchor": "custom-editor",
+    "source_heading": "Custom Editor",
+    "source_lines": [
+      2994,
+      3046
+    ],
+    "occurrence": 1,
+    "sha256": "fdaef95b69a49579d6e32de3d293f2f48887a345a66747f0f8b96ffbfdfa542f",
+    "normalized_sha256": "7f72eeeef2871daa19c8a1eb0a1f1f0687c735e041163a28ec594adc16c957eb",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::123",
+    "source_path": "extensions.md",
+    "source_anchor": "message-rendering",
+    "source_heading": "Message Rendering",
+    "source_lines": [
+      3047,
+      3077
+    ],
+    "occurrence": 1,
+    "sha256": "8fa2948df9027e084d1952c54abcecdc8e605ccd60e0199545cdba5721e68d5a",
+    "normalized_sha256": "9be481196b691fd43105d98e51c78a9714e850e050898a5348f2282288d39b96",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::124",
+    "source_path": "extensions.md",
+    "source_anchor": "theme-colors",
+    "source_heading": "Theme Colors",
+    "source_lines": [
+      3078,
+      3110
+    ],
+    "occurrence": 1,
+    "sha256": "88265033294ccae38648a0241baa226b6f0c93e9836c305df502f66867331144",
+    "normalized_sha256": "11822cf785fd939b7a305b557b9c08f7d79a47a6983ce44e9eeaaf3829d96db5",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::125",
+    "source_path": "extensions.md",
+    "source_anchor": "error-handling",
+    "source_heading": "Error Handling",
+    "source_lines": [
+      3111,
+      3116
+    ],
+    "occurrence": 1,
+    "sha256": "0d14b554ef156538517cd17b0b1c92381c316dc74a6594e2b9832c664c867b07",
+    "normalized_sha256": "7ed5722a4858335192e651c8c68ae39bdacc97a2b00900e99203340e137d01f1",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::126",
+    "source_path": "extensions.md",
+    "source_anchor": "mode-behavior",
+    "source_heading": "Mode Behavior",
+    "source_lines": [
+      3117,
+      3127
+    ],
+    "occurrence": 1,
+    "sha256": "6ab542decf2a97dec2956c358ece15a0a7b9179d75089b7e311b714226c05c3e",
+    "normalized_sha256": "28025c8a31b2d1caf286096d3875b9dcd53efd6b8647aeb256ae44a8028a537f",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "extensions::127",
+    "source_path": "extensions.md",
+    "source_anchor": "examples-reference",
+    "source_heading": "Examples Reference",
+    "source_lines": [
+      3128,
+      3211
+    ],
+    "occurrence": 1,
+    "sha256": "574055f37d7fdd6c4f7fa94fd6a54317de03c82ceedc3ab2178366d3ca76840c",
+    "normalized_sha256": "ecbf30ee8715e3d743ad38dd1bb33ce1307cc7b061f8043956a07382a5b7d5bd",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "herdr::001",
+    "source_path": "herdr.md",
+    "source_anchor": "herdr",
+    "source_heading": "Herdr",
+    "source_lines": [
+      1,
+      4
+    ],
+    "occurrence": 1,
+    "sha256": "a338bf60a3acea4d8f8d73c57d0c26a8a38d4d880ca6f2612197acc08ddcc90c",
+    "normalized_sha256": "cfbe0cec0be67411920f8a0d7fba985f219eac2d7486976d852916a9a967c404",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "herdr::002",
+    "source_path": "herdr.md",
+    "source_anchor": "setup",
+    "source_heading": "Setup",
+    "source_lines": [
+      5,
+      10
+    ],
+    "occurrence": 1,
+    "sha256": "70447fc9a4b1dc69049b739a4d47ab5e0f0476e07f35c722161dcf27acc1cd27",
+    "normalized_sha256": "3fc89709fe0a8f5f7b13181f410abbdade73108982b13698748e19b5cd2108dd",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "herdr::003",
+    "source_path": "herdr.md",
+    "source_anchor": "status-indicators",
+    "source_heading": "Status indicators",
+    "source_lines": [
+      11,
+      24
+    ],
+    "occurrence": 1,
+    "sha256": "81996c67258564998daa6d535d87c5c2edf77de091b7c813de7a694f347e8a2f",
+    "normalized_sha256": "02f00db537e8e8846e50590df29c082280608aa238cc6a736bc85ffacca73082",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "herdr::004",
+    "source_path": "herdr.md",
+    "source_anchor": "disable-the-integration",
+    "source_heading": "Disable the integration",
+    "source_lines": [
+      25,
+      38
+    ],
+    "occurrence": 1,
+    "sha256": "0e02cf3db59429b5fc6fcdec04278c3bc9f8faa379d7c3b71afa8fbec7fe416b",
+    "normalized_sha256": "07666f20981df0a946869a4f86066a64fe76f9123ed8791e685c0c2fb1768185",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "herdr::005",
+    "source_path": "herdr.md",
+    "source_anchor": "troubleshooting",
+    "source_heading": "Troubleshooting",
+    "source_lines": [
+      39,
+      50
+    ],
+    "occurrence": 1,
+    "sha256": "b42adfba7544ea7498102ac7875b433945cec0f5474d1a37bf692cad5896351e",
+    "normalized_sha256": "a7c789e3185b686beee2736430a8661e87766fccfa333d6c9a447d2ff93cf780",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "herdr::006",
+    "source_path": "herdr.md",
+    "source_anchor": "privacy",
+    "source_heading": "Privacy",
+    "source_lines": [
+      51,
+      54
+    ],
+    "occurrence": 1,
+    "sha256": "153d5a07ff64d0f294ead1f8579e555043a56d020fa06ae83a3ccbeb64ee88c0",
+    "normalized_sha256": "49258d489e75fdf82f0e21e8411171c435a2e4189a1e4eaba36b6fd1b77dca22",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "index::001",
+    "source_path": "index.md",
+    "source_anchor": null,
+    "source_heading": null,
+    "source_lines": [
+      1,
+      5
+    ],
+    "occurrence": null,
+    "sha256": "be62fb45149558545c0e17dd0418ac04fede41ca4a1a3c62753fd004acb858cc",
+    "normalized_sha256": "471c7bf573eccbdc6a5d3d2b5d024c404d4f499d90bdd74628920fdbddcc234e",
+    "kind": "preamble",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "index::002",
+    "source_path": "index.md",
+    "source_anchor": "atomic-documentation",
+    "source_heading": "Atomic Documentation",
+    "source_lines": [
+      6,
+      9
+    ],
+    "occurrence": 1,
+    "sha256": "04de4cf3e6c9a04fa3fcf12bad654e30c7a45e2fdd7b6560452973cc41e79639",
+    "normalized_sha256": "371e59aac888b5346799bfad62e38d49398dbaba65458ef33476863c80ea72b9",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "index::003",
+    "source_path": "index.md",
+    "source_anchor": "quick-start",
+    "source_heading": "Quick start",
+    "source_lines": [
+      10,
+      57
+    ],
+    "occurrence": 1,
+    "sha256": "514f780fa5589322d5cf45995dd1b229aa9c65226ed908208393f8cbfadcb01c",
+    "normalized_sha256": "32ecb10d66b4cb4dc00ee058887ba6957ef17008832de115ddfe43956c95d368",
+    "kind": "h2",
+    "fences": 6,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "index::004",
+    "source_path": "index.md",
+    "source_anchor": "start-here",
+    "source_heading": "Start here",
+    "source_lines": [
+      58,
+      70
+    ],
+    "occurrence": 1,
+    "sha256": "692cf0969b158dc79c833f6e08a88f3f1061e5bb89ca3baf99234b11c15199a2",
+    "normalized_sha256": "3312ce27f0563742191a9f9d8f68d904334682054a7b6e5aeff184eead7d888c",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "index::005",
+    "source_path": "index.md",
+    "source_anchor": "customization",
+    "source_heading": "Customization",
+    "source_lines": [
+      71,
+      82
+    ],
+    "occurrence": 1,
+    "sha256": "65e14c5295cf520b8ca97a42a41d8a900cf749ac0f28229184077bca4328b74f",
+    "normalized_sha256": "f49585385dd50d3a51d96a365e42fcadf558ad01b74666fb7cc7cbb70abbc77d",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "index::006",
+    "source_path": "index.md",
+    "source_anchor": "programmatic-usage",
+    "source_heading": "Programmatic usage",
+    "source_lines": [
+      83,
+      89
+    ],
+    "occurrence": 1,
+    "sha256": "7d772cf553485e37795bfd74567e91c2121713df89228d126af1eab59a0b38ee",
+    "normalized_sha256": "9de7f60e2c89a33ba7ac35d12c09bdd8238543dfed0790fa62563b72c5f5ed6d",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "index::007",
+    "source_path": "index.md",
+    "source_anchor": "reference",
+    "source_heading": "Reference",
+    "source_lines": [
+      90,
+      93
+    ],
+    "occurrence": 1,
+    "sha256": "ccf77ffe84a19f5a6adf9c17c90e01cde981f0ff11d2bdb645af0dc95b88cca0",
+    "normalized_sha256": "2a43fda8c3c318a33f59cbd8f6b216e7df975e2bb1947a126cef33a2527e6807",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "index::008",
+    "source_path": "index.md",
+    "source_anchor": "platform-setup",
+    "source_heading": "Platform setup",
+    "source_lines": [
+      94,
+      101
+    ],
+    "occurrence": 1,
+    "sha256": "959c01150f683f7b8038208c186ef179faf893d2ec59badb84383a06c5b327de",
+    "normalized_sha256": "35452ab892664356155527adbb1265a3c63f2d5783c1f639eb06a28fd59c19a4",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "index::009",
+    "source_path": "index.md",
+    "source_anchor": "development",
+    "source_heading": "Development",
+    "source_lines": [
+      102,
+      105
+    ],
+    "occurrence": 1,
+    "sha256": "c63c18a01058e187bb9595fd92f43b1edfc28f9f612f17b403704a8cb4e92993",
+    "normalized_sha256": "c31d14b0e0e6a8aa2979829d99afc0dbe298ecdb0b3efb0b51672674682b5341",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::001",
+    "source_path": "intercom.md",
+    "source_anchor": null,
+    "source_heading": null,
+    "source_lines": [
+      1,
+      7
+    ],
+    "occurrence": null,
+    "sha256": "71e8d5161ea06295ff60ec538f850d23732d190f6f3014c28ccd6397cc909ffd",
+    "normalized_sha256": "e144dfdcb3c25c83afb5b778bf9d6abb480433f0616d9662b8c532779378bc9b",
+    "kind": "preamble",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 1,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::002",
+    "source_path": "intercom.md",
+    "source_anchor": "intercom",
+    "source_heading": "Intercom",
+    "source_lines": [
+      8,
+      27
+    ],
+    "occurrence": 1,
+    "sha256": "de8580efdfd330d100f1ec9ee01c22114958e9c2bf3ed0281b2c3e33d9f96479",
+    "normalized_sha256": "6b5826435ff5d1851eff7d4fc559db58fcb3e73ea2cb990a912e75b981148057",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::003",
+    "source_path": "intercom.md",
+    "source_anchor": "table-of-contents",
+    "source_heading": "Table of Contents",
+    "source_lines": [
+      28,
+      57
+    ],
+    "occurrence": 1,
+    "sha256": "2818b0565bea94a2c864426d3bcd874cad70bba2a3ba0b0266ccdc9f99bd8c22",
+    "normalized_sha256": "d5ba0c967617585133cacdc1db649fe686716b3c5c809c44bec460d5e3e55138",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "intercom::004",
+    "source_path": "intercom.md",
+    "source_anchor": "quick-start",
+    "source_heading": "Quick Start",
+    "source_lines": [
+      58,
+      59
+    ],
+    "occurrence": 1,
+    "sha256": "629a4900e292c4554a4059b9dd18f965c81c2f1e12fc48e8682ae3263029cbb7",
+    "normalized_sha256": "81b69564c81816b5cfc0a5203d9dd384c270037954151fb87f3e9b5289fa6079",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "intercom::005",
+    "source_path": "intercom.md",
+    "source_anchor": "from-the-keyboard",
+    "source_heading": "From the Keyboard",
+    "source_lines": [
+      60,
+      69
+    ],
+    "occurrence": 1,
+    "sha256": "b84f0ea6267eeff825af2f828797b93c8b3cdb2e6a491c6b5fa0f8bc34cc350b",
+    "normalized_sha256": "aac2ea1419ed98903ed80ffbea935c32d58f196d773c80dca3fbc3828c53e3ac",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::006",
+    "source_path": "intercom.md",
+    "source_anchor": "from-the-agent",
+    "source_heading": "From the Agent",
+    "source_lines": [
+      70,
+      106
+    ],
+    "occurrence": 1,
+    "sha256": "b63410e43e734a041ff7c80571a3b97910665fb4de2cd9d3df6dc82e31f9570e",
+    "normalized_sha256": "477bfe3a28f28985a86abf0da256b1ef11dd3dbe815b2311980176eb007784e2",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::007",
+    "source_path": "intercom.md",
+    "source_anchor": "receiving-messages",
+    "source_heading": "Receiving Messages",
+    "source_lines": [
+      107,
+      125
+    ],
+    "occurrence": 1,
+    "sha256": "e0cad8a8fe966f96d56ded58e09af5461340a260e51f3d2b08cc3a03941c8ec9",
+    "normalized_sha256": "7b5cda79bbce9e40f020cae361a7b07761e192b410e919d3335bacb5a1ede1d4",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::008",
+    "source_path": "intercom.md",
+    "source_anchor": "how-connection-works",
+    "source_heading": "How Connection Works",
+    "source_lines": [
+      126,
+      139
+    ],
+    "occurrence": 1,
+    "sha256": "30fb0ed695db3437cbddf7bc517efd0d129bb9684ae661a562a70a93a15d2528",
+    "normalized_sha256": "d7b420fc4e3762bf3d9d29102a28d422c405f99e5b54246b270943b8f5e05ba7",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::009",
+    "source_path": "intercom.md",
+    "source_anchor": "the-intercom-tool",
+    "source_heading": "The intercom Tool",
+    "source_lines": [
+      140,
+      150
+    ],
+    "occurrence": 1,
+    "sha256": "b683edf030a8f4c665356e218b931b4f3d5f516522e005af6d56f1c3c3cb710c",
+    "normalized_sha256": "5eaab40998570e45506653b7e2a1410dec4e2ee94d3b72a0975283a79fe1badd",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::010",
+    "source_path": "intercom.md",
+    "source_anchor": "actions",
+    "source_heading": "Actions",
+    "source_lines": [
+      151,
+      183
+    ],
+    "occurrence": 1,
+    "sha256": "bea61ffeb24bf813198f0b053cd4d20a8dfda21031ad3a875abf841c2b07c00f",
+    "normalized_sha256": "ff736a0eced15084e535e3e41213a202dc3ba492f94d8941795f0859e672bd4c",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::011",
+    "source_path": "intercom.md",
+    "source_anchor": "targeting-sessions-and-pending-workflow-stages",
+    "source_heading": "Targeting Sessions and Pending Workflow Stages",
+    "source_lines": [
+      184,
+      197
+    ],
+    "occurrence": 1,
+    "sha256": "421844c0e269484b0f2b2060d3576aad1b0668e61fcbcfbd2de5b36aa2213692",
+    "normalized_sha256": "65480910ddc3ea42d02ceaea13d6e760ab16d01b13b8a46b2a92a96ad6a23477",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::012",
+    "source_path": "intercom.md",
+    "source_anchor": "deferred-delivery-to-pending-stages",
+    "source_heading": "Deferred delivery to pending stages",
+    "source_lines": [
+      198,
+      209
+    ],
+    "occurrence": 1,
+    "sha256": "cd370ac7f23f60225ce176b1321dacf0a562ea1523b78ce7ac1bddeaf793478e",
+    "normalized_sha256": "18fef694c1dd92bb0d0d25c464e342bc527334e2c7973aa16780dbd483688b53",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::013",
+    "source_path": "intercom.md",
+    "source_anchor": "groups",
+    "source_heading": "Groups",
+    "source_lines": [
+      210,
+      222
+    ],
+    "occurrence": 1,
+    "sha256": "da2ca9ba34fbff37b6e8b7f56c009ebc0f8e6e47282b454da9c25b5336c8801f",
+    "normalized_sha256": "f278cf43bd653a8d19fa9ff14fc8c5705cb60981326668d01bea744dc66cc2bb",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::014",
+    "source_path": "intercom.md",
+    "source_anchor": "send-vs-ask-vs-reply",
+    "source_heading": "send vs ask vs reply",
+    "source_lines": [
+      223,
+      234
+    ],
+    "occurrence": 1,
+    "sha256": "a573c05a5069594c6e820de06360b1ce3814d53701add700ea28a3c916f5bdcb",
+    "normalized_sha256": "c5d8ddf63af10d8f16661547f617ec4e17b54b7bda8dd9dadc621b3d3439e4df",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::015",
+    "source_path": "intercom.md",
+    "source_anchor": "attachments",
+    "source_heading": "Attachments",
+    "source_lines": [
+      235,
+      238
+    ],
+    "occurrence": 1,
+    "sha256": "b06594edee905f85630d3a23cbf4c0b3db063eafe9557ae1a2a13156d79821f0",
+    "normalized_sha256": "1968a607aeb50a58656d3a01460616f7951cc996cf9c66ef5b3ea9c442180fde",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::016",
+    "source_path": "intercom.md",
+    "source_anchor": "coordination-patterns",
+    "source_heading": "Coordination Patterns",
+    "source_lines": [
+      239,
+      290
+    ],
+    "occurrence": 1,
+    "sha256": "060faf2e9674df0a75705babd3af7b1d4dca600cd2ee6a42f8f8596f330dddc0",
+    "normalized_sha256": "b245afa05ad50fb54e747ed3263aeef2dd596c40460fefb36a77608b5d8f8141",
+    "kind": "h2",
+    "fences": 3,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::017",
+    "source_path": "intercom.md",
+    "source_anchor": "subagent-escalation-contact_supervisor",
+    "source_heading": "Subagent Escalation: contact_supervisor",
+    "source_lines": [
+      291,
+      294
+    ],
+    "occurrence": 1,
+    "sha256": "ed6d2a95202df32fe8f60a0fa914a29f799e7ede496e4d96560d603e0f945584",
+    "normalized_sha256": "e40afc053e5a66baa490047e46dab917c90727aed8a07aced63c65619db3810e",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::018",
+    "source_path": "intercom.md",
+    "source_anchor": "when-the-tool-appears",
+    "source_heading": "When the Tool Appears",
+    "source_lines": [
+      295,
+      306
+    ],
+    "occurrence": 1,
+    "sha256": "0e0d35b79a77af27af4955e3a8bba81e21d510e06640e3d98e1d4123b56916e7",
+    "normalized_sha256": "3095ba8c6bf571b7fc8cc1eebd97329924504beefdccddacb3a1539c9fbf1a01",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::019",
+    "source_path": "intercom.md",
+    "source_anchor": "the-three-reasons",
+    "source_heading": "The Three Reasons",
+    "source_lines": [
+      307,
+      333
+    ],
+    "occurrence": 1,
+    "sha256": "6316382f6317bd13c3af16d8233ea0d81faa5024b045b49ee02d76aa96e1aef9",
+    "normalized_sha256": "6daa02f6813af2d3c08ef152d0f60b68d3e1c2dff5cad55e0a1eb2ad11bb3678",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::020",
+    "source_path": "intercom.md",
+    "source_anchor": "what-the-supervisor-sees",
+    "source_heading": "What the Supervisor Sees",
+    "source_lines": [
+      334,
+      339
+    ],
+    "occurrence": 1,
+    "sha256": "65b64590b19a61223eebd3433617fae0607be05205e913acc9aaa656639ffd47",
+    "normalized_sha256": "1ba2582768752c7f458612c9d7f7adfae943f44bd46d87750a5cb081c0ec82aa",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::021",
+    "source_path": "intercom.md",
+    "source_anchor": "structured-interview-replies",
+    "source_heading": "Structured Interview Replies",
+    "source_lines": [
+      340,
+      370
+    ],
+    "occurrence": 1,
+    "sha256": "bbf043b15eb9507aff78e5e1e72cfc6be18c1b0d021b69a4f653efb35caa7ad1",
+    "normalized_sha256": "f3573ec0e7aa68a1df3b53c32267f82eec73c91306bcc54a86017cecf8f32a73",
+    "kind": "h3",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::022",
+    "source_path": "intercom.md",
+    "source_anchor": "workflow-and-subagent-notifications",
+    "source_heading": "Workflow and Subagent Notifications",
+    "source_lines": [
+      371,
+      374
+    ],
+    "occurrence": 1,
+    "sha256": "e129c18b8403687186518591043a1fd329f5949139c43dbdd2000eca22fba063",
+    "normalized_sha256": "8198efc660800d9cb4ee86216caed8a19f15f34bfb407176812856ea620122b5",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::023",
+    "source_path": "intercom.md",
+    "source_anchor": "workflow-delivery-modes",
+    "source_heading": "Workflow Delivery Modes",
+    "source_lines": [
+      375,
+      396
+    ],
+    "occurrence": 1,
+    "sha256": "746117a9f792edeeecde12a97886b535dc87e22dffb595919792180b6cf1626c",
+    "normalized_sha256": "69146937426779c07d963f0d2ecb50b18e35a77f5ee9d50397ac841afccdc9e5",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::024",
+    "source_path": "intercom.md",
+    "source_anchor": "subagent-control-notices",
+    "source_heading": "Subagent Control Notices",
+    "source_lines": [
+      397,
+      407
+    ],
+    "occurrence": 1,
+    "sha256": "69455c5a15c28601f264b8ec3fd8c29747fe379421efe0eb89be8978e6670213",
+    "normalized_sha256": "bf53b3a34e3843621fe5b84b16453f1b20521f764ec27fbea19d80ba2bb9915c",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::025",
+    "source_path": "intercom.md",
+    "source_anchor": "delivery-ordering",
+    "source_heading": "Delivery Ordering",
+    "source_lines": [
+      408,
+      413
+    ],
+    "occurrence": 1,
+    "sha256": "d68ee565d7c26ab772d8eebe63d8a0e2ecbd10f2800fc0f494a4a52f7ea48fba",
+    "normalized_sha256": "c132f656a309d9a0acc84f1a15b1e3c270fb03cef5d60b4c15c7330e70bf4a6a",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::026",
+    "source_path": "intercom.md",
+    "source_anchor": "configuration",
+    "source_heading": "Configuration",
+    "source_lines": [
+      414,
+      454
+    ],
+    "occurrence": 1,
+    "sha256": "795f299bb0770b78d85a5f8a01ecf6f681dc79bfdd4fa1ce9e7261a8fce2dc2e",
+    "normalized_sha256": "306739d49890a826598134438e23dd774121bf8406b50548af7c1ff2d258ec59",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::027",
+    "source_path": "intercom.md",
+    "source_anchor": "keyboard-shortcuts",
+    "source_heading": "Keyboard Shortcuts",
+    "source_lines": [
+      455,
+      463
+    ],
+    "occurrence": 1,
+    "sha256": "37afe82a3b5e0d0a3ded943b70460be87efa9548b68200cd5c12fd1f4b1c37dc",
+    "normalized_sha256": "a7b88e0fdae8d51248cbbff8e4642853edb2be4f562abfd900a86ee82c558ca4",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::028",
+    "source_path": "intercom.md",
+    "source_anchor": "how-it-works",
+    "source_heading": "How It Works",
+    "source_lines": [
+      464,
+      538
+    ],
+    "occurrence": 1,
+    "sha256": "4c6c313cec5a70fb274da1a6cb7aa175f8124a31ebeb786bcf14f1833a66a52b",
+    "normalized_sha256": "5bd54db1ee64ae4469caee263b0e4c366a7a1d35d261ba003e0a476f9e25449d",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::029",
+    "source_path": "intercom.md",
+    "source_anchor": "intercom-vs-shared-room-messengers",
+    "source_heading": "Intercom vs Shared-Room Messengers",
+    "source_lines": [
+      539,
+      550
+    ],
+    "occurrence": 1,
+    "sha256": "3025b9e9b6225dd2767257874c6c3b748ec6d8657015a57c654e3412204d4c0a",
+    "normalized_sha256": "b886b58c370845270123207cc8e25f4207dd3bf717aac6ece7af8ac5e90c4257",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::030",
+    "source_path": "intercom.md",
+    "source_anchor": "limitations",
+    "source_heading": "Limitations",
+    "source_lines": [
+      551,
+      558
+    ],
+    "occurrence": 1,
+    "sha256": "4324367b88de23b39d263a2a59f63d8f0fb69102a2db3ccb28d8023498b21c29",
+    "normalized_sha256": "9f8f46b461dab1c44c869b3a2f447c0146f6a12839e5d5a7c260637f3c80feb1",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "intercom::031",
+    "source_path": "intercom.md",
+    "source_anchor": "related-docs",
+    "source_heading": "Related Docs",
+    "source_lines": [
+      559,
+      565
+    ],
+    "occurrence": 1,
+    "sha256": "34edaa2086041da8bcfda20a3f1259ba15a9a1b00bd44ca93012a83595201436",
+    "normalized_sha256": "b6ef3305b69604cc414905d1d5f619ee7b9f21cf4e55e1929475c73ba51e6cbc",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "json::001",
+    "source_path": "json.md",
+    "source_anchor": "json-event-stream-mode",
+    "source_heading": "JSON Event Stream Mode",
+    "source_lines": [
+      1,
+      10
+    ],
+    "occurrence": 1,
+    "sha256": "8d0a9c8a98a13f6efb523e12cace2902083dd9e173cfc882dac253428fd563a9",
+    "normalized_sha256": "306a6b85356ee24a348e83f64e99a3a37f27ebfda8389f28fa205091f3537e10",
+    "kind": "h1",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "json::002",
+    "source_path": "json.md",
+    "source_anchor": "event-types",
+    "source_heading": "Event Types",
+    "source_lines": [
+      11,
+      59
+    ],
+    "occurrence": 1,
+    "sha256": "3ec93273d8bbe42d15df0a1dc2eeb03fd6a97b2800d4abe4cb69b9bc1e8f8b65",
+    "normalized_sha256": "648eba0d74283d12b7c78e1d50c80893abb4517b3db47ef1c31713c59cacd83a",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "json::003",
+    "source_path": "json.md",
+    "source_anchor": "message-types",
+    "source_heading": "Message Types",
+    "source_lines": [
+      60,
+      71
+    ],
+    "occurrence": 1,
+    "sha256": "8ee628195bd41434bb0072965f9a0a6268a706ca6caad45822732e3dff29f2ab",
+    "normalized_sha256": "406cb009b9ce4631828216d6bae9213272d433470832cd3d76dba76fb49772c9",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "json::004",
+    "source_path": "json.md",
+    "source_anchor": "output-format",
+    "source_heading": "Output Format",
+    "source_lines": [
+      72,
+      91
+    ],
+    "occurrence": 1,
+    "sha256": "b73c391f83c70ac770f9a9bdb486973c62e487371706f6f3b1e458427d002049",
+    "normalized_sha256": "53e71ebebea942a63014717ec32161af65b49175eb9bd319f37b5949a3bae8be",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "json::005",
+    "source_path": "json.md",
+    "source_anchor": "example",
+    "source_heading": "Example",
+    "source_lines": [
+      92,
+      97
+    ],
+    "occurrence": 1,
+    "sha256": "0a11f8d8dbdb4b153609a179705b673c04d6596ac4da6f93a5c5dcaf3f26daa6",
+    "normalized_sha256": "b1ad2761fa106566032e3b3f2e654b079a11e5a8da2db00fda433f9e47ded343",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "keybindings::001",
+    "source_path": "keybindings.md",
+    "source_anchor": "keybindings",
+    "source_heading": "Keybindings",
+    "source_lines": [
+      1,
+      10
+    ],
+    "occurrence": 1,
+    "sha256": "6b2d30124d90d3c1bd06aa43c7e0756e860ac1868dc561266e685a32199ecdac",
+    "normalized_sha256": "cfead530ebd1e986f3c9feaa79e539169a496c769b27d1ef97d2cc5f58f2865b",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "keybindings::002",
+    "source_path": "keybindings.md",
+    "source_anchor": "key-format",
+    "source_heading": "Key Format",
+    "source_lines": [
+      11,
+      22
+    ],
+    "occurrence": 1,
+    "sha256": "9e127ce32c8231e32c5c4cc93e991c5fc15351734a8cfe937b90ef727d053de1",
+    "normalized_sha256": "02adac67cf8fd3b6e3354ede051167495f52cd8c6d8cc8252cdbe461e652c645",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "keybindings::003",
+    "source_path": "keybindings.md",
+    "source_anchor": "all-actions",
+    "source_heading": "All Actions",
+    "source_lines": [
+      23,
+      24
+    ],
+    "occurrence": 1,
+    "sha256": "66d2104119ff5b70f3416956f83716d30b384156b14b304becb2371f972ce25a",
+    "normalized_sha256": "fd07ad6d56a3a97a9a91e1512cead8c50ba674ecea14a125ee243904d13afa55",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "navigation"
+  },
+  {
+    "id": "keybindings::004",
+    "source_path": "keybindings.md",
+    "source_anchor": "tui-editor-cursor-movement",
+    "source_heading": "TUI Editor Cursor Movement",
+    "source_lines": [
+      25,
+      45
+    ],
+    "occurrence": 1,
+    "sha256": "b52075dc0c624c4827fb62ede2e16ec5b6d25d7a09daa8e533b0ce68f795ee43",
+    "normalized_sha256": "fba28fd106a7753d0d2bccab8916f645478659e58db984210f4bd454c77e880d",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "keybindings::005",
+    "source_path": "keybindings.md",
+    "source_anchor": "tui-editor-deletion",
+    "source_heading": "TUI Editor Deletion",
+    "source_lines": [
+      46,
+      56
+    ],
+    "occurrence": 1,
+    "sha256": "2b2fadeee9e4d90f4090315298b788172518d350dc4e3a7d5bdaea689b1fb1d7",
+    "normalized_sha256": "a0bfb85e03a0b290d4d830045b3aa8bc3d6d08f607f59fda84e3b84d605f9070",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "keybindings::006",
+    "source_path": "keybindings.md",
+    "source_anchor": "tui-input",
+    "source_heading": "TUI Input",
+    "source_lines": [
+      57,
+      64
+    ],
+    "occurrence": 1,
+    "sha256": "2772c361f87ef3519e1801438b1e134170a1e03e577a22ac9bf0da773aa46638",
+    "normalized_sha256": "cd108aeddcb01e0b329d59b231c3933b18188551e9b33e151901f5cb503226d8",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "keybindings::007",
+    "source_path": "keybindings.md",
+    "source_anchor": "tui-kill-ring",
+    "source_heading": "TUI Kill Ring",
+    "source_lines": [
+      65,
+      72
+    ],
+    "occurrence": 1,
+    "sha256": "991055eba05e2d5835359a50e665aca9c1153c14ae70fdf8db68ef28e8bd2cd2",
+    "normalized_sha256": "89dfc4fde5ff7f39fd9dc4cd09a589aebef3ed006c50797725fd78aa73f1dfa4",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "keybindings::008",
+    "source_path": "keybindings.md",
+    "source_anchor": "tui-clipboard-and-selection",
+    "source_heading": "TUI Clipboard and Selection",
+    "source_lines": [
+      73,
+      84
+    ],
+    "occurrence": 1,
+    "sha256": "601a77307476c539b4ee546ccc27bbb9fbd84774363ff13a3be325f551bb6ff3",
+    "normalized_sha256": "06a50c65921bdd3922ab6ad03b4ad2c6891aa701a4dffb92966f251ced1e8a3a",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "keybindings::009",
+    "source_path": "keybindings.md",
+    "source_anchor": "tui-fullscreen-viewport",
+    "source_heading": "TUI Fullscreen Viewport",
+    "source_lines": [
+      85,
+      122
+    ],
+    "occurrence": 1,
+    "sha256": "8ac3251ab67a8f2e7d5b43b6f89ac23e775ef987c46fc8c92b185b7c8be2f79f",
+    "normalized_sha256": "edfb5020efea9e5648222d11cb47b0ea8570b2478a5010178e0d711bc43047ef",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 2,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "keybindings::010",
+    "source_path": "keybindings.md",
+    "source_anchor": "application",
+    "source_heading": "Application",
+    "source_lines": [
+      123,
+      157
+    ],
+    "occurrence": 1,
+    "sha256": "545c88e1a7e042c16e253a9ebc7d235477c63a369c4d60367a522ad601f2a856",
+    "normalized_sha256": "29d6dae07881a0b9ade00d8a08ffeeeb1f460f8ab364b7ad93ba419f2cb73ce4",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "keybindings::011",
+    "source_path": "keybindings.md",
+    "source_anchor": "sessions",
+    "source_heading": "Sessions",
+    "source_lines": [
+      158,
+      172
+    ],
+    "occurrence": 1,
+    "sha256": "4f3dc0286e97e8448f9deb264fe5125523954171eee44cbd48938ed099a5459c",
+    "normalized_sha256": "9904c81388902d16d8a0c6f24f8646cd9bd3d63368b5bdecd3e4d22206b24177",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "keybindings::012",
+    "source_path": "keybindings.md",
+    "source_anchor": "models-and-thinking",
+    "source_heading": "Models and Thinking",
+    "source_lines": [
+      173,
+      184
+    ],
+    "occurrence": 1,
+    "sha256": "bb2f1433c60978eba258833913b652feff9f9759d882148b66f617123bb712fa",
+    "normalized_sha256": "4e0011262156296374bebcb9716585550b8ba8c29792a5252e2e4e7f9445f077",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "keybindings::013",
+    "source_path": "keybindings.md",
+    "source_anchor": "display-and-message-queue",
+    "source_heading": "Display and Message Queue",
+    "source_lines": [
+      185,
+      192
+    ],
+    "occurrence": 1,
+    "sha256": "f35ac9543180f465d7b0bece3e14dcf0bbe3e4e1d787bfe36acbd43ccd0965ef",
+    "normalized_sha256": "cef2eb51e3c259c0a01ca3313e8575500cec6a5c75df90c0072b6043d2e7eb84",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "keybindings::014",
+    "source_path": "keybindings.md",
+    "source_anchor": "task-inspector-actions",
+    "source_heading": "Task inspector actions",
+    "source_lines": [
+      193,
+      209
+    ],
+    "occurrence": 1,
+    "sha256": "443ae1a84b32c94957fd578ca3962a966211dc0f4d7c3bce95bf7e34ad0b5f1c",
+    "normalized_sha256": "014fedefd2e8e5d8ca9294b0c05c070cfc757703d54d0eb0f2e75c68bf3552d4",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "keybindings::015",
+    "source_path": "keybindings.md",
+    "source_anchor": "tree-navigation",
+    "source_heading": "Tree Navigation",
+    "source_lines": [
+      210,
+      225
+    ],
+    "occurrence": 1,
+    "sha256": "d65e664e8b4550876f9371f7215efbe9c25c138764a0632f963e86a4c530bc92",
+    "normalized_sha256": "b458bbdac3ab67f3822151acae882429004fe3fc5fd69d0f8bb2df191bf82299",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "keybindings::016",
+    "source_path": "keybindings.md",
+    "source_anchor": "scoped-models-selector",
+    "source_heading": "Scoped Models Selector",
+    "source_lines": [
+      226,
+      237
+    ],
+    "occurrence": 1,
+    "sha256": "425885b2ed7865ce51fe3b24f3661a20a568d3f0ca0f9d45b4f32133914ebc79",
+    "normalized_sha256": "e59f00d1012b3dd6588be1a52c839932a1db1876956b7be92cb482ba17a20c4c",
+    "kind": "h3",
+    "fences": 0,
+    "tables": 1,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "keybindings::017",
+    "source_path": "keybindings.md",
+    "source_anchor": "custom-configuration",
+    "source_heading": "Custom Configuration",
+    "source_lines": [
+      238,
+      253
+    ],
+    "occurrence": 1,
+    "sha256": "19cf35c23bb89ef1b4e7cd1df058535d294c1cb7ddaf5eba360b8d53ccd82b05",
+    "normalized_sha256": "55f28fcdb9e6c67437714a5c673aff816a8b273263f5c3b0718e55eed1958012",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "keybindings::018",
+    "source_path": "keybindings.md",
+    "source_anchor": "emacs-example",
+    "source_heading": "Emacs Example",
+    "source_lines": [
+      254,
+      269
+    ],
+    "occurrence": 1,
+    "sha256": "a68c96968ca8dccf7198f706d18061779c29b29df4216e372fc534fffb16a253",
+    "normalized_sha256": "c633454b6cf8e8c1a8df5f67723e0f410700e3e09cc8d05548aae51219a1fe79",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "keybindings::019",
+    "source_path": "keybindings.md",
+    "source_anchor": "vim-example",
+    "source_heading": "Vim Example",
+    "source_lines": [
+      270,
+      282
+    ],
+    "occurrence": 1,
+    "sha256": "d6a75efa07458086956b47551f43c376c71d7234b8d9d9369accfa29159a8e42",
+    "normalized_sha256": "5acef82a86419369a5e352898eae3ae75cf7a1440bd9d74dafe569f01ff83549",
+    "kind": "h3",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "llama-cpp::001",
+    "source_path": "llama-cpp.md",
+    "source_anchor": "llama-cpp",
+    "source_heading": "llama.cpp",
+    "source_lines": [
+      1,
+      6
+    ],
+    "occurrence": 1,
+    "sha256": "dc22e20850c2476ec3e48813f6ac325038756f606030f18ab99b98964c2d2cea",
+    "normalized_sha256": "c423ba99b2d3be8e72db0818e3a89014eb14492d1d1baa330c661c5b1fa51582",
+    "kind": "h1",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "llama-cpp::002",
+    "source_path": "llama-cpp.md",
+    "source_anchor": "start-the-router",
+    "source_heading": "Start the router",
+    "source_lines": [
+      7,
+      29
+    ],
+    "occurrence": 1,
+    "sha256": "f0d1d430be5041cdc93658ca756c14096de87e4cdf64a7d8b6d23c1ecdd3fc26",
+    "normalized_sha256": "1c496e5c915e56f1bcdc51ee8f7552aeee96d6eedac9a0374ee78d919b523234",
+    "kind": "h2",
+    "fences": 1,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "llama-cpp::003",
+    "source_path": "llama-cpp.md",
+    "source_anchor": "configure-atomic",
+    "source_heading": "Configure Atomic",
+    "source_lines": [
+      30,
+      47
+    ],
+    "occurrence": 1,
+    "sha256": "870ce197087d1a9310ebf3a34e859d4f5f58f17e4f34b2fba469d5d7f65de9bd",
+    "normalized_sha256": "c654991c2994c306fc3a1605fd262af5d40a9a839929946e79f6fb19545d7f3c",
+    "kind": "h2",
+    "fences": 2,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  },
+  {
+    "id": "llama-cpp::004",
+    "source_path": "llama-cpp.md",
+    "source_anchor": "manage-models",
+    "source_heading": "Manage models",
+    "source_lines": [
+      48,
+      61
+    ],
+    "occurrence": 1,
+    "sha256": "924cfa69f89c73615835f959b4f9fe590d454c47885859375753823977d830ec",
+    "normalized_sha256": "6a4329a4e29fc46fca6d8b7142f817397e809755a99275fd7e2967c7ebc734de",
+    "kind": "h2",
+    "fences": 0,
+    "tables": 0,
+    "callouts": 0,
+    "class": "substantive"
+  }
+]

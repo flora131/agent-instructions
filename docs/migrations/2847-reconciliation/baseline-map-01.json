@@ -1,0 +1,5220 @@
+[
+  {
+    "id": "changelog::001",
+    "source_path": "changelog.mdx",
+    "source_anchor": null,
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/changelog.mdx",
+      "anchor": null,
+      "occurrence": null
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "20bf0021ec3e0ab022657a5a4a33344f63493e9f9738ed391f57e499640470cc",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "changelog::002",
+    "source_path": "changelog.mdx",
+    "source_anchor": "pi-0-83-0-parity",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/changelog.mdx",
+      "anchor": "pi-0-83-0-parity",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "reviewed-correction",
+        "from": "](/extensions#ctxmodelregistry--ctxmodel--ctxscopedmodels)",
+        "to": "](/extensions/api-reference#ctx-modelregistry-/-ctx-model-/-ctx-scopedmodels)"
+      },
+      {
+        "kind": "link",
+        "from": "](/usage#credential-commands)",
+        "to": "](/reference/cli#credential-commands)"
+      },
+      {
+        "kind": "link",
+        "from": "](/providers#stop-reasons)",
+        "to": "](/providers/reference#stop-reasons)"
+      },
+      {
+        "kind": "link",
+        "from": "](/custom-provider#stop-reasons)",
+        "to": "](/custom-provider/streaming#stop-reasons)"
+      }
+    ],
+    "target_sha256": "3a989bd2be78a3b02655272b34a8d065f0466f59b00f588898e7598d0718dd43",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "changelog::003",
+    "source_path": "changelog.mdx",
+    "source_anchor": "pi-0-82-1-parity",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/changelog.mdx",
+      "anchor": "pi-0-82-1-parity",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](/extensions#constrained-sampling)",
+        "to": "](/extensions/authoring#constrained-sampling)"
+      },
+      {
+        "kind": "link",
+        "from": "](/models#constrained-tool-sampling)",
+        "to": "](/models/reference#constrained-tool-sampling)"
+      },
+      {
+        "kind": "link",
+        "from": "](/rpc#get_available_models)",
+        "to": "](/rpc/protocol#get_available_models)"
+      },
+      {
+        "kind": "link",
+        "from": "](/custom-provider#oauth-support)",
+        "to": "](/custom-provider/oauth#oauth-support)"
+      },
+      {
+        "kind": "link",
+        "from": "](/models#catalog-freshness-and-precedence)",
+        "to": "](/models/reference#catalog-freshness-and-precedence)"
+      },
+      {
+        "kind": "link",
+        "from": "](/rpc#bash)",
+        "to": "](/rpc/protocol#bash)"
+      }
+    ],
+    "target_sha256": "15066da3a4b2db98f0056179cc948429131e291eb41213869e50fc19be678760",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "changelog::004",
+    "source_path": "changelog.mdx",
+    "source_anchor": "model-catalogs-and-provider-authentication",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/changelog.mdx",
+      "anchor": "model-catalogs-and-provider-authentication",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "b305830c773aeaef4ebf1dcbc7c788741ab5b17835fc82b3bb1ab2487170b4ae",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "changelog::005",
+    "source_path": "changelog.mdx",
+    "source_anchor": "pi-0-80-6-compatibility",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/changelog.mdx",
+      "anchor": "pi-0-80-6-compatibility",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](/models#request-wide-cost-tiers)",
+        "to": "](/models/reference#request-wide-cost-tiers)"
+      },
+      {
+        "kind": "link",
+        "from": "](/custom-provider#usage-and-cost)",
+        "to": "](/custom-provider/streaming#usage-and-cost)"
+      }
+    ],
+    "target_sha256": "9d791ff161b682264c32a610bfbbcef48ca1e890a73f4b8cc95128853b1768d9",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "changelog::006",
+    "source_path": "changelog.mdx",
+    "source_anchor": "dependency-refresh",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/changelog.mdx",
+      "anchor": "dependency-refresh",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "d3f539587c905e141d38e4ddaf2925f78dd67e141bb06794136d81c7362c0727",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "changelog::007",
+    "source_path": "changelog.mdx",
+    "source_anchor": "upstream-pi-sync",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/changelog.mdx",
+      "anchor": "upstream-pi-sync",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "e3a9ad29f254cbdf4afec6cce66fac2eb24bee82d3d0974cc6f7a7d4d83b112b",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "changelog::008",
+    "source_path": "changelog.mdx",
+    "source_anchor": "fixes",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/changelog.mdx",
+      "anchor": "fixes",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "1dce7b12b1df512ab94d98855e5452a6621c42e43c62f523af1f80490871b568",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "changelog::009",
+    "source_path": "changelog.mdx",
+    "source_anchor": "stable-release",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/changelog.mdx",
+      "anchor": "stable-release",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "20c3515d08c9d78884ca3bda8edd70f70068bfcc12d331677d32ca39e07dd97a",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "changelog::010",
+    "source_path": "changelog.mdx",
+    "source_anchor": "fixes-2",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/changelog.mdx",
+      "anchor": "fixes-2",
+      "occurrence": 2
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "8914a603b441d05cf55063957e62958acf5433bf952b6efb1c442e7f9044c80b",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "changelog::011",
+    "source_path": "changelog.mdx",
+    "source_anchor": "stable-release-2",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/changelog.mdx",
+      "anchor": "stable-release-2",
+      "occurrence": 2
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "b8900a81dd0238367102f91e8756d330054f4ff46518b349d6254a627c59b911",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "changelog::012",
+    "source_path": "changelog.mdx",
+    "source_anchor": "fixes-3",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/changelog.mdx",
+      "anchor": "fixes-3",
+      "occurrence": 3
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "ba826631514d798e4951a9574c505172818329503c0d7a9dcafbc53851b3b7df",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "changelog::013",
+    "source_path": "changelog.mdx",
+    "source_anchor": "new-features",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/changelog.mdx",
+      "anchor": "new-features",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "b43f18548fcc5ee50fd14e50d307eed76084984cadc9993d298a5aa1a7b796e0",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "changelog::014",
+    "source_path": "changelog.mdx",
+    "source_anchor": "updates",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/changelog.mdx",
+      "anchor": "updates",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "bc728e024392c54a3e317c1502ebebad2077206bd25d1844692d8e1b335ce984",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "changelog::015",
+    "source_path": "changelog.mdx",
+    "source_anchor": "fixes-4",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/changelog.mdx",
+      "anchor": "fixes-4",
+      "occurrence": 4
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "062ae92fb61119bc90364d5219659b94a3d611bfb5c72e5245b993c866426144",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::001",
+    "source_path": "compaction.md",
+    "source_anchor": "compaction-&-branch-summarization",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction.md",
+      "anchor": "compaction-&-branch-summarization",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "31dc03ce6535870c0a0567ef62b1f3e369e5019ce835ce64c1e47d1cb0b0a0f1",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::002",
+    "source_path": "compaction.md",
+    "source_anchor": "overview",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction.md",
+      "anchor": "overview",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "aa971b2cf7b854593698595a869db9d53646302858fe83f961975a473707c96f",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::003",
+    "source_path": "compaction.md",
+    "source_anchor": "verbatim-line-compaction",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction.md",
+      "anchor": "verbatim-line-compaction",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "9b4350fa1a87a0017cf7c0636fcbe1e30aba5686b8200e6bf72d18bb29a7d07f",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::004",
+    "source_path": "compaction.md",
+    "source_anchor": "what-verbatim-means",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction.md",
+      "anchor": "what-verbatim-means",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "ea8baa3c21849930b45e989aa8224ec990bce3fd7f2bf1688b31ac569d50b64e",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::005",
+    "source_path": "compaction.md",
+    "source_anchor": "markers-and-repeated-compaction",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction.md",
+      "anchor": "markers-and-repeated-compaction",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "febfe40f86eb7b35936e55f5bd78cd888a9cd0e2b978c2cceb8ef516d5fd73ed",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::006",
+    "source_path": "compaction.md",
+    "source_anchor": "protected-structure",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction.md",
+      "anchor": "protected-structure",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "3b77e20a525a32b824449a95ac62e6760e890a9f2b5dbff1b35baf65ddcb8b2d",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::007",
+    "source_path": "compaction.md",
+    "source_anchor": "keepcontext-tags",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction.md",
+      "anchor": "keepcontext-tags",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "83c3c31f733990a4a41a423eeeb4e5a7bde8092d8962e890b79182a56058684c",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::008",
+    "source_path": "compaction.md",
+    "source_anchor": "parameters",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction/reference.md",
+      "anchor": "parameters",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](/models#preserved-thinking-and-model-switches)",
+        "to": "](/models/reference#preserved-thinking-and-model-switches)"
+      }
+    ],
+    "target_sha256": "42129a110b3210a251e133de00b17e14adadad311131acf8fa6dc06e5506cf76",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::009",
+    "source_path": "compaction.md",
+    "source_anchor": "when-compaction-runs",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction.md",
+      "anchor": "when-compaction-runs",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [],
+    "target_sha256": "846e22c2607a6df891f0a927f601cf212fecbe7d2117dbf86861e0c5567ac287",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "Automatic continuations belong to the original prompt, including repeated output-cap continuations. The prompt and `agent_settled` lifecycle finish only after the entire chain drains, so status integrations such as [Herdr](/herdr) stay working through quiet response waits and continuation gaps."
+    ]
+  },
+  {
+    "id": "compaction::010",
+    "source_path": "compaction.md",
+    "source_anchor": "planning-rungs-and-failure-behavior",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction.md",
+      "anchor": "planning-rungs-and-failure-behavior",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "e3c1da52b8d7c9c7ea5c422f989422c0e24b93a3c8c97f5178f54a85f7e261d8",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::011",
+    "source_path": "compaction.md",
+    "source_anchor": "the-fresh-context-window-rung",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction.md",
+      "anchor": "the-fresh-context-window-rung",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "45917ceb6ff57030af6756af9294fc54abc78e82a70887db7d689c7f45a24312",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::012",
+    "source_path": "compaction.md",
+    "source_anchor": "length-truncated-response-recovery",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction.md",
+      "anchor": "length-truncated-response-recovery",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "7a6615f4f6f5b29d96df843ff50af914b578706a4c214ad4c28bb99023dc1d27",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::013",
+    "source_path": "compaction.md",
+    "source_anchor": "planner-failure-diagnostics",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction.md",
+      "anchor": "planner-failure-diagnostics",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "21cf1ffc2e0b61d920dc57c664f00efd84ccceeafd01005e47805ad030986512",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::014",
+    "source_path": "compaction.md",
+    "source_anchor": "persistence-and-resume",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction/reference.md",
+      "anchor": "persistence-and-resume",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "e0402bd8516f0ace2e1f86ede49a0d05b3b413c2f02bbad0ea29940165e8417a",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::015",
+    "source_path": "compaction.md",
+    "source_anchor": "extension-hooks",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction/reference.md",
+      "anchor": "extension-hooks",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "c7a8a397eae5177e9c4a5216275b4facf8237e02871c7905f54b00c3a06be189",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::016",
+    "source_path": "compaction.md",
+    "source_anchor": "session_before_compact",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction/reference.md",
+      "anchor": "session_before_compact",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "e49b4082a5c8ffd74e9db922f0a794621047a7de735471ebc9a87a70a0c15d15",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::017",
+    "source_path": "compaction.md",
+    "source_anchor": "session_compact",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction/reference.md",
+      "anchor": "session_compact",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "d5291251472685008543e61f5c30354add5353b187e085f340cb1f1b90a79622",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::018",
+    "source_path": "compaction.md",
+    "source_anchor": "session_compact_failed",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction/reference.md",
+      "anchor": "session_compact_failed",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "e7deecf16e08babca7de3cd846ceebf1c685c0ca1c10a70cb53376bf5e37c364",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::019",
+    "source_path": "compaction.md",
+    "source_anchor": "branch-summarization",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction.md",
+      "anchor": "branch-summarization",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "edfbf671760a011001099fea53c09c5bc80cdb6ecea1dc88fa80feee75f9d726",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::020",
+    "source_path": "compaction.md",
+    "source_anchor": "when-it-triggers",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction.md",
+      "anchor": "when-it-triggers",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "d044d001bf7e9b06aa8500376f2c6836988b696deec598dcbdeac20fa606fe77",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::021",
+    "source_path": "compaction.md",
+    "source_anchor": "how-it-works",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction.md",
+      "anchor": "how-it-works",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "841e4a3a81c48c010175e263bb44af175c866f0f698e35ca69aa7b5d2e0b89fa",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::022",
+    "source_path": "compaction.md",
+    "source_anchor": "cumulative-file-tracking",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction.md",
+      "anchor": "cumulative-file-tracking",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "bf70a57148bb3da27713d1c77882da8ed76e92b9046fd247736e4dc7d876215a",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::023",
+    "source_path": "compaction.md",
+    "source_anchor": "branchsummaryentry-structure",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction.md",
+      "anchor": "branchsummaryentry-structure",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "e036aae9504c70864464f82829d104817b9fa7861d52d5fd278f99286d63545e",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::024",
+    "source_path": "compaction.md",
+    "source_anchor": "branch-summary-format",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction/reference.md",
+      "anchor": "branch-summary-format",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "e7b942b28cc9960f36af30457d0ab50a3c9aa9ac5a2ed858cf697b9444b20163",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::025",
+    "source_path": "compaction.md",
+    "source_anchor": "message-serialization-for-branch-summaries",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction/reference.md",
+      "anchor": "message-serialization-for-branch-summaries",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "acf3e1cb860d728297f904dd7bfecb93582a319cd2b52158724cba2aa8d4846e",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::026",
+    "source_path": "compaction.md",
+    "source_anchor": "extension-hooks-for-branch-summarization",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction/reference.md",
+      "anchor": "extension-hooks-for-branch-summarization",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "cec768d39183564e2dd017b4c471499d16be2f3ad7b294fe6894bf853e566272",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::027",
+    "source_path": "compaction.md",
+    "source_anchor": "session_before_tree",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction/reference.md",
+      "anchor": "session_before_tree",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "88c54b82a759291dec3aecd902a226c22aaeb775d97a33bc07617f46575652fb",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::028",
+    "source_path": "compaction.md",
+    "source_anchor": "summary-request-isolation",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction.md",
+      "anchor": "summary-request-isolation",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "333aba28b2deeb662b2ebf01fc98e415f633d40f8374532594cf1e4690e2529f",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::029",
+    "source_path": "compaction.md",
+    "source_anchor": "settings",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction/reference.md",
+      "anchor": "settings",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "a85c1938dcc133e5688aac8e72928d816f7d728a6034f9d5ca7eb1424fb7fed8",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "compaction::030",
+    "source_path": "compaction.md",
+    "source_anchor": "historical-formats",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/compaction/reference.md",
+      "anchor": "historical-formats",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "3c1203254b29897746ebf7c4d0b19d5ca9688934e2592c3e113ed358b11e2433",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "containerization::001",
+    "source_path": "containerization.md",
+    "source_anchor": "containerization",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/containerization.md",
+      "anchor": "containerization",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [],
+    "target_sha256": "9bf98db0a7fcee0cf29b604c3c165c89367443aa630d01e6257e1605fd6dc03b",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "Containerization is the outer boundary, not the only one. [Security](/security) covers the project-trust prompt that gates which project-scoped extensions, skills, and settings load in the first place; read it alongside this page when you are deciding what an untrusted repository is allowed to do."
+    ]
+  },
+  {
+    "id": "containerization::002",
+    "source_path": "containerization.md",
+    "source_anchor": "choose-a-pattern",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/containerization.md",
+      "anchor": "choose-a-pattern",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "cb2f44ef22f3b8c48cd09c4e313cf584c8ce660e216246782c77cc702cd15a41",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "containerization::003",
+    "source_path": "containerization.md",
+    "source_anchor": "gondolin",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/containerization.md",
+      "anchor": "gondolin",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "2e536d0dd06b4d040cd6e7e294f59090deab05632b1650721018da145a798ed7",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "containerization::004",
+    "source_path": "containerization.md",
+    "source_anchor": "plain-docker",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/containerization.md",
+      "anchor": "plain-docker",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "0465c14e5c0fb6bf746118ed6d7cf697b2aeac5f2a54bad0587afc2688a057b2",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "containerization::005",
+    "source_path": "containerization.md",
+    "source_anchor": "openshell",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/containerization.md",
+      "anchor": "openshell",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "c8586a075b0813730dc6c688b9dd94ced28f84a99e6df8d7da274c315864fa4c",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::001",
+    "source_path": "custom-provider.md",
+    "source_anchor": "custom-providers",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider.md",
+      "anchor": "custom-providers",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "32f789144b62775fa6c9184d2f91064c502be472bc05629c19c3e006f34323d5",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::002",
+    "source_path": "custom-provider.md",
+    "source_anchor": "example-extensions",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider.md",
+      "anchor": "example-extensions",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "3d68f2d32db06195f44b0e2d904beb3fc527f36d7b6d1b0bc0b1cb2a8a53b015",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::003",
+    "source_path": "custom-provider.md",
+    "source_anchor": "table-of-contents",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider.md",
+      "anchor": "table-of-contents",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](#override-existing-provider)",
+        "to": "](/custom-provider/override#override-existing-provider)"
+      },
+      {
+        "kind": "link",
+        "from": "](#register-new-provider)",
+        "to": "](/custom-provider/registration#register-new-provider)"
+      },
+      {
+        "kind": "link",
+        "from": "](#unregister-provider)",
+        "to": "](/custom-provider/registration#unregister-provider)"
+      },
+      {
+        "kind": "link",
+        "from": "](#oauth-support)",
+        "to": "](/custom-provider/oauth#oauth-support)"
+      },
+      {
+        "kind": "link",
+        "from": "](#custom-streaming-api)",
+        "to": "](/custom-provider/streaming#custom-streaming-api)"
+      },
+      {
+        "kind": "link",
+        "from": "](#config-reference)",
+        "to": "](/custom-provider/api-reference#config-reference)"
+      },
+      {
+        "kind": "link",
+        "from": "](#model-definition-reference)",
+        "to": "](/custom-provider/api-reference#model-definition-reference)"
+      }
+    ],
+    "target_sha256": "cfc4d530b7dc8f7a492e66371faefec91a2e5f7f853d773dcafc3094532358f0",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::004",
+    "source_path": "custom-provider.md",
+    "source_anchor": "quick-reference",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider.md",
+      "anchor": "quick-reference",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "2b729c1cabadcceda489561d3aa59a57db8151dbac13579028dbdfff77e9997e",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::005",
+    "source_path": "custom-provider.md",
+    "source_anchor": "override-existing-provider",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/override.md",
+      "anchor": "override-existing-provider",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "2e220c4459dc712437eae7998895ea2d8df1c114c7866e2f23e38f1d1dac1614",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::006",
+    "source_path": "custom-provider.md",
+    "source_anchor": "register-new-provider",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/registration.md",
+      "anchor": "register-new-provider",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "ce539df2a7eafc97e3a706822c59511b300913472deb08703d87e871ec6608ef",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::007",
+    "source_path": "custom-provider.md",
+    "source_anchor": "unregister-provider",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/registration.md",
+      "anchor": "unregister-provider",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "53f06f6fd5fcad289910bc9e8d0f3ed236078065e20c241b16ef1c985a49c556",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::008",
+    "source_path": "custom-provider.md",
+    "source_anchor": "api-types",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/registration.md",
+      "anchor": "api-types",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "538c85bb953f11a26b3866261bd92c84270cf358b6baa156dc2c49f798e2a4de",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::009",
+    "source_path": "custom-provider.md",
+    "source_anchor": "auth-header",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/registration.md",
+      "anchor": "auth-header",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "51c7954e275598f4c9acc7da8a423552d32395630d5ca4a26e626bb4a7d94ef8",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::010",
+    "source_path": "custom-provider.md",
+    "source_anchor": "oauth-support",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/oauth.md",
+      "anchor": "oauth-support",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "302124b1644707cd161d7f7e16a8586abd805b201e2c5a76463083298ec9e40b",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::011",
+    "source_path": "custom-provider.md",
+    "source_anchor": "dynamic-model-catalog-refresh",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/oauth.md",
+      "anchor": "dynamic-model-catalog-refresh",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "04ea59705c9a4c782a6c0110cf6566985ff6b5a613841912238aa2f392a69641",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::012",
+    "source_path": "custom-provider.md",
+    "source_anchor": "oauthlogincallbacks",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/oauth.md",
+      "anchor": "oauthlogincallbacks",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "d8d9730523defd57f609cf51990fad9b46b9c58456fbee5471ce03d627910bee",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::013",
+    "source_path": "custom-provider.md",
+    "source_anchor": "oauthcredentials",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/oauth.md",
+      "anchor": "oauthcredentials",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "9f5d8e1d994f6ab5554748aff35c317de1fcd40d76549a2126e3634c8298c61e",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::014",
+    "source_path": "custom-provider.md",
+    "source_anchor": "custom-streaming-api",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/streaming.md",
+      "anchor": "custom-streaming-api",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "3500e3bcd85bf4bbf051dc7dc5e645b07934375527e1b190b16ad0b84ce03b6e",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::015",
+    "source_path": "custom-provider.md",
+    "source_anchor": "stream-pattern",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/streaming.md",
+      "anchor": "stream-pattern",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "d454e3384661fb19f2b2a11ccba5e4393963be670435d173c4916ac1172c5c7c",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::016",
+    "source_path": "custom-provider.md",
+    "source_anchor": "event-types",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/streaming.md",
+      "anchor": "event-types",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "ce0376fd2fac7facb5947f2b30f0cd223cb2dba7f173347b26212218aaf825d6",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::017",
+    "source_path": "custom-provider.md",
+    "source_anchor": "stop-reasons",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/streaming.md",
+      "anchor": "stop-reasons",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "79d14822be84ec2e7b768e3b8d1b905da15bff1ec14d6a4c1d43deaf159c6912",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::018",
+    "source_path": "custom-provider.md",
+    "source_anchor": "content-blocks",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/streaming.md",
+      "anchor": "content-blocks",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "a065d735ff41e4a04c4ca394d45ab607a700b8d83d485f099386375cd399ee32",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::019",
+    "source_path": "custom-provider.md",
+    "source_anchor": "tool-calls",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/streaming.md",
+      "anchor": "tool-calls",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "2281724f0d87abd13d56af25841a769ecf5c9db6bab652681cb86f5767efa9a7",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::020",
+    "source_path": "custom-provider.md",
+    "source_anchor": "usage-and-cost",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/streaming.md",
+      "anchor": "usage-and-cost",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](/models#request-wide-cost-tiers)",
+        "to": "](/models/reference#request-wide-cost-tiers)"
+      }
+    ],
+    "target_sha256": "adbfb03d8606c2c6c3f83a343f77b9ff2b52ba56b7a89f0958dc2a1ce904b026",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::021",
+    "source_path": "custom-provider.md",
+    "source_anchor": "registration",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/streaming.md",
+      "anchor": "registration",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "f1435304fb60703000763b7de48bbea687611ad1d6ca092bc0702da8f674c895",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::022",
+    "source_path": "custom-provider.md",
+    "source_anchor": "testing-your-implementation",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider.md",
+      "anchor": "testing-your-implementation",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "b0ff239dc1a88f20d249468f03286ad77574edf174076acafb7192fc2b7b5e16",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::023",
+    "source_path": "custom-provider.md",
+    "source_anchor": "config-reference",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/api-reference.md",
+      "anchor": "config-reference",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "fcbf9a7dc751707903e09ae6be87bb381c0e2841327d3421e909b255c38eeade",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "custom-provider::024",
+    "source_path": "custom-provider.md",
+    "source_anchor": "model-definition-reference",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/custom-provider/api-reference.md",
+      "anchor": "model-definition-reference",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](/extensions#constrained-sampling)",
+        "to": "](/extensions/authoring#constrained-sampling)"
+      }
+    ],
+    "target_sha256": "bc213f5237c6b08b5d7c9b4145441d30c1d31154dd7ad1c1cf4c21db0820981f",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "development::001",
+    "source_path": "development.md",
+    "source_anchor": "development",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/development.md",
+      "anchor": "development",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "4450f18456aa8100ec4eb851058494090fce4299e8e14a25c314d0e047c26a63",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "development::002",
+    "source_path": "development.md",
+    "source_anchor": "setup",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/development.md",
+      "lines": [
+        9,
+        25
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "70eab278f315ddf261f273b9038dce5e5fa25d96a350c21c2bd2eda5ccdc7476",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/development.md",
+      "anchor": "setup",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "development::003",
+    "source_path": "development.md",
+    "source_anchor": "forking-/-rebranding",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/development.md",
+      "lines": [
+        31,
+        44
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "724756eab60610897ef4457f6df085808513d96c88794ad80276e8c48f085afa",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/development.md",
+      "anchor": "forking-/-rebranding",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "development::004",
+    "source_path": "development.md",
+    "source_anchor": "path-resolution",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/development.md",
+      "anchor": "path-resolution",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "115fbc8c726abf4dd27ed97ed16b5e17f5992b184bf125b37bb464eef135b3a1",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "development::005",
+    "source_path": "development.md",
+    "source_anchor": "debug-command",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/development.md",
+      "anchor": "debug-command",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [],
+    "target_sha256": "17b1cebbf45c8556947c956d01b1510af83cf6aab1dc82dd3c8348e75f19ba66",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "For startup measurements, see the [Windows startup benchmark](https://github.com/bastani-inc/atomic/blob/main/scripts/perf/windows-startup/README.md). Internal timing marks do not prove terminal first paint."
+    ]
+  },
+  {
+    "id": "development::006",
+    "source_path": "development.md",
+    "source_anchor": "startup-timing-probes",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/development.md",
+      "lines": [
+        92,
+        121
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "01227bf48962696ff33ed625603998a21271656b0f21eeb01ca651d3fcb21aa6",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/development.md",
+      "anchor": "startup-timing-probes",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "development::007",
+    "source_path": "development.md",
+    "source_anchor": "testing",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/development.md",
+      "lines": [
+        60,
+        70
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "c2f318bf1e3654c663741f004d260e500577b60c4c89fea6fb524fa1b2668959",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/development.md",
+      "anchor": "testing",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "development::008",
+    "source_path": "development.md",
+    "source_anchor": "deterministic-installs",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/development.md",
+      "anchor": "deterministic-installs",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [],
+    "target_sha256": "720231000c58506b9caa372e80a5ca6c3456dfe234d0d18f89259b5662a6e1f3",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "See [Testing](#testing) for the current shrinkwrap commands. The earlier procedure is retained as [historical documentation](https://github.com/bastani-inc/atomic/blob/main/docs/migrations/2847-history/development.md)."
+    ]
+  },
+  {
+    "id": "development::009",
+    "source_path": "development.md",
+    "source_anchor": "release-security-boundary",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/development.md",
+      "lines": [
+        139,
+        141
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "d0d7968ce87c4f7dc66b5f36e2cedd4494f9d2a832ccce86e5f8bbfa0b2fecf0",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/development.md",
+      "anchor": "release-security-boundary",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "development::010",
+    "source_path": "development.md",
+    "source_anchor": "project-structure",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/development.md",
+      "anchor": "project-structure",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [],
+    "target_sha256": "f27e7f6f815ef0639aad4c2d83df42f719344b1d5933f67a9c8534f1ee762a77",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "```text",
+      "packages/",
+      "  ai/           # Atomic's LLM provider fork",
+      "  coding-agent/ # CLI, interactive mode, and core runtime",
+      "  workflows/    # Workflow execution",
+      "  subagents/    # Subagent orchestration",
+      "  mcp/          # MCP adapter",
+      "  web-access/   # Web search and content extraction",
+      "  intercom/     # Cross-session coordination",
+      "The bundled companion-package roles are:",
+      "```"
+    ]
+  },
+  {
+    "id": "environment-variables::001",
+    "source_path": "environment-variables.md",
+    "source_anchor": "environment-variables",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/environment-variables.md",
+      "anchor": "environment-variables",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "e4b598be2b6b82886c0c7b168444632d4c7e76e961c596b17ff00fc3dd37e0ba",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "environment-variables::002",
+    "source_path": "environment-variables.md",
+    "source_anchor": "application-configuration",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/environment-variables.md",
+      "lines": [
+        9,
+        26
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "6a069f45f92119d1697c86fd9771981155ad82f48446382a1f2e1262bc092541",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/environment-variables.md",
+      "anchor": "application-configuration",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "environment-variables::003",
+    "source_path": "environment-variables.md",
+    "source_anchor": "subprocess-attribution",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/environment-variables.md",
+      "anchor": "subprocess-attribution",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "896b34415bc9bbffe95ae0bf235f04c5d17c3051b9168abb65017f80d2623067",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "environment-variables::004",
+    "source_path": "environment-variables.md",
+    "source_anchor": "provider-credentials",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/environment-variables.md",
+      "anchor": "provider-credentials",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "dd92ad3458331c9c3c86c22507fcf1b4f57e07d2d781c67281a252431a21b42c",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "environment-variables::005",
+    "source_path": "environment-variables.md",
+    "source_anchor": "bash-and-powershell-session-environment",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/environment-variables.md",
+      "anchor": "bash-and-powershell-session-environment",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](/usage#environment-variables)",
+        "to": "](/reference/cli#environment-variables)"
+      },
+      {
+        "kind": "link",
+        "from": "](/rpc#bash)",
+        "to": "](/rpc/protocol#bash)"
+      }
+    ],
+    "target_sha256": "624dbb50ee5ead266fb80b001d8d5b3a62a38b171d9f4160a7df75064b182b9d",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::001",
+    "source_path": "extensions.md",
+    "source_anchor": null,
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions.md",
+      "anchor": null,
+      "occurrence": null
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "7e327eed946974afd31d8c11854ab3d491aa4be8b38fcb34fea949f8bda4361e",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::002",
+    "source_path": "extensions.md",
+    "source_anchor": "extensions",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions.md",
+      "anchor": "extensions",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [],
+    "target_sha256": "9ee0dff8efbcda231ecf13fd84bd83a48e15dd86576bde710ad0cb50e4af0265",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "Atomic also ships an environment-gated [Herdr reporter](/herdr). It combines settled agent activity, extension prompt events, and observed workflow roots under one parent pane owner. It defers to loaded community or legacy reporters and can be disabled with `herdr.enabled` in settings. See [Herdr setup](/herdr#setup) for the supported version and [status indicators](/herdr#status-indicators) for reported activity."
+    ]
+  },
+  {
+    "id": "extensions::003",
+    "source_path": "extensions.md",
+    "source_anchor": "table-of-contents",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions.md",
+      "anchor": "table-of-contents",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](#startup-and-lazy-discovery)",
+        "to": "](/extensions#startup-and-lazy-discovery)"
+      },
+      {
+        "kind": "link",
+        "from": "](#interactive-callback-isolation)",
+        "to": "](/extensions#interactive-callback-isolation)"
+      },
+      {
+        "kind": "link",
+        "from": "](#quick-start)",
+        "to": "](/extensions#quick-start)"
+      },
+      {
+        "kind": "link",
+        "from": "](#extension-locations)",
+        "to": "](/extensions#extension-locations)"
+      },
+      {
+        "kind": "link",
+        "from": "](#available-imports)",
+        "to": "](/extensions#available-imports)"
+      },
+      {
+        "kind": "link",
+        "from": "](#writing-an-extension)",
+        "to": "](/extensions/authoring#writing-an-extension)"
+      },
+      {
+        "kind": "link",
+        "from": "](#extension-styles)",
+        "to": "](/extensions/authoring#extension-styles)"
+      },
+      {
+        "kind": "link",
+        "from": "](#events)",
+        "to": "](/extensions/events#events)"
+      },
+      {
+        "kind": "link",
+        "from": "](#lifecycle-overview)",
+        "to": "](/extensions/events#lifecycle-overview)"
+      },
+      {
+        "kind": "link",
+        "from": "](#resource-events)",
+        "to": "](/extensions/events#resource-events)"
+      },
+      {
+        "kind": "link",
+        "from": "](#session-events)",
+        "to": "](/extensions/events#session-events)"
+      },
+      {
+        "kind": "link",
+        "from": "](#agent-events)",
+        "to": "](/extensions/events#agent-events)"
+      },
+      {
+        "kind": "link",
+        "from": "](#model-events)",
+        "to": "](/extensions/events#model-events)"
+      },
+      {
+        "kind": "link",
+        "from": "](#tool-events)",
+        "to": "](/extensions/events#tool-events)"
+      },
+      {
+        "kind": "link",
+        "from": "](#extensioncontext)",
+        "to": "](/extensions/api-reference#extensioncontext)"
+      },
+      {
+        "kind": "link",
+        "from": "](#extensioncommandcontext)",
+        "to": "](/extensions/api-reference#extensioncommandcontext)"
+      },
+      {
+        "kind": "link",
+        "from": "](#extensionapi-methods)",
+        "to": "](/extensions/api-reference#extensionapi-methods)"
+      },
+      {
+        "kind": "link",
+        "from": "](#state-management)",
+        "to": "](/extensions/authoring#state-management)"
+      },
+      {
+        "kind": "link",
+        "from": "](#session-scoped-in-memory-state)",
+        "to": "](/extensions/authoring#session-scoped-in-memory-state)"
+      },
+      {
+        "kind": "link",
+        "from": "](#custom-tools)",
+        "to": "](/extensions/authoring#custom-tools)"
+      },
+      {
+        "kind": "link",
+        "from": "](#custom-ui)",
+        "to": "](/extensions/ui#custom-ui)"
+      },
+      {
+        "kind": "link",
+        "from": "](#error-handling)",
+        "to": "](/extensions/api-reference#error-handling)"
+      },
+      {
+        "kind": "link",
+        "from": "](#mode-behavior)",
+        "to": "](/extensions#mode-behavior)"
+      },
+      {
+        "kind": "link",
+        "from": "](#examples-reference)",
+        "to": "](/extensions/examples#examples-reference)"
+      }
+    ],
+    "target_sha256": "405ce318b1e549ff37fcfc2ee954e6890e19828898e870133bdef7935ea26496",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "- [Workflow activity and lifecycle hooks](/extensions/events#workflow-activity-and-lifecycle-hooks)"
+    ]
+  },
+  {
+    "id": "extensions::004",
+    "source_path": "extensions.md",
+    "source_anchor": "startup-and-lazy-discovery",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions.md",
+      "anchor": "startup-and-lazy-discovery",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "be374761de0fd6a2fc88c62fbe80345a2ac079f70c21c65c160176f4f79850a6",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::005",
+    "source_path": "extensions.md",
+    "source_anchor": "interactive-callback-isolation",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions.md",
+      "anchor": "interactive-callback-isolation",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](/tui#host-native-session-picker)",
+        "to": "](/tui/reference#host-native-session-picker)"
+      },
+      {
+        "kind": "link",
+        "from": "](/tui#host-native-input-form)",
+        "to": "](/tui/reference#host-native-input-form)"
+      }
+    ],
+    "target_sha256": "bbdf424aff63fbea3a43b48e37a5a4a1990c5f56711b388e73f4af4b86447962",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::006",
+    "source_path": "extensions.md",
+    "source_anchor": "quick-start",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions.md",
+      "anchor": "quick-start",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "89db8ecfa19a523c2449fef94a1232a2ca009eb4d66c4960f16804fc745e104d",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::007",
+    "source_path": "extensions.md",
+    "source_anchor": "extension-locations",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions.md",
+      "anchor": "extension-locations",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "19bb3bd05bcaaa9a3bcb6d781ecf6b72dc89b2865685f844b91d54da624cceed",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::008",
+    "source_path": "extensions.md",
+    "source_anchor": "available-imports",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions.md",
+      "anchor": "available-imports",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "50f385df7c94b93252d4bf8c11a569e08e387d4819c5c4bd7d1e8af3282bdccd",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::009",
+    "source_path": "extensions.md",
+    "source_anchor": "writing-an-extension",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "writing-an-extension",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [],
+    "target_sha256": "528039d7c19150c767de02f322b26c1bc43204a54aed45be7685185c5b4d6250",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "Imports from Atomic's supplied core packages keep the running host's classes and shared state across `/reload`, including on Windows. The supported `@earendil-works/pi-coding-agent` compatibility import shares those exports with `@bastani/atomic`, so class comparisons and `instanceof` checks work across both names after reload. Edits to your extension and its imported local helpers still take effect; restart Atomic after updating Atomic itself."
+    ]
+  },
+  {
+    "id": "extensions::010",
+    "source_path": "extensions.md",
+    "source_anchor": "async-factory-functions",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "async-factory-functions",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "e90fd7b7a077406c7816372c34269b5fb6c7a182ca49e466467db5081d56d48d",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::011",
+    "source_path": "extensions.md",
+    "source_anchor": "long-lived-resources-and-shutdown",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "long-lived-resources-and-shutdown",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "c136e04cd30d43432a94b19b32e19aea824afac9f39088decf832e2e48bb663c",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::012",
+    "source_path": "extensions.md",
+    "source_anchor": "extension-styles",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "extension-styles",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "ebfe8192136d597df53cd0168691429975f87df6c82fdbd06c489b632d0175c6",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::013",
+    "source_path": "extensions.md",
+    "source_anchor": "events",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "events",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "3f672ecd900458ab4b1580bce31c327cb90567ed6f4b88e81c44015b488a7abf",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::014",
+    "source_path": "extensions.md",
+    "source_anchor": "lifecycle-overview",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/extensions.md",
+      "lines": [
+        108,
+        179
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "ff9a41727a70e112ea2b3c79c85d0e810b3d7159c76910f37db1300d2c7c993d",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "lifecycle-overview",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "extensions::015",
+    "source_path": "extensions.md",
+    "source_anchor": "startup-events",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "startup-events",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "1fb2d05c75f049fb51f205e2b4c3e28e003dec98c355452b66de2af68ea3b2d5",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::016",
+    "source_path": "extensions.md",
+    "source_anchor": "project_trust",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "project_trust",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "f0f029f44e4d9737616ce1bb409a630aee811aee896d726455f2d4a26bea0036",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::017",
+    "source_path": "extensions.md",
+    "source_anchor": "resource-events",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "resource-events",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "615e706ce9ea00df10d2b7845c149a8ffeda6c7764246fb14f6dd49a2be777ea",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::018",
+    "source_path": "extensions.md",
+    "source_anchor": "resources_discover",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "resources_discover",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "9d8ba465d542ce62b1dc32268c437923e94578bba5d92b5deee2430429143614",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::019",
+    "source_path": "extensions.md",
+    "source_anchor": "session-events",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "session-events",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "a38296accef0734a98b1501a7d33a63cf872dcff2cf81c42505503bcf3f61c29",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::020",
+    "source_path": "extensions.md",
+    "source_anchor": "session_start",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "session_start",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "26c6e642fd4cf0c58fcc09e14c8eb0af0b12acbcaa72b310c0d264c9321c7536",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::021",
+    "source_path": "extensions.md",
+    "source_anchor": "session_info_changed",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "session_info_changed",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "06a084c28946801906ca6d338efd0e7d0fcb61fadeb88d5d4b46045ac7671b27",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::022",
+    "source_path": "extensions.md",
+    "source_anchor": "session_before_switch",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "session_before_switch",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "d757eabe3a0ec4c8d3bc1ed8065e704e6361f2d7f1948a5d45c19568b6dae54e",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::023",
+    "source_path": "extensions.md",
+    "source_anchor": "session_before_fork",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "session_before_fork",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "a200b9a3168050c6ab6b5726e679479fe957de5cd0e6e13925c3aee2c92fb84a",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::024",
+    "source_path": "extensions.md",
+    "source_anchor": "session_before_compact-/-session_compact-/-session_compact_failed",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "session_before_compact-/-session_compact-/-session_compact_failed",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "e7c62a58a9a643b1d3e975def235ed08c246d5828789be184a1fe2c390fd7173",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::025",
+    "source_path": "extensions.md",
+    "source_anchor": "session_before_tree-/-session_tree",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "session_before_tree-/-session_tree",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "ed412c64ac45abcc8321e22c047bb56313cea43d761a9353589bb7e583e0d515",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::026",
+    "source_path": "extensions.md",
+    "source_anchor": "session_shutdown",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "session_shutdown",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "58abe2944275e3f20533434c9fb19adc6e40474d3cd435b140e32631f3d7a568",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::027",
+    "source_path": "extensions.md",
+    "source_anchor": "agent-events",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "agent-events",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "d7dbf2298d66262bff4fdd507844fe01c43a1100814e6ec02e9fa3fd164b8795",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::028",
+    "source_path": "extensions.md",
+    "source_anchor": "before_agent_start",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "before_agent_start",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "d5cae11dd33c27ea61eaa7a18dd9fe49605590eabb9d4053d17b2bd16ab643c4",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::029",
+    "source_path": "extensions.md",
+    "source_anchor": "agent_start-/-agent_end-/-agent_settled",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/extensions.md",
+      "lines": [
+        185,
+        197
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "1ffbda9a1e1f78360683030156b535ff200dad8a5a6ac3c6fbeb8897b36a9c7f",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "agent_start-/-agent_end-/-agent_settled",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "extensions::030",
+    "source_path": "extensions.md",
+    "source_anchor": "ui_prompt_start-/-ui_prompt_end",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/extensions.md",
+      "lines": [
+        203,
+        220
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "111e781908c0dc13806a3287d880fab0b635b30b860ece72fae7cd07b9aba7cc",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "ui_prompt_start-/-ui_prompt_end",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "extensions::031",
+    "source_path": "extensions.md",
+    "source_anchor": "turn_start-/-turn_end",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "turn_start-/-turn_end",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "52da74ce4c0a35c4e3e24fa33fe7f9789aa11dafd1d6bb0fe1873195444cc77c",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::032",
+    "source_path": "extensions.md",
+    "source_anchor": "message_start-/-message_update-/-message_end",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "message_start-/-message_update-/-message_end",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "0bff736f984705807d4ff575281bb4fd4f5e0c3893041a3b1cda77e72eec2c92",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::033",
+    "source_path": "extensions.md",
+    "source_anchor": "tool_execution_start-/-tool_execution_update-/-tool_execution_end",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "tool_execution_start-/-tool_execution_update-/-tool_execution_end",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "9b82d54d673f5de9f07aa6eed190b396dc2456440e1e136dd1eac9ce87115073",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::034",
+    "source_path": "extensions.md",
+    "source_anchor": "context",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "context",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "3578b26bc53570083368d9b4cf7f4d277c1742315b3c092ee12d60ea719378c0",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::035",
+    "source_path": "extensions.md",
+    "source_anchor": "before_provider_headers",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "before_provider_headers",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "5489fe8e598321f91b954c45c5e67404ef578ed22d6764a819bb9eb551f9b8d3",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::036",
+    "source_path": "extensions.md",
+    "source_anchor": "before_provider_request",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "before_provider_request",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "0f20eb1539091cd230dba4208e13b77abc689551d8bc565cfdfcdf5032545473",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::037",
+    "source_path": "extensions.md",
+    "source_anchor": "after_provider_response",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "after_provider_response",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "5d93b638631b5799532b62261e490b76aafae244974a8abad6cd491734b6364f",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::038",
+    "source_path": "extensions.md",
+    "source_anchor": "model-events",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "model-events",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "a2231dc4bf96cd843a43bd0e10902d47369cc7dc617cba4ff60d9c764cf3649f",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::039",
+    "source_path": "extensions.md",
+    "source_anchor": "model_select",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "model_select",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "ce2db402a11b5d05893ca3bec9300b230e175f83cc7df4520efc00dbfdc42a86",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::040",
+    "source_path": "extensions.md",
+    "source_anchor": "thinking_level_select",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "thinking_level_select",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "7d6165c1d6147cd5c66f72f947e71795a51c13c48d858fed980fde9402093904",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::041",
+    "source_path": "extensions.md",
+    "source_anchor": "tool-events",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "tool-events",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "2eb1d1fb405c05e6e116826e42570c205800c7c9f63c08116d3a248009cc90b6",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::042",
+    "source_path": "extensions.md",
+    "source_anchor": "tool_call",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "tool_call",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "a94e059c25911dbed27952ce8d8dbef3058687f899cb476cf726435060d85d77",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::043",
+    "source_path": "extensions.md",
+    "source_anchor": "typing-custom-tool-input",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "typing-custom-tool-input",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "deaa5de9c2f5f9b8dbde247c6407475eedea16d30742caf9128c3c3ce4bc9c05",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::044",
+    "source_path": "extensions.md",
+    "source_anchor": "tool_result",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "tool_result",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "2409a861f8fc97a71fae0f4b9693901acf6d90b54119157c67376ae4553eb90b",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::045",
+    "source_path": "extensions.md",
+    "source_anchor": "user-bash-events",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "user-bash-events",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "978eb965f90d2e372f5badffc6cf0f759bea0e6b91f1895cdcdf9a66813ecea2",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::046",
+    "source_path": "extensions.md",
+    "source_anchor": "user_bash",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "user_bash",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "fa9f479885e1e35225ab13610dc9c67a1e7c9ab5a9f765d08685e9828024a878",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::047",
+    "source_path": "extensions.md",
+    "source_anchor": "input-events",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "input-events",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "f5ad8fc1d8726c0b8c831c88c6b08bf2f9cdd368c3715212f7ae616c436df8ad",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::048",
+    "source_path": "extensions.md",
+    "source_anchor": "input",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/events.md",
+      "anchor": "input",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [],
+    "target_sha256": "284bd2fe721dcc66b887a26aed7c3484577b5f5aab80d13d0a3038a9d3c63a59",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "Direct `session.steer()` and `session.followUp()` calls also run input handlers before skill/template expansion and queue admission. A handled input is not queued; transformed text and images are queued instead. Their optional third argument sets `source`, defaulting to `interactive`; RPC queue commands use `rpc`."
+    ]
+  },
+  {
+    "id": "extensions::049",
+    "source_path": "extensions.md",
+    "source_anchor": "extensioncontext",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "extensioncontext",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "256ae92653c00c3175fa5a080f6aa9ecd8d4ac5ff2167e00f8ec81b0e0829a3a",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::050",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-ui",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-ui",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](#custom-ui)",
+        "to": "](/extensions/ui#custom-ui)"
+      }
+    ],
+    "target_sha256": "3002629b12415762d241cbdcfd9a8bcea0c3e59e97e44d0fa4953547eb1a0607",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::051",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-hasui",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-hasui",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](/rpc#extension-ui-protocol)",
+        "to": "](/rpc/extension-ui#extension-ui-protocol)"
+      }
+    ],
+    "target_sha256": "14d828886dcc7e3a17cbcd6db2a14a38cabb71e42bad7fd3005e522d7cea8af6",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::052",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-cwd",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-cwd",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "39a5e4425556f739eec01737ca5587c5f0fe4985547977b2e85d4fc827e13a4c",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::053",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-isprojecttrusted",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-isprojecttrusted",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "3c14b1ea7485d33e1b342e3c13b6985c99fdffaeadcac67ae8a2f349b3c4792d",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::054",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-sessionmanager",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-sessionmanager",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "62ea58ce7918848feff59b0ccbdad4ec68592b51e20dece9904d558f8018a1bc",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::055",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-modelregistry-/-ctx-model-/-ctx-scopedmodels",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-modelregistry-/-ctx-model-/-ctx-scopedmodels",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [],
+    "target_sha256": "f77f40b710a3daa113c2e33b6fe67d7d23e22b783518eaa6c289054c2e7072b6",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "For streaming requests, use `ctx.modelRegistry.streamSimple(model, context, options)` with provider-neutral options, or `stream()` with API-specific options. Both use configured providers and request-time authentication, including extension registrations. Iterate the returned `AssistantMessageEventStream` for events and await `.result()` for the final message. Setup failures produce error events and error results. The global compatibility streaming functions do not see extension provider registrations."
+    ]
+  },
+  {
+    "id": "extensions::056",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-signal",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-signal",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "b4460b35198cf5ca85a014ad2beb9f693dfcb73dfe5ad25c3cd61c85024d2d5f",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::057",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-isidle-/-ctx-abort-/-ctx-haspendingmessages",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-isidle-/-ctx-abort-/-ctx-haspendingmessages",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "3aa179d0d54bdecfcd813ca504f12ee631739e9bd26f3484796d1db8ca2370c3",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::058",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-isprojecttrusted-2",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-isprojecttrusted-2",
+      "occurrence": 2
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "73a6f5f0b5dcdfd06efe481123d9e90f3a6664b7a95a7de4a66feebec9278e50",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::059",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-shutdown",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-shutdown",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "4da861c118e2022fa2a59899afcbf6fc4c577caf1749877ca58774831d58e74e",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::060",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-getcontextusage",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-getcontextusage",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "24a4d27945f97408b6aaa420b06ac1f515983234bce46e0579f00f6113e1eee3",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::061",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-compact",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-compact",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "9c87d51dd541cab81149dfa4ffd6c5eb1904da50c554aac5f3c95c3b7dd1d2a1",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::062",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-getsystemprompt",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-getsystemprompt",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "b828935cfb2fdcf3c1901f2a99ad2ee44a72ba25b126619b69798d8a961e3305",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::063",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-getskillcatalog",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-getskillcatalog",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "b6599a1f7d606905164cd9780b9d23718ae5573b803a0db701083a23784ea2c4",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::064",
+    "source_path": "extensions.md",
+    "source_anchor": "extensioncommandcontext",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "extensioncommandcontext",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "5cff076db673c5708fe4f792299b6311ae88b642bf1bba4d6d4886920815cd7f",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::065",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-waitforidle",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-waitforidle",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "cf4c473040aaa9abc934f37e54e09ba51092116c59e2a82a7e558c846bb96b40",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::066",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-newsession-options",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-newsession-options",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "a5dc569c89f8ebe40445c39fbb53ae610754413de5a5fc875b5265dad7844c09",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::067",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-fork-entryid-options",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-fork-entryid-options",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "6dcbdd281992cb70303f2aaf1c0fce741c0624d5af66683967ed5ae2bb8652da",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::068",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-navigatetree-targetid-options",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/extensions.md",
+      "lines": [
+        323,
+        340
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "d417d317450fbef9000f1372b05181135c25492b7f4aea21e68c055ce76a126a",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-navigatetree-targetid-options",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "extensions::069",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-switchsession-sessionpath-options",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-switchsession-sessionpath-options",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "96de7613de74b3e9a803904842ceeba517b0d77cb95199045816f88bd38b95eb",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::070",
+    "source_path": "extensions.md",
+    "source_anchor": "session-replacement-lifecycle-and-footguns",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "session-replacement-lifecycle-and-footguns",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "d9a00ed40b39070a1822fff2ff219babc49eb0b916868c9064ca4cdbf4ec473f",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::071",
+    "source_path": "extensions.md",
+    "source_anchor": "ctx-reload",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "ctx-reload",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "54f9dd51ea29ebf336c5b1616eb7b8d331b30087300705cfc2030a8a17b8395c",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::072",
+    "source_path": "extensions.md",
+    "source_anchor": "extensionapi-methods",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "extensionapi-methods",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "644d84e13c28825af3f11f92391a4b3d8830c0d0f5256a75c710278ff81081d8",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::073",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-on-event-handler",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-on-event-handler",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](#events)",
+        "to": "](/extensions/events#events)"
+      }
+    ],
+    "target_sha256": "33f43c5ec764d3ee16bb564ffd3aaf350234b6be5d7c61c2c4a4b47c9f3f8e12",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::074",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-registertool-definition",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-registertool-definition",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](#custom-tools)",
+        "to": "](/extensions/authoring#custom-tools)"
+      }
+    ],
+    "target_sha256": "19519567d5a0013fc64d8c535bb220361d8edb405ee0602f9237c9a5117dece3",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::075",
+    "source_path": "extensions.md",
+    "source_anchor": "built-in-tool-prompt-contributions",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "built-in-tool-prompt-contributions",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "c353301c19190a73bb7f4c186e9a3e71ebaae9da4d18437184a29ea0d6e28eeb",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::076",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-sendmessage-message-options",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-sendmessage-message-options",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "1ae672cd752ae3235daa425d9591d72cd6e200736c6071b8ebbb5dcc108557e4",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::077",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-sendmessages-messages-options",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-sendmessages-messages-options",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "6c0a39863f2100f302e63c50fdde09319d914eee2cf1c29a2c214aaeeac89cf6",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::078",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-sendusermessage-content-options",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-sendusermessage-content-options",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "65367a4eb3997fc817db3ffc9b724e20d9860eeb12ec3a33044b908c84aa6eb3",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::079",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-appendentry-customtype-data",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-appendentry-customtype-data",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "9dde36cfe70ba79bcedcb048d1d64d8862a79a982ef5feef4aa054744bedd578",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::080",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-registerentryrenderer-customtype-renderer",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-registerentryrenderer-customtype-renderer",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "7fee4a99f2496bd13ba67998f621bed87ef2845729f5f805c0c87991c0504e52",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::081",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-setsessionname-name",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-setsessionname-name",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "b50d6b90e2196828c1bdc7fd89a06288ec6d2c7921a1667619b82f84d413ec0d",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::082",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-getsessionname",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-getsessionname",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "536795fcaea6c4dfa754e465e04f4bb59282357bb20047839f9e1abbfb112b32",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::083",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-setlabel-entryid-label",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-setlabel-entryid-label",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "5a882d6c932862ccb406a73b4c0e31da4277700d7b2a18cd4a0f829deebd2019",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::084",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-registercommand-name-options",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-registercommand-name-options",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "820ed207cde5d7c399884fc0b7a69193088b04b26ec547f9c581e46f848de740",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::085",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-getcommands",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-getcommands",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "240488d7b9a9eee8f605ab0737aa9273b37dd71a3a42ed0cb49ccc6467b8af7d",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::086",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-registermessagerenderer-customtype-renderer",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-registermessagerenderer-customtype-renderer",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](#custom-ui)",
+        "to": "](/extensions/ui#custom-ui)"
+      }
+    ],
+    "target_sha256": "18d7ed5b2ed689e80301aa12e61f2e70efa67904d73c12c567ccd98d894104bf",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::087",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-registermarkdowntransformer-transformer",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-registermarkdowntransformer-transformer",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "f223f36bce50e24fafebf80359e2422ea04c1b6ea7cf7c1feefdda3e4ab2921f",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::088",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-registershortcut-shortcut-options",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-registershortcut-shortcut-options",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "e551abeea84390b08c50d64ee5f2e15f532604c9983f95f4e58a25083924f075",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::089",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-registerflag-name-options",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-registerflag-name-options",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "021e61de5b3e15a1717950dc4202036faa219bbd2a31e5d01bb4e755932d047e",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::090",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-exec-command-args-options",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-exec-command-args-options",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "e4704d6318695d27ca8509cafda1ec38dd30aea982bbdd81c6c887716b7cc42b",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::091",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-getactivetools-/-pi-getalltools-/-pi-setactivetools-names",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-getactivetools-/-pi-getalltools-/-pi-setactivetools-names",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "4d43a8dbab659cd55593e5540aa0a068b49feb365f59c743a2b17510c5ca7fb4",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::092",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-setmodel-model",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-setmodel-model",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "430732288fc011b3434a6706b2c7d5c23f47103e95049f77da82481b73abf591",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::093",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-getthinkinglevel-/-pi-setthinkinglevel-level",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-getthinkinglevel-/-pi-setthinkinglevel-level",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "78beade383c3bf4898a266d349c035e0a21a6beff89735d45ed478ba455a5585",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::094",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-events",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-events",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](#session-scoped-in-memory-state)",
+        "to": "](/extensions/authoring#session-scoped-in-memory-state)"
+      }
+    ],
+    "target_sha256": "71a841d993492a2de074541ae287cf8f61e1a87a10b1fdb95ccc8c308c58bc48",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::095",
+    "source_path": "extensions.md",
+    "source_anchor": "native-providers",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "native-providers",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "9674f2daa243afb5aa25ce653868b017087980b7a0022918d75b62123e447564",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::096",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-registerprovider-name-config",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-registerprovider-name-config",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "83e47f32f0de5d6a4d558fedaec093ceff49e7b088062ac18d99f168ff5b88b6",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::097",
+    "source_path": "extensions.md",
+    "source_anchor": "pi-unregisterprovider-name",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "pi-unregisterprovider-name",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "f65cb086f63e4cb34143f4f49b654a6944d6a14bd9fb3ceb35d001af07128ded",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::098",
+    "source_path": "extensions.md",
+    "source_anchor": "state-management",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "state-management",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "80f2594d5f894c4128f59f6e6f9b31973136fa418437ef5dc3fa8d1016795a1b",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::099",
+    "source_path": "extensions.md",
+    "source_anchor": "session-scoped-in-memory-state",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "session-scoped-in-memory-state",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "0061fd8a4cba459db0f15cb782eb92476b31269fabc8165f80a7cc93a0881c37",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::100",
+    "source_path": "extensions.md",
+    "source_anchor": "custom-tools",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "custom-tools",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "23c4a761f1bc4e7fa4e056d0477256c95c8fd76eb12d0daf90d558c8cef75fac",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::101",
+    "source_path": "extensions.md",
+    "source_anchor": "tool-definition",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "tool-definition",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [],
+    "target_sha256": "b9e8fe34018820f5967c899373099b438b6fdbd5d55aca9a2abbecd9c62ec92d",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "`parameters` is required, including for no-argument tools (use `Type.Object({})`). Registration rejects missing, null, array, and primitive schema values before they can break a provider request. This checks the schema container, not its JSON Schema `type`: object-valued union and non-object-type schemas remain accepted and unchanged."
+    ]
+  },
+  {
+    "id": "extensions::102",
+    "source_path": "extensions.md",
+    "source_anchor": "constrained-sampling",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "constrained-sampling",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](/models#constrained-tool-sampling)",
+        "to": "](/models/reference#constrained-tool-sampling)"
+      },
+      {
+        "kind": "link",
+        "from": "](/rpc#get_available_models)",
+        "to": "](/rpc/protocol#get_available_models)"
+      }
+    ],
+    "target_sha256": "d5493a6f1a39c16fd26a91060fa0fddd636171a5fe0b1be5cb39cd6e2f010351",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "Built-in `read`, `edit`, `write`, `bash`, and its Windows PowerShell variant request strict JSON-schema sampling with `prefer` by default. This is a provider hint, not a schema rewrite or a sandbox. Unsupported providers retain ordinary tool calling. Other experimental tool hints still follow the experimental environment flag."
+    ]
+  },
+  {
+    "id": "extensions::103",
+    "source_path": "extensions.md",
+    "source_anchor": "overriding-built-in-tools",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "overriding-built-in-tools",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "4ef9783e3c79842643b8ab9727e53fc719e281d51f82bda405b091f333bbdb70",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::104",
+    "source_path": "extensions.md",
+    "source_anchor": "remote-execution",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "remote-execution",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "025ae69ba438fe08bbad303b5f1d2fb92a192616736cec6de2d7679921c3f4aa",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::105",
+    "source_path": "extensions.md",
+    "source_anchor": "output-truncation",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "output-truncation",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "51fb9a5061814c9d7ba753535c4b7105a7864f588af5a574fc55a56a8173a57b",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::106",
+    "source_path": "extensions.md",
+    "source_anchor": "multiple-tools",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "multiple-tools",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "b988c714aeb5cebdfc29c342525d80a79db53b08e1113d791f5733e9ad01103a",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::107",
+    "source_path": "extensions.md",
+    "source_anchor": "custom-rendering",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "custom-rendering",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "5cbaf3f1c9ccbff79dcb78d0c062a76bada3a4bee8769e70ad7113a1aa28d5cc",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::108",
+    "source_path": "extensions.md",
+    "source_anchor": "rendercall",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "rendercall",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "b788b09764f2f947c677a5094e39902431bf44665dc6ee9ddd08dafb736330cc",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::109",
+    "source_path": "extensions.md",
+    "source_anchor": "renderresult",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "renderresult",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "eb14e3cba3808deb07d2b53941dc8b974cb57cbb7fa40ec294ea29d1d236621f",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::110",
+    "source_path": "extensions.md",
+    "source_anchor": "keybinding-hints",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "keybinding-hints",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "88f9c7727a2577ba8b2ef11700d7cdcd106acd799bee644243c34e82ecf29e33",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::111",
+    "source_path": "extensions.md",
+    "source_anchor": "best-practices",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "best-practices",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "c6c40285ff5dcbc2561aa871b1ac4f2211513928d26ed8645e826c80d9909205",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::112",
+    "source_path": "extensions.md",
+    "source_anchor": "fallback",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/authoring.md",
+      "anchor": "fallback",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "45253ce5ea835a83ae61abf425c7cba26c33dde085a61cb8cfd67646ae05fa87",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::113",
+    "source_path": "extensions.md",
+    "source_anchor": "custom-ui",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/ui.md",
+      "anchor": "custom-ui",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "14e55f9070a2ae0f206f5aa754291109cc96ed673d71335a5162bc6ba332e73f",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::114",
+    "source_path": "extensions.md",
+    "source_anchor": "dialogs",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/ui.md",
+      "anchor": "dialogs",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "015821dcfa6de203d79c18035cab0870d561d8733bc2bb65db76cf3922455472",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::115",
+    "source_path": "extensions.md",
+    "source_anchor": "timed-dialogs-with-countdown",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/ui.md",
+      "anchor": "timed-dialogs-with-countdown",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "7e6f4568eab85098a0dd4c6d80eaa553057a103a59915d0aefe814fffbf1816d",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::116",
+    "source_path": "extensions.md",
+    "source_anchor": "manual-dismissal-with-abortsignal",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/ui.md",
+      "anchor": "manual-dismissal-with-abortsignal",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "c66cfb27f3bcde1bb1aee6af0324e08f2ab18c61009cace0504c8da8fcffcef8",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::117",
+    "source_path": "extensions.md",
+    "source_anchor": "widgets-status-and-footer",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/ui.md",
+      "anchor": "widgets-status-and-footer",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "5d7b53c9473c66a1002df07d4dfa21799fa2254cf38c8977d96fa3c90bbdbbdf",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::118",
+    "source_path": "extensions.md",
+    "source_anchor": "autocomplete-providers",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/ui.md",
+      "anchor": "autocomplete-providers",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "28c50fac7122a94684c28329ec0828e3eb2a2d31e2147d1a0b4cf13f098b3fb4",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::119",
+    "source_path": "extensions.md",
+    "source_anchor": "custom-components",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/ui.md",
+      "anchor": "custom-components",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](#interactive-callback-isolation)",
+        "to": "](/extensions#interactive-callback-isolation)"
+      }
+    ],
+    "target_sha256": "6c5b388cbeddd569a58e0e20b6ec4984cde4a7418bb6f866193a9f63bfb0ede2",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::120",
+    "source_path": "extensions.md",
+    "source_anchor": "overlay-mode-experimental",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/ui.md",
+      "anchor": "overlay-mode-experimental",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "26f96cfb4b2763c7e2124f9d23312df3ed360aca6eef9065279a6a5d1d0ce4be",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::121",
+    "source_path": "extensions.md",
+    "source_anchor": "custom-editor",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/ui.md",
+      "anchor": "custom-editor",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "7f72eeeef2871daa19c8a1eb0a1f1f0687c735e041163a28ec594adc16c957eb",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::122",
+    "source_path": "extensions.md",
+    "source_anchor": "message-rendering",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/ui.md",
+      "anchor": "message-rendering",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "9be481196b691fd43105d98e51c78a9714e850e050898a5348f2282288d39b96",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::123",
+    "source_path": "extensions.md",
+    "source_anchor": "theme-colors",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/ui.md",
+      "anchor": "theme-colors",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "11822cf785fd939b7a305b557b9c08f7d79a47a6983ce44e9eeaaf3829d96db5",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::124",
+    "source_path": "extensions.md",
+    "source_anchor": "error-handling",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/api-reference.md",
+      "anchor": "error-handling",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "7ed5722a4858335192e651c8c68ae39bdacc97a2b00900e99203340e137d01f1",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::125",
+    "source_path": "extensions.md",
+    "source_anchor": "mode-behavior",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions.md",
+      "anchor": "mode-behavior",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "28025c8a31b2d1caf286096d3875b9dcd53efd6b8647aeb256ae44a8028a537f",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "extensions::126",
+    "source_path": "extensions.md",
+    "source_anchor": "examples-reference",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/extensions/examples.md",
+      "anchor": "examples-reference",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "ecbf30ee8715e3d743ad38dd1bb33ce1307cc7b061f8043956a07382a5b7d5bd",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "index::001",
+    "source_path": "index.md",
+    "source_anchor": null,
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/index.md",
+      "anchor": null,
+      "occurrence": null
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "471c7bf573eccbdc6a5d3d2b5d024c404d4f499d90bdd74628920fdbddcc234e",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "index::002",
+    "source_path": "index.md",
+    "source_anchor": "atomic-documentation",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/index.md",
+      "anchor": "atomic-documentation",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "371e59aac888b5346799bfad62e38d49398dbaba65458ef33476863c80ea72b9",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "index::003",
+    "source_path": "index.md",
+    "source_anchor": "quick-start",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/index.md",
+      "anchor": "quick-start",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](/quickstart#release-archive)",
+        "to": "](/getting-started/installation#release-archive)"
+      }
+    ],
+    "target_sha256": "a1bd878068a9824cf68e103d973e97e3e62fb0d173f6efad8b85be3d5d9abe18",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "index::004",
+    "source_path": "index.md",
+    "source_anchor": "start-here",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/guides.md",
+      "anchor": "start-here",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [],
+    "target_sha256": "ddb7d94b3b87e6808a0f72717a43f28eaef60778716b9408e730651294fdc318",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "- [Background tasks](/background-tasks) - run work in the background, inspect results, and stop owned tasks.",
+      "- [Herdr](/herdr) - report Atomic's working, blocked, and idle states in Herdr panes."
+    ]
+  },
+  {
+    "id": "index::005",
+    "source_path": "index.md",
+    "source_anchor": "customization",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/build.md",
+      "anchor": "customization",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "f49585385dd50d3a51d96a365e42fcadf558ad01b74666fb7cc7cbb70abbc77d",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "index::006",
+    "source_path": "index.md",
+    "source_anchor": "programmatic-usage",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/build.md",
+      "anchor": "programmatic-usage",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "9de7f60e2c89a33ba7ac35d12c09bdd8238543dfed0790fa62563b72c5f5ed6d",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "index::007",
+    "source_path": "index.md",
+    "source_anchor": "reference",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/reference.md",
+      "anchor": "reference-2",
+      "occurrence": 2
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "2a43fda8c3c318a33f59cbd8f6b216e7df975e2bb1947a126cef33a2527e6807",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "index::008",
+    "source_path": "index.md",
+    "source_anchor": "platform-setup",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/reference.md",
+      "anchor": "platform-setup",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "35452ab892664356155527adbb1265a3c63f2d5783c1f639eb06a28fd59c19a4",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "index::009",
+    "source_path": "index.md",
+    "source_anchor": "development",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/reference.md",
+      "anchor": "development",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "c31d14b0e0e6a8aa2979829d99afc0dbe298ecdb0b3efb0b51672674682b5341",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "intercom::001",
+    "source_path": "intercom.md",
+    "source_anchor": null,
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom.md",
+      "anchor": null,
+      "occurrence": null
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "e144dfdcb3c25c83afb5b778bf9d6abb480433f0616d9662b8c532779378bc9b",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "intercom::002",
+    "source_path": "intercom.md",
+    "source_anchor": "intercom",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom.md",
+      "anchor": "intercom",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "6b5826435ff5d1851eff7d4fc559db58fcb3e73ea2cb990a912e75b981148057",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "intercom::003",
+    "source_path": "intercom.md",
+    "source_anchor": "table-of-contents",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom.md",
+      "anchor": "table-of-contents",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](#how-connection-works)",
+        "to": "](/intercom/operations#how-connection-works)"
+      },
+      {
+        "kind": "link",
+        "from": "](#the-intercom-tool)",
+        "to": "](/intercom/reference#the-intercom-tool)"
+      },
+      {
+        "kind": "link",
+        "from": "](#actions)",
+        "to": "](/intercom/reference#actions)"
+      },
+      {
+        "kind": "link",
+        "from": "](#targeting-sessions-and-pending-workflow-stages)",
+        "to": "](/intercom/reference#targeting-sessions-and-pending-workflow-stages)"
+      },
+      {
+        "kind": "link",
+        "from": "](#deferred-delivery-to-pending-stages)",
+        "to": "](/intercom/reference#deferred-delivery-to-pending-stages)"
+      },
+      {
+        "kind": "link",
+        "from": "](#send-vs-ask-vs-reply)",
+        "to": "](/intercom/reference#send-vs-ask-vs-reply)"
+      },
+      {
+        "kind": "link",
+        "from": "](#attachments)",
+        "to": "](/intercom/reference#attachments)"
+      },
+      {
+        "kind": "link",
+        "from": "](#workflow-and-subagent-notifications)",
+        "to": "](/intercom/operations#workflow-and-subagent-notifications)"
+      },
+      {
+        "kind": "link",
+        "from": "](#workflow-delivery-modes)",
+        "to": "](/intercom/operations#workflow-delivery-modes)"
+      },
+      {
+        "kind": "link",
+        "from": "](#subagent-control-notices)",
+        "to": "](/intercom/operations#subagent-control-notices)"
+      },
+      {
+        "kind": "link",
+        "from": "](#delivery-ordering)",
+        "to": "](/intercom/operations#delivery-ordering)"
+      },
+      {
+        "kind": "link",
+        "from": "](#configuration)",
+        "to": "](/intercom/reference#configuration)"
+      },
+      {
+        "kind": "link",
+        "from": "](#keyboard-shortcuts)",
+        "to": "](/intercom/operations#keyboard-shortcuts)"
+      },
+      {
+        "kind": "link",
+        "from": "](#how-it-works)",
+        "to": "](/intercom/operations#how-it-works)"
+      },
+      {
+        "kind": "link",
+        "from": "](#limitations)",
+        "to": "](/intercom/operations#limitations)"
+      }
+    ],
+    "target_sha256": "936c532f14f9750354606320541ec4b6aef65c88f03613ecc9bec6b0b5cb8aa7",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "intercom::004",
+    "source_path": "intercom.md",
+    "source_anchor": "quick-start",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom.md",
+      "anchor": "quick-start",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "81b69564c81816b5cfc0a5203d9dd384c270037954151fb87f3e9b5289fa6079",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "intercom::005",
+    "source_path": "intercom.md",
+    "source_anchor": "from-the-keyboard",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom.md",
+      "anchor": "from-the-keyboard",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "aac2ea1419ed98903ed80ffbea935c32d58f196d773c80dca3fbc3828c53e3ac",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "intercom::006",
+    "source_path": "intercom.md",
+    "source_anchor": "from-the-agent",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom.md",
+      "anchor": "from-the-agent",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "477bfe3a28f28985a86abf0da256b1ef11dd3dbe815b2311980176eb007784e2",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "intercom::007",
+    "source_path": "intercom.md",
+    "source_anchor": "receiving-messages",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom.md",
+      "anchor": "receiving-messages",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [],
+    "target_sha256": "7b5cda79bbce9e40f020cae361a7b07761e192b410e919d3335bacb5a1ede1d4",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "A busy non-interactive recipient can refuse a message without interrupting its task. A successful `send` receipt acknowledges transport delivery, not acceptance by the recipient's model. The refusal carries the original reply thread: a waiting `ask` returns an error; otherwise the sender sees **Intercom delivery failed** feedback with a `Sent:` timestamp. That feedback bypasses the ordinary idle queue and does not trigger a standalone agent turn. During an active turn, protected delivery makes it visible and reconciles it at a protocol-safe boundary. Its wording describes the refused send, not the recipient's later activity."
+    ]
+  },
+  {
+    "id": "intercom::008",
+    "source_path": "intercom.md",
+    "source_anchor": "how-connection-works",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/intercom.md",
+      "lines": [
+        30,
+        42
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "df892ac7043b3012d703071366bb5b5af55633417364c71312e58b0fdde15254",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/intercom/operations.md",
+      "anchor": "how-connection-works",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "intercom::009",
+    "source_path": "intercom.md",
+    "source_anchor": "the-intercom-tool",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom/reference.md",
+      "anchor": "the-intercom-tool",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "5eaab40998570e45506653b7e2a1410dec4e2ee94d3b72a0975283a79fe1badd",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "intercom::010",
+    "source_path": "intercom.md",
+    "source_anchor": "actions",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/intercom.md",
+      "lines": [
+        48,
+        70
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "4dcc9f466c7e237fd300ce59bef41e9f8cffdfe1b274b1ef224d43b33a4600d4",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/intercom/reference.md",
+      "anchor": "actions",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "intercom::011",
+    "source_path": "intercom.md",
+    "source_anchor": "targeting-sessions-and-pending-workflow-stages",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom/reference.md",
+      "anchor": "targeting-sessions-and-pending-workflow-stages",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [],
+    "target_sha256": "65480910ddc3ea42d02ceaea13d6e760ab16d01b13b8a46b2a92a96ad6a23477",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "Known non-agent IDs, names, and workflow paths are refused rather than delivered or queued for a future agent. This includes run-level `ctx.ui` prompts, synthetic prompt stages (including retained completed prompts), and `ctx.tool` nodes. Knowing an internal connection's ID does not bypass this broker policy, and supervisor delivery cannot bypass it either. Workflow patterns and `workflow:<rootRunId>/**` still queue for future agent stages, but never deliver to prompt/tool nodes or routing connections.",
+      "This refusal also covers nested paths using boundary-stage names or IDs, mixed with materialized run-ID segments. The same spellings still resolve genuine agent stages.",
+      "A genuine agent's registered aliases remain valid when its pending-delivery capability is unavailable or its stage completes, even if a non-agent node shares its display name. The host retains that agent identity separately from discovery eligibility so aliases can be restored after an agent or broker reconnect. An agent's human-input wait is not a model-less `ctx.ui` node.",
+      "If several live agent stages share a workflow-stage name, `ask` remains ambiguous: use an exact stage-ID path from `intercom list`. Name-based `send` retains sticky delivery to matching agents. A prompt or tool with that same name does not turn genuine-agent matches into non-agent refusals."
+    ]
+  },
+  {
+    "id": "intercom::012",
+    "source_path": "intercom.md",
+    "source_anchor": "deferred-delivery-to-pending-stages",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom/reference.md",
+      "anchor": "deferred-delivery-to-pending-stages",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "18fef694c1dd92bb0d0d25c464e342bc527334e2c7973aa16780dbd483688b53",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "intercom::013",
+    "source_path": "intercom.md",
+    "source_anchor": "groups",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/intercom.md",
+      "lines": [
+        86,
+        97
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "d9f685a1ad1fa4c27295990336d45b4815b95983d5f6c3ef522a78226c2d9a29",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/intercom/reference.md",
+      "anchor": "groups",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "intercom::014",
+    "source_path": "intercom.md",
+    "source_anchor": "send-vs-ask-vs-reply",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/intercom.md",
+      "lines": [
+        103,
+        111
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "19d058b1d3b2371335dc4a466e7c9467922718162c884652e97a7c082913fd06",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/intercom/reference.md",
+      "anchor": "send-vs-ask-vs-reply",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "intercom::015",
+    "source_path": "intercom.md",
+    "source_anchor": "attachments",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom/reference.md",
+      "anchor": "attachments",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "1968a607aeb50a58656d3a01460616f7951cc996cf9c66ef5b3ea9c442180fde",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "intercom::016",
+    "source_path": "intercom.md",
+    "source_anchor": "coordination-patterns",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom.md",
+      "anchor": "coordination-patterns",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "b245afa05ad50fb54e747ed3263aeef2dd596c40460fefb36a77608b5d8f8141",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "intercom::017",
+    "source_path": "intercom.md",
+    "source_anchor": "subagent-escalation-contact_supervisor",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom.md",
+      "anchor": "subagent-escalation-contact_supervisor",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "e40afc053e5a66baa490047e46dab917c90727aed8a07aced63c65619db3810e",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "intercom::018",
+    "source_path": "intercom.md",
+    "source_anchor": "when-the-tool-appears",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/intercom.md",
+      "lines": [
+        117,
+        127
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "1d71c99d61fb5d3438337b5b54d95406b3919d83e1396a04ed3e90c592272f06",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/intercom.md",
+      "anchor": "when-the-tool-appears",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "intercom::019",
+    "source_path": "intercom.md",
+    "source_anchor": "the-three-reasons",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/intercom.md",
+      "lines": [
+        133,
+        157
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "6f8c293883e8796f3458e1ba83b94666c71f51aec276a431a874a5750811d2ab",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/intercom.md",
+      "anchor": "the-three-reasons",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "intercom::020",
+    "source_path": "intercom.md",
+    "source_anchor": "what-the-supervisor-sees",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/intercom.md",
+      "lines": [
+        163,
+        180
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "417aebacaeda593438cf9213aa5ef8ec3717d760ce66e61b42bcb3b7f4e1b2cb",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/intercom.md",
+      "anchor": "what-the-supervisor-sees",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "intercom::021",
+    "source_path": "intercom.md",
+    "source_anchor": "structured-interview-replies",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/intercom.md",
+      "lines": [
+        186,
+        215
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "6842ca77c57b30d969bdbc8eb86bb5ad102e173c78701e788bae8e5a774fb183",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/intercom.md",
+      "anchor": "structured-interview-replies",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "intercom::022",
+    "source_path": "intercom.md",
+    "source_anchor": "workflow-and-subagent-notifications",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom/operations.md",
+      "anchor": "workflow-and-subagent-notifications",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "8198efc660800d9cb4ee86216caed8a19f15f34bfb407176812856ea620122b5",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "intercom::023",
+    "source_path": "intercom.md",
+    "source_anchor": "workflow-delivery-modes",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/intercom.md",
+      "lines": [
+        221,
+        241
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "2b6ddb111f9e0eb0cb580964c3484ea181910bc73c3ad1683a8c77a21654d705",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/intercom/operations.md",
+      "anchor": "workflow-delivery-modes",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "intercom::024",
+    "source_path": "intercom.md",
+    "source_anchor": "subagent-control-notices",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/intercom.md",
+      "lines": [
+        247,
+        256
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "3d9f2e47aedb9dc1efa3bb2b45fdb98be807117654281ea607e2212746cd9ceb",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/intercom/operations.md",
+      "anchor": "subagent-control-notices",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "intercom::025",
+    "source_path": "intercom.md",
+    "source_anchor": "delivery-ordering",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/intercom.md",
+      "lines": [
+        262,
+        266
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "eadf6769610f9da11f014a5880693b300f10167639b784b8cc31caf7a4790934",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/intercom/operations.md",
+      "anchor": "delivery-ordering",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "intercom::026",
+    "source_path": "intercom.md",
+    "source_anchor": "configuration",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom/reference.md",
+      "anchor": "configuration",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](#groups)",
+        "to": "](/intercom/reference#groups)"
+      }
+    ],
+    "target_sha256": "6d2de43f9e8236ec6c938731c99ccbfaeb5f2c7ea0641c21286481deb9cc9f7c",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "Activity is not reply capability. Session rows include `replyCapability: live` or `terminal` when the host supplies it; terminal noninteractive children cannot answer asks even if activity says `idle`. Closed workflow generations show `closed · reply: post-mortem only` when a late-message router is present, or `closed · reply: unavailable` without one. Post-mortem routing still validates the retained conversation and can return a bounded error if it is unavailable; it never resumes workflow execution. Missing capability metadata is not a guarantee that an ask can succeed. Invocation/subgroup visibility and stale-ID rejection are unchanged.",
+      "For a retained post-mortem conversation, use its exact Intercom session ID or the previously listed canonical stage path, including its final-stage-name variant. Alternate materialized run-ID paths resolve active stages through the workflow owner; they are not retained aliases after the stage completes. A stage marked `reply: unavailable` rejects an ask with guidance to contact a live stage or start new work with explicit context."
+    ]
+  },
+  {
+    "id": "intercom::027",
+    "source_path": "intercom.md",
+    "source_anchor": "keyboard-shortcuts",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom/operations.md",
+      "anchor": "keyboard-shortcuts",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "a7b88e0fdae8d51248cbbff8e4642853edb2be4f562abfd900a86ee82c558ca4",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "intercom::028",
+    "source_path": "intercom.md",
+    "source_anchor": "how-it-works",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom/operations.md",
+      "anchor": "how-it-works",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [],
+    "target_sha256": "5bd54db1ee64ae4469caee263b0e4c366a7a1d35d261ba003e0a476f9e25449d",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "For `send`, `ask`, and `reply`, the tool owns reconnect recovery. One invocation makes the initial attempt and up to three retries, waiting 1, 2, then 5 seconds between attempts. Retries preserve the original message ID, caller arguments, attachment order and presence, and reply thread. The model neither supplies nor receives a retry token. Every new invocation is a fresh intentional operation, even with identical text. Existing integrations must stop passing `retryToken`; caller-supplied tokens are refused without sending.",
+      "Before delivery begins, lazy module initialization and startup replay have a separate limit of three reconnect retries on the same delay schedule. Exhaustion or cancellation there reports `outcome: \"not_sent\"`, since the heavy tool has not executed. This initialization wrapper never retries an already-executed delivery.",
+      "Only typed recoverable disconnects start automatic recovery. After one occurs, intermediate nondelivery or uncertain/capacity-bound authority retains the same identity for the remaining attempts. Delivered or queued success ends recovery. An unrelated error ends it without further retries. Cancellation stops new attempts, and the original 11-minute operation deadline bounds retry waits and reply waiting without renewal. A successful receipt remains success even if cancellation arrives while the send is in flight. If recovery cannot establish the outcome, or an accepted ask ends without a reply, the tool returns a terminal error with `outcome: \"unknown\"` and warns against automatically repeating the operation: delivery may already have occurred. Check with the recipient before intentionally sending a new message. Initial nondelivery and unrelated pre-delivery errors retain their existing classification.",
+      "Accepted-operation authority is stored for 12 minutes in `delivered-messages.sqlite`, but canonical payload signatures are never persisted. The broker stores only a fixed 32-byte keyed SHA-256 HMAC (hex encoded) and keeps its random key in the paired `delivered-messages.key`; this remains stable across broker replacement without exposing message or attachment text or enabling offline guesses for low-entropy payloads by users who cannot read the key. The Intercom directory is corrected to owner-only mode (`0700`) and the database, WAL, SHM, and key artifacts to `0600` on POSIX; Windows keeps its platform permission semantics. A missing/malformed database-key pair, malformed digest record, or truncated authority fails closed instead of starting empty.",
+      "The broker durably reserves identity before forwarding, then marks it accepted after the confirmed write and before acknowledging the sender. A crash after forwarding and acceptance can therefore return retained success without another delivery; a pre-forward reservation is refused as uncertain. After a deduplicated ask retry, public `reply` first uses the exact recorded sender ID while it remains live, even if another live session shares its name. Only after that ID departs may reconnect-oriented name/stable-route resolution run, and ambiguity, changed stable endpoint or groups, payload, or message ID is refused without sending. An implicit reply retry retains the original sender/question route internally, so a later ask cannot redirect it. Explicit `to` remains caller-controlled and broker `requirePendingReply` authorization remains mandatory. Legacy frames without logical-target metadata keep their transport-target behavior.",
+      "Both sides fail closed at memory or storage pressure instead of evicting authority that can still suppress a duplicate. A fresh client operation reserves one of 1,000 identity slots before consuming an ID, showing confirmation UI, resolving its target/reply route, or sending; existing internal retries remain available at full capacity. Confirmation occurs once per invocation. Client retry state is released when the invocation ends or its identity expires, without deleting broker acceptance records. The broker holds at most 10,000 live records and 64 MiB of digest and routing authority; it refuses new delivery until TTL cleanup makes room. The local subagent result relay also reserves before its chat side effect and accepts before positive acknowledgement, refusing its 10,001st live ID and uncertain replays without repeating delivery. SQLite transactions serialize concurrent broker access and stale rows are removed by TTL.",
+      "Custom hosts may declare an optional `recipientPurpose` on session registration and workflow-stage roster entries. Only `\"agent\"` and `\"control\"` are accepted; omission preserves legacy agent behavior. Invalid strings, `null`, and non-string values are rejected, not silently treated as controls. Session purpose is immutable after registration; presence updates cannot change it. Workflow roster-update completion waits for a broker round trip on the announcing connection so subsequent discovery does not race an unprocessed update.",
+      "- `delivered-messages.sqlite` — bounded 12-minute accepted-operation authority containing fixed keyed digests, never message or attachment text",
+      "- `delivered-messages.key` — random owner-only HMAC key paired with the authority database"
+    ]
+  },
+  {
+    "id": "intercom::029",
+    "source_path": "intercom.md",
+    "source_anchor": "intercom-vs-shared-room-messengers",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom.md",
+      "anchor": "intercom-vs-shared-room-messengers",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "b886b58c370845270123207cc8e25f4207dd3bf717aac6ece7af8ac5e90c4257",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "intercom::030",
+    "source_path": "intercom.md",
+    "source_anchor": "limitations",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom/operations.md",
+      "anchor": "limitations",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "9f8f46b461dab1c44c869b3a2f447c0146f6a12839e5d5a7c260637f3c80feb1",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "intercom::031",
+    "source_path": "intercom.md",
+    "source_anchor": "related-docs",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/intercom.md",
+      "anchor": "related-docs",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "b6ef3305b69604cc414905d1d5f619ee7b9f21cf4e55e1929475c73ba51e6cbc",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "json::001",
+    "source_path": "json.md",
+    "source_anchor": "json-event-stream-mode",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/json.md",
+      "anchor": "json-event-stream-mode",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "306a6b85356ee24a348e83f64e99a3a37f27ebfda8389f28fa205091f3537e10",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "json::002",
+    "source_path": "json.md",
+    "source_anchor": "event-types",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/json.md",
+      "anchor": "event-types",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "648eba0d74283d12b7c78e1d50c80893abb4517b3db47ef1c31713c59cacd83a",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "json::003",
+    "source_path": "json.md",
+    "source_anchor": "message-types",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/json.md",
+      "anchor": "message-types",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "406cb009b9ce4631828216d6bae9213272d433470832cd3d76dba76fb49772c9",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "json::004",
+    "source_path": "json.md",
+    "source_anchor": "output-format",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/json.md",
+      "anchor": "output-format",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "53e71ebebea942a63014717ec32161af65b49175eb9bd319f37b5949a3bae8be",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "json::005",
+    "source_path": "json.md",
+    "source_anchor": "example",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/json.md",
+      "anchor": "example",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "b1ad2761fa106566032e3b3f2e654b079a11e5a8da2db00fda433f9e47ded343",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "keybindings::001",
+    "source_path": "keybindings.md",
+    "source_anchor": "keybindings",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/keybindings.md",
+      "anchor": "keybindings",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "cfead530ebd1e986f3c9feaa79e539169a496c769b27d1ef97d2cc5f58f2865b",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "keybindings::002",
+    "source_path": "keybindings.md",
+    "source_anchor": "key-format",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/keybindings.md",
+      "anchor": "key-format",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "02adac67cf8fd3b6e3354ede051167495f52cd8c6d8cc8252cdbe461e652c645",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "keybindings::003",
+    "source_path": "keybindings.md",
+    "source_anchor": "all-actions",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/keybindings.md",
+      "anchor": "all-actions",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "fd07ad6d56a3a97a9a91e1512cead8c50ba674ecea14a125ee243904d13afa55",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "keybindings::004",
+    "source_path": "keybindings.md",
+    "source_anchor": "tui-editor-cursor-movement",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/keybindings.md",
+      "anchor": "tui-editor-cursor-movement",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "fba28fd106a7753d0d2bccab8916f645478659e58db984210f4bd454c77e880d",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "keybindings::005",
+    "source_path": "keybindings.md",
+    "source_anchor": "tui-editor-deletion",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/keybindings.md",
+      "anchor": "tui-editor-deletion",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "a0bfb85e03a0b290d4d830045b3aa8bc3d6d08f607f59fda84e3b84d605f9070",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "keybindings::006",
+    "source_path": "keybindings.md",
+    "source_anchor": "tui-input",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/keybindings.md",
+      "anchor": "tui-input",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "cd108aeddcb01e0b329d59b231c3933b18188551e9b33e151901f5cb503226d8",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "keybindings::007",
+    "source_path": "keybindings.md",
+    "source_anchor": "tui-kill-ring",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/keybindings.md",
+      "anchor": "tui-kill-ring",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "89dfc4fde5ff7f39fd9dc4cd09a589aebef3ed006c50797725fd78aa73f1dfa4",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "keybindings::008",
+    "source_path": "keybindings.md",
+    "source_anchor": "tui-clipboard-and-selection",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/keybindings.md",
+      "anchor": "tui-clipboard-and-selection",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "06a50c65921bdd3922ab6ad03b4ad2c6891aa701a4dffb92966f251ced1e8a3a",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "keybindings::009",
+    "source_path": "keybindings.md",
+    "source_anchor": "tui-fullscreen-viewport",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/keybindings.md",
+      "lines": [
+        9,
+        43
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "a96af950f1c814dadb9d29c97a3c769722d14f6bfbeccc3f22695c95c1fc4d9d",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/keybindings.md",
+      "anchor": "tui-fullscreen-viewport",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "keybindings::010",
+    "source_path": "keybindings.md",
+    "source_anchor": "application",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/keybindings.md",
+      "lines": [
+        49,
+        83
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "521437ef78c83feac691918e242372d90c1d868347a89549d0b23981350fe45a",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/keybindings.md",
+      "anchor": "application",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "keybindings::011",
+    "source_path": "keybindings.md",
+    "source_anchor": "sessions",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/keybindings.md",
+      "anchor": "sessions",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "9904c81388902d16d8a0c6f24f8646cd9bd3d63368b5bdecd3e4d22206b24177",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "keybindings::012",
+    "source_path": "keybindings.md",
+    "source_anchor": "models-and-thinking",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/keybindings.md",
+      "anchor": "models-and-thinking",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [],
+    "target_sha256": "4e0011262156296374bebcb9716585550b8ba8c29792a5252e2e4e7f9445f077",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "Interactive model and thinking choices automatically become startup defaults. There is no save-default shortcut."
+    ]
+  },
+  {
+    "id": "keybindings::013",
+    "source_path": "keybindings.md",
+    "source_anchor": "display-and-message-queue",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/keybindings.md",
+      "anchor": "display-and-message-queue",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "cef2eb51e3c259c0a01ca3313e8575500cec6a5c75df90c0072b6043d2e7eb84",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "keybindings::014",
+    "source_path": "keybindings.md",
+    "source_anchor": "tree-navigation",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/keybindings.md",
+      "anchor": "tree-navigation",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "b458bbdac3ab67f3822151acae882429004fe3fc5fd69d0f8bb2df191bf82299",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "keybindings::015",
+    "source_path": "keybindings.md",
+    "source_anchor": "scoped-models-selector",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/keybindings.md",
+      "lines": [
+        103,
+        114
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "48d36f860240640feb88395819530fb34977bcd490a5995a03c6aa17183847b4",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/keybindings.md",
+      "anchor": "scoped-models-selector",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "keybindings::016",
+    "source_path": "keybindings.md",
+    "source_anchor": "custom-configuration",
+    "status": "historical",
+    "target": {
+      "path": "docs/migrations/2847-history/keybindings.md",
+      "lines": [
+        120,
+        134
+      ]
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "8b9881742d4ad5c65fd0878befd43b9ba7a40982fbaf79118045128cac94e06c",
+    "reason": "The original block changed upstream or received an explicitly reviewed correction. Preserve its full original wording as provenance, independently verify main at the active reader replacement, and retain still-valid original detail in the reader snapshot.",
+    "active": {
+      "path": "packages/coding-agent/docs/keybindings.md",
+      "anchor": "custom-configuration",
+      "occurrence": 1
+    }
+  },
+  {
+    "id": "keybindings::017",
+    "source_path": "keybindings.md",
+    "source_anchor": "emacs-example",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/keybindings.md",
+      "anchor": "emacs-example",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "c633454b6cf8e8c1a8df5f67723e0f410700e3e09cc8d05548aae51219a1fe79",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "keybindings::018",
+    "source_path": "keybindings.md",
+    "source_anchor": "vim-example",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/keybindings.md",
+      "anchor": "vim-example",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "5acef82a86419369a5e352898eae3ae75cf7a1440bd9d74dafe569f01ff83549",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "llama-cpp::001",
+    "source_path": "llama-cpp.md",
+    "source_anchor": "llama-cpp",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/llama-cpp.md",
+      "anchor": "llama-cpp",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "c423ba99b2d3be8e72db0818e3a89014eb14492d1d1baa330c661c5b1fa51582",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "llama-cpp::002",
+    "source_path": "llama-cpp.md",
+    "source_anchor": "start-the-router",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/llama-cpp.md",
+      "anchor": "start-the-router",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "1c496e5c915e56f1bcdc51ee8f7552aeee96d6eedac9a0374ee78d919b523234",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "llama-cpp::003",
+    "source_path": "llama-cpp.md",
+    "source_anchor": "configure-atomic",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/llama-cpp.md",
+      "anchor": "configure-atomic",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "c654991c2994c306fc3a1605fd262af5d40a9a839929946e79f6fb19545d7f3c",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "llama-cpp::004",
+    "source_path": "llama-cpp.md",
+    "source_anchor": "manage-models",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/llama-cpp.md",
+      "anchor": "manage-models",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "6a4329a4e29fc46fca6d8b7142f817397e809755a99275fd7e2967c7ebc734de",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "llama-cpp::005",
+    "source_path": "llama-cpp.md",
+    "source_anchor": "troubleshooting",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/llama-cpp.md",
+      "anchor": "troubleshooting",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "d47b472a5fe0ffea838b7e1ace46cf0f989b2eff1130a645c05a89557a7e08ec",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "models::001",
+    "source_path": "models.md",
+    "source_anchor": "custom-models",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/models.md",
+      "anchor": "custom-models",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [
+      {
+        "kind": "reviewed-correction",
+        "from": "](/settings#model--thinking)",
+        "to": "](/settings#model-&-thinking)"
+      }
+    ],
+    "target_sha256": "4495fd3c0e46a5c7507b85aadefaf707c7f7b9cf5fc441b268b5cdc2cb679e48",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "models::002",
+    "source_path": "models.md",
+    "source_anchor": "table-of-contents",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/models.md",
+      "anchor": "table-of-contents",
+      "occurrence": 1
+    },
+    "mode": "ordered",
+    "edits": [
+      {
+        "kind": "link",
+        "from": "](#minimal-example)",
+        "to": "](/models#minimal-example)"
+      },
+      {
+        "kind": "link",
+        "from": "](#full-example)",
+        "to": "](/models#full-example)"
+      },
+      {
+        "kind": "link",
+        "from": "](#supported-apis)",
+        "to": "](/models/reference#supported-apis)"
+      },
+      {
+        "kind": "link",
+        "from": "](#provider-configuration)",
+        "to": "](/models/reference#provider-configuration)"
+      },
+      {
+        "kind": "link",
+        "from": "](#model-configuration)",
+        "to": "](/models/reference#model-configuration)"
+      },
+      {
+        "kind": "link",
+        "from": "](#request-wide-cost-tiers)",
+        "to": "](/models/reference#request-wide-cost-tiers)"
+      },
+      {
+        "kind": "link",
+        "from": "](#overriding-built-in-providers)",
+        "to": "](/models/reference#overriding-built-in-providers)"
+      },
+      {
+        "kind": "link",
+        "from": "](#per-model-overrides)",
+        "to": "](/models/reference#per-model-overrides)"
+      },
+      {
+        "kind": "link",
+        "from": "](#derived-fast-model-variants)",
+        "to": "](/models/reference#derived-fast-model-variants)"
+      },
+      {
+        "kind": "link",
+        "from": "](#anthropic-messages-compatibility)",
+        "to": "](/models/reference#anthropic-messages-compatibility)"
+      },
+      {
+        "kind": "link",
+        "from": "](#openai-compatibility)",
+        "to": "](/models/reference#openai-compatibility)"
+      }
+    ],
+    "target_sha256": "bc6dba8e012e5156ebf13138d1d19c7048a44cb28ebd50e9fb126449c101b566",
+    "reason": "Every source line remains in order, with exactly the additive lines recorded here. These are independently verified newer-main content, original PR connective text, or reviewed reader-facing restorations; the entire destination is also hashed.",
+    "additions": [
+      "- [GPT-6-Astra Built-in Models](/models/reference#gpt-6-astra-built-in-models)"
+    ]
+  },
+  {
+    "id": "models::003",
+    "source_path": "models.md",
+    "source_anchor": "minimal-example",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/models.md",
+      "anchor": "minimal-example",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "492f3ddc05af9a871f2690dc1cc4345c15007734a0e14b1fa35b9cb5e8d6ab4b",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "models::004",
+    "source_path": "models.md",
+    "source_anchor": "full-example",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/models.md",
+      "anchor": "full-example",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "8ec4eea42acd848fb649d85c162a8f582bdabbf62e7d8bd6d8126882d296a068",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "models::005",
+    "source_path": "models.md",
+    "source_anchor": "google-ai-studio-example",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/models.md",
+      "anchor": "google-ai-studio-example",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "b36e012710d2368566ef12703d751c3b9cd13177a2305ea3bafa0cc6caa5c16b",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "models::006",
+    "source_path": "models.md",
+    "source_anchor": "supported-apis",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/models/reference.md",
+      "anchor": "supported-apis",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "1e3dbb79db21a3a5650b23f766a947f7a5f87601628c73252b56dae95e940035",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "models::007",
+    "source_path": "models.md",
+    "source_anchor": "provider-configuration",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/models/reference.md",
+      "anchor": "provider-configuration",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "fb1ac786ec0d1bafdc9b0a6db0e34e3665c3b7a3615dbf1934657c16ab419af8",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "models::008",
+    "source_path": "models.md",
+    "source_anchor": "value-resolution",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/models/reference.md",
+      "anchor": "value-resolution",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "f689555c77c956b18dc571f2138af234ff2ee93ef63e7c2fc478d040b14e1cbf",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "models::009",
+    "source_path": "models.md",
+    "source_anchor": "custom-headers",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/models/reference.md",
+      "anchor": "custom-headers",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "0bca55a34ae2e1f22de26024c4b77147df478ab2f76bce574339489741d79b4b",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "models::010",
+    "source_path": "models.md",
+    "source_anchor": "model-configuration",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/models/reference.md",
+      "anchor": "model-configuration",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "efd6dd7dbba939b28e3b92da2d080f23cd9949663308330912c4be8f08446440",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "models::011",
+    "source_path": "models.md",
+    "source_anchor": "sampling-parameters",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/models/reference.md",
+      "anchor": "sampling-parameters",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "f162221478f58901d4dd3da80e20241e5e29e37147562efc5605803073e49653",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "models::012",
+    "source_path": "models.md",
+    "source_anchor": "request-wide-cost-tiers",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/models/reference.md",
+      "anchor": "request-wide-cost-tiers",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "9950fe042cd2597cac20a0866c4c8c487b44abe88003d0fb6ff1e5545a1ad5a4",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "models::013",
+    "source_path": "models.md",
+    "source_anchor": "thinking-level-map",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/models/reference.md",
+      "anchor": "thinking-level-map",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "ca3d6fd9e649b6236d591f803278a12a8bad3893d2ca868e0dd57466a1d9138c",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "models::014",
+    "source_path": "models.md",
+    "source_anchor": "context-window",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/models/reference.md",
+      "anchor": "context-window",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "b63af9568a8852967b98f92c6041ff341e60d21f814c11fde5f6a341bc4dbc05",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "models::015",
+    "source_path": "models.md",
+    "source_anchor": "overriding-built-in-providers",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/models/reference.md",
+      "anchor": "overriding-built-in-providers",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "f8766a1f4761e6395b38b4ae7e2fca576377c42d29a0035caa0b941443750fea",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "models::016",
+    "source_path": "models.md",
+    "source_anchor": "per-model-overrides",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/models/reference.md",
+      "anchor": "per-model-overrides",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "62f7202fa1310b9ec610822757e72bdaf9e3735990cd2846587ede7db17690b6",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  },
+  {
+    "id": "models::017",
+    "source_path": "models.md",
+    "source_anchor": "derived-fast-model-variants",
+    "status": "active",
+    "target": {
+      "path": "packages/coding-agent/docs/models/reference.md",
+      "anchor": "derived-fast-model-variants",
+      "occurrence": 1
+    },
+    "mode": "exact",
+    "edits": [],
+    "target_sha256": "367c58a5036654a9665a988caced44d23a1f8d51bde6ed659721bb25a969993d",
+    "reason": "Exact source content with only the enumerated presentation and citation transformations."
+  }
+]

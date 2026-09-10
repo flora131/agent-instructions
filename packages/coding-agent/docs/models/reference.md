@@ -33,6 +33,7 @@ These four values are the generic custom-provider APIs supported by `models.json
 | `modelOverrides` | Per-model overrides for matching built-in or extension-registered models on this provider |
 
 For a custom Radius gateway, set `"oauth": "radius"` and its `baseUrl`. Atomic uses Radius OAuth credentials and the gateway's dynamic `pi-messages` catalog.
+
 ### Value Resolution
 
 The `apiKey` and `headers` fields support three formats:
@@ -103,6 +104,25 @@ Current behavior:
 - `input` lists the modalities **Atomic can send**. `["text"]`, `["text", "image"]`, and `["text", "image", "pdf"]` are the possible values. PDF is a platform capability rather than a per-model one — Anthropic documents that ["All active models support PDF processing"](https://platform.claude.com/docs/en/build-with-claude/pdf-support), routed through the same vision path as images — so upstream metadata carries it on every Claude entry. Atomic advertises it only where a runtime can serialize a document block: the Anthropic Messages and Amazon Bedrock Converse paths. A Claude mirror on any other provider stays at `["text", "image"]`, and a document sent to such a model is replaced by a visible placeholder rather than dropped silently. Note that Bedrock's Converse API needs citations enabled for full visual PDF understanding; without them it falls back to text extraction. `"pdf"` means PDF specifically: a document block's media type must be `application/pdf`, and any other value is rejected by name rather than sent mislabelled, because both request builders hardcode PDF rather than reading the field.
 
 
+### GPT-6-Astra Built-in Models
+
+Atomic ships `openai/gpt-6-astra` and `openai-codex/gpt-6-astra`. Both accept text and image input, expose tool search and additional tools, and offer exactly `low`, `medium`, `high`, `xhigh`, and `max` reasoning. `off`, `minimal`, and Codex's client-side `ultra` orchestration preset are not API reasoning levels and do not appear in Atomic's selector.
+
+The built-in OpenAI and Codex entries use a 272,000-token default input/context limit and a 128,000-token maximum output. OpenAI documents a 1,050,000-token API maximum, but requests above 272,000 aggregate input tokens enter the long-context price tier for the whole request. Override `contextWindow` only when the larger window and its price are intentional.
+
+| Aggregate input | Input | Cached input | Cache write | Output |
+| --- | ---: | ---: | ---: | ---: |
+| Up to 272,000 | $10 | $1 | $12.50 | $50 |
+| Above 272,000 | $20 | $2 | $25 | $75 |
+
+Rates are per million tokens. `openai/gpt-6-astra-fast` and `openai-codex/gpt-6-astra-fast` are derived canonical choices that keep these base catalog rates; the OpenAI adapters apply Fast's 2x multiplier at request time. The Codex fast choice sends upstream ID `gpt-6-astra` with `service_tier: priority` while Atomic records `gpt-6-astra-fast`.
+
+Amazon Bedrock exposes `openai.gpt-6-astra`, `global.openai.gpt-6-astra`, and `us.openai.gpt-6-astra` through the `amazon-bedrock` provider. These entries keep the same 272,000 input and 128,000 output limits, text and image input, and five reasoning levels; Atomic sends the selected effort as Bedrock's OpenAI `reasoning_effort` field. They do not get Fast or OpenAI tool-search metadata. Atomic sends each Bedrock ID unchanged and records all four price fields as zero because AWS had not published Astra pricing. Zero means unknown here, not free.
+
+Atomic does not synthesize Azure OpenAI Astra entries. Live-provider catalogs remain authoritative: the current OpenRouter catalog publishes `openai/gpt-6-astra` and `openai/gpt-6-astra-pro`, while the Vercel AI Gateway publishes `openai/gpt-6-astra` and `openai/gpt-6-astra-fast`. Atomic imports those exact IDs and their request-wide long-context prices. Vercel owns its suffixed ID, so it remains route-less and does not gain Atomic's first-party fast-route behavior.
+
+On OpenAI Responses, Astra uses the newer prompt-cache payload. `cacheRetention: "long"` sends `prompt_cache_options.ttl: "30m"` instead of the legacy `prompt_cache_retention: "24h"`; `none` sends explicit mode without a cache key, and `short` sends neither cache option. Earlier Responses models keep the 24-hour field for long retention.
+
 ### Sampling Parameters
 
 `samplingParams` is a free-form object merged into every request body for an OpenAI-compatible model after the fields Atomic sets, so its keys win. Use it to send parameters that Atomic does not model, including server-specific values such as llama.cpp's `min_p` or vLLM's `top_k`:
@@ -124,6 +144,7 @@ Only OpenAI-compatible APIs apply these values (`openai-completions`, `openai-re
 For vLLM OpenAI-compatible models that share the reasoning and answer budgets, set `compat.supportsThinkingTokenBudget` to `true`. Atomic sends the opt-in `thinking_token_budget` value for an enabled thinking level and always leaves 1024 tokens for the final answer. Pi's defaults are 1024, 2048, 8192, and 16384 tokens for `minimal`, `low`, `medium`, and `high`; the `thinkingBudgets` settings override them. `xhigh` and `max` use the `high` budget, and Atomic omits the field when no positive budget remains after reserving answer space.
 
 Model references resolve the complete, unmodified ID before Atomic interprets thinking suffixes or glob syntax. For example, if the catalog contains the literal ID `provider/literal[free]:high`, that complete model wins and `:high` remains part of its ID; it does not become a thinking-level suffix and `[free]` is not treated as a character class. Only when the complete ID is absent does Atomic parse a valid thinking suffix, try the stripped exact ID, then apply glob/fuzzy matching. This preserves literal provider IDs without changing ordinary `*`, `?`, bracket-glob, ambiguity, ordering, or deduplication behavior.
+
 ### Request-wide Cost Tiers
 
 Custom models can declare request-wide long-context pricing under `cost.tiers`. The base `cost` and every tier must provide all four rates: `input`, `output`, `cacheRead`, and `cacheWrite`, in cost per million tokens. Each tier also requires `inputTokensAbove`.
@@ -476,7 +497,7 @@ For providers with partial OpenAI compatibility, use the `compat` field.
 | `supportsStrictTools`                         | Anthropic/Bedrock strict-tool capability, normally generated from verified model metadata. |
 | `supportsOpenAIGrammarTools`                  | Canonical Pi capability for OpenAI Lark/regex custom tools. Keep false unless the endpoint passes custom tools through unchanged. |
 | `supportsGrammarTools`                        | Atomic compatibility alias for `supportsOpenAIGrammarTools`; the canonical field wins if both disagree. |
-| `supportsLongCacheRetention`                  | Whether the provider accepts long cache retention when cache retention is `long`: `prompt_cache_retention: "24h"` for OpenAI prompt caching, or `cache_control.ttl: "1h"` when `cacheControlFormat` is `anthropic`. Default: `true`. |
+| `supportsLongCacheRetention`                  | Whether the provider accepts long cache retention when cache retention is `long`: `prompt_cache_options.ttl: "30m"` for GPT-5.6+ Responses models, `prompt_cache_retention: "24h"` for earlier OpenAI models, or `cache_control.ttl: "1h"` when `cacheControlFormat` is `anthropic`. Default: `true`. |
 | `vllmPriority`                                | vLLM scheduler priority sent as the top-level `priority` request field. Lower values are handled earlier and the server default is `0`, so it only takes effect when vLLM runs with `--scheduling-policy priority`. Off by default; not set on the generated catalog. |
 | `openRouterRouting`                           | OpenRouter provider routing preferences. This object is sent as-is in the `provider` field of the [OpenRouter API request](https://openrouter.ai/docs/guides/routing/provider-selection).                                            |
 | `vercelGatewayRouting`                        | Vercel AI Gateway routing config for provider selection (`only`, `order`)                                                                                                                                                            |

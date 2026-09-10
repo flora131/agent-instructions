@@ -22,6 +22,8 @@ Looking to extend or embed Atomic? Go to [Build with Atomic](/build). Looking up
 7. [Security](/security) — project trust and sandbox boundaries.
 8. [Containerization](/containerization) — run Atomic inside a container.
 
+For work that continues while you chat, follow [Background tasks](/background-tasks) to launch, inspect, and stop agents or shells. If you use Herdr panes, [Herdr](/herdr) explains Atomic's status indicators and troubleshooting.
+
 ## Start here
 
 - [Quickstart](/quickstart) - install, authenticate, and run a first session.
@@ -34,3 +36,5 @@ Looking to extend or embed Atomic? Go to [Build with Atomic](/build). Looking up
 - [Keybindings](/keybindings) - default shortcuts and custom keybindings.
 - [Sessions](/sessions) - session management, branching, and tree navigation.
 - [Compaction](/compaction) - Verbatim Compaction, context management, and branch summarization.
+- [Background tasks](/background-tasks) - run work in the background, inspect results, and stop owned tasks.
+- [Herdr](/herdr) - report Atomic's working, blocked, and idle states in Herdr panes.

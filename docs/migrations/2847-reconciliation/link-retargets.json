@@ -1,0 +1,10 @@
+[
+  {
+    "source_path": "workflows/authoring.md",
+    "source_line": 161,
+    "source_rev": "cb13229bebe30ea7cb65689569569494b4bc651c",
+    "baseline_target": "/extensions#events",
+    "destination_target": "/extensions/events#events",
+    "reason": "The authorized upstream reconciliation retains the workflow learning path but repairs the live reference to the actual event contracts. The original PR exception remains historical provenance only."
+  }
+]

@@ -29,7 +29,8 @@ Extensions are TypeScript modules that extend Atomic's behavior. They can subscr
 
 See [examples/extensions/](https://github.com/bastani-inc/atomic/tree/main/packages/coding-agent/examples/extensions) for working implementations.
 
-Atomic also ships an environment-gated [Herdr reporter](/herdr). It combines settled agent activity, extension prompt events, and observed workflow roots under one parent pane owner. It defers to loaded community or legacy reporters and can be disabled with `herdr.enabled` in settings. The tested Herdr release and observed CLI behaviour are listed under [Compatibility](/herdr#compatibility).
+Atomic also ships an environment-gated [Herdr reporter](/herdr). It combines settled agent activity, extension prompt events, and observed workflow roots under one parent pane owner. It defers to loaded community or legacy reporters and can be disabled with `herdr.enabled` in settings. See [Herdr setup](/herdr#setup) for the supported version and [status indicators](/herdr#status-indicators) for reported activity.
+
 ## Where to go next
 
 Extensions are TypeScript modules that add tools, commands, event handlers, and custom UI. Read this page for startup behavior, locations, imports, and a first extension, then continue:
@@ -45,11 +46,11 @@ If an extension is heavier than you need, compare the lighter mechanisms on [Bui
 
 ## Table of Contents
 
-- [Startup and lazy discovery](#startup-and-lazy-discovery)
-- [Interactive callback isolation](#interactive-callback-isolation)
-- [Quick Start](#quick-start)
-- [Extension Locations](#extension-locations)
-- [Available Imports](#available-imports)
+- [Startup and lazy discovery](/extensions#startup-and-lazy-discovery)
+- [Interactive callback isolation](/extensions#interactive-callback-isolation)
+- [Quick Start](/extensions#quick-start)
+- [Extension Locations](/extensions#extension-locations)
+- [Available Imports](/extensions#available-imports)
 - [Writing an Extension](/extensions/authoring#writing-an-extension)
   - [Extension Styles](/extensions/authoring#extension-styles)
 - [Events](/extensions/events#events)
@@ -59,7 +60,7 @@ If an extension is heavier than you need, compare the lighter mechanisms on [Bui
   - [Agent Events](/extensions/events#agent-events)
   - [Model Events](/extensions/events#model-events)
   - [Tool Events](/extensions/events#tool-events)
-- [Workflow activity and lifecycle hooks](#workflow-activity-and-lifecycle-hooks)
+- [Workflow activity and lifecycle hooks](/extensions/events#workflow-activity-and-lifecycle-hooks)
 - [ExtensionContext](/extensions/api-reference#extensioncontext)
 - [ExtensionCommandContext](/extensions/api-reference#extensioncommandcontext)
 - [ExtensionAPI Methods](/extensions/api-reference#extensionapi-methods)
@@ -68,7 +69,7 @@ If an extension is heavier than you need, compare the lighter mechanisms on [Bui
 - [Custom Tools](/extensions/authoring#custom-tools)
 - [Custom UI](/extensions/ui#custom-ui)
 - [Error Handling](/extensions/api-reference#error-handling)
-- [Mode Behavior](#mode-behavior)
+- [Mode Behavior](/extensions#mode-behavior)
 - [Examples Reference](/extensions/examples#examples-reference)
 
 ## Startup and lazy discovery
@@ -392,7 +393,6 @@ Moved to [Extension events](/extensions/events#input-events).
 #### input
 
 Moved to [Extension events](/extensions/events#input).
-
 ## Workflow activity and lifecycle hooks
 
 The host exposes typed workflow observation contracts. A workflow provider must register and publish activity; these APIs alone do not connect the workflow scheduler. Without a publisher snapshot, availability is `unavailable`, not an empty ready state.
@@ -798,3 +798,7 @@ In non-interactive modes, check `ctx.hasUI` before using UI methods.
 ## Examples Reference
 
 Moved to [Extension examples](/extensions/examples#examples-reference).
+
+## Workflow activity and lifecycle hooks
+
+Moved to [Extension events](/extensions/events#workflow-activity-and-lifecycle-hooks).
