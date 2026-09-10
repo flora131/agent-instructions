@@ -101,6 +101,17 @@ export function bunExecutable(): string {
 }
 
 /**
+ * Argv prefix for npm: Windows' extensionless script fails with ENOENT, and
+ * npm.cmd requires a shell since CVE-2024-27980. Invoke its CLI with the current
+ * Node binary instead; preserve the ordinary npm command on POSIX.
+ */
+export function npmSpawnPrefix(): string[] {
+	return process.platform === "win32"
+		? [process.execPath, join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")]
+		: ["npm"];
+}
+
+/**
  * Locate an executable the way a shell would, returning undefined when it is not
  * on PATH.
  *

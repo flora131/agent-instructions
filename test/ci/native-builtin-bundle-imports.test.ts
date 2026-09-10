@@ -10,7 +10,7 @@ import {
 	WORKFLOWS_SDK_BUNDLE_ENTRY,
 } from "../../packages/coding-agent/src/core/builtin-install-layout.js";
 import { getVirtualModules } from "../../packages/coding-agent/src/core/extensions/loader-host-modules.js";
-import { moduleDir, spawnSyncCollect } from "../helpers/runtime.js";
+import { moduleDir, npmSpawnPrefix, spawnSyncCollect } from "../helpers/runtime.js";
 
 const root = join(moduleDir(import.meta.url), "../..");
 const BUILTIN_BUNDLE_BUILD_TIMEOUT_MS = 120_000;
@@ -65,7 +65,9 @@ test("specifier permits Node builtins, registered host imports, and relative imp
 test(
 	"installed builtin bundles retain only node builtins and registered host imports",
 	async () => {
-		const build = spawnSyncCollect(["npm", "run", "build", "--workspace=@bastani/atomic"], { cwd: root });
+		const build = spawnSyncCollect([...npmSpawnPrefix(), "run", "build", "--workspace=@bastani/atomic"], {
+			cwd: root,
+		});
 		assert.equal(build.exitCode, 0, `${build.stdout.toString()}\n${build.stderr.toString()}`);
 
 		const hostSpecifiers = new Set(Object.keys(await getVirtualModules()));
@@ -87,7 +89,19 @@ test(
 		}
 
 		const installedXdgOpen = join(builtinRoot, "mcp", "xdg-open");
-		assert.notEqual(statSync(installedXdgOpen).mode & 0o111, 0, "installed MCP xdg-open fallback is not executable");
+		if (process.platform === "win32") {
+			// Windows filesystems cannot represent POSIX execute bits: the build's
+			// chmodSync(0o755) is best-effort and statSync reports 0666/0444 only,
+			// so the strongest observable contract is that the build installed the
+			// fallback at all. POSIX hosts keep the executable-bit assertion.
+			assert.equal(statSync(installedXdgOpen).isFile(), true, "installed MCP xdg-open fallback is missing");
+		} else {
+			assert.notEqual(
+				statSync(installedXdgOpen).mode & 0o111,
+				0,
+				"installed MCP xdg-open fallback is not executable",
+			);
+		}
 
 		assert.deepEqual(unexpected, []);
 	},
