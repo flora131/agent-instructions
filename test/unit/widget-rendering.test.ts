@@ -369,6 +369,211 @@ describe("renderWidgetLines — standard form", () => {
 		assert.ok(metaLine.includes("chain"), "multi-stage run reads as chain");
 		assert.ok(metaLine.includes("1/3"), "progress count includes done/total");
 	});
+	// PR #2969, review r3974468770: retained history must be indexed once, not once per card.
+	test("shares expansion preparation across roots and refreshes it as nested runs change", () => {
+		const now = 100_000;
+		const store = createStore();
+		for (const id of ["alpha", "beta"]) {
+			store.recordRunStart(
+				makeRun(id, id, "running", [
+					// A local input wait avoids unrelated descendant-indicator scans in this cost assertion.
+					makeStage("question", "question", "awaiting_input"),
+					makeStage("import", "nested", "running", {
+						workflowChildRun: { runId: `${id}-child`, alias: "nested", workflow: "nested" },
+					}),
+				]),
+			);
+		}
+		const addChild = (id: string) =>
+			store.recordRunStart({
+				...makeRun(`${id}-child`, "nested", "running", [
+					makeStage("done", "done", "completed"),
+					makeStage("work", "work", "running"),
+				]),
+				parentRunId: id,
+				parentStageId: "import",
+				rootRunId: id,
+				toolNodes: [
+					{
+						kind: "tool",
+						id: "tool:cached",
+						name: "cached",
+						argsHash: "cached",
+						ordinal: 0,
+						parentIds: [],
+						status: "cached",
+						attachable: false,
+					},
+				],
+			});
+		const assertProgress = (alpha: string, beta: string) => {
+			for (const theme of [undefined, NULL_PI_THEME]) {
+				let retainedIdReads = 0;
+				const retained = Array.from({ length: 32 }, (_, index) => ({
+					...makeRun(`old-${index}`, "retained", "completed", [], 1_000, 2_000),
+					get id() {
+						retainedIdReads++;
+						return `old-${index}`;
+					},
+				}));
+				const snap = store.graphSnapshot();
+				const lines = buildThemedWidgetLines({ ...snap, runs: [...snap.runs, ...retained] }, theme, 120, now)
+					.map(stripAnsi)
+					.join("\n");
+				assert.match(lines, /BACKGROUND {2}2 runs /);
+				assert.ok(lines.includes(`alpha · chain · ${alpha}`), lines);
+				assert.ok(lines.includes(`beta · chain · ${beta}`), lines);
+				assert.equal(retainedIdReads, retained.length, "one full run-index preparation per render pass");
+			}
+		};
+		addChild("beta");
+		assertProgress("0/2", "1/3");
+		addChild("alpha");
+		assertProgress("1/3", "1/3");
+		store.recordStageEnd("alpha-child", makeStage("work", "work", "completed"));
+		assertProgress("2/3", "1/3");
+		store.recordStageStart("beta-child", makeStage("next", "next", "running"));
+		assertProgress("2/3", "1/4");
+	});
+
+	test("recursive stage progress updates as child graphs materialize without counting their boundaries", () => {
+		const now = 10_000;
+		const store = createStore();
+		const boundary = (id: string, childId: string) =>
+			makeStage(id, "shared-alias", "running", {
+				workflowChildRun: { runId: childId, alias: "shared-alias", workflow: "nested" },
+			});
+		store.recordRunStart(makeRun("root", "pr-fix-green-and-merge", "running", [boundary("import", "child")], 1_000));
+		const assertProgress = (expected: string) => {
+			for (const theme of [undefined, NULL_PI_THEME]) {
+				for (const width of [80, 120]) {
+					const lines = buildThemedWidgetLines(store.graphSnapshot(), theme, width, now).map(stripAnsi);
+					assert.ok(lines[2]!.includes(`pr-fix-green-and-merge · ${expected} · 9s`), lines.join("\n"));
+					assert.match(lines[0]!, /BACKGROUND {2}1 run /);
+					assert.equal(lines.length, 4, "child runs must not become separate list entries");
+					assert.ok(lines.every((line) => visibleWidth(line) <= width));
+				}
+			}
+		};
+		assertProgress("single · 0/1");
+		store.recordRunStart({
+			...makeRun("child", "nested", "running", [
+				makeStage("same", "work", "completed"),
+				boundary("import", "grandchild"),
+			]),
+			parentRunId: "root",
+			parentStageId: "import",
+			rootRunId: "root",
+		});
+		assertProgress("chain · 1/2");
+		store.recordRunStart({
+			...makeRun("grandchild", "nested", "running", [
+				makeStage("same", "work", "failed"),
+				boundary("import", "great-grandchild"),
+			]),
+			parentRunId: "child",
+			parentStageId: "import",
+			rootRunId: "root",
+		});
+		assertProgress("chain · 2/3");
+		store.recordRunStart({
+			...makeRun("great-grandchild", "nested", "running", [
+				makeStage("same", "work", "skipped"),
+				makeStage("active", "work", "running"),
+				makeStage("waiting", "work", "pending"),
+			]),
+			parentRunId: "grandchild",
+			parentStageId: "import",
+			rootRunId: "root",
+		});
+		assertProgress("chain · 3/5");
+		store.recordStageEnd("great-grandchild", makeStage("active", "work", "completed"));
+		assertProgress("chain · 4/5");
+	});
+	test("recursive progress preserves retained completion metadata across snapshot restore and resume", () => {
+		const replayBoundary = (id: string, childId: string) =>
+			makeStage(id, "shared-alias", "completed", {
+				workflowChild: {
+					runId: childId,
+					alias: "shared-alias",
+					workflow: "nested",
+					status: "completed",
+					outputs: {},
+				},
+				workflowChildRun: { runId: "stale-child", alias: "shared-alias", workflow: "nested" },
+			});
+		const root = makeRun("root", "retained-tree", "paused", [replayBoundary("import", "child")], 1_000);
+		const child: RunSnapshot = {
+			...makeRun(
+				"child",
+				"nested",
+				"completed",
+				[makeStage("same", "work", "completed"), replayBoundary("import", "grandchild")],
+				1_000,
+				2_000,
+			),
+			parentRunId: "root",
+			parentStageId: "import",
+			rootRunId: "root",
+		};
+		const grandchild: RunSnapshot = {
+			...makeRun(
+				"grandchild",
+				"nested",
+				"completed",
+				[makeStage("same", "work", "completed"), makeStage("skipped", "work", "skipped")],
+				1_000,
+				2_000,
+			),
+			parentRunId: "child",
+			parentStageId: "import",
+			rootRunId: "root",
+			toolNodes: [
+				{
+					kind: "tool",
+					id: "tool:cached",
+					name: "cached",
+					argsHash: "cached",
+					ordinal: 0,
+					parentIds: [],
+					status: "cached",
+					attachable: false,
+				},
+			],
+		};
+		const store = createStore();
+		for (const run of structuredClone([root, child, grandchild])) store.recordRunStart(run);
+		const render = () => buildThemedWidgetLines(store.graphSnapshot(), NULL_PI_THEME, 120).map(stripAnsi).join("\n");
+		assert.match(render(), /retained-tree · chain · 3\/3/);
+		assert.equal(store.recordRunResumed("root"), true);
+		assert.match(render(), /retained-tree · chain · 3\/3/);
+		store.recordStageStart("root", makeStage("next", "next", "running"));
+		assert.match(render(), /retained-tree · chain · 3\/4/);
+		assert.equal(store.runs()[0]!.stages[0]!.id, "import", "rendering must not replace stored boundaries");
+	});
+	test("recursive progress retains failed, skipped and aliased boundary summaries instead of counting stale children", () => {
+		for (const status of ["failed", "skipped", "running"] as const) {
+			const boundary = makeStage("import", "shared-alias", status, {
+				workflowChildRun: { runId: "child", alias: "shared-alias", workflow: "nested" },
+			});
+			const root = makeRun("root", "boundary-fallback", "running", [boundary]);
+			const child: RunSnapshot = {
+				...makeRun("child", "nested", "running", [
+					makeStage("same", "work", "completed"),
+					makeStage("other", "work", "pending"),
+				]),
+				parentRunId: "root",
+				parentStageId: "import",
+				rootRunId: "root",
+			};
+			if (status === "running") root.stages.push({ ...boundary, id: "alias" });
+			const text = buildThemedWidgetLines(makeSnap([root, child]), undefined, 120).join("\n");
+			assert.match(
+				text,
+				status === "running" ? /boundary-fallback · chain · 1\/3/ : /boundary-fallback · single · 1\/1/,
+			);
+		}
+	});
 	test("active recoverable block renders as blocked and resumable, not running", () => {
 		const run: RunSnapshot = {
 			...makeRun("blocked1", "recoverable-auth", "running", [makeStage("s1", "provider", "failed")]),

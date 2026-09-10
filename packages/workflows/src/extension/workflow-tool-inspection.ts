@@ -43,10 +43,7 @@ export function workflowStagesResult(args: WorkflowToolArgs, source?: WorkflowIn
 			error: target.message,
 		};
 	}
-	const stageSnapshots =
-		source?.store === undefined
-			? (activeStore.runs().find((run) => run.id === target.runId)?.stages ?? [])
-			: expandWorkflowGraph(readGraphStoreSnapshot(activeStore), target.runId).stages;
+	const stageSnapshots = expandWorkflowGraph(readGraphStoreSnapshot(activeStore), target.runId).stages;
 	const stages = stageSnapshots.filter((stage) => filter === "all" || stage.status === filter).map(summarizeStage);
 	return { action: "stages", runId: target.runId, filter, stages };
 }

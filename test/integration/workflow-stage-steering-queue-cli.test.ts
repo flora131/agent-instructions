@@ -458,7 +458,7 @@ async function runScenario(): Promise<Evidence> {
 	} finally {
 		await cli.stop();
 		await model.stop();
-		removeTempRootReleasingBroker(root);
+		await removeTempRootReleasingBroker(root);
 	}
 }
 
