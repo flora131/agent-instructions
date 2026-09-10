@@ -42,6 +42,7 @@ export {
 	type FindToolOptions,
 	findToolSystemPromptContribution,
 } from "./find.ts";
+export { createKillTool, createKillToolDefinition, type KillToolOptions } from "./kill.ts";
 export {
 	createLsTool,
 	createLsToolDefinition,
@@ -121,6 +122,7 @@ import { createEditTool, createEditToolDefinition, type EditToolOptions } from "
 import type { MutationRequesterResolver } from "./file-mutation-coordinator.ts";
 import { createFindTool, createFindToolDefinition, type FindToolOptions } from "./find.ts";
 import { createHashlineSnapshotStore, type HashlineSnapshotStore } from "./hashline.ts";
+import { createKillTool, createKillToolDefinition, type KillToolOptions } from "./kill.ts";
 import { createLsTool, createLsToolDefinition, type LsToolOptions } from "./ls.ts";
 import { createPowerShellTool, createPowerShellToolDefinition, type PowerShellToolOptions } from "./powershell.ts";
 import { createReadTool, createReadToolDefinition, type ReadToolOptions } from "./read.ts";
@@ -135,6 +137,7 @@ export type ToolName =
 	| "read"
 	| "bash"
 	| "powershell"
+	| "kill"
 	| "edit"
 	| "write"
 	| "find"
@@ -151,6 +154,7 @@ export const allToolNames: Set<ToolName> = new Set([
 	"read",
 	"bash",
 	"powershell",
+	"kill",
 	"edit",
 	"write",
 	"find",
@@ -174,6 +178,7 @@ export function getDefaultToolNames(options?: { powerShellAvailable?: boolean })
 		"read",
 		"bash",
 		...(powerShell ? (["powershell"] as const satisfies readonly ToolName[]) : []),
+		"kill",
 		"edit",
 		"write",
 		"find",
@@ -187,6 +192,7 @@ export interface ToolsOptions {
 	read?: ReadToolOptions;
 	bash?: BashToolOptions;
 	powershell?: PowerShellToolOptions;
+	kill?: KillToolOptions;
 	write?: WriteToolOptions;
 	edit?: EditToolOptions;
 	find?: FindToolOptions;
@@ -213,6 +219,8 @@ export function createToolDefinition(toolName: ToolName, cwd: string, options?: 
 			return createBashToolDefinition(cwd, options?.bash);
 		case "powershell":
 			return createPowerShellToolDefinition(cwd, options?.powershell);
+		case "kill":
+			return createKillToolDefinition(options?.kill);
 		case "edit":
 			return createEditToolDefinition(cwd, {
 				...options?.edit,
@@ -250,6 +258,8 @@ export function createTool(toolName: ToolName, cwd: string, options?: ToolsOptio
 			return createBashTool(cwd, options?.bash);
 		case "powershell":
 			return createPowerShellTool(cwd, options?.powershell);
+		case "kill":
+			return createKillTool(options?.kill);
 		case "edit":
 			return createEditTool(cwd, {
 				...options?.edit,
@@ -283,6 +293,7 @@ export function createCodingToolDefinitions(cwd: string, options?: ToolsOptions)
 	return [
 		createReadToolDefinition(cwd, { ...options?.read, hashlineStore }),
 		createBashToolDefinition(cwd, options?.bash),
+		createKillToolDefinition(options?.kill),
 		createEditToolDefinition(cwd, {
 			...options?.edit,
 			hashlineStore,
@@ -314,6 +325,7 @@ export function createAllToolDefinitions(cwd: string, options?: ToolsOptions): B
 	const definitions: BuiltinToolMap<ToolDef> = {
 		read: createReadToolDefinition(cwd, { ...options?.read, hashlineStore }),
 		bash: createBashToolDefinition(cwd, options?.bash),
+		kill: createKillToolDefinition(options?.kill),
 		edit: createEditToolDefinition(cwd, {
 			...options?.edit,
 			hashlineStore,
@@ -342,6 +354,7 @@ export function createCodingTools(cwd: string, options?: ToolsOptions): Tool[] {
 	return [
 		createReadTool(cwd, { ...options?.read, hashlineStore }),
 		createBashTool(cwd, options?.bash),
+		createKillTool(options?.kill),
 		createEditTool(cwd, {
 			...options?.edit,
 			hashlineStore,
@@ -373,6 +386,7 @@ export function createAllTools(cwd: string, options?: ToolsOptions): BuiltinTool
 	const tools: BuiltinToolMap<Tool> = {
 		read: createReadTool(cwd, { ...options?.read, hashlineStore }),
 		bash: createBashTool(cwd, options?.bash),
+		kill: createKillTool(options?.kill),
 		edit: createEditTool(cwd, {
 			...options?.edit,
 			hashlineStore,
