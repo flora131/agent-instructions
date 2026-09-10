@@ -14,7 +14,7 @@
  */
 
 import assert from "node:assert/strict";
-import { describe, test } from "vitest";
+import { describe, test, vi } from "vitest";
 import { statusRuns } from "../../packages/workflows/src/runs/background/status.js";
 import { runIndicatorStatus, visibleRunTreeMembers } from "../../packages/workflows/src/shared/run-indicator-status.js";
 import { createStore } from "../../packages/workflows/src/shared/store.js";
@@ -437,22 +437,22 @@ describe("renderWidgetLines — standard form", () => {
 			});
 		const assertProgress = (alpha: string, beta: string) => {
 			for (const theme of [undefined, NULL_PI_THEME]) {
-				let retainedIdReads = 0;
-				const retained = Array.from({ length: 32 }, (_, index) => ({
-					...makeRun(`old-${index}`, "retained", "completed", [], 1_000, 2_000),
-					get id() {
-						retainedIdReads++;
-						return `old-${index}`;
-					},
-				}));
+				const retained = Array.from({ length: 32 }, (_, index) =>
+					makeRun(`old-${index}`, "retained", "completed", [], 1_000, 2_000),
+				);
 				const snap = store.graphSnapshot();
-				const lines = buildThemedWidgetLines({ ...snap, runs: [...snap.runs, ...retained] }, theme, 120, now)
+				const runs = [...snap.runs, ...retained];
+				// PR #2700: strict prompt ownership also reads IDs. Measure graph-index
+				// preparation separately from those existing attribution scans.
+				const indexPreparations = vi.spyOn(runs, "map");
+				const lines = buildThemedWidgetLines({ ...snap, runs }, theme, 120, now)
 					.map(stripAnsi)
 					.join("\n");
 				assert.match(lines, /BACKGROUND {2}2 runs /);
 				assert.ok(lines.includes(`alpha · chain · ${alpha}`), lines);
 				assert.ok(lines.includes(`beta · chain · ${beta}`), lines);
-				assert.equal(retainedIdReads, retained.length, "one full run-index preparation per render pass");
+				assert.equal(indexPreparations.mock.calls.length, 1, "one full run-index preparation per render pass");
+				indexPreparations.mockRestore();
 			}
 		};
 		addChild("beta");
@@ -1739,4 +1739,33 @@ describe("run identity rows", () => {
 			}
 		}
 	});
+});
+
+// PR #2700 merge: pending cards must retain main's recursively expanded progress.
+test("pending nested prompt cards preserve recursive progress and exact connect ownership", () => {
+	const root = makeRun("visible-root", "nested-release", "running", [
+		makeStage("import", "child", "running", {
+			workflowChildRun: { alias: "child", workflow: "child", runId: "child-run" },
+		}),
+	]);
+	const child: RunSnapshot = {
+		...makeRun("child-run", "child", "running", [
+			makeStage("done", "done", "completed"),
+			makeStage("ask", "ask", "awaiting_input", {
+				pendingPrompt: { id: "nested-prompt", kind: "input", message: "Continue nested work?", createdAt: 1 },
+			}),
+		]),
+		parentRunId: root.id,
+		parentStageId: "import",
+		rootRunId: root.id,
+	};
+	for (const theme of [undefined, NULL_PI_THEME]) {
+		const lines = buildThemedWidgetLines(makeSnap([root, child]), theme, 120)
+			.map(stripAnsi)
+			.join("\n");
+		assert.ok(lines.includes("nested-release · chain · 1/2"), lines);
+		assert.ok(lines.includes('"Continue nested work?"'), lines);
+		assert.ok(lines.includes("/workflow connect visible-root"), lines);
+		assert.ok(!lines.includes("/workflow connect child-run"), lines);
+	}
 });

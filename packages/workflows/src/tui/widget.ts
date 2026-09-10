@@ -430,8 +430,9 @@ function awaitingRunLines(
 	affordance: PendingInputAffordance,
 	bodyWidth: number,
 	f2TargetsThisRun: boolean,
+	expandGraph: ReturnType<typeof createWorkflowGraphExpander>,
 ): string[] {
-	const meta = metaLine(run, now, runMetaWidth(run, bodyWidth + 2));
+	const meta = metaLine(run, expandGraph, now, runMetaWidth(run, bodyWidth + 2));
 	const identity = renderRunIdentityRows({
 		runId: run.id,
 		name: run.name,
@@ -568,6 +569,7 @@ export function buildThemedWidgetLines(
 						affordance,
 						bodyWidth,
 						activeRunId === affordance.visibleRunId,
+						expandGraph,
 					)
 				: themed
 					? themedRunLines(run, now, graphTheme, snap.runs, width, expandGraph)
