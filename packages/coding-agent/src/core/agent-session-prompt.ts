@@ -265,6 +265,13 @@ export async function _runAgentPrompt(
 		}
 		const pendingPriority = preparePriorityContinuation(this);
 		if (pendingPriority) await pendingPriority;
+		// An explicit stop may win during input preflight or priority preparation.
+		// Preserve the prepared input without opening a native turn past that gate.
+		if (this._queuedMessagesPaused) {
+			const items = Array.isArray(messages) ? messages : [messages];
+			for (const message of items) this._queueAgentMessage(message, "steer");
+			return;
+		}
 		const turn = this.agent.prompt(messages);
 		if (this.isStreaming) promptStarted?.();
 		await turn;

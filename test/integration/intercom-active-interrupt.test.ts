@@ -348,6 +348,70 @@ for (const kind of ["child", "workflow-stage"] as const) {
 }
 
 for (const kind of ["child", "workflow-stage"] as const) {
+	for (const action of ["send", "ask"] as const) {
+		for (const handled of [true, false]) {
+			test(`explicit abort prevents ${action} from draining ${handled ? "handled" : "continued"} ${kind} preflight`, async () => {
+				const entered = Promise.withResolvers<void>();
+				const release = Promise.withResolvers<void>();
+				let inputCalls = 0;
+				const h = await receiver(kind, [], {
+					extensionFactories: [
+						(pi) => {
+							pi.on("input", async () => {
+								inputCalls += 1;
+								entered.resolve();
+								await release.promise;
+								return { action: handled ? "handled" : "continue" };
+							});
+						},
+					],
+				});
+				const dispatches = createDispatchCounter([() => fauxAssistantMessage("must not restart")]);
+				h.setResponses(dispatches.steps(4));
+				const sessionId = h.session.sessionId;
+				const execution = h.session.prompt("original task");
+				try {
+					await entered.promise;
+					const input = message("aborted-preflight", action);
+					await h.deliver(input);
+					await vi.waitFor(() =>
+						assert.equal(
+							h.sessionManager
+								.getEntries()
+								.filter((e) => e.type === "custom_message" && e.customType === "intercom_message").length,
+							1,
+						),
+					);
+					assert.equal(dispatches.counts.valid, 0);
+					// Abort alone must win: neither a separate queue pause nor owner closure
+					// is required to stop the prompt's deferred priority continuation.
+					await h.session.abort();
+					release.resolve();
+					await execution;
+					assert.equal(dispatches.counts.valid, 0, "preflight must not restart after explicit abort");
+					assert.equal(inputCalls, 1, "preflight side effects are not replayed");
+					assert.equal(h.session.sessionId, sessionId);
+					assert.equal(
+						h.session.messages.some((m) => m.role === "assistant"),
+						false,
+					);
+					assert.equal(
+						h.sessionManager
+							.getEntries()
+							.filter((e) => e.type === "custom_message" && e.customType === "intercom_message").length,
+						1,
+						"the admitted card stays durable without a model reply",
+					);
+				} finally {
+					release.resolve();
+					await h.close(execution);
+				}
+			});
+		}
+	}
+}
+
+for (const kind of ["child", "workflow-stage"] as const) {
 	test(`priority input cancels an active retry model call in the same ${kind}`, async () => {
 		const h = await receiver(kind, [], {
 			settings: { retry: { enabled: true, maxRetries: 2, baseDelayMs: 10 } },
