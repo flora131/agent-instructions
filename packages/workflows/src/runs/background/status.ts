@@ -83,8 +83,6 @@ export type PauseResult =
 			reason: "not_found" | "already_ended" | "no_active_stages" | "stage_not_found";
 	  };
 
-export type InterruptRunResult = PauseResult;
-
 export { type InspectRunResult, inspectRun, type RunDetail } from "./run-inspect.js";
 // ---------------------------------------------------------------------------
 // statusRuns
@@ -442,20 +440,6 @@ export async function resumeRun(
 	};
 }
 
-// pauseRun
-/**
- * Pause a run only after its live stage controls acknowledge the request.
- *
- * `actor` attributes the pause to whoever asked for it. Exactly one scope carries
- * it: a whole-run pause attributes the run, and a stage-scoped pause attributes
- * the run when it stops the last active stage and the stage otherwise. An
- * observer therefore reports one event per request, never a stage and a run
- * event for the same one.
- */
-export function pauseRun(runId: string, opts?: Parameters<typeof pauseRunWithAction>[1]): Promise<PauseResult> {
-	return pauseRunWithAction(runId, opts, "pause");
-}
-
 async function pauseRunWithAction(
 	runId: string,
 	opts?: {
@@ -464,19 +448,16 @@ async function pauseRunWithAction(
 		toolControlRegistry?: ToolControlRegistry;
 		/** Pause only this stage. */
 		stageId?: string;
-		/** Who requested this pause. Omitted for internal callers. */
-		actor?: WorkflowActor;
 	},
-	action: "pause" | "interrupt" = "pause",
+	action: "pause" = "pause",
 ): Promise<PauseResult> {
 	const activeStore = opts?.store ?? defaultStore;
 	const registry = opts?.stageControlRegistry ?? defaultStageControlRegistry;
 	const run = activeStore.runs().find((candidate) => candidate.id === runId);
-	const actorMetadata = opts?.actor === undefined ? undefined : { actor: opts.actor };
 
 	if (!run) return { ok: false, runId, reason: "not_found" };
 	if (run.endedAt !== undefined) return { ok: false, runId, reason: "already_ended" };
-	workflowObservationRuntime(activeStore).control(runId, action, opts?.actor);
+	workflowObservationRuntime(activeStore).control(runId, action);
 
 	if (opts?.stageId !== undefined) {
 		const handle = registry.get(runId, opts.stageId);
@@ -494,9 +475,7 @@ async function pauseRunWithAction(
 				(candidate) =>
 					candidate.id !== opts.stageId && (candidate.status === "running" || candidate.status === "pending"),
 			) ?? false;
-		if (!stillActive) activeStore.recordRunPaused(runId, undefined, actorMetadata);
-		else if (actorMetadata !== undefined)
-			activeStore.recordStagePaused(runId, opts.stageId, undefined, actorMetadata);
+		if (!stillActive) activeStore.recordRunPaused(runId);
 		return { ok: true, runId, paused };
 	}
 
@@ -518,7 +497,7 @@ async function pauseRunWithAction(
 		) {
 			// Install every barrier synchronously, before awaiting durable pause acknowledgement.
 			await Promise.all(runtimeControls.map(({ handle }) => handle.pause()));
-			activeStore.recordRunPaused(runId, undefined, actorMetadata);
+			activeStore.recordRunPaused(runId);
 			return {
 				ok: true,
 				runId,
@@ -543,34 +522,15 @@ async function pauseRunWithAction(
 		if (pausedRunId === runId) continue;
 		activeStore.recordRunPaused(pausedRunId);
 	}
-	activeStore.recordRunPaused(runId, undefined, actorMetadata);
+	activeStore.recordRunPaused(runId);
 	return { ok: true, runId, paused };
 }
 
-export async function pauseAllRuns(opts?: {
-	store?: Store;
-	stageControlRegistry?: StageControlRegistry;
-	/** Who requested these pauses. Omitted for internal callers. */
-	actor?: WorkflowActor;
-}): Promise<PauseResult[]> {
-	const activeStore = opts?.store ?? defaultStore;
-	const inFlight = topLevelWorkflowRuns(activeStore.runs()).filter((run) => run.endedAt === undefined);
-	return Promise.all(
-		inFlight.map((run) =>
-			pauseRun(run.id, {
-				store: activeStore,
-				stageControlRegistry: opts?.stageControlRegistry,
-				...(opts?.actor === undefined ? {} : { actor: opts.actor }),
-			}),
-		),
-	);
-}
-// ---------------------------------------------------------------------------
-// interruptRun
+// pauseRun
 // ---------------------------------------------------------------------------
 
-/** Interrupt a run in a resumable way without destructive cancellation. */
-export async function interruptRun(
+/** Pause a run in a resumable way without destructive cancellation. */
+export async function pauseRun(
 	runId: string,
 	opts?: {
 		store?: Store;
@@ -578,7 +538,7 @@ export async function interruptRun(
 		toolControlRegistry?: ToolControlRegistry;
 		stageId?: string;
 	},
-): Promise<InterruptRunResult> {
+): Promise<PauseResult> {
 	if (opts?.stageId === undefined) {
 		const activeStore = opts?.store ?? defaultStore;
 		const toolControls = opts?.toolControlRegistry ?? defaultToolControlRegistry;
@@ -595,29 +555,26 @@ export async function interruptRun(
 					stageControlRegistry: opts?.stageControlRegistry,
 					toolControlRegistry: toolControls,
 				},
-				"interrupt",
+				"pause",
 			);
 			if (quit.ok) return { ok: true, runId: quit.runId, paused: quit.paused };
 			return { ok: false, runId: quit.runId, reason: quit.reason };
 		}
 	}
-	const result = await pauseRunWithAction(runId, opts, "interrupt");
-	return result.ok && result.message !== undefined
-		? { ...result, message: `Run ${runId} interrupted. ${result.message}` }
-		: result;
+	return pauseRunWithAction(runId, opts, "pause");
 }
 
-/** Interrupt all in-flight runs without removing them from history/status. */
-export async function interruptAllRuns(opts?: {
+/** Pause all in-flight runs without removing them from history/status. */
+export async function pauseAllRuns(opts?: {
 	store?: Store;
 	stageControlRegistry?: StageControlRegistry;
 	toolControlRegistry?: ToolControlRegistry;
-}): Promise<InterruptRunResult[]> {
+}): Promise<PauseResult[]> {
 	const activeStore = opts?.store ?? defaultStore;
 	const inFlight = topLevelWorkflowRuns(activeStore.runs()).filter((run) => run.endedAt === undefined);
 	return Promise.all(
 		inFlight.map((run) =>
-			interruptRun(run.id, {
+			pauseRun(run.id, {
 				store: activeStore,
 				stageControlRegistry: opts?.stageControlRegistry,
 				toolControlRegistry: opts?.toolControlRegistry,

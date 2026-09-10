@@ -46,7 +46,7 @@ describe("slash /workflow <name> dispatch", () => {
 			const parts = rawParts[0] === "" ? [] : rawParts;
 			const subcommand = parts[0] ?? "";
 
-			const ADMIN = new Set(["list", "status", "interrupt", "quit", "resume", "inputs"]);
+			const ADMIN = new Set(["list", "status", "pause", "quit", "resume", "inputs"]);
 
 			if (!subcommand || subcommand === "list") {
 				print(`Registered workflows: ${runtime.registry.names().join(", ")}`);
@@ -109,7 +109,7 @@ describe("slash /workflow <name> dispatch", () => {
 		const runtime = createExtensionRuntime({ registry });
 		const { ctx, messages } = buildCtx();
 
-		const ADMIN = new Set(["list", "status", "interrupt", "quit", "resume", "inputs"]);
+		const ADMIN = new Set(["list", "status", "pause", "quit", "resume", "inputs"]);
 		const execute = async (args: string, execCtx: PiCommandContext) => {
 			const print = (msg: string): void => execCtx.ui.notify(msg, "info");
 			const rawParts = args.trim().split(/\s+/);

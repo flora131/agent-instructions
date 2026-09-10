@@ -219,7 +219,6 @@ export interface WorkflowToolArgs {
 		| "transcript"
 		| "answer"
 		| "pause"
-		| "interrupt"
 		| "quit"
 		| "resume"
 		| "reload"

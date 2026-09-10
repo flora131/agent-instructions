@@ -761,7 +761,7 @@ describe("workflow heartbeat delivery", () => {
 		assert.match(send.content, /delivering them before their first model turn/);
 		assert.match(send.content, /workers and reviewers begin with one consistent contract/);
 		assert.match(send.content, /Use `ask` once the target has a live session that can reply/);
-		assert.match(send.content, /Use workflow pause, resume, interrupt, or quit for run control/);
+		assert.match(send.content, /Use workflow pause, resume, or quit for run control/);
 		assert.match(send.content, /Continue the progressing run when no intervention is needed/);
 		harness.scheduler.dispose();
 	});

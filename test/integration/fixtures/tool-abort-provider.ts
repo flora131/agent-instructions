@@ -30,7 +30,7 @@ export default function (pi: ExtensionAPI): void {
 								.map((part) => part.text)
 								.join("")
 					: "";
-			const runId = /^interrupt-tool ([0-9a-f-]{36})$/.exec(text)?.[1];
+			const runId = /^pause-tool ([0-9a-f-]{36})$/.exec(text)?.[1];
 			const output: AssistantMessage = {
 				role: "assistant",
 				api: model.api,
@@ -45,7 +45,7 @@ export default function (pi: ExtensionAPI): void {
 									type: "toolCall",
 									id: `abort-${runId}`,
 									name: "workflow",
-									arguments: { action: "interrupt", runId, stageId: "hang-tool" },
+									arguments: { action: "pause", runId, stageId: "hang-tool" },
 								},
 							],
 				stopReason: runId === undefined ? "stop" : "toolUse",

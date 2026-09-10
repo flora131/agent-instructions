@@ -529,7 +529,7 @@ function renderDetailHintRows(detail: RunDetail, width: number, theme?: GraphThe
 		? " ▸ workflow status id="
 		: resumable
 			? " ▸ workflow resume id="
-			: " ▸ workflow interrupt   id=";
+			: " ▸ workflow pause   id=";
 	const suffix = inspectOnly
 		? detail.ownerActiveElsewhere === true
 			? "    inspect; owner active elsewhere "

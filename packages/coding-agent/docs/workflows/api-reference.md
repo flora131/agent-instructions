@@ -405,7 +405,7 @@ ctx.tool<TValue extends WorkflowSerializableValue>(
 
 Runs arbitrary TypeScript code as a tracked, non-attachable durable workflow graph node and caches its serializable result by call order plus the content hash of `name` and `args`. The node is created before `fn` runs and may appear before, between, after, or without model stages. A completed call replays without rerunning `fn`, so use this primitive for workflow-owned durable side effects; keep pure computation as ordinary TypeScript.
 
-**Cancellation and deadlines.** Every callback receives a `WorkflowToolContext` whose `signal` aborts when the run is cancelled, when the run is gracefully quit, or when this single node is aborted with `workflow({ action: "quit"|"interrupt", runId, stageId: "<tool node id or name>" })`. Forward it to `fetch`, a child process, or any client that accepts an `AbortSignal` so a stuck call can be stopped:
+**Cancellation and deadlines.** Every callback receives a `WorkflowToolContext` whose `signal` aborts when the run is cancelled, when the run is gracefully quit, or when this single node is aborted with `workflow({ action: "quit"|"pause", runId, stageId: "<tool node id or name>" })`. Forward it to `fetch`, a child process, or any client that accepts an `AbortSignal` so a stuck call can be stopped:
 
 ```ts
 await ctx.tool(
@@ -988,7 +988,7 @@ When a stage explicitly configures `model` or `fallbackModels`, each recorded at
 ```typescript
 interface WorkflowDetails extends WorkflowSerializableObject {
   readonly mode: "named" | "single" | "parallel" | "chain" | "inspection" | "control";
-  readonly action?: "list" | "get" | "inputs" | "run" | "status" | "interrupt" | "resume";
+  readonly action?: "list" | "get" | "inputs" | "run" | "status" | "pause" | "resume";
   readonly runId?: string;
   readonly status: "accepted" | "running" | WorkflowExitStatus | "failed" | "killed" | "noop";
   readonly context?: "fresh" | "fork";

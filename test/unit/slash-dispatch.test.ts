@@ -3,7 +3,7 @@ import "./slash-dispatch-args.js";
 import "./slash-dispatch-run.js";
 import "./slash-dispatch-registration-basic.js";
 import "./slash-dispatch-registration-canonical.js";
-import "./slash-dispatch-interrupt.js";
+import "./slash-dispatch-pause.js";
 import "./slash-dispatch-resume.js";
 import "./slash-dispatch-tool-guards.js";
 import "./slash-dispatch-tool-lifecycle.js";

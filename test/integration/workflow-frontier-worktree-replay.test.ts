@@ -6,7 +6,7 @@ import { InMemoryDurableBackend } from "../../packages/workflows/src/durable/bac
 import { setDurableBackend } from "../../packages/workflows/src/durable/factory.js";
 import { createExtensionRuntime } from "../../packages/workflows/src/extension/runtime.js";
 import {
-	workflowInterruptAction,
+	workflowPauseAction,
 	workflowResumeAction,
 } from "../../packages/workflows/src/extension/workflow-tool-control.js";
 import { store } from "../../packages/workflows/src/shared/store.js";
@@ -88,7 +88,7 @@ test("public tool-frontier resume replays a completed worktree task without prep
 	await waitFor(() => tools === 1);
 	const source = store.runs().find((run) => run.id === started.runId)!;
 	const target = source.toolNodes!.find((node) => node.name === "target")!;
-	await workflowInterruptAction({ action: "interrupt", runId: source.id, stageId: target.id });
+	await workflowPauseAction({ action: "pause", runId: source.id, stageId: target.id });
 	await waitFor(() => source.endedAt !== undefined);
 	assert.equal(source.status, "failed");
 	assert.deepEqual(filesystem, { prepared: 1, cleaned: 1, collected: 1 });

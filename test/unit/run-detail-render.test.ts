@@ -146,8 +146,8 @@ describe("renderRunDetail — themed", () => {
 		assert.match(plain, /● planner/);
 		assert.match(plain, /○ worker/);
 
-		// Active run keeps the complete id in the interrupt action hint.
-		assert.match(plain, /workflow interrupt\s+id=abc123uuid/);
+		// Active run keeps the complete id in the pause action hint.
+		assert.match(plain, /workflow pause\s+id=abc123uuid/);
 		assert.doesNotMatch(plain, /workflow resume/);
 	});
 
@@ -174,7 +174,7 @@ describe("renderRunDetail — themed", () => {
 		assert.match(plain, /state\s+❚❚ paused/);
 		assert.match(plain, /workflow resume\s+id=pause123uuid/);
 		assert.match(plain, /continue workflow/);
-		assert.doesNotMatch(plain, /workflow interrupt/);
+		assert.doesNotMatch(plain, /workflow pause/);
 		assert.doesNotMatch(plain, /○ pending/);
 	});
 
@@ -200,12 +200,12 @@ describe("renderRunDetail — themed", () => {
 		assert.match(plain, /ended\s+00:16:32/);
 		assert.doesNotMatch(plain, /\([^)]*ago\)/);
 		assert.match(plain, /duration/);
-		assert.doesNotMatch(plain, /workflow interrupt/);
+		assert.doesNotMatch(plain, /workflow pause/);
 		assert.match(plain, /workflow status\s+id=/);
 		assert.doesNotMatch(plain, /workflow resume/);
 	});
 
-	test("foreign-live durable detail does not promise local interruption", () => {
+	test("foreign-live durable detail does not promise local pause", () => {
 		const detail: RunDetail = {
 			...detailFromRun(makeRun({ id: "foreign-live", name: "foreign-live", status: "running" })),
 			ownerActiveElsewhere: true,
@@ -215,7 +215,7 @@ describe("renderRunDetail — themed", () => {
 
 		assert.match(plain, /workflow status\s+id=foreign-live/);
 		assert.match(plain, /owner active elsewhere/);
-		assert.doesNotMatch(plain, /workflow interrupt/);
+		assert.doesNotMatch(plain, /workflow pause/);
 		assert.doesNotMatch(plain, /workflow resume/);
 	});
 

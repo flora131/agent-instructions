@@ -468,11 +468,9 @@ describe("ctx.tool node cancellation controls", () => {
 		const nodeId = singletonStore.runs().find((candidate) => candidate.id === runId)?.toolNodes?.[0]?.id;
 		assert.ok(nodeId);
 
-		const aborted = toolNodeControlOutcome(
-			await execute({ action: "interrupt", runId, stageId: nodeId }, {} as never),
-		);
+		const aborted = toolNodeControlOutcome(await execute({ action: "pause", runId, stageId: nodeId }, {} as never));
 
-		assert.equal(aborted.action, "interrupt");
+		assert.equal(aborted.action, "pause");
 		assert.equal(aborted.status, "cancelled", "the action never reports the run as paused");
 		assert.equal(aborted.stageId, nodeId);
 		assert.equal(aborted.abandoned, false);
@@ -495,7 +493,7 @@ describe("ctx.tool node cancellation controls", () => {
 		);
 	});
 
-	test("interrupt resolves a unique tool name, rejects an ambiguous one, and refuses pause", async () => {
+	test("pause resolves a unique tool name and rejects an ambiguous one", async () => {
 		const backend = new InMemoryDurableBackend();
 		setDurableBackend(backend);
 		const runId = testRunId("tool-node-name-routing");
@@ -542,25 +540,12 @@ describe("ctx.tool node cancellation controls", () => {
 		const pending = run(definition, {}, { runId, store: singletonStore, durableBackend: backend });
 		await Promise.all(entered);
 
-		const pauseRejected = controlOutcome(
-			await execute({ action: "pause", runId, stageId: "duplicate" }, {} as never),
-		);
-		assert.equal(pauseRejected.status, "noop");
-		assert.match(pauseRejected.message, /Ambiguous stage identifier "duplicate"/);
-
-		const pauseTool = controlOutcome(await execute({ action: "pause", runId, stageId: "unique" }, {} as never));
-		assert.equal(pauseTool.status, "noop");
-		assert.match(pauseTool.message, /Tool nodes cannot be paused/);
-		assert.match(pauseTool.message, /Use interrupt or quit to abort it/);
-
-		const ambiguous = controlOutcome(
-			await execute({ action: "interrupt", runId, stageId: "duplicate" }, {} as never),
-		);
+		const ambiguous = controlOutcome(await execute({ action: "pause", runId, stageId: "duplicate" }, {} as never));
 		assert.equal(ambiguous.status, "noop");
 		assert.match(ambiguous.message, /Ambiguous stage identifier "duplicate" matches: duplicate \(tool\)/);
 
-		const interrupted = controlOutcome(await execute({ action: "interrupt", runId, stageId: "unique" }, {} as never));
-		assert.match(interrupted.message, /Cancelled ctx\.tool unique/);
+		const aborted = controlOutcome(await execute({ action: "pause", runId, stageId: "unique" }, {} as never));
+		assert.match(aborted.message, /Cancelled ctx\.tool unique/);
 		const uniqueNode = singletonStore
 			.runs()
 			.find((candidate) => candidate.id === runId)

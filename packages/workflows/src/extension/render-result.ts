@@ -162,19 +162,18 @@ type AnswerResult = {
 );
 type PauseResult = { action: "pause"; runId: string; status: string; message: string };
 type ReloadResult = WorkflowReloadReport & { action: "reload"; status: "ok" | "noop"; message: string };
-type InterruptResult = { action: "interrupt"; runId: string; status: string; message: string };
 type QuitResult = { action: "quit"; runId: string; status: string; message: string };
 type ResumeResult = { action: "resume"; runId: string; status: string; message: string };
 
 /**
- * Outcome of aborting one in-flight `ctx.tool` node with `quit`/`interrupt`.
+ * Outcome of aborting one in-flight `ctx.tool` node with `quit`/`pause`.
  *
  * The node status and the workflow status are reported separately: the action
  * cancels exactly one node and never pauses the run, while what happens to the
  * run afterwards is ordinary author control flow. `workflowStatus` is the
  * status observed when the action returned, not a prediction.
  */
-export type ToolNodeControlResult<TAction extends "quit" | "interrupt" = "quit" | "interrupt"> = {
+export type ToolNodeControlResult<TAction extends "quit" | "pause" = "quit" | "pause"> = {
 	readonly action: TAction;
 	readonly runId: string;
 	readonly stageId: string;
@@ -214,7 +213,6 @@ export type WorkflowToolResult =
 	| AnswerResult
 	| PauseResult
 	| ReloadResult
-	| InterruptResult
 	| QuitResult
 	| ResumeResult
 	| ToolNodeControlResult
@@ -509,11 +507,6 @@ export function renderResult(result: WorkflowRegisteredToolResult | null | undef
 		case "reload": {
 			const r = result as ReloadResult;
 			return renderNotice("WORKFLOW RELOAD", r.message, opts, themed);
-		}
-
-		case "interrupt": {
-			const r = result as InterruptResult;
-			return renderNotice("WORKFLOW INTERRUPT", `${r.runId}: ${r.message}`, opts, themed);
 		}
 
 		case "quit": {

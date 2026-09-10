@@ -103,7 +103,7 @@ export class WorkflowObservationRuntime {
 	): void {
 		const run = this.runs().find((candidate) => candidate.id === runId);
 		if (!run) return;
-		if ((action === "quit" || action === "kill" || action === "interrupt") && this.liveRunIds.has(runId))
+		if ((action === "quit" || action === "kill" || action === "pause") && this.liveRunIds.has(runId))
 			this.stoppingRunIds.add(runId);
 		if (action === "resume") this.stoppingRunIds.delete(runId);
 		this.lifecycle({ kind: "run", runId, status: run.status, action }, attribution);

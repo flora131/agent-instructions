@@ -88,7 +88,7 @@ export interface WorkflowStatusToolNode {
 
 /**
  * Concise, JSON-stable summary of one top-level run for the `status`
- * listing. `runId` feeds answer and pause/resume/interrupt/quit directly;
+ * listing. `runId` feeds answer and pause/resume/quit directly;
  * `awaitingInput` entries carry the stage/prompt ids that `answer` accepts.
  */
 export interface WorkflowRunStatusSummary {

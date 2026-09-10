@@ -10,7 +10,7 @@ const REAL_ENGINE_WORKFLOW_TIMEOUT_TIMEOUT_MS = 60_000;
 const serialTest = process.platform === "win32" ? test.sequential.skip : test.sequential;
 
 serialTest(
-	"a real interactive engine settles workflow timeouts once and remains usable for interrupt",
+	"a real interactive engine settles workflow timeouts once and remains usable for pause",
 	async () => {
 		const temp = mkdtempSync(join(tmpdir(), "atomic-workflow-public-timeout-"));
 		const extension = join(moduleDir(import.meta.url), "fixtures", "workflow-public-timeout-extension.ts");
@@ -48,7 +48,7 @@ serialTest(
 			);
 
 			from = driver.reports.length;
-			driver.send({ type: "input", data: "now time out workflow interrupt" });
+			driver.send({ type: "input", data: "now time out workflow pause" });
 			driver.send({ type: "input", data: "\r" });
 			await driver.waitForNext(
 				from,

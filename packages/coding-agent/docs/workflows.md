@@ -11,7 +11,7 @@ Default to a workflow for non-trivial work with a verifiable objective — see [
 - **Parallel branches** - Run independent research, review, or implementation branches concurrently
 - **Context handoffs** - Pass summaries, artifacts, files, and schema-backed structured results between stages
 - **Human input** - Pause for `ctx.ui.input`, `confirm`, `select`, `editor`, or custom TUI widget decisions during a run
-- **Resumable control** - Interrupt, pause, quit, resume, or connect to workflow runs
+- **Resumable control** - Pause, quit, resume, or connect to workflow runs
 - **Intercom run notifications** - Deliver async run results and control notices (long-running, needs-attention, completed, failed) to a parent session over [Intercom](/intercom)
 - **Artifacts** - Save large outputs to files instead of pushing everything through model context
 - **Verification and gates** - Preserve evidence, run checks, and stop for human approval where reliability matters
@@ -66,7 +66,7 @@ If exploration drifts without progress, save findings and choose a concrete next
 
 | User need | Use |
 |-----------|-----|
-| Run, inspect, connect to, pause, interrupt, quit, resume, or check status for an existing workflow | `/workflow ...` or `workflow({ action: ... })` |
+| Run, inspect, connect to, pause, quit, resume, or check status for an existing workflow | `/workflow ...` or `workflow({ action: ... })` |
 | Run repository-wide research | Compose `fan-out-and-synthesize` with repository-focused branches, artifact outputs, and a synthesis barrier, or author a smaller task-specific research workflow. |
 | Run an implementation/review loop | Author a task-specific worker → fresh verifier → reducer loop with explicit evidence, repair bounds, and stop conditions. |
 | Create or edit reusable automation | A TypeScript workflow definition exported from `workflow({...})` |

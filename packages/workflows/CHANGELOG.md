@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Breaking Changes
+
+- Workflow run control uses `pause` across slash commands, tool actions, runtime APIs, and lifecycle control events. Run-level pause preserves resumable work, including nested task-result checkpoint tails and executor-only waits; targeted stage pause retains queued messages, and targeted `ctx.tool` pause cancels only that call. Use `resume` to continue eligible work.
+
 ## [0.9.19-alpha.3] - 2026-09-09
 
 ### Fixed

@@ -378,10 +378,7 @@ describe("/workflow pause — top-level command", () => {
 		const { ctx, messages } = buildPrintCtx();
 		await wfCmd.options.handler("pause", ctx);
 		const joined = messages.join("\n");
-		assert.ok(
-			joined.toLowerCase().includes("no active runs") || joined.toLowerCase().includes("picker requires"),
-			`unexpected output: ${joined}`,
-		);
+		assert.equal(joined, "No in-flight runs to pause.");
 	});
 
 	test("pause <unknown> prints not-found", async () => {

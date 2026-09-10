@@ -2,7 +2,7 @@
  * Live tool-node control registry — runtime-only handle table keyed by
  * `runId + nodeId`.
  *
- * `ctx.tool` executions live inside `run()`, while `/workflow quit|interrupt`
+ * `ctx.tool` executions live inside `run()`, while workflow quit/pause control
  * runs elsewhere in the process. Store snapshots are JSON-cloneable and cannot
  * carry an `AbortController`, so the abort surface for an in-flight tool node
  * lives here, exactly as live stage chat handles live in the stage-control

@@ -72,7 +72,7 @@ describe("MockExtensionAPI — slash command registration", () => {
 		const cmd = getCommand(mock.commands, "workflow")!;
 		const completions = (await cmd.options.getArgumentCompletions?.("")) ?? [];
 		const labels = completions.map((c) => c.label);
-		for (const sub of ["list", "status", "connect", "interrupt", "quit", "resume", "inputs"]) {
+		for (const sub of ["list", "status", "connect", "pause", "quit", "resume", "inputs"]) {
 			assert.ok(labels.includes(sub));
 		}
 		assert.equal(labels.includes("kill"), false);
@@ -100,8 +100,8 @@ describe("MockExtensionAPI — slash command registration", () => {
 			false,
 		);
 
-		const interrupt = (await cmd.options.getArgumentCompletions?.("interrupt -")) ?? [];
-		assert.ok(interrupt.some((c) => c.value === "interrupt -y "));
+		const pause = (await cmd.options.getArgumentCompletions?.("pause -")) ?? [];
+		assert.ok(pause.some((c) => c.value === "pause -y "));
 
 		const quit = (await cmd.options.getArgumentCompletions?.("quit -")) ?? [];
 		assert.ok(quit.some((c) => c.value === "quit --all "));
@@ -214,8 +214,8 @@ describe("renderCall — all action branches", () => {
 		assert.ok(renderCall({ workflow: "wf-b", action: "run" }).includes("wf-b"));
 	});
 
-	test("action='interrupt' includes runId", () => {
-		assert.ok(renderCall({ runId: "run-1", action: "interrupt" }).includes("run-1"));
+	test("action='pause' includes runId", () => {
+		assert.ok(renderCall({ runId: "run-1", action: "pause" }).includes("run-1"));
 	});
 
 	test("action='quit' includes runId", () => {
@@ -316,10 +316,10 @@ describe("renderResult — all action branches", () => {
 				truncated: false,
 			},
 			{
-				action: "interrupt",
+				action: "pause",
 				runId: "run-abcdef",
 				status: "paused",
-				message: "A very long interrupt response message.",
+				message: "A very long pause response message.",
 			},
 			{
 				action: "quit",
@@ -453,15 +453,15 @@ describe("renderResult — all action branches", () => {
 		assert.ok(out.includes("r42"));
 	});
 
-	test("action='interrupt' shows message", () => {
+	test("action='pause' shows message", () => {
 		const out = renderResult({
-			action: "interrupt",
+			action: "pause",
 			runId: "r10",
 			status: "noop",
-			message: "Interrupt not yet implemented",
+			message: "Run has no active stages",
 		});
 		assert.ok(out.includes("r10"));
-		assert.ok(out.includes("Interrupt not yet implemented"));
+		assert.ok(out.includes("Run has no active stages"));
 	});
 
 	test("action='quit' shows resumable message", () => {
