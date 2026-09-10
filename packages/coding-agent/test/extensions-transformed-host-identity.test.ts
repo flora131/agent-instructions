@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -32,12 +33,12 @@ export default function (pi) {
 	bus.on("first-load-host", (value) => observations.push(value as (typeof observations)[number]));
 	try {
 		const loaded = await loadExtensions([entry], root, bus);
-		expect(loaded.errors).toEqual([]);
-		expect(observations).toHaveLength(1);
-		expect(observations[0]!.SessionManager).toBe(SessionManager);
-		expect(observations[0]!.Text).toBe(Text);
-		expect(observations[0]!.Type).toBe(Type);
-		expect(observations[0]!.mode).toBe(0);
+		assert.deepEqual(loaded.errors, []);
+		assert.equal(observations.length, 1);
+		assert.equal(observations[0]!.SessionManager, SessionManager);
+		assert.equal(observations[0]!.Text, Text);
+		assert.equal(observations[0]!.Type, Type);
+		assert.equal(observations[0]!.mode, 0);
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true });
 		clearExtensionCache();
