@@ -632,12 +632,12 @@ const issueNavigationOrder: Record<string, readonly string[]> = {
 };
 
 /**
- * Pages created by the migration but not named in the issue's route tree.
+ * Migration and captured-upstream pages not named in the issue's route tree.
  * Each stays immediately after the route whose topic it extends. The reference
  * cluster follows compaction internals because its parents live in Build.
  */
 const generatedNavigationInsertions: Record<string, readonly string[]> = {
-	"/usage": ["/background-tasks", "/herdr", "/guides/configuration"],
+	"/usage": ["/background-tasks", "/computer-use", "/herdr", "/guides/configuration"],
 	"/skills": ["/skills/authoring"],
 	"/subagents": ["/subagents/authoring"],
 	"/intercom": ["/intercom/operations"],
@@ -885,8 +885,8 @@ describe("docs information architecture (#2847)", () => {
 		const expectedGenerated = Object.values(generatedNavigationInsertions).flat().sort();
 		assert.equal(
 			expectedGenerated.length,
-			28,
-			"24 migration routes and all four upstream additions have insertion points",
+			29,
+			"24 migration routes and all five upstream additions have insertion points",
 		);
 		assert.deepEqual(generated, expectedGenerated, "no generated page may fall outside the insertion contract");
 
@@ -1707,7 +1707,7 @@ describe("docs references and assets (#2847)", () => {
 
 	test("workflow pages preserve the current upstream structure and learning path", () => {
 		// #2847 freezes the learning path, not obsolete behavior superseded by the authorized merge.
-		// The two-source verifier below separately proves every full main block, including corrections.
+		// The source verifier below separately proves every captured main block and delta, including corrections.
 		const workflowPages = diskSlugs.filter((slug) => slug === "workflows" || slug.startsWith("workflows/"));
 		assert.equal(workflowPages.length, 7, "all six original workflow pages and upstream verification are checked");
 		for (const slug of workflowPages) {
@@ -1718,7 +1718,7 @@ describe("docs references and assets (#2847)", () => {
 					"-C",
 					repoRoot,
 					"show",
-					`cb13229bebe30ea7cb65689569569494b4bc651c:packages/coding-agent/docs/${pathForSlug(slug)}`,
+					`7b2bf523216448ad4efb4b2e1c1e52fbcf0c2e12:packages/coding-agent/docs/${pathForSlug(slug)}`,
 				],
 				{ encoding: "utf8", timeout: 30_000 },
 			);
@@ -1796,11 +1796,20 @@ describe("docs content ledger (#2847)", () => {
 				edits: number;
 				compatibilityPointers: number;
 			};
+			fourthMain: {
+				revision: string;
+				pages: number;
+				unchangedPages: number;
+				changedPages: number;
+				newPages: number;
+				edits: number;
+				readerRepairs: number;
+			};
 		};
 		assert.equal(report.baseline.blocks, 1038);
 		assert.equal(report.main.pages, 47);
 		assert.equal(report.main.blocks, 1090);
-		assert.equal(report.readerPages, 85);
+		assert.equal(report.readerPages, 86);
 		assert.equal(report.readerAnchorRepairs, 4);
 		assert.deepEqual(report.latestMain, {
 			revision: "daf6d2747ce95ae25d0b7e46660d92f0c39101d8",
@@ -1814,6 +1823,15 @@ describe("docs content ledger (#2847)", () => {
 			unchangedPages: 45,
 			edits: 3,
 			compatibilityPointers: 1,
+		});
+		assert.deepEqual(report.fourthMain, {
+			revision: "7b2bf523216448ad4efb4b2e1c1e52fbcf0c2e12",
+			pages: 48,
+			unchangedPages: 33,
+			changedPages: 14,
+			newPages: 1,
+			edits: 44,
+			readerRepairs: 11,
 		});
 	});
 

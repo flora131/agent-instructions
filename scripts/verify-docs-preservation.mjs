@@ -16,6 +16,11 @@ export const WAIT_MAIN = "32059e25f6608770280eacc0285b49a454a3f2f0";
 export const SECOND_RECONCILIATION = "37bbd794fdcafac4b883e31e46d95eb60c26923d";
 export const WAIT_FOLLOWUP = "docs/migrations/2847-wait-main.json";
 export const PROVENANCE = "docs/migrations/2847-reconciliation/";
+export const FOURTH_MAIN = "7b2bf523216448ad4efb4b2e1c1e52fbcf0c2e12";
+export const FOURTH_PREDECESSOR = "c075c61a7dcae05a767db7372d991f421b3fc507";
+export const FOURTH_FOLLOWUP = "docs/migrations/2847-fourth-main.json";
+export const FOURTH_README = "docs/migrations/2847-fourth-main.md";
+const FOURTH_README_SHA256 = "19202517c989bb552d7f5e7fd3679cf3616fd541789664bfbc1156d2507572bb";
 // #2847 / PR #2971 review 3: exact append-only reader handoffs, not upstream changes.
 export const AUTHORING_PREDECESSOR = "8da40cc4ddb88b16baf8b4291722c6dabee8cfbb";
 const authoringReferenceAdditions = new Map(
@@ -908,7 +913,283 @@ export function waitMainEvidence(delta) {
 	};
 }
 
-function verifyLatest({ repoRoot, revision, overrides, waitMain = false, authoringReferences = false }) {
+/** Fourth exact capture: source hunks are closed here, never learned from reader hashes. */
+export function reconstructFourthMainDelta(repoRoot) {
+	const specs = [
+		["docs.json", "docs.json", 17, 6, 17, 7],
+		["extensions.md", "extensions/events.md", 1074, 7, 1074, 7],
+		["herdr.md", "herdr.md", 2, 6, 2, 8],
+		["index.md", "guides.md", 61, 1, 61, 2],
+		["intercom.md", "intercom/operations.md", 137, 3, 137, 9],
+		["quickstart.md", "getting-started/first-session.md", 218, 7, 218, 7],
+		["subagents.md", "subagents.md", 83, 7, 83, 7],
+		["subagents.md", "subagents.md", 163, 16, 163, 16],
+		["subagents.md", "subagents.md", 248, 7, 248, 7],
+		["tmux.md", "tmux.md", 2, 6, 2, 8],
+		["usage.md", "usage.md", 51, 7, 51, 7],
+		["workflows.md", "workflows.md", 11, 7, 11, 7],
+		["workflows.md", "workflows.md", 40, 6, 40, 8],
+		["workflows.md", "workflows.md", 66, 7, 68, 7],
+		["workflows/api-reference.md", "workflows/api-reference.md", 405, 7, 405, 7],
+		["workflows/api-reference.md", "workflows/api-reference.md", 571, 7, 571, 7],
+		["workflows/api-reference.md", "workflows/api-reference.md", 955, 6, 955, 7],
+		["workflows/api-reference.md", "workflows/api-reference.md", 988, 7, 989, 7],
+		["workflows/authoring.md", "workflows/authoring.md", 409, 7, 409, 7],
+		["workflows/authoring.md", "workflows/authoring.md", 474, 7, 474, 7],
+		["workflows/authoring.md", "workflows/authoring.md", 631, 7, 631, 7],
+		["workflows/operations.md", "workflows/operations.md", 61, 7, 61, 7],
+		["workflows/operations.md", "workflows/operations.md", 77, 13, 77, 13],
+		["workflows/operations.md", "workflows/operations.md", 122, 6, 122, 8],
+		["workflows/operations.md", "workflows/operations.md", 131, 10, 133, 9],
+		["workflows/operations.md", "workflows/operations.md", 147, 7, 148, 7],
+		["workflows/operations.md", "workflows/operations.md", 166, 7, 167, 7],
+		["workflows/operations.md", "workflows/operations.md", 222, 9, 223, 7],
+		["workflows/operations.md", "workflows/operations.md", 234, 7, 233, 7],
+		["workflows/operations.md", "workflows/operations.md", 243, 7, 242, 7],
+		["workflows/operations.md", "workflows/operations.md", 254, 21, 253, 20],
+		["workflows/operations.md", "workflows/operations.md", 277, 7, 275, 7],
+		["workflows/operations.md", "workflows/operations.md", 377, 7, 375, 7],
+		["workflows/operations.md", "workflows/operations.md", 452, 11, 450, 11],
+		["workflows/operations.md", "workflows/operations.md", 472, 7, 470, 7],
+		["workflows/operations.md", "workflows/operations.md", 564, 7, 562, 7],
+		["workflows/operations.md", "workflows/operations.md", 589, 7, 587, 7],
+		["workflows/operations.md", "workflows/operations.md", 605, 7, 603, 7],
+		["workflows/operations.md", "workflows/operations.md", 724, 7, 722, 7],
+		["workflows/operations.md", "workflows/operations.md", 777, 7, 775, 7],
+		["workflows/reliable-design.md", "workflows/reliable-design.md", 1168, 7, 1168, 7],
+		["workflows/reliable-design.md", "workflows/reliable-design.md", 1348, 7, 1348, 7],
+		["workflows/reliable-design.md", "workflows/reliable-design.md", 2093, 7, 2093, 7],
+		["workflows/verification.md", "workflows/verification.md", 1, 79, 1, 138],
+	];
+	const newPath = `${DOCS}computer-use.md`;
+	const changedPaths = new Set([...specs.map(([path]) => DOCS + path), newPath]);
+	const previousTree = git(repoRoot, ["ls-tree", "-r", WAIT_MAIN, "--", DOCS]);
+	const latestTree = git(repoRoot, ["ls-tree", "-r", FOURTH_MAIN, "--", DOCS]);
+	const unchangedTree = (text) =>
+		text
+			.split("\n")
+			.filter((line) => !changedPaths.has(line.split("\t")[1]))
+			.join("\n");
+	assert.equal(unchangedTree(latestTree), unchangedTree(previousTree), "unmapped fourth-main source file change");
+	const paths = (text) =>
+		text
+			.split("\n")
+			.filter(Boolean)
+			.map((line) => line.split("\t")[1]);
+	assert.deepEqual(paths(latestTree), [...paths(previousTree), newPath].sort(), "fourth-main source path set changed");
+	const source = (revision, path) => git(repoRoot, ["show", `${revision}:${path}`]);
+	const slice = (revision, path, start, count) =>
+		`${source(revision, DOCS + path)
+			.split("\n")
+			.slice(start - 1, start - 1 + count)
+			.join("\n")}\n`;
+	const edits = specs.map(([path, target, oldStart, oldCount, newStart, newCount]) => ({
+		source_path: DOCS + path,
+		target_path: DOCS + target,
+		previous_lines: [oldStart, oldStart + oldCount - 1],
+		latest_lines: [newStart, newStart + newCount - 1],
+		before: slice(WAIT_MAIN, path, oldStart, oldCount),
+		after: slice(FOURTH_MAIN, path, newStart, newCount),
+	}));
+	// Rebuild complete files, including navigation; omitted hunks and asset changes fail closed.
+	const pages = paths(latestTree)
+		.filter((path) => /\.mdx?$/u.test(path) || path === `${DOCS}docs.json`)
+		.map((path) => {
+			const added = path === newPath;
+			const before = added ? "" : source(WAIT_MAIN, path),
+				after = source(FOURTH_MAIN, path);
+			let expected = added ? source(FOURTH_MAIN, newPath) : before;
+			for (const edit of edits.filter((row) => row.source_path === path))
+				expected = replaceDelta(expected, edit.before, edit.after, path);
+			assert.equal(expected, after, `unmapped fourth-main source change: ${path}`);
+			return {
+				path,
+				previous_sha256: added ? null : digest(before),
+				latest_sha256: digest(after),
+				unchanged: before === after,
+				added,
+			};
+		});
+	const readerEdits = edits
+		.filter((edit) => edit.source_path !== `${DOCS}docs.json`)
+		.map((edit) => {
+			// Preserve the existing migrated absolute rediscovery link, not the upstream fragment spelling.
+			const retarget = (text) =>
+				edit.source_path === `${DOCS}workflows/operations.md`
+					? text.replaceAll(
+							"](#reloading-workflow-resources)",
+							"](/workflows/operations#reloading-workflow-resources)",
+						)
+					: text;
+			return { ...edit, before: retarget(edit.before), after: retarget(edit.after) };
+		});
+	const cliPath = `${DOCS}reference/cli.md`;
+	const oldInventory = source(FOURTH_PREDECESSOR, cliPath)
+		.split("\n")
+		.find((line) => line.startsWith("Default built-in tools:"));
+	assert.ok(oldInventory);
+	const readerRepairs = [
+		{
+			kind: "navigation-placement",
+			target_path: `${DOCS}docs.json`,
+			before: '              "background-tasks",\n',
+			after: '              "background-tasks",\n              "computer-use",\n',
+			reason:
+				"Place the selected upstream computer-use route in the existing Learn/Guides navigation without replacing the reader IA.",
+		},
+		{
+			kind: "intercom-compatibility-pointer",
+			target_path: `${DOCS}intercom.md`,
+			before: "## The intercom Tool\n",
+			after: "### Troubleshooting initialization\n\nMoved to [Intercom operations](/intercom/operations#troubleshooting-initialization).\n\n## The intercom Tool\n",
+			reason:
+				"Keep the new upstream anchor on the compatibility page; its complete substantive guidance remains active in Intercom operations.",
+		},
+		{
+			kind: "default-tool-correction",
+			target_path: `${DOCS}getting-started/first-session.md`,
+			before: "- `bash` - run shell commands\n",
+			after: "- `bash` - run shell commands\n- `kill` - cancel owned background shell tasks by task ID\n",
+			reason:
+				"The runtime getDefaultToolNames contract includes kill; preserve the old incomplete list at the exact predecessor.",
+		},
+		{
+			kind: "windows-tool-caveat",
+			target_path: `${DOCS}getting-started/first-session.md`,
+			before: "- `todo` - manage file-based todos\n",
+			after: "- `todo` - manage file-based todos\n\nOn native Windows, `powershell` is also enabled when a PowerShell executable is available.\n",
+			reason:
+				"Make the runtime's conditional native-Windows PowerShell default explicit without changing the other onboarding details.",
+		},
+		{
+			kind: "default-tool-correction",
+			target_path: cliPath,
+			before: `${oldInventory}\n`,
+			after: `${oldInventory.replace("`read`, `bash`, `edit`", "`read`, `bash`, `kill`, `edit`")}\n`,
+			reason:
+				"Add the enabled kill tool while retaining the complete Windows availability and tool-selection caveats.",
+		},
+		{
+			kind: "bash-observation-correction",
+			target_path: cliPath,
+			before:
+				"Every bash execution runs in the foreground and receives one execution-time snapshot of the active session:\n",
+			after: "Every bash execution receives one execution-time snapshot of the active session. Foreground/background observation controls how long the caller waits, not the command's execution timeout. Omitted `wait` uses the owner's policy, normally yielding after 10 seconds; explicit background observation requires a supported task owner. Without one, foreground execution waits until completion. See [Background tasks](/background-tasks#choose-how-long-to-wait).\n",
+			reason:
+				"Replace the obsolete absolute foreground restriction with the supported observation policy; the entire execution-time snapshot table remains byte-exact.",
+		},
+	];
+	for (const [path, heading, id] of [
+		["workflows/reliable-design.md", "#### 8. Pause stale or wrong work", "8-interrupt-stale-or-wrong-work"],
+		["workflows/verification.md", "## Choose checks that answer the question", "select-the-verification-environment"],
+		["workflows/verification.md", "### Terminal changes", "terminal-contracts"],
+		["workflows/verification.md", "### Desktop, simulator, and emulator changes", "desktop-safety"],
+	])
+		readerRepairs.push({
+			kind: "additive-compatibility-anchor",
+			target_path: DOCS + path,
+			before: `${heading}\n`,
+			after: `<a id="${id}" />\n\n${heading}\n`,
+			reason:
+				"Preserve a predecessor heading's public fragment while keeping the new upstream heading and guidance active.",
+		});
+	readerRepairs.push({
+		kind: "maintainer-recipe-pointer",
+		target_path: `${DOCS}workflows/verification.md`,
+		before: '<a id="desktop-safety" />\n',
+		after: '<a id="reproduce-stage-skill-terminal-evidence" />\n\nFor Atomic source-checkout testing, see the retained [stage-skill terminal reproduction recipe](https://github.com/bastani-inc/atomic/blob/c075c61a7dcae05a767db7372d991f421b3fc507/packages/coding-agent/docs/workflows/verification.md#reproduce-stage-skill-terminal-evidence).\n\n<a id="desktop-safety" />\n',
+		reason:
+			"Keep the complete still-valid source-checkout recipe active in maintainer docs, outside user-facing docs, with its old reader fragment and an explicit pointer.",
+	});
+	const maintainerPrefix = `# Stage-skill terminal verification\n\nThis active maintainer recipe is retained from \`packages/coding-agent/docs/workflows/verification.md\` at \`${FOURTH_PREDECESSOR}\`. The upstream guide at \`${FOURTH_MAIN}\` now teaches general verification; this source-checkout procedure remains separate from that user-facing guide.\n\n`;
+	const maintainerRetention = {
+		source_revision: FOURTH_PREDECESSOR,
+		source_path: `${DOCS}workflows/verification.md`,
+		source_lines: [36, 47],
+		target_path: "docs/2847-stage-skill-verification.md",
+		text: maintainerPrefix + slice(FOURTH_PREDECESSOR, "workflows/verification.md", 36, 12),
+	};
+	const predecessorViews = new Map();
+	for (const edit of [...readerEdits, ...readerRepairs]) {
+		const before = predecessorViews.get(edit.target_path) ?? source(FOURTH_PREDECESSOR, edit.target_path);
+		predecessorViews.set(edit.target_path, replaceDelta(before, edit.before, edit.after, edit.target_path));
+	}
+	return {
+		schema: "2847-fourth-main-v1",
+		predecessor: FOURTH_PREDECESSOR,
+		previous_main: WAIT_MAIN,
+		latest_main: FOURTH_MAIN,
+		source_trees: {
+			previous_sha256: digest(previousTree),
+			latest_sha256: digest(latestTree),
+			unchanged_sha256: digest(unchangedTree(previousTree)),
+		},
+		pages,
+		edits,
+		reader_edits: readerEdits,
+		reader_repairs: readerRepairs,
+		new_pages: [{ source_path: newPath, target_path: newPath, text: source(FOURTH_MAIN, newPath) }],
+		maintainer_retention: maintainerRetention,
+	};
+}
+
+export function fourthMainEvidence(delta) {
+	const locations = (edits) =>
+		edits.map(({ source_path, target_path, previous_lines, latest_lines }) => [
+			source_path.slice(DOCS.length),
+			target_path.slice(DOCS.length),
+			previous_lines,
+			latest_lines,
+		]);
+	return {
+		schema: delta.schema,
+		predecessor: delta.predecessor,
+		previous_main: delta.previous_main,
+		latest_main: delta.latest_main,
+		source_trees: delta.source_trees,
+		history: {
+			revision: FOURTH_PREDECESSOR,
+			source_revision: WAIT_MAIN,
+			path: DOCS,
+			policy:
+				"The complete previous reader and upstream corpora remain at these immutable commits, including superseded interrupt/kill/pause policy, verification guidance, default-tool inventories and absolute foreground wording. New selected upstream substantive content is required at active reader destinations, never satisfied by history alone. Every other predecessor byte, including original and all earlier supplemental provenance, remains unchanged.",
+		},
+		changed_source_paths: delta.pages.filter((page) => !page.unchanged && !page.added).map((page) => page.path),
+		unchanged_source_paths: delta.pages.filter((page) => page.unchanged).map((page) => page.path),
+		pages_sha256: digest(JSON.stringify(delta.pages)),
+		new_pages: delta.new_pages.map(({ text, ...location }) => ({
+			...location,
+			sha256: digest(text),
+			lines: text.split("\n").length - 1,
+		})),
+		edits: locations(delta.edits),
+		edits_sha256: digest(JSON.stringify(delta.edits)),
+		reader_edits_sha256: digest(JSON.stringify(delta.reader_edits)),
+		retarget: {
+			path: `${DOCS}workflows/operations.md`,
+			before: "](#reloading-workflow-resources)",
+			after: "](/workflows/operations#reloading-workflow-resources)",
+		},
+		reader_repairs: delta.reader_repairs.map(({ kind, target_path }) => ({ kind, target_path })),
+		reader_repairs_sha256: digest(JSON.stringify(delta.reader_repairs)),
+		maintainer_retention: {
+			source_revision: delta.maintainer_retention.source_revision,
+			source_path: delta.maintainer_retention.source_path,
+			source_lines: delta.maintainer_retention.source_lines,
+			target_path: delta.maintainer_retention.target_path,
+			sha256: digest(delta.maintainer_retention.text),
+		},
+	};
+}
+
+function verifyLatest({
+	repoRoot,
+	revision,
+	overrides,
+	waitMain = false,
+	authoringReferences = false,
+	fourthMain = false,
+}) {
 	// Prove the immutable predecessor with the original rules; reverse the closed
 	// reader anchors, source-derived edits and new SDK pointer before the prior proof.
 	verify({ repoRoot, revision: FIRST_RECONCILIATION });
@@ -941,6 +1222,35 @@ function verifyLatest({ repoRoot, revision, overrides, waitMain = false, authori
 		);
 		readerEdits.push(...waitDelta.edits, ...waitDelta.compatibility_pointers);
 	}
+	const fourthDelta = fourthMain ? reconstructFourthMainDelta(repoRoot) : undefined;
+	const fourthEdits = fourthDelta ? [...fourthDelta.reader_edits, ...fourthDelta.reader_repairs] : [];
+	const newPaths = new Set(fourthDelta?.new_pages.map((page) => page.target_path) ?? []);
+	if (fourthDelta) {
+		assert.ok(waitMain && authoringReferences, "fourth-main requires all predecessor proofs");
+		assert.deepEqual(
+			JSON.parse(current.read(FOURTH_FOLLOWUP)),
+			fourthMainEvidence(fourthDelta),
+			"fourth-main evidence does not reconstruct",
+		);
+		assert.equal(
+			current.read(WAIT_FOLLOWUP),
+			git(repoRoot, ["show", `${FOURTH_PREDECESSOR}:${WAIT_FOLLOWUP}`]),
+			"immutable third-reconciliation evidence changed",
+		);
+		for (const page of fourthDelta.new_pages)
+			assert.equal(current.read(page.target_path), page.text, `fourth-main new page differs: ${page.target_path}`);
+		assert.equal(
+			current.read(fourthDelta.maintainer_retention.target_path),
+			fourthDelta.maintainer_retention.text,
+			"fourth-main active maintainer recipe differs",
+		);
+		assert.equal(
+			digest(current.read(FOURTH_README)),
+			FOURTH_README_SHA256,
+			"fourth-main provenance explanation changed",
+		);
+		readerEdits.push(...fourthEdits);
+	}
 	const restored = new Map();
 	if (authoringReferences) {
 		for (const [path, addition] of authoringReferenceAdditions) {
@@ -957,7 +1267,7 @@ function verifyLatest({ repoRoot, revision, overrides, waitMain = false, authori
 	const result = verify({
 		repoRoot,
 		snapshot: {
-			pages: current.pages,
+			pages: current.pages.filter((path) => !newPaths.has(path)),
 			read: (path) => restored.get(path) ?? current.read(path),
 		},
 	});
@@ -976,6 +1286,15 @@ function verifyLatest({ repoRoot, revision, overrides, waitMain = false, authori
 			[...frozenPaths, FOLLOWUP].sort(),
 			"second-reconciliation frozen file set differs",
 		);
+	if (fourthMain)
+		assert.deepEqual(
+			git(repoRoot, ["ls-tree", "-r", "--name-only", FOURTH_PREDECESSOR, "--", ...roots])
+				.trim()
+				.split("\n")
+				.sort(),
+			[...frozenPaths, FOLLOWUP, WAIT_FOLLOWUP].sort(),
+			"fourth-main predecessor frozen file set differs",
+		);
 	const currentPaths = revision
 		? git(repoRoot, ["ls-tree", "-r", "--name-only", revision, "--", ...roots])
 				.trim()
@@ -993,7 +1312,14 @@ function verifyLatest({ repoRoot, revision, overrides, waitMain = false, authori
 					),
 			);
 	assert.deepEqual(
-		currentPaths.filter((path) => path !== FOLLOWUP && !(waitMain && path === WAIT_FOLLOWUP)).sort(),
+		currentPaths
+			.filter(
+				(path) =>
+					path !== FOLLOWUP &&
+					!(waitMain && path === WAIT_FOLLOWUP) &&
+					!(fourthMain && (path === FOURTH_FOLLOWUP || path === FOURTH_README || newPaths.has(path))),
+			)
+			.sort(),
 		frozenPaths.sort(),
 		"latest-main reconciliation changed the frozen file set",
 	);
@@ -1003,7 +1329,8 @@ function verifyLatest({ repoRoot, revision, overrides, waitMain = false, authori
 			(row) =>
 				row.target_path === path &&
 				!waitDelta?.edits.includes(row) &&
-				!waitDelta?.compatibility_pointers.includes(row),
+				!waitDelta?.compatibility_pointers.includes(row) &&
+				!fourthEdits.includes(row),
 		))
 			expected = Buffer.from(replaceDelta(expected.toString("utf8"), edit.before, edit.after, path));
 		if (waitDelta) {
@@ -1018,6 +1345,14 @@ function verifyLatest({ repoRoot, revision, overrides, waitMain = false, authori
 		}
 		if (authoringReferences && authoringReferenceAdditions.has(path))
 			expected = Buffer.concat([expected, Buffer.from(authoringReferenceAdditions.get(path))]);
+		if (fourthDelta) {
+			assert.ok(
+				expected.equals(git(repoRoot, ["show", `${FOURTH_PREDECESSOR}:${path}`], undefined, "buffer")),
+				`fourth-main predecessor differs: ${path}`,
+			);
+			for (const edit of fourthEdits.filter((row) => row.target_path === path))
+				expected = Buffer.from(replaceDelta(expected.toString("utf8"), edit.before, edit.after, path));
+		}
 		const actual = revision
 			? git(repoRoot, ["show", `${revision}:${path}`], undefined, "buffer")
 			: overrides?.has(path)
@@ -1027,6 +1362,22 @@ function verifyLatest({ repoRoot, revision, overrides, waitMain = false, authori
 	}
 	return {
 		...result,
+		readerPages: current.pages.length,
+		...(fourthDelta
+			? {
+					fourthMain: {
+						revision: FOURTH_MAIN,
+						pages: fourthDelta.pages.filter((page) => /\.mdx?$/u.test(page.path)).length,
+						unchangedPages: fourthDelta.pages.filter((page) => page.unchanged).length,
+						changedPages: fourthDelta.pages.filter(
+							(page) => !page.unchanged && !page.added && /\.mdx?$/u.test(page.path),
+						).length,
+						newPages: fourthDelta.new_pages.length,
+						edits: fourthDelta.edits.length,
+						readerRepairs: fourthDelta.reader_repairs.length,
+					},
+				}
+			: {}),
 		...(authoringReferences ? { authoringReferenceAdditions: authoringReferenceAdditions.size } : {}),
 		readerAnchorRepairs: delta.reader_anchor_repairs.length,
 		latestMain: {
@@ -1054,11 +1405,12 @@ export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
 	const commit = git(repoRoot, ["rev-parse", "--verify", `${revision}^{commit}`]).trim();
 	const latest = git(repoRoot, ["merge-base", commit, LATEST_MAIN]).trim() === LATEST_MAIN;
 	const waitMain = git(repoRoot, ["merge-base", commit, WAIT_MAIN]).trim() === WAIT_MAIN;
+	const fourthMain = git(repoRoot, ["merge-base", commit, FOURTH_MAIN]).trim() === FOURTH_MAIN;
 	const authoringReferences =
 		commit !== AUTHORING_PREDECESSOR &&
 		git(repoRoot, ["merge-base", commit, AUTHORING_PREDECESSOR]).trim() === AUTHORING_PREDECESSOR;
 	const result = latest
-		? verifyLatest({ repoRoot, revision: commit, waitMain, authoringReferences })
+		? verifyLatest({ repoRoot, revision: commit, waitMain, authoringReferences, fourthMain })
 		: verify({ repoRoot, revision: commit });
 	console.log(JSON.stringify({ mode: "committed", revision: commit, ...result }));
 	return result;
@@ -1066,7 +1418,7 @@ export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
 
 /** Explicit precommit mode; overrides are a disposable in-memory negative-control fixture. */
 export function verifyWorkingTreeDocumentation({ repoRoot, overrides = new Map() }) {
-	return verifyLatest({ repoRoot, overrides, waitMain: true, authoringReferences: true });
+	return verifyLatest({ repoRoot, overrides, waitMain: true, authoringReferences: true, fourthMain: true });
 }
 
 if (

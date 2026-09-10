@@ -4,6 +4,8 @@ Verify the behavior that changed, then give the reviewer enough evidence to unde
 
 For tool installation, automation techniques, platform permissions, and general work in applications, read [Computer use](/computer-use). That guide covers Herdr for terminals, playwright-cli for browsers, and PyAutoGUI with uv for desktop CUA on macOS, Linux, and Windows. It also covers native accessibility and application tools when they are easier or more reliable.
 
+<a id="select-the-verification-environment" />
+
 ## Choose checks that answer the question
 
 Start with the project's existing tests, build, typecheck, and lint commands. Add an interactive scenario when the change affects what a user sees or does. Do not replace required checks with a recording, or create a UI solely to demonstrate a non-UI change.
@@ -54,6 +56,8 @@ playwright-cli -s=pr-check video-stop
 
 Open the saved artifact and confirm it includes the final state. Keep recordings short and focused. Inspect traces, authentication state, and network output for secrets before sharing. See [browser setup and best practices](/computer-use#browser-automation-with-playwright-cli).
 
+<a id="terminal-contracts" />
+
 ### Terminal changes
 
 Use Herdr to send real interactive input and inspect the resulting pane, or use tmux/psmux when Herdr cannot be used. Keep the terminal dimensions and shell relevant to the change. Test narrow layouts or modified keys when those are affected.
@@ -61,6 +65,12 @@ Use Herdr to send real interactive input and inspect the resulting pane, or use 
 Retain screen captures or transcripts that show the input and result. For cursor movement, redraws, colors, or timing, a terminal recording or video may explain more than plain text. Capture important states during the run; alternate-screen content may not remain in scrollback. Check exit status or explicit assertions rather than treating an agent's `idle` indicator as a passing result.
 
 See [terminal setup and capture commands](/computer-use#terminal-automation-with-herdr). A browser rendering of terminal text is not proof that the real TUI accepted input. WSL tmux does not establish native Windows terminal coverage.
+
+<a id="reproduce-stage-skill-terminal-evidence" />
+
+For Atomic source-checkout testing, see the retained [stage-skill terminal reproduction recipe](https://github.com/bastani-inc/atomic/blob/c075c61a7dcae05a767db7372d991f421b3fc507/packages/coding-agent/docs/workflows/verification.md#reproduce-stage-skill-terminal-evidence).
+
+<a id="desktop-safety" />
 
 ### Desktop, simulator, and emulator changes
 

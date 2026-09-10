@@ -138,9 +138,7 @@ Moved to [Intercom operations](/intercom/operations#how-connection-works).
 
 ### Troubleshooting initialization
 
-`Intercom heavy initialization failed; a later call will retry: …` means initialization can be attempted again on a later Intercom call. Interactive sessions show this as a yellow warning in the chat pane, without a console stack trace; non-interactive sessions (print, JSON, and RPC) retain console diagnostics. Terminal relay and cleanup failures appear as error notifications in interactive sessions.
-
-If initialization keeps failing, check the reported cause and `~/.atomic/agent/intercom/broker.log` (or the Intercom directory under `ATOMIC_CODING_AGENT_DIR`). Do not automatically resend an operation reported with an unknown delivery outcome; check with the recipient first.
+Moved to [Intercom operations](/intercom/operations#troubleshooting-initialization).
 
 ## The intercom Tool
 

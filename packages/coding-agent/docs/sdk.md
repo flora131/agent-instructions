@@ -462,8 +462,6 @@ Moved to [SDK API reference](/sdk/reference#tools-with-custom-cwd).
 
 Moved to [SDK API reference](/sdk/reference#custom-tools).
 
-Normal sessions also expose `kill({ id: taskId })` for their owned bash and PowerShell background tasks. Include `kill` when using a `tools` allowlist if the agent should be able to stop those tasks. The exported `createKillTool` and `createKillToolDefinition` factories accept `KillToolOptions.taskOwner`, a trusted execution-time callback returning the same owner binding used by shell launch. Without a binding they reject execution. The result details preserve the supervisor's `CancelReceipt`, including its decision, execution outcome, and cleanup state. See [Background tasks](/background-tasks#stop-a-shell-task-from-a-tool-call).
-
 #### Structured output final results
 
 Moved to [SDK API reference](/sdk/reference#structured-output-final-results).

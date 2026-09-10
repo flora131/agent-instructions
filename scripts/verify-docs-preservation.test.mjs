@@ -8,6 +8,11 @@ import {
 	digest,
 	FIRST_RECONCILIATION,
 	FOLLOWUP,
+	FOURTH_FOLLOWUP,
+	FOURTH_MAIN,
+	FOURTH_PREDECESSOR,
+	FOURTH_README,
+	fourthMainEvidence,
 	LATEST_MAIN,
 	latestMainEvidence,
 	MAIN,
@@ -15,6 +20,7 @@ import {
 	orderedContains,
 	PR,
 	PROVENANCE,
+	reconstructFourthMainDelta,
 	reconstructLatestMainDelta,
 	reconstructWaitMainDelta,
 	SECOND_RECONCILIATION,
@@ -40,7 +46,7 @@ test("two immutable source corpora and the original PR connective content are pr
 	assert.equal(result.main.active, 1090);
 	assert.equal(result.main.historical, 0);
 	assert.deepEqual(result.prConnective, { blocks: 514, lines: 1255 });
-	assert.equal(result.readerPages, 85);
+	assert.equal(result.readerPages, 86);
 	assert.deepEqual(result.latestMain, { revision: LATEST_MAIN, pages: 47, unchangedPages: 44, edits: 5 });
 	assert.equal(result.readerAnchorRepairs, 4);
 	assert.deepEqual(result.waitMain, {
@@ -49,6 +55,15 @@ test("two immutable source corpora and the original PR connective content are pr
 		unchangedPages: 45,
 		edits: 3,
 		compatibilityPointers: 1,
+	});
+	assert.deepEqual(result.fourthMain, {
+		revision: FOURTH_MAIN,
+		pages: 48,
+		unchangedPages: 33,
+		changedPages: 14,
+		newPages: 1,
+		edits: 44,
+		readerRepairs: 11,
 	});
 });
 
@@ -653,4 +668,97 @@ for (const [page, target] of [
 
 test("authoring reference handoffs are counted separately from immutable source reconciliation", () => {
 	assert.equal(check().authoringReferenceAdditions, 5);
+});
+
+// #2847 / PR #2971 review 3: the fourth capture must be active, not an archive-only claim.
+test("fourth-main computer-use recipes and platform caveats cannot disappear", () => {
+	const path = `${DOCS}computer-use.md`;
+	const text = read(path);
+	for (const fragment of ["pyautogui", "AppleScript", "VBA", "Accessibility"]) {
+		assert.ok(text.includes(fragment), `missing specimen ${fragment}`);
+		assert.throws(() => check(new Map([[path, text.replace(fragment, "")]])), /fourth-main new page differs/u);
+	}
+});
+
+const fourthDelta = reconstructFourthMainDelta(repoRoot);
+for (const path of new Set(fourthDelta.reader_edits.map((edit) => edit.source_path))) {
+	test(`fourth-main changed source remains active: ${path}`, () => {
+		const edit = fourthDelta.reader_edits.find((row) => row.source_path === path);
+		const added = edit.after.split("\n").find((line) => line.length > 20 && !edit.before.split("\n").includes(line));
+		assert.ok(added, `no substantive changed specimen for ${path}`);
+		const text = read(edit.target_path);
+		assert.ok(text.includes(added));
+		assert.throws(() => check(new Map([[edit.target_path, text.replace(added, "")]])), /latest-main delta/u);
+	});
+}
+
+test("fourth-main evidence cannot omit sources, invent history or authorize matching reader edits", () => {
+	assert.deepEqual(JSON.parse(read(FOURTH_FOLLOWUP)), fourthMainEvidence(fourthDelta));
+	assert.equal(fourthDelta.predecessor, FOURTH_PREDECESSOR);
+	assert.equal(fourthDelta.previous_main, WAIT_MAIN);
+	for (const change of [
+		(record) => record.edits.pop(),
+		(record) => record.unchanged_source_paths.pop(),
+		(record) => record.changed_source_paths.pop(),
+		(record) => record.new_pages.pop(),
+		(record) => {
+			record.history.revision = "HEAD";
+		},
+		(record) => {
+			record.new_pages[0].target_path = "docs/migrations/arbitrary-history.md";
+		},
+		(record) => {
+			record.reader_repairs_sha256 = "0".repeat(64);
+		},
+	])
+		assert.throws(() => check(changedJSON(FOURTH_FOLLOWUP, change)), /fourth-main evidence does not reconstruct/u);
+});
+
+test("fourth-main default inventories and observation repair cannot be reverted or forged", () => {
+	for (const repair of fourthDelta.reader_repairs.filter((row) =>
+		/default-tool|windows-tool|bash-observation/u.test(row.kind),
+	)) {
+		const text = read(repair.target_path);
+		assert.ok(text.includes(repair.after));
+		for (const replacement of [repair.before, `${repair.after.trimEnd()} altered\n`])
+			assert.throws(
+				() => check(new Map([[repair.target_path, text.replace(repair.after, () => replacement)]])),
+				/latest-main delta/u,
+			);
+	}
+});
+
+test("fourth-main anchors, navigation and compatibility pointers cannot disappear", () => {
+	for (const repair of fourthDelta.reader_repairs.filter((row) => /anchor|pointer|navigation/u.test(row.kind))) {
+		let text = read(repair.target_path);
+		// The maintainer pointer precedes the desktop alias; remove only this repair's addition.
+		assert.ok(text.includes(repair.after));
+		text = text.replace(repair.after, () => repair.before);
+		assert.throws(() => check(new Map([[repair.target_path, text]])), /latest-main delta/u);
+	}
+});
+
+test("fourth-main preserves the active source-checkout recipe and immutable earlier evidence", () => {
+	const recipe = fourthDelta.maintainer_retention;
+	assert.equal(read(recipe.target_path), recipe.text);
+	assert.throws(
+		() => check(new Map([[recipe.target_path, recipe.text.replace("No provider credentials are needed.", "")]])),
+		/fourth-main active maintainer recipe differs/u,
+	);
+	assert.throws(
+		() => check(new Map([[WAIT_FOLLOWUP, `${read(WAIT_FOLLOWUP)}\n`]])),
+		/immutable third-reconciliation evidence changed/u,
+	);
+	assert.throws(
+		() => check(new Map([[FOURTH_README, `${read(FOURTH_README)}\n`]])),
+		/fourth-main provenance explanation changed/u,
+	);
+});
+
+test("fourth-main repair retains the complete bash snapshot table, not just its heading", () => {
+	const path = `${DOCS}reference/cli.md`;
+	const text = read(path);
+	const row = text.split("\n").find((line) => line.startsWith("| `ATOMIC_SESSION_ID`"));
+	assert.ok(row);
+	assert.throws(() => check(new Map([[path, text.replace(row, "")]])), /source prose\/example\/table\/caveat/u);
 });

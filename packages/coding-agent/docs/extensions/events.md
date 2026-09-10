@@ -735,7 +735,7 @@ The workflows extension registers a publisher on activation and publishes this a
 | `workflow_stage_completed` | `WorkflowStageCompletedEvent`: the lifecycle envelope with a stage target whose status is `completed`. Shares the lifecycle event ID and cursor. Failed, skipped, cancelled, and killed outcomes do not produce this hook. |
 | `workflow_heartbeat` | `WorkflowHeartbeatEvent`: run/root/owner identity, `scheduledAt`, and `intervalMinutes`. Observation only, with no scheduler or cadence change. |
 
-Run control actions describe the caller's request: an already-aborted caller signal still emits `kill` after run registration, and a whole-run interrupt at a task-result checkpoint emits `interrupt` even though graceful suspension retains the existing paused outcome and `exitReason: "quit"`. A control event alone does not mean execution has drained.
+Run control actions describe the caller's request: an already-aborted caller signal still emits `kill` after run registration, and a whole-run pause at a task-result checkpoint emits `pause` while graceful suspension retains the paused outcome and `exitReason: "quit"`. A control event alone does not mean execution has drained.
 
 Use `ctx.observeWorkflowActivity` for status consumers. Registration captures a snapshot atomically with attaching the observer. Delivery is asynchronous, snapshot first, then FIFO updates. Each callback finishes before the next callback for that observer starts; a slow observer does not delay the publisher or other observers.
 

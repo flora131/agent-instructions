@@ -1348,6 +1348,8 @@ A failed test becomes the next objective.
 Validation failed on `[command]`. Treat that as the source of truth. Fix the root cause only, rerun the failing check, then report the result.
 ```
 
+<a id="8-interrupt-stale-or-wrong-work" />
+
 #### 8. Pause stale or wrong work
 
 If a run is solving the wrong problem, based on outdated assumptions, or duplicating another run, stop it. Continuing usually creates more cleanup.

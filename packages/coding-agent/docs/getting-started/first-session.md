@@ -90,7 +90,7 @@ Named workflow runs execute in the background. After launch you get the full run
 /workflow status                  # list this session's active and terminal runs
 /workflow connect <run-id>        # see agents working; chat with or steer each stage (F2 also opens latest)
 /workflow attach <run-id> <stage> # chat with one stage
-/workflow interrupt <run-id>      # pause resumably
+/workflow pause <run-id>          # pause resumably
 /workflow resume <run-id> "go"    # send a steer message and resume
 /workflow quit <run-id>           # pause gracefully and keep the run resumable
 ```
@@ -155,12 +155,15 @@ By default, Atomic gives the model these tools:
 
 - `read` - read files
 - `bash` - run shell commands
+- `kill` - cancel owned background shell tasks by task ID
 - `edit` - patch files
 - `write` - create or overwrite files
 - `find` - discover files by glob pattern
 - `search` - search file contents
 - `ask_user_question` - ask structured questions in the TUI
 - `todo` - manage file-based todos
+
+On native Windows, `powershell` is also enabled when a PowerShell executable is available.
 
 Normal coding sessions include file discovery and content search through `find` and `search` in addition to `read`, `bash`, `edit`, and `write`. Atomic runs in your current working directory and can modify files there. Use git or another checkpointing workflow if you want easy rollback.
 
