@@ -25,7 +25,7 @@ afterEach(() => {
 	console.error = originalConsoleError;
 });
 
-function fixture(importResults: ImportResult[], hasUI = false) {
+function fixture(importResults: ImportResult[], hasUI = false, mode: ExtensionContext["mode"] = "tui") {
 	const tools = new Map<string, ToolDefinition>();
 	const handlers = new Map<string, LifecycleHandler>();
 	const eventHandlers = new Map<string, (payload: object) => void>();
@@ -57,6 +57,7 @@ function fixture(importResults: ImportResult[], hasUI = false) {
 	const notifications: Array<{ message: string; level?: string }> = [];
 	const ctx = {
 		hasUI,
+		mode,
 		ui: {
 			notify(message: string, level?: string) {
 				notifications.push({ message, level });
@@ -75,16 +76,10 @@ function fixture(importResults: ImportResult[], hasUI = false) {
 		get imports() {
 			return imports;
 		},
-		executeIntercom(context = ctx) {
+		executeIntercom(context = ctx, params: { action: string; to?: string; message?: string } = { action: "list" }) {
 			const tool = tools.get("intercom");
 			assert.ok(tool, "intercom tool should be registered");
-			return tool.execute(
-				"tool-call",
-				{ action: "list" },
-				new AbortController().signal,
-				undefined,
-				context as ExtensionContext,
-			);
+			return tool.execute("tool-call", params, new AbortController().signal, undefined, context as ExtensionContext);
 		},
 	};
 }
@@ -104,6 +99,26 @@ function successfulHeavyModule(): HeavyModule {
 		},
 	};
 }
+
+const unprintableFailures = [
+	{ name: "null-prototype", create: () => Object.assign(Object.create(null) as object, { reason: "broken frame" }) },
+	{
+		name: "throwing toString",
+		create: () => ({
+			toString() {
+				throw new Error("conversion failed");
+			},
+		}),
+	},
+	{
+		name: "throwing toPrimitive",
+		create: () => ({
+			[Symbol.toPrimitive]() {
+				throw new Error("conversion failed");
+			},
+		}),
+	},
+];
 
 describe("Intercom lazy heavy-initialization diagnostics", () => {
 	test("shows the reported retryable initialization failure as a warning without console or stack output", async () => {
@@ -164,6 +179,7 @@ describe("Intercom lazy heavy-initialization diagnostics", () => {
 		const cleanupNotifications: string[] = [];
 		const shutdown = current.fire("session_shutdown", {
 			hasUI: true,
+			mode: "tui",
 			ui: {
 				notify(message: string) {
 					cleanupNotifications.push(message);
@@ -172,6 +188,7 @@ describe("Intercom lazy heavy-initialization diagnostics", () => {
 		});
 		const replacement = current.fire("session_start", {
 			hasUI: false,
+			mode: "print",
 			ui: {
 				notify() {
 					assert.fail("replacement received an old diagnostic");
@@ -208,6 +225,28 @@ describe("Intercom lazy heavy-initialization diagnostics", () => {
 		assert.equal(current.imports, 2);
 	});
 
+	for (const mode of ["tui", "rpc", "print", "json"] as const) {
+		test(`routes ${mode} initialization diagnostics without changing shared failure or retry`, async () => {
+			const failure = new Error("Connection closen");
+			const current = fixture(
+				[{ error: failure }, { module: successfulHeavyModule() }],
+				mode === "tui" || mode === "rpc",
+				mode,
+			);
+			await Promise.all([1, 2].map(() => assert.rejects(current.executeIntercom(), (error) => error === failure)));
+			const message = "Intercom heavy initialization failed; a later call will retry: Connection closen";
+			assert.deepEqual(current.notifications, mode === "tui" ? [{ message, level: "warning" }] : []);
+			assert.deepEqual(consoleErrorCalls, mode === "tui" ? [] : [[message, failure]]);
+			if (mode !== "tui") assert.equal(consoleErrorCalls[0]?.[1], failure);
+			assert.equal(current.imports, 1);
+			assert.deepEqual(await current.executeIntercom(), {
+				content: [{ type: "text", text: "connected" }],
+				details: {},
+			});
+			assert.equal(current.imports, 2);
+		});
+	}
+
 	test("keeps background initialization diagnostics bound to the initiating context before replay", async () => {
 		const entered = Promise.withResolvers<void>();
 		const release = Promise.withResolvers<void>();
@@ -234,6 +273,7 @@ describe("Intercom lazy heavy-initialization diagnostics", () => {
 		await entered.promise;
 		const replacement = {
 			hasUI: false,
+			mode: "print" as const,
 			ui: {
 				notify() {
 					assert.fail("wrong session");
@@ -312,6 +352,7 @@ describe("Intercom lazy heavy-initialization diagnostics", () => {
 			retired = true;
 			await current.fire("session_start", {
 				hasUI: false,
+				mode: "print",
 				ui: {
 					notify() {
 						assert.fail("wrong session");
@@ -325,6 +366,101 @@ describe("Intercom lazy heavy-initialization diagnostics", () => {
 			assert.deepEqual(consoleErrorCalls, []);
 			await current.executeIntercom();
 			assert.equal(current.imports, 2, "the retired callback does not invalidate the replacement");
+		});
+	}
+
+	for (const eventName of [
+		"subagent:control-intercom",
+		"subagent:result-intercom",
+		"atomic:workflow-pending-stage-route",
+		"atomic:workflow-pending-stage-undeliverable",
+	]) {
+		test(`keeps ${eventName} diagnostics with the shutdown owner while cleanup drains`, async () => {
+			const entered = Promise.withResolvers<void>();
+			const drain = Promise.withResolvers<void>();
+			let cleanups = 0;
+			let relays = 0;
+			const current = fixture(
+				[
+					{
+						module: {
+							default(pi) {
+								successfulHeavyModule().default(pi);
+								pi.events.on(eventName, () => {
+									relays++;
+								});
+								pi.on("session_shutdown", async () => {
+									cleanups++;
+									entered.resolve();
+									await drain.promise;
+								});
+							},
+						},
+					},
+					{ module: successfulHeavyModule() },
+				],
+				true,
+				"tui",
+			);
+			await current.fire("session_start");
+			await current.executeIntercom();
+			const shutdown = current.fire("session_shutdown");
+			await entered.promise;
+			const payload: {
+				completion?: Promise<boolean>;
+				runId: string;
+				senderId: string;
+				messageId: string;
+				notificationId: string;
+				reason: string;
+			} = {
+				runId: "run",
+				senderId: "sender",
+				messageId: "message",
+				notificationId: "notice",
+				reason: "not_started",
+			};
+			current.emit(eventName, payload);
+			let replaced = false;
+			const replacement = current
+				.fire("session_start", {
+					hasUI: true,
+					mode: "tui",
+					ui: {
+						notify() {
+							assert.fail("replacement received the shutdown diagnostic");
+						},
+					},
+				})
+				.then(() => {
+					replaced = true;
+				});
+			try {
+				if (eventName.endsWith("undeliverable")) {
+					assert.ok(payload.completion);
+					assert.equal(await payload.completion, false);
+				} else if (eventName.endsWith("stage-route")) {
+					assert.ok(payload.completion);
+					await assert.rejects(payload.completion, /no active session/);
+				}
+				await tick();
+				assert.equal(replaced, false, "replacement still awaits retired cleanup");
+				assert.equal(current.imports, 1, "relay cannot activate a retired lease");
+				assert.equal(relays, 0);
+				assert.deepEqual(consoleErrorCalls, []);
+				assert.deepEqual(current.notifications, [
+					{
+						message: `Intercom event relay failed (${eventName}): Intercom initialization unavailable: no active session`,
+						level: "error",
+					},
+				]);
+			} finally {
+				drain.resolve();
+				await Promise.all([shutdown, replacement]);
+			}
+			assert.equal(cleanups, 1);
+			await current.executeIntercom();
+			assert.equal(current.imports, 2);
 		});
 	}
 
@@ -360,6 +496,7 @@ describe("Intercom lazy heavy-initialization diagnostics", () => {
 		const callerNotifications: string[] = [];
 		const caller = {
 			hasUI: false,
+			mode: "print" as const,
 			ui: {
 				notify(message: string) {
 					callerNotifications.push(message);
@@ -483,6 +620,163 @@ describe("Intercom lazy heavy-initialization diagnostics", () => {
 				);
 				assert.deepEqual(consoleErrorCalls, hasUI ? [] : [[prefix, failure]]);
 			});
+		}
+	}
+
+	test("retains console diagnostics for a relay with no lifecycle context", async () => {
+		const failure = new Error("relay before lifecycle");
+		const eventName = "atomic:workflow-pending-stage-undeliverable";
+		const current = fixture([
+			{
+				module: {
+					default(pi) {
+						pi.events.on(eventName, () => {
+							throw failure;
+						});
+					},
+				},
+			},
+		]);
+		const payload = {
+			runId: "run",
+			senderId: "sender",
+			messageId: "message",
+			notificationId: "notice",
+			reason: "not_started",
+			completion: undefined as Promise<boolean> | undefined,
+		};
+		current.emit(eventName, payload);
+		assert.ok(payload.completion);
+		assert.equal(await payload.completion, false);
+		assert.deepEqual(current.notifications, []);
+		assert.deepEqual(consoleErrorCalls, [[`Intercom event relay failed (${eventName}):`, failure]]);
+		assert.equal(consoleErrorCalls[0]?.[1], failure);
+	});
+
+	for (const mode of ["tui", "rpc", "print", "json"] as const) {
+		for (const cause of unprintableFailures) {
+			test(`preserves false relay acknowledgement and ${mode} diagnostics for ${cause.name}`, async () => {
+				const failure = cause.create();
+				const eventName = "atomic:workflow-pending-stage-undeliverable";
+				const current = fixture(
+					[
+						{
+							module: {
+								default(pi) {
+									pi.events.on(eventName, () => {
+										throw failure;
+									});
+								},
+							},
+						},
+					],
+					mode === "tui" || mode === "rpc",
+					mode,
+				);
+				await current.fire("session_start");
+				const payload = {
+					runId: "run",
+					senderId: "sender",
+					messageId: "message",
+					notificationId: "notice",
+					reason: "not_started",
+					completion: undefined as Promise<boolean> | undefined,
+				};
+				current.emit(eventName, payload);
+				assert.ok(payload.completion);
+				assert.equal(await payload.completion, false);
+				const prefix = `Intercom event relay failed (${eventName}):`;
+				assert.deepEqual(
+					current.notifications,
+					mode === "tui" ? [{ message: `${prefix} Unprintable error`, level: "error" }] : [],
+				);
+				assert.deepEqual(consoleErrorCalls, mode === "tui" ? [] : [[prefix, failure]]);
+				if (mode !== "tui") assert.equal(consoleErrorCalls[0]?.[1], failure);
+			});
+
+			test(`retains original ${cause.name} initialization rejection and retry in ${mode}`, async () => {
+				const failure = cause.create();
+				const current = fixture(
+					[{ error: failure }, { module: successfulHeavyModule() }],
+					mode === "tui" || mode === "rpc",
+					mode,
+				);
+				await assert.rejects(current.executeIntercom(), (error) => error === failure);
+				await tick();
+				const message = "Intercom heavy initialization failed; a later call will retry: Unprintable error";
+				assert.deepEqual(current.notifications, mode === "tui" ? [{ message, level: "warning" }] : []);
+				assert.deepEqual(consoleErrorCalls, mode === "tui" ? [] : [[message, failure]]);
+				if (mode !== "tui") assert.equal(consoleErrorCalls[0]?.[1], failure);
+				await current.executeIntercom();
+				assert.equal(current.imports, 2);
+			});
+
+			for (const recoverable of [false, true]) {
+				test(`preserves ${recoverable ? "typed-disconnect send retry" : "original initialization failure"} after ${cause.name} cleanup in ${mode}`, async () => {
+					const failure = recoverable ? new IntercomClientDisconnectedError() : new Error("Connection closen");
+					const cleanupFailure = cause.create();
+					const params = { action: "send", to: "peer", message: "  verbatim\nmessage  " };
+					let cleanups = 0;
+					let executions = 0;
+					const current = fixture(
+						[
+							{
+								module: {
+									default(pi) {
+										pi.on("session_start", () => {
+											throw failure;
+										});
+										pi.on("session_shutdown", () => {
+											cleanups++;
+											throw cleanupFailure;
+										});
+									},
+								},
+							},
+							{
+								module: {
+									default(pi) {
+										pi.registerTool({
+											name: "intercom",
+											label: "Intercom",
+											description: "recovered send",
+											parameters: Type.Object({}),
+											async execute(_id, actual) {
+												executions++;
+												assert.deepEqual(actual, params);
+												return { content: [{ type: "text", text: "sent" }], details: {} };
+											},
+										});
+									},
+								},
+							},
+						],
+						mode === "tui" || mode === "rpc",
+						mode,
+					);
+					if (!recoverable) {
+						await assert.rejects(current.executeIntercom(current.ctx, params), (error) => error === failure);
+						assert.equal(current.imports, 1);
+						assert.equal(executions, 0);
+					}
+					assert.deepEqual(await current.executeIntercom(current.ctx, params), {
+						content: [{ type: "text", text: "sent" }],
+						details: {},
+					});
+					assert.equal(current.imports, 2);
+					assert.equal(executions, 1);
+					assert.equal(cleanups, 1);
+					const prefix = "Intercom failed to clean rejected lazy candidate:";
+					const initMessage = "Intercom heavy initialization failed; a later call will retry: Connection closen";
+					const expectedNotices = [{ message: `${prefix} Unprintable error`, level: "error" }];
+					if (!recoverable) expectedNotices.push({ message: initMessage, level: "warning" });
+					assert.deepEqual(current.notifications, mode === "tui" ? expectedNotices : []);
+					const expectedConsole: ConsoleErrorCall[] = [[prefix, cleanupFailure]];
+					if (!recoverable) expectedConsole.push([initMessage, failure]);
+					assert.deepEqual(consoleErrorCalls, mode === "tui" ? [] : expectedConsole);
+					if (mode !== "tui") assert.equal(consoleErrorCalls[0]?.[1], cleanupFailure);
+				});
+			}
 		}
 	}
 

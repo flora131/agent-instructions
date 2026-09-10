@@ -134,6 +134,15 @@ function renderHeavyToolResult(loadedHeavy: CapturedHeavy | null, name: string, 
 	return renderIntercomToolResult(name, args);
 }
 
+/** Formatting a diagnostic must never replace the failure or its acknowledgement. */
+function diagnosticDetail(error: unknown): string {
+	try {
+		return String(error instanceof Error ? error.message : error);
+	} catch {
+		return "Unprintable error";
+	}
+}
+
 /** Report against the captured owner, not whichever session is current after an await. */
 function reportDiagnostic(
 	ctx: ExtensionContext | undefined,
@@ -143,7 +152,9 @@ function reportDiagnostic(
 	consoleMessage = message,
 ): void {
 	try {
-		if (ctx?.hasUI) {
+		// RPC hosts also set hasUI; only the terminal's own mode owns pane
+		// diagnostics, so print, JSON, and RPC retain console output.
+		if (ctx?.hasUI && ctx.mode === "tui") {
 			ctx.ui.notify(message, level);
 			return;
 		}
@@ -169,7 +180,7 @@ function reportDiagnostic(
 function reportRelayFailure(ctx: ExtensionContext | undefined, eventName: string, error: unknown): void {
 	if (isRecoverableIntercomDisconnect(error)) return;
 	const prefix = `Intercom event relay failed (${eventName}):`;
-	const detail = error instanceof Error ? error.message : String(error);
+	const detail = diagnosticDetail(error);
 	reportDiagnostic(ctx, `${prefix} ${detail}`, error, "error", prefix);
 }
 
@@ -189,6 +200,8 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
   let heavyAttempt: HeavyAttempt | null = null;
   let loadedHeavy: IntercomHeavyHandle | null = null;
   let sessionSnapshot: SessionSnapshot | null = null;
+	// Event subscriptions outlive shutdown replay state; never use this owner to load heavy state.
+	let shutdownDiagnosticContext: ExtensionContext | undefined;
 	let lifecycleGeneration = 0;
 	let nextLeaseId = 1;
 	let activeLease = createLifecycleLease<ShutdownSnapshot>(nextLeaseId++);
@@ -291,7 +304,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 					await dispatchHandlers(captured, "session_shutdown", event, cleanupCtx);
 				} catch (cleanupError) {
 					const prefix = "Intercom failed to clean rejected lazy candidate:";
-					const detail = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+					const detail = diagnosticDetail(cleanupError);
 					reportDiagnostic(cleanupCtx, `${prefix} ${detail}`, cleanupError, "error", prefix);
 				}
 			};
@@ -319,7 +332,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 			(error: unknown) => {
 				if (heavyAttempt?.promise === promise) heavyAttempt = null;
 				if (!isRecoverableIntercomDisconnect(error)) {
-					const message = error instanceof Error ? error.message : String(error);
+					const message = diagnosticDetail(error);
 					reportDiagnostic(
 						replayCtx ?? ctx,
 						`Intercom heavy initialization failed; a later call will retry: ${message}`,
@@ -463,6 +476,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
     }
     const generation = ++lifecycleGeneration;
     sessionSnapshot = { event, ctx, generation, lease };
+		shutdownDiagnosticContext = undefined;
     cancelWarmUpRetry();
     if (ctx.orchestrationContext?.kind === "workflow-stage" && ctx.orchestrationContext.pendingStageDelivery !== undefined) {
       const pendingStageDelivery = ctx.orchestrationContext.pendingStageDelivery;
@@ -489,6 +503,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 		const lease = activeLease;
 		const generation = ++lifecycleGeneration;
 		retireLifecycleLease(lease, { event, ctx, generation });
+		shutdownDiagnosticContext = ctx;
 		cancelWarmUpRetry();
 		const retiredHeavy = loadedHeavy?.heavy ?? null;
 		const retiredAttempt = heavyAttempt?.lease === lease ? heavyAttempt.promise : null;
@@ -612,6 +627,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 		payload.handled = true;
 		const forwarded = { ...payload, handled: false, completion: undefined };
 		const ctx = latestLifecycleContext();
+		const diagnosticCtx = ctx ?? shutdownDiagnosticContext;
 		payload.completion = loadHeavy(ctx)
 			.then(async (handle) => {
 				handle.assertCurrent();
@@ -622,7 +638,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 					: false;
 			})
 			.catch((error) => {
-				reportRelayFailure(ctx, PENDING_STAGE_UNDELIVERABLE_EVENT, error);
+				reportRelayFailure(diagnosticCtx, PENDING_STAGE_UNDELIVERABLE_EVENT, error);
 				return false;
 			});
 	});
@@ -633,6 +649,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 	] as const) {
 		pi.events.on(eventName, (payload) => {
 			const ctx = latestLifecycleContext();
+			const diagnosticCtx = ctx ?? shutdownDiagnosticContext;
 			const completion = loadHeavy(ctx).then(async (handle) => {
 				handle.assertCurrent();
 				await dispatchEventHandlers(handle.heavy, eventName, payload);
@@ -647,7 +664,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 			}
 			void completion.catch((error) => {
 				rejectLazyResultRelay(pi, eventName, payload, error);
-				reportRelayFailure(ctx, eventName, error);
+				reportRelayFailure(diagnosticCtx, eventName, error);
 			});
 		});
 	}
