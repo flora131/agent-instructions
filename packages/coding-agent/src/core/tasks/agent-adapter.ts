@@ -29,8 +29,8 @@ export class AgentTaskHost {
 		this.binding = { ...this.binding, ...binding };
 	}
 	/** Internal projection binding; never serialize these native-backed capabilities. */
-	get ownerBinding(): { supervisor: TaskSupervisor; owner: OwnerLease } {
-		return { supervisor: this.supervisor, owner: this.owner };
+	get ownerBinding(): { supervisor: TaskSupervisor; owner: OwnerLease; waitForTask: AgentTaskHost["waitForTask"] } {
+		return { supervisor: this.supervisor, owner: this.owner, waitForTask: this.waitForTask.bind(this) };
 	}
 
 	constructor(binding: AgentTaskHostBinding) {
@@ -93,8 +93,11 @@ export class AgentTaskHost {
 			: Promise.resolve(task);
 	}
 
-	waitForTask(taskId: C.TaskId, budgetMs?: number) {
-		return this.supervisor.waitForTaskId(this.owner, taskId, budgetMs, (wait) => this.trackMessageWait(wait));
+	waitForTask(taskId: C.TaskId, budgetMs?: number, onRegistered?: (wait: WaitLease) => void) {
+		return this.supervisor.waitForTaskId(this.owner, taskId, budgetMs, (wait) => {
+			this.trackMessageWait(wait);
+			onRegistered?.(wait);
+		});
 	}
 
 	/** Incoming owner messages release observation only, never the child execution. */

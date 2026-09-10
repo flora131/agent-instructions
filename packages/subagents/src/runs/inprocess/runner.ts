@@ -287,9 +287,16 @@ const CAPACITY_RETRY_MAX_DELAY_MS = 100;
 
 type CapacityWaitResult = "retry" | "abort" | "interrupt";
 
-function waitForExecutionCapacity(delayMs: number, signals: AttemptSignals): Promise<CapacityWaitResult> {
-	if (signals.interrupt.aborted) return Promise.resolve("interrupt");
-	if (signals.abort.aborted) return Promise.resolve("abort");
+function waitForExecutionCapacity(
+	delayMs: number,
+	signals: AttemptSignals,
+	onSettled: (result: CapacityWaitResult) => void,
+): Promise<CapacityWaitResult> {
+	if (signals.interrupt.aborted || signals.abort.aborted) {
+		const result = signals.interrupt.aborted ? "interrupt" : "abort";
+		onSettled(result);
+		return Promise.resolve(result);
+	}
 	return new Promise((resolveWait) => {
 		let settled = false;
 		let timer: ReturnType<typeof setTimeout>;
@@ -299,6 +306,7 @@ function waitForExecutionCapacity(delayMs: number, signals: AttemptSignals): Pro
 			clearTimeout(timer);
 			signals.abort.removeEventListener("abort", onAbort);
 			signals.interrupt.removeEventListener("abort", onInterrupt);
+			onSettled(result);
 			resolveWait(result);
 		};
 		const onAbort = () => settle("abort");
@@ -835,16 +843,18 @@ export class SubagentControlRuntime {
 		for (;;) {
 			guard = this.native.beginChildAttempt(admitted.identity.path);
 			if (guard.token || guard.refusal?.kind !== "capacityExhausted") break;
-			const waitResult = await waitForExecutionCapacity(retryDelayMs, signals);
+			let killed = false;
+			const waitResult = await waitForExecutionCapacity(retryDelayMs, signals, (result) => {
+				// Snapshot at signal delivery, before a later kill or parent abort can change classification.
+				killed =
+					this.killedChildren.has(admitted.identity.path) ||
+					(result === PARENT_CANCEL_CAUSE && !!taskHooks && signals.abort.reason === "user");
+			});
 			if (waitResult !== "retry") {
 				const stats = { ...EMPTY_STATS, sessionId: admitted.identity.path };
 				if (waitResult === "interrupt" || waitResult === PARENT_CANCEL_CAUSE) {
-					// Classify before publishing: a late kill must not replace the abort that won the wait.
-					if (waitResult === PARENT_CANCEL_CAUSE) {
-						if (taskHooks && signals.abort.reason === "user") this.killedChildren.add(admitted.identity.path);
-						else this.killedChildren.delete(admitted.identity.path);
-					}
-					const killed = this.killedChildren.has(admitted.identity.path);
+					if (killed) this.killedChildren.add(admitted.identity.path);
+					else this.killedChildren.delete(admitted.identity.path);
 					this.native.publishChildStatus(admitted.identity.path, nativeStatus("interrupted"));
 					return {
 						status: killed ? "killed" : "interrupted",

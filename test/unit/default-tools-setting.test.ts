@@ -225,6 +225,7 @@ describe("defaultTools setting", () => {
 				"edit",
 				"find",
 				"intercom",
+				"kill",
 				"ls",
 				...(getDefaultToolNames().includes("powershell") ? (["powershell"] as const) : []),
 				"read",

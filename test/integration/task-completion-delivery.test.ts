@@ -310,7 +310,7 @@ test("confirmed inspector x stop notifies the parent once after cleanup, without
 		assert.equal(message.customType, "task-completion");
 		assert.equal(message.display, true);
 		assert.equal(options?.triggerTurn, true, "the parent model also receives the stop context");
-		assert.match(String(message.content), /Subagent reviewer stopped: Review the stop path/);
+		assert.match(String(message.content), /Subagent reviewer killed \(non-resumable\): Review the stop path/);
 		assert.match(String(message.content), /Stop reason: user/);
 		assert.equal(completionNoticeFromDetails(message.details)?.status, "cancelled");
 		await session._taskCompletionOutbox!.flush();

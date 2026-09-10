@@ -789,6 +789,73 @@ for (const field of ["id", "runId"] as const) {
 	}
 }
 
+// PR #2974: a kill accepted before parent abort must keep its terminal classification.
+test.each(["id", "runId"] as const)("capacity-wait kill via %s survives a later parent abort", async (field) => {
+	const cwd = makeRoot();
+	const gate = Promise.withResolvers<void>();
+	const abort = new AbortController();
+	const terminal: SingleResult[] = [];
+	const { execute } = executor(cwd, new TestEvents(), {
+		runSync: async (parentCwd, agents, agentName, task, options) => {
+			const result = await runSync(parentCwd, agents, agentName, task, {
+				...options,
+				testSession: { promptGate: gate.promise, abortResolvesPrompt: true },
+			});
+			terminal.push(result);
+			return result;
+		},
+	});
+	const ctx = context(cwd);
+	const launch = execute.execute(
+		"kill-before-parent",
+		{
+			tasks: Array.from({ length: 5 }, (_, index) => ({ agent: "qa-echo", task: `hold ${index}` })),
+			concurrency: 5,
+			artifacts: false,
+		},
+		abort.signal,
+		undefined,
+		ctx,
+	);
+	try {
+		await waitUntil(() => listSubagentControls().some((control) => control.listChildren().length === 5));
+		const control = listSubagentControls().find((control) => control.listChildren().length === 5)!;
+		const waiting = control.listChildren()[4]!;
+		assert.equal(waiting.status, "pending");
+		assert.equal(waiting.loaded, false);
+		const killed = execute.execute(
+			"kill-before-parent",
+			{ action: "kill", [field]: waiting.path },
+			new AbortController().signal,
+			undefined,
+			ctx,
+		);
+		abort.abort();
+		assert.notEqual((await killed).isError, true);
+		await launch;
+		await waitUntil(() => terminal.length === 5);
+		const result = terminal.find((child) => child.task === "hold 4")!;
+		assert.equal(result.status, "killed");
+		assert.equal(result.cause, undefined);
+		assert.equal(result.envelope, "Killed. This child cannot be resumed.");
+		assert.equal(control.findChild(waiting.path)?.status, "killed");
+		assert.equal(control.findChild(waiting.path)?.loaded, false);
+		assert.ok(terminal.filter((child) => child !== result).every((child) => child.cause === "abort"));
+		const repeated = await execute.execute(
+			"repeat-kill",
+			{ action: "kill", [field]: waiting.path },
+			new AbortController().signal,
+			undefined,
+			ctx,
+		);
+		assert.equal(repeated.isError, true);
+	} finally {
+		abort.abort();
+		gate.resolve();
+		await launch;
+	}
+});
+
 for (const cause of ["parent-default", "parent-user", "owner-close"] as const) {
 	test.each([false, true])(`${cause} at capacity preserves abort (late kill: %s)`, async (lateKill) => {
 		const cwd = makeRoot();

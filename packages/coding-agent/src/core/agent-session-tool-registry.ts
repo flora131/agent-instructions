@@ -137,6 +137,10 @@ export function _buildRuntime(
 		return true;
 	};
 	const activeBuiltinTools = (options.activeToolNames ?? [...getDefaultToolNames()]).filter(isAllowedBuiltinTool);
+	// Resolve ownership per call, just like command execution. Each wait receives
+	// a stable binding so observation cleanup can finish after session disposal.
+	const getTaskOwner = () =>
+		this._subagentPolicy?.depth && this._subagentPolicy.depth >= 1 ? undefined : this.getAgentTaskHost().ownerBinding;
 	const baseToolDefinitions = this._baseToolsOverride
 		? Object.fromEntries(
 				Object.entries(this._baseToolsOverride).map(([name, tool]) => [
@@ -149,6 +153,9 @@ export function _buildRuntime(
 				bash: {
 					commandPrefix: shellCommandPrefix,
 					shellPath,
+					get taskOwner() {
+						return getTaskOwner();
+					},
 					...(!(this._subagentPolicy?.depth && this._subagentPolicy.depth >= 1)
 						? {
 								operations: {
@@ -176,6 +183,9 @@ export function _buildRuntime(
 					},
 				},
 				powershell: {
+					get taskOwner() {
+						return getTaskOwner();
+					},
 					...(!(this._subagentPolicy?.depth && this._subagentPolicy.depth >= 1)
 						? {
 								operations: {
@@ -186,6 +196,9 @@ export function _buildRuntime(
 								},
 							}
 						: {}),
+				},
+				kill: {
+					taskOwner: () => this.getAgentTaskHost().ownerBinding,
 				},
 				search: {
 					contextBefore: this.settingsManager.getSearchContextBefore(),

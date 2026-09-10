@@ -78,6 +78,7 @@ function formatStatusCounts(children: SubagentResultIntercomChild[]): string {
 function resolveGroupedStatus(children: SubagentResultIntercomChild[]): SubagentResultStatus {
 	const counts = countStatuses(children);
 	if (counts.failed > 0) return "failed";
+	if (groupedParentCancelCause(children)) return "interrupted";
 	if (counts.killed > 0) return "killed";
 	if (counts.interrupted > 0) return "interrupted";
 	if (counts.completed > 0) return "completed";
