@@ -142,6 +142,8 @@ export function createWorkflowStageFactory(input: {
 						...(replaySource.result !== undefined ? { result: replaySource.result } : {}),
 						...(replaySource.sessionId !== undefined ? { sessionId: replaySource.sessionId } : {}),
 						...(replaySource.sessionFile !== undefined ? { sessionFile: replaySource.sessionFile } : {}),
+						...(replaySource.model !== undefined ? { model: replaySource.model } : {}),
+						...(replaySource.thinkingLevel !== undefined ? { thinkingLevel: replaySource.thinkingLevel } : {}),
 						replayedFromStageId: replaySource.id,
 						replayed: true,
 					}
@@ -170,6 +172,8 @@ export function createWorkflowStageFactory(input: {
 
 		const applyModelFallbackMeta = (meta: ReturnType<InternalStageContext["__modelFallbackMeta"]>): void => {
 			if (meta.model !== undefined) stageSnapshot.model = meta.model;
+			if (meta.thinkingLevel !== undefined) stageSnapshot.thinkingLevel = meta.thinkingLevel;
+			else delete stageSnapshot.thinkingLevel;
 			if (meta.attemptedModels !== undefined) stageSnapshot.attemptedModels = meta.attemptedModels;
 			if (meta.modelAttempts !== undefined) stageSnapshot.modelAttempts = meta.modelAttempts;
 			if (meta.warnings !== undefined) {
