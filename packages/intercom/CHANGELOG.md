@@ -4,6 +4,10 @@ All notable changes to the `pi-intercom` extension will be documented in this fi
 
 ## [Unreleased]
 
+### Fixed
+
+- Route lazy initialization, event-relay, and rejected-candidate cleanup diagnostics through the owning interactive session's notifications instead of leaking console output and stacks. Retryable initialization uses warning color; non-interactive console diagnostics and retry behavior are unchanged.
+
 ## [0.9.19-alpha.3] - 2026-09-09
 
 ### Fixed

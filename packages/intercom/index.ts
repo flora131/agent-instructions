@@ -133,6 +133,27 @@ function renderHeavyToolResult(loadedHeavy: CapturedHeavy | null, name: string, 
 	if (renderer) return renderer(...args);
 	return renderIntercomToolResult(name, args);
 }
+
+/** Report against the captured owner, not whichever session is current after an await. */
+function reportDiagnostic(
+	ctx: ExtensionContext | undefined,
+	message: string,
+	error: unknown,
+	level: "warning" | "error",
+	consoleMessage = message,
+): void {
+	try {
+		if (ctx?.hasUI) {
+			ctx.ui.notify(message, level);
+			return;
+		}
+	} catch {
+		// A retired context or unavailable UI never authorizes console fallback.
+		return;
+	}
+	console.error(consoleMessage, error);
+}
+
 /**
  * Diagnostics for a background Intercom event relay.
  *
@@ -145,9 +166,11 @@ function renderHeavyToolResult(loadedHeavy: CapturedHeavy | null, name: string, 
  * reported. The caller-facing acknowledgement is emitted either way, so a
  * waiting relay never hangs on this decision.
  */
-function reportRelayFailure(eventName: string, error: unknown): void {
+function reportRelayFailure(ctx: ExtensionContext | undefined, eventName: string, error: unknown): void {
 	if (isRecoverableIntercomDisconnect(error)) return;
-	console.error(`Intercom event relay failed (${eventName}):`, error);
+	const prefix = `Intercom event relay failed (${eventName}):`;
+	const detail = error instanceof Error ? error.message : String(error);
+	reportDiagnostic(ctx, `${prefix} ${detail}`, error, "error", prefix);
 }
 
 /**
@@ -251,12 +274,12 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 			return handle;
 		}
 		let promise: Promise<IntercomHeavyHandle>;
+		let replayCtx: ExtensionContext | null = null;
 		promise = (async (): Promise<IntercomHeavyHandle> => {
 			const captured: CapturedHeavy = {
 				tools: new Map(), commands: new Map(), handlers: createForwardedHandlerMap(),
 				shortcuts: new Map(), eventHandlers: new Map(),
 			};
-			let replayCtx: ExtensionContext | null = null;
 			let cleaned = false;
 			const cleanupCandidate = async (): Promise<void> => {
 				const shutdown = lease.shutdown;
@@ -267,7 +290,9 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 				try {
 					await dispatchHandlers(captured, "session_shutdown", event, cleanupCtx);
 				} catch (cleanupError) {
-					console.error("Intercom failed to clean rejected lazy candidate:", cleanupError);
+					const prefix = "Intercom failed to clean rejected lazy candidate:";
+					const detail = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+					reportDiagnostic(cleanupCtx, `${prefix} ${detail}`, cleanupError, "error", prefix);
 				}
 			};
 			try {
@@ -295,7 +320,12 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 				if (heavyAttempt?.promise === promise) heavyAttempt = null;
 				if (!isRecoverableIntercomDisconnect(error)) {
 					const message = error instanceof Error ? error.message : String(error);
-					console.error(`Intercom heavy initialization failed; a later call will retry: ${message}`, error);
+					reportDiagnostic(
+						replayCtx ?? ctx,
+						`Intercom heavy initialization failed; a later call will retry: ${message}`,
+						error,
+						"warning",
+					);
 				}
 			},
 		);
@@ -581,7 +611,8 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 		if (!isPendingStageUndeliverableRelay(payload) || payload.handled === true) return;
 		payload.handled = true;
 		const forwarded = { ...payload, handled: false, completion: undefined };
-		payload.completion = loadHeavy(latestLifecycleContext())
+		const ctx = latestLifecycleContext();
+		payload.completion = loadHeavy(ctx)
 			.then(async (handle) => {
 				handle.assertCurrent();
 				await dispatchEventHandlers(handle.heavy, PENDING_STAGE_UNDELIVERABLE_EVENT, forwarded);
@@ -591,7 +622,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 					: false;
 			})
 			.catch((error) => {
-				reportRelayFailure(PENDING_STAGE_UNDELIVERABLE_EVENT, error);
+				reportRelayFailure(ctx, PENDING_STAGE_UNDELIVERABLE_EVENT, error);
 				return false;
 			});
 	});
@@ -601,7 +632,8 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 		PENDING_STAGE_ROUTE_EVENT,
 	] as const) {
 		pi.events.on(eventName, (payload) => {
-			const completion = loadHeavy(latestLifecycleContext()).then(async (handle) => {
+			const ctx = latestLifecycleContext();
+			const completion = loadHeavy(ctx).then(async (handle) => {
 				handle.assertCurrent();
 				await dispatchEventHandlers(handle.heavy, eventName, payload);
 				handle.assertCurrent();
@@ -615,7 +647,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 			}
 			void completion.catch((error) => {
 				rejectLazyResultRelay(pi, eventName, payload, error);
-				reportRelayFailure(eventName, error);
+				reportRelayFailure(ctx, eventName, error);
 			});
 		});
 	}
