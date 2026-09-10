@@ -452,7 +452,10 @@ function createMuslSmokeProbe(): MuslSmokeProbe {
 	}
 
 	const archive = join(probeRoot, "archive.tar.gz");
-	const archiveResult = spawnSyncCollect(["tar", "-czf", archive, "-C", payloadRoot, "atomic"]);
+	// GNU tar reads drive-qualified archive names as host:path; keep -f relative.
+	const archiveResult = spawnSyncCollect(["tar", "-czf", "archive.tar.gz", "-C", payloadRoot, "atomic"], {
+		cwd: probeRoot,
+	});
 	assert.equal(archiveResult.exitCode, 0, archiveResult.stderr.toString());
 
 	const stubDirectory = join(probeRoot, "stub");
