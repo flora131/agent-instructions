@@ -21,7 +21,7 @@
  *  - src/tui/chat-surface.ts renderRoundedBoxLines
  */
 
-import { expandWorkflowGraph } from "../shared/expanded-workflow-graph.js";
+import { createWorkflowGraphExpander } from "../shared/expanded-workflow-graph.js";
 import {
 	pendingWorkflowStageStatuses,
 	type WorkflowBoundarySegmentsResolver,
@@ -267,7 +267,7 @@ function pendingStageLabel(
 
 function metaLine(
 	run: RunSnapshot,
-	allRuns: readonly RunSnapshot[],
+	expandGraph: ReturnType<typeof createWorkflowGraphExpander>,
 	now: number,
 	width = Number.POSITIVE_INFINITY,
 	resolveBoundarySegments?: WorkflowBoundarySegmentsResolver,
@@ -279,7 +279,7 @@ function metaLine(
 		return run.resumable === false ? "quit · not resumable" : "quit · resumable via /workflow resume";
 	if (effectiveRunStatus(run) === "blocked") return "blocked · resumable via /workflow resume";
 	// Match the graph's recursive stage projection, not the root's boundary placeholders.
-	const { stages } = expandWorkflowGraph({ runs: allRuns, notices: [], version: 0 }, run.id);
+	const { stages } = expandGraph(run.id);
 	const prefix: string[] = [modeLabel(stages)];
 	const prog = progressLabel(stages);
 	if (prog) prefix.push(prog);
@@ -356,10 +356,11 @@ function themedRunLines(
 	theme: GraphTheme,
 	allRuns: readonly RunSnapshot[],
 	width: number,
+	expandGraph: ReturnType<typeof createWorkflowGraphExpander>,
 ): string[] {
 	const resolveBoundarySegments: WorkflowBoundarySegmentsResolver = (runId) =>
 		workflowBoundarySegments(allRuns, runId);
-	const meta = metaLine(run, allRuns, now, runMetaWidth(run, width), resolveBoundarySegments);
+	const meta = metaLine(run, expandGraph, now, runMetaWidth(run, width), resolveBoundarySegments);
 	// Render the meta line in muted while running so the elapsed-time
 	// gradient stays readable; dim it once the run has terminated.
 	const metaColor = effectiveRunStatus(run) === "running" ? theme.textMuted : theme.dim;
@@ -374,13 +375,19 @@ function themedRunLines(
 	});
 }
 
-function plainRunLines(run: RunSnapshot, now: number, allRuns: readonly RunSnapshot[], width: number): string[] {
+function plainRunLines(
+	run: RunSnapshot,
+	now: number,
+	allRuns: readonly RunSnapshot[],
+	width: number,
+	expandGraph: ReturnType<typeof createWorkflowGraphExpander>,
+): string[] {
 	const resolveBoundarySegments: WorkflowBoundarySegmentsResolver = (runId) =>
 		workflowBoundarySegments(allRuns, runId);
 	return renderRunIdentityRows({
 		runId: run.id,
 		name: run.name,
-		meta: metaLine(run, allRuns, now, runMetaWidth(run, width), resolveBoundarySegments),
+		meta: metaLine(run, expandGraph, now, runMetaWidth(run, width), resolveBoundarySegments),
 		glyph: statusGlyph(run, allRuns),
 	});
 }
@@ -471,12 +478,13 @@ export function buildThemedWidgetLines(
 	const badges = formatTitleBadges(badgeList, graphTheme, themed);
 	const title = `BACKGROUND  ${subtitle}${badges ? `  ${badges}` : ""}`;
 	const body: string[] = [];
+	const expandGraph = createWorkflowGraphExpander(snap);
 
 	for (let i = 0; i < display.length; i++) {
 		const run = display[i]!;
 		const runLines = themed
-			? themedRunLines(run, now, graphTheme, snap.runs, width)
-			: plainRunLines(run, now, snap.runs, width);
+			? themedRunLines(run, now, graphTheme, snap.runs, width, expandGraph)
+			: plainRunLines(run, now, snap.runs, width, expandGraph);
 		body.push(...runLines);
 		if (i < display.length - 1) body.push("");
 	}

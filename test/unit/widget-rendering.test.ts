@@ -369,6 +369,73 @@ describe("renderWidgetLines — standard form", () => {
 		assert.ok(metaLine.includes("chain"), "multi-stage run reads as chain");
 		assert.ok(metaLine.includes("1/3"), "progress count includes done/total");
 	});
+	// PR #2969, review r3974468770: retained history must be indexed once, not once per card.
+	test("shares expansion preparation across roots and refreshes it as nested runs change", () => {
+		const now = 100_000;
+		const store = createStore();
+		for (const id of ["alpha", "beta"]) {
+			store.recordRunStart(
+				makeRun(id, id, "running", [
+					// A local input wait avoids unrelated descendant-indicator scans in this cost assertion.
+					makeStage("question", "question", "awaiting_input"),
+					makeStage("import", "nested", "running", {
+						workflowChildRun: { runId: `${id}-child`, alias: "nested", workflow: "nested" },
+					}),
+				]),
+			);
+		}
+		const addChild = (id: string) =>
+			store.recordRunStart({
+				...makeRun(`${id}-child`, "nested", "running", [
+					makeStage("done", "done", "completed"),
+					makeStage("work", "work", "running"),
+				]),
+				parentRunId: id,
+				parentStageId: "import",
+				rootRunId: id,
+				toolNodes: [
+					{
+						kind: "tool",
+						id: "tool:cached",
+						name: "cached",
+						argsHash: "cached",
+						ordinal: 0,
+						parentIds: [],
+						status: "cached",
+						attachable: false,
+					},
+				],
+			});
+		const assertProgress = (alpha: string, beta: string) => {
+			for (const theme of [undefined, NULL_PI_THEME]) {
+				let retainedIdReads = 0;
+				const retained = Array.from({ length: 32 }, (_, index) => ({
+					...makeRun(`old-${index}`, "retained", "completed", [], 1_000, 2_000),
+					get id() {
+						retainedIdReads++;
+						return `old-${index}`;
+					},
+				}));
+				const snap = store.graphSnapshot();
+				const lines = buildThemedWidgetLines({ ...snap, runs: [...snap.runs, ...retained] }, theme, 120, now)
+					.map(stripAnsi)
+					.join("\n");
+				assert.match(lines, /BACKGROUND {2}2 runs /);
+				assert.ok(lines.includes(`alpha · chain · ${alpha}`), lines);
+				assert.ok(lines.includes(`beta · chain · ${beta}`), lines);
+				assert.equal(retainedIdReads, retained.length, "one full run-index preparation per render pass");
+			}
+		};
+		addChild("beta");
+		assertProgress("0/2", "1/3");
+		addChild("alpha");
+		assertProgress("1/3", "1/3");
+		store.recordStageEnd("alpha-child", makeStage("work", "work", "completed"));
+		assertProgress("2/3", "1/3");
+		store.recordStageStart("beta-child", makeStage("next", "next", "running"));
+		assertProgress("2/3", "1/4");
+	});
+
 	test("recursive stage progress updates as child graphs materialize without counting their boundaries", () => {
 		const now = 10_000;
 		const store = createStore();

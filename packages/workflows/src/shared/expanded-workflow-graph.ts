@@ -96,7 +96,23 @@ function projectedToolStatus(tool: ToolNodeSnapshot): StageSnapshot["status"] {
 }
 
 export function expandWorkflowGraph(snapshot: StoreSnapshot, rootRunId: string): ExpandedWorkflowGraph {
-	const runById = new Map(snapshot.runs.map((run) => [run.id, run]));
+	return createWorkflowGraphExpander(snapshot)(rootRunId);
+}
+
+/** Share one snapshot's run index across expansions; create anew for each render pass. */
+export function createWorkflowGraphExpander(snapshot: StoreSnapshot): (rootRunId: string) => ExpandedWorkflowGraph {
+	// Terminal-only surfaces need no expansion preparation.
+	let runById: ReadonlyMap<string, RunSnapshot> | undefined;
+	return (rootRunId) => {
+		runById ??= new Map(snapshot.runs.map((run) => [run.id, run]));
+		return expandIndexedWorkflowGraph(runById, rootRunId);
+	};
+}
+
+function expandIndexedWorkflowGraph(
+	runById: ReadonlyMap<string, RunSnapshot>,
+	rootRunId: string,
+): ExpandedWorkflowGraph {
 	const root = runById.get(rootRunId);
 	if (!root) return { stages: [], renderStages: [], tools: [], nodes: [], targets: new Map() };
 	const targets = new Map<string, ExpandedWorkflowStageTarget>();
