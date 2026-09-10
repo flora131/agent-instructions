@@ -122,6 +122,8 @@ If you copy a HIL workflow example into a headless session, it can pass dispatch
 
 <p align="center"><img src="../images/workflow-input-picker.png" alt="Workflow Input Picker" width="600" /></p>
 
+Graph node cards show each model stage's effective model and thinking level beneath its status, including after fallback and durable resume. Long model names are truncated first, preserving the complete thinking level and a canonical `-fast` model suffix. This suffix is model identity, not a separate fast-mode switch or proof of service tier. Thinking `off` is omitted; unresolved model identity shows `—`. Tool nodes retain their `durable tool` body, and the `BACKGROUND` summary is unchanged.
+
 ## Workflow Commands
 
 ```text
