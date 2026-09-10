@@ -19,7 +19,9 @@ import type {
 import {
 	clearSubagentControls,
 	listSubagentControls,
+	registerSubagentControl,
 } from "../../packages/subagents/src/runs/inprocess/control-registry.js";
+import { SubagentControlRuntime } from "../../packages/subagents/src/runs/inprocess/runner.js";
 import type { SingleResult, SubagentState } from "../../packages/subagents/src/shared/types.js";
 import { sleep, spawnSyncCollect } from "../helpers/runtime.js";
 
@@ -625,6 +627,72 @@ for (const field of ["id", "runId"] as const) {
 		}
 	});
 }
+
+test("late public kill by runId preserves an already-published native interrupt before JS completion", async () => {
+	const cwd = makeRoot();
+	const gate = Promise.withResolvers<void>();
+	const interrupt = new AbortController();
+	const control = new SubagentControlRuntime({ path: "native-interrupt-won", depth: 0 }, join(cwd, "sessions"));
+	control.registerAgents([agent()]);
+	registerSubagentControl(control);
+	const admitted = control.admitChildSession({
+		taskName: "hold",
+		task: "wait for lower-level interruption",
+		agent: agent(),
+		cwd,
+		testSession: { promptGate: gate.promise, abortResolvesPrompt: true },
+	});
+	assert.ok(admitted.admitted);
+	const running = control.startAttempt(
+		admitted.admitted,
+		{},
+		{
+			abort: new AbortController().signal,
+			interrupt: interrupt.signal,
+		},
+	);
+	const path = running.child.identity.path;
+	const { execute } = executor(cwd, new TestEvents());
+	const call = (action: "kill" | "status") =>
+		execute.execute(
+			"native-interrupt-won",
+			{ action, runId: path },
+			new AbortController().signal,
+			undefined,
+			context(cwd),
+		);
+	try {
+		interrupt.abort();
+		// Yield only microtasks: the native worker can publish interruption while its JS completion stays queued.
+		const deadline = Date.now() + 2_000;
+		while (Date.now() < deadline && control.native.listChildren()[0]?.status !== "interrupted")
+			await Promise.resolve();
+		assert.equal(
+			control.native.listChildren()[0]?.status,
+			"interrupted",
+			"native interruption must already have won",
+		);
+		assert.equal(running.status, "running", "the JS attempt must still be pending when the late kill arrives");
+		assert.equal(control.findChild(path)?.status, "interrupted");
+
+		const requested = await call("kill");
+		assert.notEqual(requested.isError, true, text(requested));
+		const result = await running.promise;
+		assert.equal(result.status, "interrupted");
+		assert.equal(result.cause, undefined);
+		assert.equal(result.envelope, "Interrupted");
+		assert.doesNotMatch(result.envelope, /killed|cannot be resumed/i);
+		assert.equal(control.native.listChildren()[0]?.status, "interrupted");
+		assert.equal(control.findChild(path)?.status, "interrupted");
+		const status = await call("status");
+		assert.match(text(status), /Status: interrupted/);
+		assert.doesNotMatch(text(status), /killed|cannot be resumed/i);
+		assert.equal(status.details.statusGroups?.[0]?.children[0]?.status, "interrupted");
+	} finally {
+		gate.resolve();
+		await running.promise;
+	}
+});
 
 for (const cause of ["parent-default", "parent-user", "owner-close"] as const) {
 	test.each([false, true])(`${cause} at capacity preserves abort (late kill: %s)`, async (lateKill) => {

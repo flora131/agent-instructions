@@ -894,16 +894,18 @@ export class SubagentControlRuntime {
 		let activeSessionManager: SessionManager | undefined;
 		let termination: TerminationCauseName | undefined;
 		let terminating: Promise<void> | undefined;
+		let terminationWasKill = false;
 		let unsubscribe: (() => void) | undefined;
 		let skillReport: AttemptSkillReport = {};
 		const terminate = async (cause: TerminationCauseName): Promise<void> => {
 			if (terminating) {
-				if (termination !== "interrupt" && !(taskHooks && signals.abort.reason === "user"))
-					this.killedChildren.delete(admitted.identity.path);
+				if (!terminationWasKill) this.killedChildren.delete(admitted.identity.path);
 				return terminating;
 			}
 			if (taskHooks && cause === "abort" && signals.abort.reason === "user")
 				this.killedChildren.add(admitted.identity.path);
+			// Preserve the first termination's classification across late kill requests.
+			terminationWasKill = this.killedChildren.has(admitted.identity.path);
 			termination = cause;
 			terminating = (async () => {
 				try {
