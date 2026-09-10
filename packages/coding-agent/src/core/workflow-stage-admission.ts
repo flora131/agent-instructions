@@ -34,6 +34,7 @@ export class WorkflowStageAdmissionBoundary {
 	private taskScope: Extract<OwnerScope, { kind: "workflow-stage" }> | undefined;
 	private taskHost: AgentTaskHost | undefined;
 	private readonly messageDeliveryContext = new AsyncLocalStorage<boolean>();
+	private readonly messageAdmissionContext = new AsyncLocalStorage<{ active: boolean }>();
 	private readonly messageDeliveries = new Set<Promise<void>>();
 	private messageDeliveryTail: Promise<void> | undefined;
 	private taskClose: ReturnType<AgentTaskHost["close"]> | undefined;
@@ -81,13 +82,32 @@ export class WorkflowStageAdmissionBoundary {
 	}
 
 	/** One FIFO position for an external operation, including its retry waits. */
-	runMessageDelivery(deliver: () => void | Promise<void>, routeLate?: () => void | Promise<void>): Promise<void> {
+	runMessageDelivery(
+		deliver: () => void | Promise<void>,
+		routeLate?: () => void | Promise<void>,
+		preserveDestination = false,
+	): Promise<void> {
 		const late =
 			routeLate ??
 			(() => {
 				throw new Error("Message admission is closed");
 			});
-		return this.admit(undefined, () => this.serializeMessageDelivery(deliver), late).completion;
+		const invoke = (): void | Promise<void> => {
+			if (!preserveDestination) return deliver();
+			// Stage close drains the destination reserved at arrival. SDK commits
+			// inside this operation must not be reclassified as late on retry or
+			// after waiting for an earlier FIFO slot. Revoke on settlement so detached
+			// descendants cannot admit new work into a closed generation.
+			const reservation = { active: true };
+			return this.messageAdmissionContext.run(reservation, async () => {
+				try {
+					await deliver();
+				} finally {
+					reservation.active = false;
+				}
+			});
+		};
+		return this.admit(undefined, () => this.serializeMessageDelivery(invoke), late).completion;
 	}
 
 	/** Reentrant SDK commits stay inside their producer's FIFO position. */
@@ -129,10 +149,11 @@ export class WorkflowStageAdmissionBoundary {
 				};
 			}
 		}
-		const decision: WorkflowStageAdmissionDecision = this.open ? "admitted" : "late";
+		const admitted = this.open || this.messageAdmissionContext.getStore()?.active === true;
+		const decision: WorkflowStageAdmissionDecision = admitted ? "admitted" : "late";
 		let completion: Promise<void>;
 		if (key === undefined) {
-			completion = this.invoke(this.open ? deliver : routeLate);
+			completion = this.invoke(admitted ? deliver : routeLate);
 		} else {
 			let resolveCompletion!: () => void;
 			let rejectCompletion!: (reason?: unknown) => void;
@@ -142,7 +163,7 @@ export class WorkflowStageAdmissionBoundary {
 			});
 			void completion.catch(() => {});
 			this.inFlight.set(key, completion);
-			const delivery = this.invocationContext.run(key, () => this.invoke(this.open ? deliver : routeLate));
+			const delivery = this.invocationContext.run(key, () => this.invoke(admitted ? deliver : routeLate));
 			void delivery.then(resolveCompletion, rejectCompletion);
 			void completion.then(
 				() => {

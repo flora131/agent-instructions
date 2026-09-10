@@ -16,6 +16,11 @@ export function admitWorkflowStageInbound(
 	onAdmissionFailure?: (error: Error) => Promise<void>,
 ): false | Promise<void> {
 	if (ctx.orchestrationContext?.kind !== "workflow-stage") return false;
+	const boundary = ctx.orchestrationContext.messageAdmission?.boundary;
+	// Reserve the whole producer operation, not each SDK attempt: retry delays
+	// must retain FIFO ownership. Late delivery still uses the SDK's late router.
+	const run = (barrier?: WorkflowStageAdmissionBarrier): Promise<void> =>
+		boundary?.runMessageDelivery(() => deliver(barrier), () => deliver(), true) ?? Promise.resolve(deliver(barrier));
 	try {
 		let busy = false;
 		try {
@@ -23,7 +28,7 @@ export function admitWorkflowStageInbound(
 		} catch {
 			// A retiring context is handled by the generation check in delivery.
 		}
-		if (!busy || !firstRefusal) return Promise.resolve(deliver());
+		if (!busy || !firstRefusal) return run();
 		let firstRefusalPromise: Promise<void> | undefined;
 		const admissionBarrier: WorkflowStageAdmissionBarrier = () => {
 			firstRefusalPromise ??= (async () => {
@@ -36,7 +41,7 @@ export function admitWorkflowStageInbound(
 			})();
 			return firstRefusalPromise;
 		};
-		return Promise.resolve(deliver(admissionBarrier));
+		return run(admissionBarrier);
 	} catch (error) {
 		return Promise.reject(error);
 	}

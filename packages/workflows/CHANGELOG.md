@@ -22,7 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- Incoming Intercom `send` and `ask` messages to a live workflow stage now cancel the stage's current model call or cancellable tool and are processed immediately within the same stage generation, instead of waiting for the next natural model turn. The stage task is not restarted, completed tool results are kept, and the exact-child foreground detach handshake still runs before cancellation so a child asking its parent stage is not cancelled by its own message.
+- Incoming Intercom `send` and `ask` messages to a live workflow stage now cancel the stage's current model call or cancellable tool and are processed immediately within the same stage generation, instead of waiting for the next natural model turn. Admitted input survives consumed preflight and overlapping SDK interrupt turns, and persistence retries retain their FIFO position. The stage task is not restarted, completed tool results are kept, and the exact-child foreground detach handshake still runs before cancellation so a child asking its parent stage is not cancelled by its own message.
 
 ## [0.9.19-alpha.3] - 2026-09-09
 

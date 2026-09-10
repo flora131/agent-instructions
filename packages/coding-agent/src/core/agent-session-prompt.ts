@@ -38,6 +38,19 @@ export async function prompt(this: AgentSession, text: string, options?: PromptO
 	this._activePromptCount += 1;
 	try {
 		await promptInternal.call(this, text, options);
+		const boundary = this._subagentMessageAdmission ?? this._workflowStageAdmission;
+		if (
+			this._activePromptCount === 1 &&
+			!this.isStreaming &&
+			!this._queuedMessagesPaused &&
+			(this._priorityInterruptPending || boundary?.hasMessageDeliveries())
+		) {
+			// A command/input hook may consume the original prompt during preflight.
+			// Its owner still owes independently admitted priority input a reply; drain
+			// that input without replaying preflight or starting another task prompt.
+			await this._continueQueuedAgentMessages();
+			if (this._subagentMessageAdmission) await settleSubagentMessages(this);
+		}
 	} finally {
 		this._activePromptCount -= 1;
 	}
@@ -294,19 +307,26 @@ export async function _runAgentContinue(this: AgentSession): Promise<void> {
 
 /** Restore priority input the moment the native loop can poll it again. */
 function preparePriorityContinuation(session: AgentSession): Promise<void> | undefined {
+	const boundary = session._subagentMessageAdmission ?? session._workflowStageAdmission;
+	// Explicit SDK interrupts own a native turn and the shared hold. An admitted
+	// receiver's task must join that owner before checking its priority input;
+	// otherwise it can settle before the interrupt finalizer restores the queue.
+	if (boundary && session._pendingInterruptDeliveries > 0) {
+		return session._interruptDeliveryQueue.then(() => preparePriorityContinuation(session));
+	}
 	const restore = (): void => {
 		if (!session._priorityInterruptPending) return;
 		session._priorityInterruptPending = false;
-		// An explicit interrupt delivery owns the hold; its finalizer restores everything.
-		if (session._pendingInterruptDeliveries === 0) session._restoreAndClearActiveInterruptQueueHold();
+		session._restoreAndClearActiveInterruptQueueHold();
 	};
-	const boundary = session._subagentMessageAdmission ?? session._workflowStageAdmission;
 	// Keep the idle prompt start synchronous unless a producer commit is still in flight.
 	if (!boundary?.hasMessageDeliveries()) {
 		restore();
 		return undefined;
 	}
-	return boundary.waitForMessageDeliveries().then(restore);
+	// A producer can enqueue an explicit SDK interrupt while this await yields.
+	// Recheck its ownership before restoring the shared hold.
+	return boundary.waitForMessageDeliveries().then(() => preparePriorityContinuation(session));
 }
 
 export async function _continueQueuedAgentMessages(this: AgentSession): Promise<void> {

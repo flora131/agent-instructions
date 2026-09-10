@@ -5,7 +5,7 @@ import { Type } from "typebox";
 import { test, vi } from "vitest";
 import type { ExtensionContext } from "../../packages/coding-agent/src/core/extensions/index.js";
 import { WorkflowStageAdmissionBoundary } from "../../packages/coding-agent/src/core/workflow-stage-admission.js";
-import { createHarness, getMessageText } from "../../packages/coding-agent/test/suite/harness.js";
+import { createHarness, getMessageText, type HarnessOptions } from "../../packages/coding-agent/test/suite/harness.js";
 import intercomHeavy from "../../packages/intercom/index-heavy.js";
 import type { IntercomExtensionTestOverrides } from "../../packages/intercom/intercom-test-seams.js";
 import type { Message, SessionInfo } from "../../packages/intercom/types.js";
@@ -28,12 +28,17 @@ function message(id: string, action: Action, text = `PRIORITY-${id}`): Message {
 	return { id, timestamp: Date.now(), content: { text }, ...(action === "ask" ? { expectsReply: true } : {}) };
 }
 
-async function receiver(kind: Receiver, tools: AgentTool[]) {
+async function receiver(
+	kind: Receiver,
+	tools: AgentTool[],
+	options: Pick<HarnessOptions, "settings" | "extensionFactories"> = {},
+) {
 	const ended = new AbortController();
 	const boundary = new WorkflowStageAdmissionBoundary();
 	let inbound!: Inbound;
 	let ctx!: ExtensionContext;
 	const h = await createHarness({
+		...options,
 		...(kind === "child"
 			? {
 					subagentPolicy: {
@@ -67,6 +72,7 @@ async function receiver(kind: Receiver, tools: AgentTool[]) {
 					ctx = context;
 				});
 			},
+			...(options.extensionFactories ?? []),
 		],
 	});
 	await h.session.bindExtensions({ mode: "print" });
@@ -191,6 +197,216 @@ for (const kind of ["child", "workflow-stage"] as const) {
 			}
 		});
 	}
+}
+
+for (const kind of ["child", "workflow-stage"] as const) {
+	for (const action of ["send", "ask"] as const) {
+		test(`${action} during an SDK interrupt turn cancels that turn and drains priority input in the same ${kind}`, async () => {
+			const record = { calls: 0, completed: 0 } as { calls: number; signal?: AbortSignal; completed: number };
+			const work = cancellableTool(record);
+			const h = await receiver(kind, [work.tool]);
+			const sdkStarted = Promise.withResolvers<void>();
+			const sdkRelease = Promise.withResolvers<void>();
+			let sdkSignal: AbortSignal | undefined;
+			let sdkCompletedNaturally = false;
+			let amended = 0;
+			const dispatches = createDispatchCounter([
+				() => fauxAssistantMessage(fauxToolCall("long_work", {}), { stopReason: "toolUse" }),
+				async (_context, options) => {
+					sdkSignal = options?.signal;
+					sdkStarted.resolve();
+					await Promise.race([
+						sdkRelease.promise,
+						new Promise<void>((resolve) => {
+							if (sdkSignal?.aborted) resolve();
+							else sdkSignal?.addEventListener("abort", () => resolve(), { once: true });
+						}),
+					]);
+					sdkCompletedNaturally = !sdkSignal?.aborted;
+					return fauxAssistantMessage("SDK response");
+				},
+				(context) => {
+					assert.equal(context.messages.filter((m) => getMessageText(m).includes("PRIORITY-sdk")).length, 1);
+					amended += 1;
+					return fauxAssistantMessage("amended SDK result");
+				},
+			]);
+			h.setResponses(dispatches.steps(8));
+			const sessionId = h.session.sessionId;
+			const execution = h.session.prompt("original task");
+			try {
+				await work.started.promise;
+				await h.session.sendCustomMessage(
+					{ customType: "extension-interrupt", content: "SDK interrupt", display: true },
+					{ triggerTurn: true, deliverAs: "interrupt" },
+				);
+				await sdkStarted.promise;
+				const input = message("sdk", action);
+				await h.deliver(input);
+				await h.deliver(input);
+				await execution;
+				assert.equal(sdkSignal?.aborted, true, "priority input cancels the active SDK model call");
+				assert.equal(sdkCompletedNaturally, false, "delivery does not wait for natural completion");
+				assert.equal(amended, 1, "the original task drains admitted priority input before settling");
+				assert.equal(dispatches.counts.valid, 3);
+				assert.equal(h.session.sessionId, sessionId);
+				assert.equal(record.calls, 1);
+				assert.equal(record.completed, 0);
+				assert.equal(
+					h.session.messages.filter((m) => m.role === "user" && getMessageText(m) === "original task").length,
+					1,
+				);
+				assert.equal(
+					h.sessionManager
+						.getEntries()
+						.filter((e) => e.type === "custom_message" && e.customType === "intercom_message").length,
+					1,
+				);
+				assert.equal(getMessageText(h.session.messages.at(-1)), "amended SDK result");
+				if (kind === "workflow-stage") assert.equal(h.boundary.isOpen(), true);
+			} finally {
+				sdkRelease.resolve();
+				work.cleanup.resolve();
+				await h.close(execution);
+			}
+		});
+	}
+}
+
+for (const kind of ["child", "workflow-stage"] as const) {
+	for (const handled of [false, true]) {
+		for (const action of ["send", "ask"] as const) {
+			test(`${action} admitted during ${kind} preflight is processed when input is ${handled ? "handled" : "continued"}`, async () => {
+				const entered = Promise.withResolvers<void>();
+				const release = Promise.withResolvers<void>();
+				let inputCalls = 0;
+				const h = await receiver(kind, [], {
+					extensionFactories: [
+						(pi) => {
+							pi.on("input", async () => {
+								inputCalls += 1;
+								entered.resolve();
+								await release.promise;
+								return { action: handled ? "handled" : "continue" };
+							});
+						},
+					],
+				});
+				let amended = 0;
+				const dispatches = createDispatchCounter([
+					(context) => {
+						assert.equal(
+							context.messages.filter((m) => getMessageText(m).includes("PRIORITY-preflight")).length,
+							1,
+						);
+						amended += 1;
+						return fauxAssistantMessage("amended preflight result");
+					},
+				]);
+				h.setResponses(dispatches.steps(4));
+				const sessionId = h.session.sessionId;
+				const execution = h.session.prompt("original task");
+				try {
+					await entered.promise;
+					const input = message("preflight", action);
+					await h.deliver(input);
+					await h.deliver(input);
+					await vi.waitFor(() =>
+						assert.equal(
+							h.sessionManager
+								.getEntries()
+								.filter((e) => e.type === "custom_message" && e.customType === "intercom_message").length,
+							1,
+						),
+					);
+					assert.equal(dispatches.counts.valid, 0, "admission does not start a competing task during preflight");
+					release.resolve();
+					await execution;
+					assert.equal(amended, 1, "consuming the original input must not consume admitted Intercom input");
+					assert.equal(dispatches.counts.valid, 1);
+					assert.equal(inputCalls, 1, "priority continuation does not replay preflight side effects");
+					assert.equal(h.session.sessionId, sessionId);
+					assert.equal(
+						h.session.messages.filter((m) => m.role === "user" && getMessageText(m) === "original task").length,
+						handled ? 0 : 1,
+					);
+					assert.equal(
+						h.sessionManager
+							.getEntries()
+							.filter((e) => e.type === "custom_message" && e.customType === "intercom_message").length,
+						1,
+					);
+					assert.equal(getMessageText(h.session.messages.at(-1)), "amended preflight result");
+					if (kind === "workflow-stage") assert.equal(h.boundary.isOpen(), true);
+				} finally {
+					release.resolve();
+					await h.close(execution);
+				}
+			});
+		}
+	}
+}
+
+for (const kind of ["child", "workflow-stage"] as const) {
+	test(`priority input cancels an active retry model call in the same ${kind}`, async () => {
+		const h = await receiver(kind, [], {
+			settings: { retry: { enabled: true, maxRetries: 2, baseDelayMs: 10 } },
+		});
+		const started = Promise.withResolvers<void>();
+		const release = Promise.withResolvers<void>();
+		let signal: AbortSignal | undefined;
+		let natural = false;
+		let amended = 0;
+		const dispatches = createDispatchCounter([
+			() => fauxAssistantMessage([], { stopReason: "error", errorMessage: "503 Service Unavailable" }),
+			async (_context, options) => {
+				signal = options?.signal;
+				started.resolve();
+				await Promise.race([
+					release.promise,
+					new Promise<void>((resolve) => {
+						if (signal?.aborted) resolve();
+						else signal?.addEventListener("abort", () => resolve(), { once: true });
+					}),
+				]);
+				natural = !signal?.aborted;
+				return fauxAssistantMessage("old retry");
+			},
+			(context) => {
+				assert.equal(context.messages.filter((m) => getMessageText(m).includes("PRIORITY-retry")).length, 1);
+				amended += 1;
+				return fauxAssistantMessage("amended retry result");
+			},
+		]);
+		h.setResponses(dispatches.steps(6));
+		const sessionId = h.session.sessionId;
+		const execution = h.session.prompt("original task");
+		try {
+			await started.promise;
+			await h.deliver(message("retry", "send"));
+			await execution;
+			assert.equal(signal?.aborted, true);
+			assert.equal(natural, false, "the retry is cancelled without releasing its natural completion gate");
+			assert.equal(amended, 1);
+			assert.equal(dispatches.counts.valid, 3);
+			assert.equal(h.session.sessionId, sessionId);
+			assert.equal(
+				h.session.messages.filter((m) => m.role === "user" && getMessageText(m) === "original task").length,
+				1,
+			);
+			assert.equal(
+				h.sessionManager
+					.getEntries()
+					.filter((e) => e.type === "custom_message" && e.customType === "intercom_message").length,
+				1,
+			);
+			assert.equal(getMessageText(h.session.messages.at(-1)), "amended retry result");
+			if (kind === "workflow-stage") assert.equal(h.boundary.isOpen(), true);
+		} finally {
+			release.resolve();
+			await h.close(execution);
+		}
+	});
 }
 
 test("a message during model streaming cancels the stream for both receiver kinds", async () => {
