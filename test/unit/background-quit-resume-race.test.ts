@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "vitest";
 import { InMemoryDurableBackend } from "../../packages/workflows/src/durable/backend.js";
+import { DbosDurableBackend } from "../../packages/workflows/src/durable/dbos-backend.js";
 import { setDurableBackend } from "../../packages/workflows/src/durable/factory.js";
 import { createToolAdmissionBoundary } from "../../packages/workflows/src/engine/run-tool-admission-boundary.js";
 import { createToolControlRegistry } from "../../packages/workflows/src/engine/run-tool-control-registry.js";
@@ -8,6 +9,7 @@ import { quitRun } from "../../packages/workflows/src/runs/background/quit.js";
 import { resumeRun } from "../../packages/workflows/src/runs/background/status.js";
 import { createStageControlRegistry } from "../../packages/workflows/src/runs/foreground/stage-control-registry.js";
 import { createStore } from "../../packages/workflows/src/shared/store.js";
+import { createMockSdk } from "./durable-dbos-backend-helpers.js";
 
 const runId = "903719d0-65fd-487a-89dc-de184902cf06";
 afterEach(() => setDurableBackend(undefined));
@@ -343,4 +345,172 @@ test("a node-less snapshot stays readable when concurrent quit has no active sta
 	assert.equal(resumed.mode, "snapshot");
 	assert.deepEqual(resumed.resumed, []);
 	assert.equal(resumed.snapshot.status, "running");
+});
+
+// #2700: a post-ack running write must settle before a newer quit publishes paused.
+for (const heldPhase of ["transition", "flush"] as const) {
+	test(`quit waits for the older post-ack resume ${heldPhase}`, async () => {
+		const entered = Promise.withResolvers<void>();
+		const release = Promise.withResolvers<void>();
+		class HeldResumeBackend extends InMemoryDurableBackend {
+			override async transitionWorkflowStatus(
+				...args: Parameters<InMemoryDurableBackend["transitionWorkflowStatus"]>
+			): Promise<boolean> {
+				if (heldPhase === "transition" && args[2] === "running") {
+					entered.resolve();
+					await release.promise;
+				}
+				return super.transitionWorkflowStatus(...args);
+			}
+			override async flush(): Promise<void> {
+				if (heldPhase === "flush" && this.getWorkflow(runId)?.status === "running") {
+					entered.resolve();
+					await release.promise;
+				}
+			}
+		}
+		const state = setup();
+		await state.stageControlRegistry.get(runId, "stage")!.pause();
+		state.store.recordRunPaused(runId);
+		const backend = new HeldResumeBackend();
+		backend.registerWorkflow({ workflowId: runId, name: "race", inputs: {}, createdAt: 1, status: "paused" });
+		setDurableBackend(backend);
+		const resuming = resumeRun(runId, state);
+		await entered.promise;
+		let quitSettled = false;
+		const quitting = quitRun(runId, state).then((result) => {
+			quitSettled = true;
+			return result;
+		});
+		try {
+			await tick();
+			assert.equal(state.boundary.closed, true);
+			assert.equal(quitSettled, false, "quit must not acknowledge before the older durable write settles");
+		} finally {
+			release.resolve();
+			await Promise.all([resuming, quitting]);
+		}
+		assert.equal((await quitting).ok, true);
+		assert.equal(state.store.runs()[0]?.status, "paused");
+		assert.equal(state.stageControlRegistry.get(runId, "stage")!.status, "paused");
+		assert.equal(backend.getWorkflow(runId)?.status, "paused");
+	});
+}
+
+test("a failed resume flush releases its root and a queued superseded resume cannot write running", async () => {
+	const entered = Promise.withResolvers<void>();
+	const release = Promise.withResolvers<void>();
+	class FailingResumeBackend extends InMemoryDurableBackend {
+		runningWrites = 0;
+		failFlush = true;
+		override async transitionWorkflowStatus(
+			...args: Parameters<InMemoryDurableBackend["transitionWorkflowStatus"]>
+		): Promise<boolean> {
+			if (args[2] === "running") this.runningWrites += 1;
+			return super.transitionWorkflowStatus(...args);
+		}
+		override async flush(): Promise<void> {
+			if (this.failFlush && this.getWorkflow(runId)?.status === "running") {
+				this.failFlush = false;
+				entered.resolve();
+				await release.promise;
+				throw new Error("held resume flush failed");
+			}
+		}
+	}
+	const state = setup();
+	await state.stageControlRegistry.get(runId, "stage")!.pause();
+	state.store.recordRunPaused(runId);
+	const backend = new FailingResumeBackend();
+	backend.registerWorkflow({ workflowId: runId, name: "race", inputs: {}, createdAt: 1, status: "paused" });
+	setDurableBackend(backend);
+	const resuming = resumeRun(runId, state);
+	await entered.promise;
+	const queuedResume = resumeRun(runId, state);
+	await tick();
+	const quitting = quitRun(runId, state);
+	try {
+		// An unrelated root must complete even while this root's flush is held.
+		const otherId = "211bfb28-d0bb-405b-89a4-d92e39cb47bf";
+		state.store.recordRunStart({
+			id: otherId,
+			name: "other",
+			inputs: {},
+			status: "paused",
+			stages: [],
+			startedAt: 1,
+		});
+		backend.registerWorkflow({ workflowId: otherId, name: "other", inputs: {}, createdAt: 1, status: "running" });
+		assert.equal((await quitRun(otherId, state)).ok, true);
+		assert.equal(backend.getWorkflow(otherId)?.status, "paused");
+	} finally {
+		release.resolve();
+		await Promise.all([resuming, queuedResume, quitting]);
+	}
+	const first = await resuming;
+	assert.ok(first.ok);
+	assert.match(first.message ?? "", /held resume flush failed/);
+	const queued = await queuedResume;
+	assert.ok(queued.ok);
+	assert.match(queued.message ?? "", /quit.*Retry resume/);
+	assert.equal(backend.runningWrites, 1, "superseded queued resume must not retry the failed running write");
+	assert.equal((await quitting).ok, true);
+	assert.equal(backend.getWorkflow(runId)?.status, "paused");
+	assert.equal(state.store.runs().find((run) => run.id === runId)?.status, "paused");
+	// Failure must not poison the queue or retained quit revision for later authorized control.
+	assert.ok((await resumeRun(runId, state)).ok);
+	assert.equal(backend.getWorkflow(runId)?.status, "running");
+	assert.equal((await quitRun(runId, state)).ok, true);
+	assert.equal(backend.getWorkflow(runId)?.status, "paused");
+});
+
+test("DBOS authoritative reads and claims remain ordered with a newer quit", async () => {
+	const state = setup();
+	await state.stageControlRegistry.get(runId, "stage")!.pause();
+	state.store.recordRunPaused(runId);
+	const original = createMockSdk();
+	const entered = Promise.withResolvers<void>();
+	const release = Promise.withResolvers<void>();
+	let hold = false;
+	const sdk: typeof original = {
+		...original,
+		// Match DBOS checkpoint uniqueness rather than the helper's overwrite behavior.
+		recordStepOutput: async (id, step, output) => {
+			if (!original.state.steps.has(`${id}:checkpoint:${step}`)) await original.recordStepOutput(id, step, output);
+		},
+		listStepRecords: async (id) => {
+			if (hold && id === runId) {
+				hold = false;
+				entered.resolve();
+				await release.promise;
+			}
+			return original.listStepRecords(id);
+		},
+	};
+	const backend = new DbosDurableBackend(sdk);
+	backend.registerWorkflow({ workflowId: runId, name: "race", inputs: {}, createdAt: 1, status: "paused" });
+	await backend.flush(runId);
+	setDurableBackend(backend);
+	hold = true;
+	const resuming = resumeRun(runId, state);
+	await entered.promise;
+	let quitSettled = false;
+	const quitting = quitRun(runId, state).then((result) => {
+		quitSettled = true;
+		return result;
+	});
+	try {
+		await tick();
+		assert.equal(quitSettled, false);
+	} finally {
+		release.resolve();
+		await Promise.all([resuming, quitting]);
+	}
+	assert.equal((await quitting).ok, true);
+	assert.equal(state.store.runs()[0]?.status, "paused");
+	assert.equal(backend.getWorkflow(runId)?.status, "paused");
+	// Read through a fresh real adapter; the SDK is controlled, not a live database.
+	const reloaded = new DbosDurableBackend(sdk);
+	await reloaded.hydrateWorkflow(runId);
+	assert.equal(reloaded.getWorkflow(runId)?.status, "paused");
 });

@@ -30,6 +30,7 @@ import {
 	type StageControlHandle,
 	type StageControlRegistry,
 } from "../foreground/stage-control-registry.js";
+import { withDurableControlTransition } from "./durable-control-transition.js";
 import { jobTracker as defaultJobTracker, type JobTracker } from "./job-tracker.js";
 import { aggregateWorkflowRootRunId, expandedControlRunIds } from "./workflow-lifecycle-aggregate.js";
 
@@ -303,7 +304,7 @@ async function performQuitRun(
 	if (runtimeQuit !== undefined) publishLocalQuit(activeStore, runId, pausedRunIds, false);
 	let durableTransition: DurableQuitOutcome;
 	try {
-		durableTransition = await markDurableQuit(runId, current, resumable);
+		durableTransition = await markDurableQuit(runId, current, resumable, aggregateRootRunId);
 	} catch (error) {
 		if (!suspendedByAbort) throw error;
 		publish(false);
@@ -464,9 +465,23 @@ function controllableHandles(
 
 type DurableQuitOutcome = "transitioned" | "not_needed" | "refused";
 
-async function markDurableQuit(runId: string, run: RunSnapshot, resumable = true): Promise<DurableQuitOutcome> {
+async function markDurableQuit(
+	runId: string,
+	run: RunSnapshot,
+	resumable: boolean,
+	rootRunId: string,
+): Promise<DurableQuitOutcome> {
 	const backend = discoverDurableQuitBackend(runId);
 	if (backend === undefined) return "not_needed";
+	return withDurableControlTransition(backend, rootRunId, () => persistDurableQuit(backend, runId, run, resumable));
+}
+
+async function persistDurableQuit(
+	backend: DurableWorkflowBackend,
+	runId: string,
+	run: RunSnapshot,
+	resumable: boolean,
+): Promise<DurableQuitOutcome> {
 	// The workflow is durably tracked, so a failure to persist the paused
 	// transition or flush it must surface: swallowing it here would let quitRun
 	// advertise a resumable pause no future process could resume from. The caller

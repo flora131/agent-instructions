@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Cancelling an agent questionnaire no longer reports retained draft selections as a successful HIL answer. Attached workflow prompt questions render terminal controls as inert text while preserving readable text and response entry ([#2700](https://github.com/bastani-inc/atomic/pull/2700)).
 - Completed workflow prompt archives now render terminal controls in questions, choices, initial values, and responses as inert text without changing retained values ([#2700](https://github.com/bastani-inc/atomic/pull/2700)).
 - Active workflow prompt choices and input/editor drafts now escape terminal controls before rendering, including compact responses, while preserving selection, editing, and submitted values ([#2700](https://github.com/bastani-inc/atomic/pull/2700)).
+- Quit preserves the final durable paused state when an earlier resume has already acknowledged locally but is still saving or flushing its running state. A superseded queued resume cannot overwrite that quit; independent workflows remain unblocked ([#2700](https://github.com/bastani-inc/atomic/pull/2700)).
 
 ## [0.9.19-alpha.6] - 2026-09-11
 

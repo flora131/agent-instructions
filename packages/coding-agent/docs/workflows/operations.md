@@ -287,7 +287,7 @@ Use slash commands for graph connect and stage attach because those are interact
 
 Graceful quit is idempotent for an already-paused resumable run. If a run is waiting on `ctx.ui`, quit preserves its current DBOS prompt reservation. Answers cannot advance paused workflow code until explicit resume; checkpointing the answer releases exactly that reservation generation. Concurrent and nested prompts use composed scopes and independent DBOS reservation tokens.
 
-If you request `resume` while quit is unfinished, it leaves the current snapshot unchanged and reports that quit is still in progress. A quit also supersedes any earlier resume still awaiting stage acknowledgements. Retry resume after quit completes; a stage appearing paused does not mean the whole quit has finished.
+If you request `resume` while quit is unfinished, it leaves the current snapshot unchanged and reports that quit is still in progress. A quit also supersedes any earlier resume still awaiting stage acknowledgements or saving its running state. If that save has already started, quit waits for it before saving the final paused state. Retry resume after quit completes; a stage appearing paused does not mean the whole quit has finished.
 
 When no stage or tool owns the pending await, whole-run `pause` holds the live executor until resume; `quit` retires it at a durability boundary. Neither forcibly stops arbitrary JavaScript outside `ctx.*`; already-started untracked code and non-cancellable I/O may finish later. Control results disclose this limit. An executor-only quit before any checkpoint progress is retained as paused/nonresumable; start a new run only after reconciling any external effects.
 
