@@ -21,6 +21,7 @@
 - Embedded Postgres now starts on Windows administrative accounts. PostgreSQL refuses to run for a member of the Administrators or Power Users groups, so Atomic launches the retained server process with the same restricted access token `pg_ctl` uses, keeping exact-process shutdown semantics; non-administrative Windows accounts are unchanged. Postgres processes that exit during startup (including that administrator refusal on older builds) now fail fast with the actual server log instead of a readiness timeout.
 - Preserved embedded Postgres startup logs on regular Windows accounts, honored Unicode environment overrides on administrative launches, and prevented Windows handle leaks across repeated launches.
 - Preserved `PATH` lookup and relative executable paths for administrative Windows Postgres launches. Invalid launch inputs containing embedded NUL characters now fail before starting a process rather than using truncated paths, arguments, or environment values.
+- Fixed custom Windows Postgres `.cmd` and `.bat` launchers failing with arguments on administrative accounts, including launcher paths containing spaces. Batch arguments retain their existing quoting and line-break rejection.
 
 ## [0.9.19-alpha.3] - 2026-09-09
 

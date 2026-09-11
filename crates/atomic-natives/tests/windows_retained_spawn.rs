@@ -135,6 +135,19 @@ fn windows_spawn_fixture() {
 			);
 			fs::write(env::var_os("ATOMIC_RESULT_FILE").unwrap(), text).unwrap();
 		},
+		"batch-parent" => check_batch_launchers(&root),
+		"batch-leaf" => {
+			let admin = unsafe { windows_sys::Win32::UI::Shell::IsUserAnAdmin() } != 0;
+			assert_eq!(admin, env::var("ATOMIC_BATCH_ADMIN").unwrap() == "true");
+			let mut input = Vec::new();
+			std::io::stdin().read_to_end(&mut input).unwrap();
+			assert!(input.is_empty(), "batch descendants inherit NUL stdin");
+			fs::write(
+				env::var_os("ATOMIC_RESULT_FILE").unwrap(),
+				format!("{:?}", env::args().skip(5).collect::<Vec<_>>()),
+			)
+			.unwrap();
+		},
 		_ => panic!("unknown fixture {mode}"),
 	}
 }
@@ -405,4 +418,141 @@ fn valid_empty_unicode_and_quoted_text_matches_std_command() {
 	assert_eq!(baseline, format!("{arguments:?}\n{raw:?}\n{:?}", ""));
 	assert_eq!(result(true), baseline);
 	fs::remove_dir_all(root).unwrap();
+}
+
+fn batch_result(
+	command: &mut Command,
+	root: &Path,
+	retained: bool,
+) -> (Result<Option<i32>, std::io::ErrorKind>, Option<String>) {
+	let marker = root.join("batch-result.txt");
+	let _ = fs::remove_file(&marker);
+	let log_path = root.join("batch.log");
+	let log = fs::File::create(&log_path).unwrap();
+	command
+		.env(MODE, "batch-leaf")
+		.env(
+			"ATOMIC_BATCH_ADMIN",
+			(!retained && unsafe { windows_sys::Win32::UI::Shell::IsUserAnAdmin() } != 0).to_string(),
+		)
+		.env("ATOMIC_BATCH_OBSERVER", env::current_exe().unwrap())
+		.env("ATOMIC_RESULT_FILE", &marker);
+	windows_spawn::configure_process(command, None, None);
+	let status = if retained {
+		windows_spawn::spawn(command, &log, &log).map(|mut child| {
+			let deadline = Instant::now() + Duration::from_secs(20);
+			loop {
+				if let Some(status) = child.try_wait().unwrap() {
+					break status;
+				}
+				assert!(Instant::now() < deadline, "batch interpreter {} timed out", child.id());
+				thread::sleep(Duration::from_millis(5));
+			}
+		})
+	} else {
+		command
+			.stdin(std::process::Stdio::null())
+			.stdout(log.try_clone().unwrap())
+			.stderr(log)
+			.status()
+	};
+	if status.as_ref().is_ok_and(|status| !status.success()) {
+		println!("batch child failure: {}", fs::read_to_string(log_path).unwrap());
+	}
+	(status.map(|status| status.code()).map_err(|e| e.kind()), fs::read_to_string(marker).ok())
+}
+
+fn check_batch_launchers(root: &Path) {
+	println!("batch caller admin={}", unsafe { windows_sys::Win32::UI::Shell::IsUserAnAdmin() });
+	let mut differences = Vec::new();
+	for extension in ["cmd", "bat", "CmD", "BaT"] {
+		let filename = format!("wrapper é ユニコード.{extension}");
+		let script = root.join(&filename);
+		fs::write(
+			&script,
+			"@echo off\r\n\"%ATOMIC_BATCH_OBSERVER%\" --exact windows_spawn_fixture --nocapture -- %*\r\n",
+		)
+		.unwrap();
+		for (case, args) in [
+			("no-args", vec![]),
+			("plain", vec!["plain"]),
+			("empty", vec![""]),
+			("spaces", vec!["two words", " trailing "]),
+			("quotes", vec!["quote\"value", "slash\\\"quote", "trailing\\"]),
+			("metacharacters", vec!["a&b", "a|b", "a<b>c", "(x)", "a^b", "@#,;="]),
+			("percent", vec!["%ATOMIC_BATCH_EXPAND%", "100%", "%cd%", "%%"]),
+			("bang", vec!["!ATOMIC_BATCH_EXPAND!", "a!b"]),
+			("unicode", vec!["ユニコード é 😀", "é", "one\ttwo", "a\u{85}b"]),
+		] {
+			for executable in
+				[script.clone(), PathBuf::from(format!(r".\{filename}")), PathBuf::from(&filename)]
+			{
+				let result = |retained| {
+					let mut command = Command::new(&executable);
+					command
+						.args(&args)
+						.current_dir(root.join("child"))
+						.env("pAtH", root)
+						.env("COMSPEC", root.join("not-the-interpreter.exe"))
+						.env("ATOMIC_BATCH_EXPAND", "must-not-expand");
+					batch_result(&mut command, root, retained)
+				};
+				let baseline = result(false);
+				assert_eq!(baseline.0, Ok(Some(0)), "std {case}");
+				assert!(baseline.1.is_some(), "std {case} must execute the wrapper");
+				if matches!(
+					case,
+					"no-args" | "plain" | "empty" | "spaces" | "percent" | "bang" | "unicode"
+				) {
+					assert_eq!(baseline.1, Some(format!("{args:?}")), "std {case}");
+				}
+				let retained = result(true);
+				println!("{extension}/{case}/{executable:?}: std={baseline:?} retained={retained:?}");
+				if baseline != retained {
+					differences.push(format!("{extension}/{case}/{executable:?}"));
+				}
+			}
+		}
+		// std rejects line breaks before creating cmd, even when an earlier
+		// argument is ordinary. NUL validation also remains effective for batch.
+		for argument in ["before\rafter", "before\nafter", "before\r\nafter", "before\0after"] {
+			let result = |retained| {
+				batch_result(Command::new(&script).args(["plain", argument]), root, retained)
+			};
+			let baseline = result(false);
+			assert_eq!(baseline, (Err(std::io::ErrorKind::InvalidInput), None));
+			let retained = result(true);
+			println!("{extension}/reject {argument:?}: std={baseline:?} retained={retained:?}");
+			assert_eq!(retained, baseline);
+			assert_eq!(fs::metadata(root.join("batch.log")).unwrap().len(), 0);
+		}
+		let mut trailing_slash = script.clone().into_os_string();
+		trailing_slash.push("\\");
+		for invalid_script in [root.join(format!("bad\"name.{extension}")), trailing_slash.into()] {
+			let result =
+				|retained| batch_result(Command::new(&invalid_script).arg("plain"), root, retained);
+			let baseline = result(false);
+			assert_eq!(baseline, (Err(std::io::ErrorKind::InvalidInput), None));
+			let retained = result(true);
+			println!("{extension}/reject {invalid_script:?}: std={baseline:?} retained={retained:?}");
+			assert_eq!(retained, baseline);
+			assert_eq!(fs::metadata(root.join("batch.log")).unwrap().len(), 0);
+		}
+	}
+	assert!(differences.is_empty(), "batch behavior differs from std: {differences:?}");
+}
+
+#[test]
+fn batch_launchers_match_std_command() {
+	let root = root();
+	fs::create_dir(root.join("child")).unwrap();
+	// Isolate the caller cwd without changing the parallel test runner's state.
+	let output = fixture_command(&root, "batch-parent").output().unwrap();
+	println!(
+		"{}{}",
+		String::from_utf8_lossy(&output.stdout),
+		String::from_utf8_lossy(&output.stderr)
+	);
+	fs::remove_dir_all(root).unwrap();
+	assert!(output.status.success());
 }

@@ -431,6 +431,70 @@ fn command_line(executable: &OsStr, args: &[String]) -> Vec<u16> {
 	line.encode_utf16().chain(Some(0)).collect()
 }
 
+/// Rust std 1.98.1's make_bat_command_line/append_bat_arg, for the regular
+/// arguments exposed by the retained API. Source: rust-lang/rust 48a229cea,
+/// library/std/src/sys/args/windows.rs. cmd parsing is not native argv parsing:
+/// keep the outer quotes, expansion defenses and rejection rules together.
+fn batch_command_line(script: &[u16], command: &Command) -> io::Result<Vec<u16>> {
+	if script.contains(&u16::from(b'"')) || script.last() == Some(&u16::from(b'\\')) {
+		return Err(io::Error::new(
+			io::ErrorKind::InvalidInput,
+			"Windows file names may not contain `\"` or end with `\\`",
+		));
+	}
+	// Select command extensions for the % defense, disable delayed ! expansion
+	// and AutoRun commands. The system interpreter, never PATH/COMSPEC, runs
+	// under the same restricted token and inherits the same stdio as postgres.
+	let mut line: Vec<u16> = "cmd.exe /e:ON /v:OFF /d /c \"\"".encode_utf16().collect();
+	line.extend_from_slice(script.strip_suffix(&[0]).unwrap_or(script));
+	line.push(u16::from(b'"'));
+	for argument in command.get_args() {
+		if argument.as_encoded_bytes().iter().any(|c| matches!(c, b'\r' | b'\n')) {
+			return Err(io::Error::new(
+				io::ErrorKind::InvalidInput,
+				"batch file arguments are invalid",
+			));
+		}
+		line.push(u16::from(b' '));
+		append_batch_argument(&mut line, argument);
+	}
+	line.extend([u16::from(b'"'), 0]);
+	Ok(line)
+}
+
+fn append_batch_argument(line: &mut Vec<u16>, argument: &OsStr) {
+	let quote = argument.is_empty()
+		|| argument.as_encoded_bytes().last() == Some(&b'\\')
+		|| argument.to_string_lossy().chars().any(|c| {
+			(c.is_ascii() && !(c.is_ascii_alphanumeric() || r"#$*+-./:?@\_".contains(c)))
+				|| c.is_control()
+		});
+	if quote {
+		line.push(u16::from(b'"'));
+	}
+	let mut backslashes = 0;
+	for character in argument.encode_wide() {
+		if character == u16::from(b'\\') {
+			backslashes += 1;
+		} else {
+			if character == u16::from(b'"') {
+				line.extend(std::iter::repeat_n(u16::from(b'\\'), backslashes));
+				line.push(u16::from(b'"'));
+			} else if character == u16::from(b'%') {
+				// %%cd:~,% expands an empty substring of the built-in cwd,
+				// preventing cmd from expanding an argument's %VARIABLE%.
+				line.extend("%%cd:~,".encode_utf16());
+			}
+			backslashes = 0;
+		}
+		line.push(character);
+	}
+	if quote {
+		line.extend(std::iter::repeat_n(u16::from(b'\\'), backslashes));
+		line.push(u16::from(b'"'));
+	}
+}
+
 /// Duplicate a handle so the child inherits exactly this one. The duplicate is
 /// owned by the caller and must be closed after process creation.
 fn inheritable_duplicate(handle: HANDLE) -> io::Result<HANDLE> {
@@ -659,11 +723,23 @@ pub fn spawn(
 	// serialization can turn a NUL into truncation or an environment entry.
 	validate_command(command)?;
 	unsafe {
-		let executable = command.get_program();
-		let args: Vec<String> =
-			command.get_args().map(|argument| argument.to_string_lossy().into_owned()).collect();
-		// CreateProcessAsUserW needs a mutable, NUL-terminated buffer.
-		let mut line = command_line(executable, &args);
+		let mut application = resolve_executable(command)?;
+		// Resolution already normalizes non-verbatim paths, as std does before
+		// checking the final filename. Only batch files use an interpreter; the
+		// retained HANDLE is cmd's in that case, matching Command::spawn.
+		let is_batch = matches!(
+			application.strip_suffix(&[0]).and_then(|path| path.get(path.len().checked_sub(4)?..)),
+			Some([46, 98 | 66, 97 | 65, 116 | 84] | [46, 99 | 67, 109 | 77, 100 | 68])
+		);
+		let mut line = if is_batch {
+			let line = batch_command_line(&application, command)?;
+			application = wide(system_directory(GetSystemDirectoryW)?.join("cmd.exe").as_os_str());
+			line
+		} else {
+			let args: Vec<String> =
+				command.get_args().map(|argument| argument.to_string_lossy().into_owned()).collect();
+			command_line(command.get_program(), &args)
+		};
 		debug_assert_eq!(line.last(), Some(&0), "WinAPI requires a terminated command line");
 		let cwd: Option<Vec<u16>> = command.get_current_dir().map(|dir| wide(dir.as_os_str()));
 		let environment = environment_block(command)?;
@@ -677,7 +753,6 @@ pub fn spawn(
 			..STARTUPINFOW::default()
 		};
 		let mut information = PROCESS_INFORMATION::default();
-		let application = resolve_executable(command)?;
 		let created = CreateProcessAsUserW(
 			token.0,
 			application.as_ptr(),
