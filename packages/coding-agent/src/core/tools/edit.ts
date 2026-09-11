@@ -303,11 +303,20 @@ function formatEditResult(result: EditToolResultLike, theme: Theme, isError: boo
 	return result.details?.diff ? renderDiff(result.details.diff) : undefined;
 }
 
-async function withFileMutationQueues<T>(filePaths: readonly string[], fn: () => Promise<T>): Promise<T> {
+async function withFileMutationQueues<T>(
+	filePaths: readonly string[],
+	fn: (canonicalKeys: ReadonlyMap<string, string>) => Promise<T>,
+): Promise<T> {
 	const sorted = [...new Set(filePaths)].sort();
+	const canonicalKeys = new Map<string, string>();
 	const run = (index: number): Promise<T> => {
 		const filePath = sorted[index];
-		return filePath ? withFileMutationQueue(filePath, () => run(index + 1)) : fn();
+		return filePath
+			? withFileMutationQueue(filePath, (canonicalKey) => {
+					canonicalKeys.set(filePath, canonicalKey);
+					return run(index + 1);
+				})
+			: fn(canonicalKeys);
 	};
 	return run(0);
 }
@@ -349,6 +358,7 @@ interface EditCwdScope {
 	readonly batcher: EditBatchCoordinator<EditToolResultLike>;
 	applySiblingEdits(
 		siblings: readonly { input: string }[],
+		canonicalKeys: ReadonlyMap<string, string>,
 		applySignal?: AbortSignal,
 		requester?: MutationRequester,
 	): Promise<EditToolResultLike>;
@@ -374,6 +384,7 @@ function createEditCwdScope(cwd: string, ops: EditOperations, hashlineStore: Has
 	 */
 	async function applySiblingEdits(
 		siblings: readonly { input: string }[],
+		canonicalKeys: ReadonlyMap<string, string>,
 		applySignal?: AbortSignal,
 		requester?: MutationRequester,
 	): Promise<EditToolResultLike> {
@@ -433,7 +444,9 @@ function createEditCwdScope(cwd: string, ops: EditOperations, hashlineStore: Has
 				throw new FileMutationConflict({
 					reason: missing ? "target_missing" : "target_unreadable",
 					path: item.section.path,
-					canonicalKey: await canonicalMutationKey(item.canonicalPath),
+					// Queue registration resolved this before preparation. A new lookup may fail
+					// for the same reason as the read and mask the typed conflict.
+					canonicalKey: canonicalKeys.get(item.canonicalPath)!,
 					// Only the missing case can describe the target. Once a read fails for any
 					// other cause, its size and tag are unknowable and claiming either is invention.
 					...(missing ? { liveState: computeLiveState(undefined) } : {}),
@@ -541,13 +554,14 @@ export function createEditToolDefinition(
 			try {
 				return await withFileMutationQueues(
 					[...paths.keys()].map((sectionPath) => fs.canonicalPath(sectionPath)),
-					async () => {
+					async (canonicalKeys) => {
 						if (entry.settled) return await entry.promise;
 						throwIfAborted(signal);
 						const siblings = batcher.takeCompatible(entry);
 						try {
 							const result = await applySiblingEdits(
 								siblings,
+								canonicalKeys,
 								signal,
 								options?.resolveMutationRequester?.(toolCallId),
 							);

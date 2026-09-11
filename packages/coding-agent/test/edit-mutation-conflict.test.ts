@@ -1,7 +1,7 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createEditTool, type EditOperations } from "../src/core/tools/edit.ts";
 import {
 	FILE_MUTATION_CONFLICT_CODE,
@@ -11,9 +11,12 @@ import {
 import { createHashlineSnapshotStore } from "../src/core/tools/hashline.ts";
 import { createReadTool } from "../src/core/tools/read.ts";
 
+vi.mock("node:fs/promises", { spy: true });
+
 const tempDirs: string[] = [];
 
 afterEach(async () => {
+	vi.mocked(realpath).mockRestore();
 	await Promise.all(tempDirs.splice(0, tempDirs.length).map((dir) => rm(dir, { recursive: true, force: true })));
 });
 
@@ -173,6 +176,57 @@ describe("edit raises a typed conflict when the file moves under a prepared patc
 		expect(conflict.message).toContain("(EISDIR)");
 		expect(conflict.liveState).toBeUndefined();
 		expect(conflict.message).not.toContain("does not exist");
+	});
+
+	// PR #2482: reporting a permission transition must not re-resolve an inaccessible alias.
+	it("reports target_unreadable with the locked target identity when parent traversal is denied", async () => {
+		const dir = await createTempDir();
+		const targetDir = join(dir, "real");
+		const aliasDir = join(dir, "alias");
+		await mkdir(targetDir);
+		await symlink(targetDir, aliasDir, "junction");
+		const file = join(aliasDir, "target.txt");
+		await writeFile(file, ORIGINAL, "utf-8");
+		const canonicalKey = await realpath(file);
+		expect(canonicalKey).not.toBe(file);
+
+		const hashlineStore = createHashlineSnapshotStore();
+		const read = createReadTool(dir, { hashlineStore });
+		const tag = advertisedTag(resultText(await read.execute("read-1", { path: file })));
+		const denied: NodeJS.ErrnoException = new Error("EACCES: parent traversal denied");
+		denied.code = "EACCES";
+		let reads = 0;
+		let writes = 0;
+		const operations: EditOperations = {
+			readFile: async (path) => {
+				if (++reads > 1) throw denied;
+				const content = await readFile(path);
+				// Model both effects of permission loss, independent of OS or effective uid.
+				vi.mocked(realpath).mockRejectedValue(denied);
+				return content;
+			},
+			writeFile: async (path, content) => {
+				writes += 1;
+				await writeFile(path, content);
+			},
+			access: async () => {},
+		};
+		const edit = createEditTool(dir, { hashlineStore, operations });
+		const error = await edit.execute("edit-1", { input: `[${file}#${tag}]\nreplace 2..2:\n+BRAVO-MINE\n` }).then(
+			() => undefined,
+			(caught: unknown) => caught,
+		);
+
+		expect(reads).toBe(2);
+		expect(writes).toBe(0);
+		expect(await readFile(file, "utf-8")).toBe(ORIGINAL);
+		expect(error).toBeInstanceOf(FileMutationConflict);
+		const conflict = error as FileMutationConflict;
+		expect(conflict.message).toContain(FILE_MUTATION_CONFLICT_CODE);
+		expect(conflict.reason).toBe("target_unreadable");
+		expect(conflict.causeCode).toBe("EACCES");
+		expect(conflict.canonicalKey).toBe(canonicalKey);
+		expect(conflict.liveState).toBeUndefined();
 	});
 
 	it("reports foreign_snapshot for a tag this session never issued", async () => {

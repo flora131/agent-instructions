@@ -25,6 +25,7 @@
 - First-loaded TypeScript extensions share the live host's classes and singletons when native import falls back to transformation, avoiding duplicate host evaluation and slow startup.
 - Fixed repeated yielded shell waits replaying the first output page instead of progressing through retained output while the task is still running ([#2972](https://github.com/bastani-inc/atomic/pull/2972)).
 - Preserved an explicit subagent kill when parent cancellation arrives during execution-capacity waiting, and kept grouped Intercom cancellation status consistent when a killed child has parent-cancelled siblings.
+- Preserved typed `edit` conflicts when parent-directory permissions change after patch preparation. The rejection retains the original target identity and filesystem error code instead of escaping as a raw permission error ([#2329](https://github.com/bastani-inc/atomic/issues/2329)).
 
 ## [0.9.19-alpha.3] - 2026-09-09
 
