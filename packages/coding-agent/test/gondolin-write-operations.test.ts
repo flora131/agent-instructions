@@ -125,8 +125,8 @@ function gondolinFixture() {
 	};
 }
 
-// Compile the complete example against injected transport dependencies. The optional
-// VM package and QEMU need not be installed to exercise its registered tool handlers.
+// Execute the full example against transport fixtures, without adding missing SDK APIs.
+// The separate tsconfig.remote-examples.json checks the real Gondolin dependency types.
 const source = await readFile(new URL("../examples/extensions/gondolin/index.ts", import.meta.url), "utf8");
 const compiled = stripTypeScriptTypes(source)
 	.replace('import path from "node:path";', "const path = deps.path;")
@@ -136,11 +136,8 @@ const compiled = stripTypeScriptTypes(source)
 const gondolinExtension: (api: ExtensionAPI) => void = new Function("deps", compiled)({
 	path: path.posix,
 	gondolin: gondolinFixture(),
-	// The preexisting unused grep factory is absent from the current SDK. Read/write/edit
-	// still run unchanged, including their shared observation store and exclusive creates.
 	atomic: {
 		...atomic,
-		createGrepTool: () => ({ name: "grep" }),
 		createCodingTools: (cwd: string, options: atomic.ToolsOptions) =>
 			atomic.createCodingTools(cwd, {
 				...options,
@@ -219,6 +216,12 @@ describe("Gondolin write target observations", () => {
 	});
 	afterEach(async () => {
 		await rm(guest.dir, { recursive: true, force: true });
+	});
+
+	it("registers only the supported VM-routed tools without a removed grep shim", async () => {
+		// #2482: a made-up factory in the fixture hid the example's public API failure.
+		const { tools } = await session();
+		assert.deepEqual([...tools.keys()].sort(), ["bash", "edit", "find", "ls", "read", "write"]);
 	});
 
 	it("retains a guest read observation for a later overwrite", async () => {

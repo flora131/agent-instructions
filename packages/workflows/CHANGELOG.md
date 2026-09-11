@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.9.19-alpha.5] - 2026-09-11
+
+### Changed
+
+- Open Claude Design now starts with Anthropic Claude Fable 5.1 at `medium`, then Copilot Fable 5.1 and Codex/Copilot/OpenAI Astra at `medium`; its OpenRouter fallbacks also put Fable 5.1 before Astra.
+- Goal and Ralph orchestration, Ralph research, and design now use Fable 5.1/Fable 5 fallbacks at `medium` and Sol at `high`. Goal reviewers and Ralph reviewers use Astra/Sol at `high`, preserving their role-specific fallback order. Ralph prompt refinement remains unchanged.
+
 ## [0.9.19-alpha.4] - 2026-09-10
 
 ### Breaking Changes

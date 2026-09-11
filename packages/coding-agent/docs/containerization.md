@@ -10,7 +10,7 @@ There are two general options. You can either
 
 | Pattern | What is isolated | Best for | Notes |
 | --- | --- | --- | --- |
-| Gondolin extension | Built-in tools and `!` commands | Local micro-VM isolation while keeping auth on host | See [`examples/extensions/gondolin/`](https://github.com/bastani-inc/atomic/tree/main/packages/coding-agent/examples/extensions/gondolin). |
+| Gondolin extension | Selected file tools, shell execution, and `!` commands | Local micro-VM tool routing while keeping auth on host | Other tools, including `search`, remain on the host. See [`examples/extensions/gondolin/`](https://github.com/bastani-inc/atomic/tree/main/packages/coding-agent/examples/extensions/gondolin). |
 | Plain Docker | Whole `atomic` process in a local container | Simple local isolation | Provider API keys enter the container. |
 | OpenShell | Whole `atomic` process in a policy-controlled sandbox | Local or remote managed sandbox | Requires an OpenShell gateway. |
 
@@ -19,14 +19,14 @@ Extensions run wherever the `atomic` process runs. If you run host `atomic` with
 ## Gondolin
 
 [Gondolin](https://github.com/earendil-works/gondolin) is a local Linux micro-VM.
-Use the [example extension](https://github.com/bastani-inc/atomic/tree/main/packages/coding-agent/examples/extensions/gondolin) when you want `atomic` on the host but all built-in tools routed into the VM.
+Use the [example extension](https://github.com/bastani-inc/atomic/tree/main/packages/coding-agent/examples/extensions/gondolin) when you want `atomic` on the host with selected file tools and shell execution routed into the VM. This is not isolation for the entire session.
 
 Setup:
 
 ```bash
 cp -R packages/coding-agent/examples/extensions/gondolin ~/.atomic/agent/extensions/gondolin
 cd ~/.atomic/agent/extensions/gondolin
-bun install --ignore-scripts
+npm ci --ignore-scripts
 ```
 
 Run from the project you want mounted:
@@ -36,11 +36,13 @@ cd /path/to/project
 atomic -e ~/.atomic/agent/extensions/gondolin
 ```
 
-The extension mounts the host cwd at `/workspace` in the VM and overrides `read`, `write`, `edit`, `bash`, `find`, and `search` so the default coding tools operate inside the VM.
+The extension mounts the host cwd at `/workspace` in the VM and overrides `read`, `write`, `edit`, `bash`, `find`, and `ls`.
 User `!` commands are routed into the VM, as well.
 File changes under `/workspace` write through to the host.
 
-Requirements: Bun for dependency installation, Node.js >= 23.6.0 for `@earendil-works/gondolin`, plus QEMU (requires installation through your package manager).
+`search` remains a host tool; it is not redirected into the VM. The removed `grep` tool is not registered. For guest-only content searches, use a shell command through the routed `bash` tool or `!` command. To expose only these routed tools, start with `atomic --tools read,write,edit,bash,find,ls -e ~/.atomic/agent/extensions/gondolin`; other loaded extensions can still supply host-side tools. Use whole-process isolation instead when host filesystem access must be prevented.
+
+Requirements: npm for dependency installation, Node.js >= 23.6.0 for `@earendil-works/gondolin`, plus QEMU (requires installation through your package manager).
 
 ## Plain Docker
 

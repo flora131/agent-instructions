@@ -212,12 +212,21 @@ jobs:
         uses: taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2.87.8
         with:
           tool: cargo-zigbuild@0.23.0
-      - name: Install Windows cross-compile tooling
+      # Both Windows targets compile on x64 Ubuntu with its installed LLVM 18.
+      # Avoid apt metadata/metapackage downloads; fail clearly on image drift.
+      - name: Select installed Windows cross-compile tooling
         if: matrix.platform == 'win32'
-        timeout-minutes: 5
+        timeout-minutes: 1
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y clang lld llvm
+          set -euo pipefail
+          llvm_bin=/usr/lib/llvm-18/bin
+          for tool in clang clang-cl lld-link llvm-ar llvm-lib llvm-dlltool llvm-ml; do
+            test -x "$llvm_bin/$tool" || { echo "Missing LLVM 18 tool: $tool" >&2; exit 1; }
+          done
+          "$llvm_bin/clang" --version
+          "$llvm_bin/lld-link" --version
+          echo "$llvm_bin" >> "$GITHUB_PATH"
       - name: Install cargo-xwin
         if: matrix.platform == 'win32'
         timeout-minutes: 3
@@ -453,10 +462,13 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-      - name: Install musl archive tooling
+      - name: Verify installed musl archive tooling
+        timeout-minutes: 1
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y patchelf
+          set -euo pipefail
+          command -v patchelf
+          patchelf --version
       - name: Download musl native binding
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -525,10 +537,13 @@ jobs:
           node scripts/stage-postgres-runtime.mjs linux-x64-musl packages/natives/npm/linux-x64-musl
           node scripts/stage-postgres-runtime.mjs linux-arm64-musl packages/natives/npm/linux-arm64-musl
           node scripts/stage-postgres-runtime.mjs windows-arm64 packages/natives/npm/win32-arm64-msvc
-      - name: Install musl archive tooling
+      - name: Verify installed musl archive tooling
+        timeout-minutes: 1
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y patchelf
+          set -euo pipefail
+          command -v patchelf
+          patchelf --version
       - name: Hydrate release model data
         run: npm run hydrate:model-data
       - name: Build release archives

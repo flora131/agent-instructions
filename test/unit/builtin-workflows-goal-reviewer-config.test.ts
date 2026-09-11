@@ -54,14 +54,14 @@ test("Goal reviewers prioritize GPT-5.6 within direct and OpenRouter groups", as
 		assert.equal(options.context, undefined, name);
 		assert.equal(options.forkFromSessionFile, undefined, name);
 		assert.equal(options.model, goalReviewerModelConfig.model, name);
-		assert.equal(options.model, "openai-codex/gpt-6-astra:xhigh", name);
+		assert.equal(options.model, "openai-codex/gpt-6-astra:high", name);
 		assert.deepEqual(options.fallbackModels, goalReviewerModelConfig.fallbackModels, name);
 		assert.deepEqual(options.excludedTools, goalReviewerModelConfig.excludedTools, name);
 		const fallbacks = options.fallbackModels ?? [];
 		assert.deepEqual(fallbacks, reviewerFallbacks, name);
-		assert.ok(fallbacks.indexOf("openai-codex/gpt-5.6-sol:xhigh") < fallbacks.indexOf("kimi-coding/k3:max"), name);
+		assert.ok(fallbacks.indexOf("openai-codex/gpt-5.6-sol:high") < fallbacks.indexOf("kimi-coding/k3:max"), name);
 		assert.ok(
-			fallbacks.indexOf("openrouter/openai/gpt-5.6-sol:xhigh") <
+			fallbacks.indexOf("openrouter/openai/gpt-5.6-sol:high") <
 				fallbacks.indexOf("openrouter/moonshotai/kimi-k3:max"),
 			name,
 		);

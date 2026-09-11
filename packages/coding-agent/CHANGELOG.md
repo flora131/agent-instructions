@@ -15,6 +15,14 @@
 - `write` creating a file now claims the path exclusively (`O_EXCL`). A file that appears between `write` observing an absent path and its own write landing is reported as `target_exists`, describing what is there now, instead of being silently truncated ([#2329](https://github.com/bastani-inc/atomic/issues/2329)).
 - Standalone write tools retain their implicit observation store across `local://` writes, so overwriting a file the same tool just created no longer incorrectly fails with `no_prior_observation`.
 - Preserved typed `edit` conflicts when parent-directory permissions change after patch preparation. The rejection retains the original target identity and filesystem error code instead of escaping as a raw permission error ([#2329](https://github.com/bastani-inc/atomic/issues/2329)).
+- Fixed the Gondolin example failing to load after removal of the legacy grep tool API. It now registers only its supported file and shell overrides; the search tool remains on the host, and guest-only content searches use the routed shell ([#2482](https://github.com/bastani-inc/atomic/pull/2482)).
+
+## [0.9.19-alpha.5] - 2026-09-11
+
+### Changed
+
+- Open Claude Design now starts with Claude Fable 5.1 at medium effort, followed by Copilot Fable 5.1 and Astra at medium effort, with the same Fable-first order on OpenRouter.
+- Tuned bundled debugger, Goal, and Ralph reasoning efforts: debugger uses Astra/Fable at medium and Sol at high; Goal and Ralph reviewers use Astra/Sol at high; orchestration, Ralph research, and design use Fable at medium and Sol at high in their fallbacks. Ralph prompt refinement and other bundled agents retain their existing configurations.
 
 ## [0.9.19-alpha.4] - 2026-09-10
 

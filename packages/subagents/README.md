@@ -125,7 +125,7 @@ There is no generic `reviewer` or `planner` agent; pick the specialist whose ang
 
 ## Changing a builtin agent's model
 
-Builtin agents inherit your current Pi default model by default. This keeps new installs from depending on a provider you may not have configured. If you want a role to use a specific model, set an override instead of copying the bundled agent file.
+Builtin agents declare role-specific models and ordered fallbacks. The debugger starts with `openai-codex/gpt-6-astra:medium`, with Astra/Fable fallbacks at `medium` and Sol/Opus fallbacks at `high`. See the [bundled defaults](../coding-agent/docs/subagents.md#bundled-agents) for the other roles. If you want a role to use a specific model, set an override instead of copying the bundled agent file.
 
 For one run, pass `model` on the `subagent` call:
 
@@ -134,7 +134,7 @@ subagent({ agent: "codebase-analyzer", task: "Review this diff", model: "anthrop
 ```
 
 
-For a persistent override, edit settings. This example pins the codebase-analyzer everywhere, adds a backup model for provider failures, and keeps the other builtins on your normal default model:
+For a persistent override, edit settings. This example pins the codebase-analyzer everywhere, adds a backup model for provider failures, and keeps the other builtins on their configured defaults:
 
 ```json
 {
@@ -263,7 +263,7 @@ Agent locations, lowest to highest priority:
 
 Project discovery also reads legacy `.agents/**/*.md` and `.pi/agents/**/*.md` files. Nested subdirectories are discovered recursively. If primary Atomic and legacy paths define the same parsed runtime agent name, the primary `.atomic/agents/` definition wins. Use `agentScope: "user" | "project" | "both"` to control discovery; `both` is the default and project definitions win runtime-name collisions.
 
-Builtin agents load at the lowest priority, so a user or project agent with the same name overrides them. They do not pin a provider model; they inherit your current Atomic default model unless you set `subagents.agentOverrides.<name>.model`. `worker` is the implementation agent for normal tasks and approved orchestrator handoffs.
+Builtin agents load at the lowest priority, so a user or project agent with the same name overrides them. Their declared models and fallback chains apply unless you set an override such as `subagents.agentOverrides.<name>.model`. `worker` is the implementation agent for normal tasks and approved orchestrator handoffs.
 
 The `codebase-online-researcher` builtin uses `web_search`, `fetch_content`, and `get_search_content`; those require [pi-web-access](https://github.com/nicobailon/pi-web-access):
 

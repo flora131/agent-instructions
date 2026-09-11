@@ -250,13 +250,13 @@ describe("ralph", () => {
 		assert.notEqual(reviewerOptions?.schema, undefined);
 		assert.equal(reviewerOptions?.customTools, undefined);
 		const reviewerBOptions = ctx.calls.taskOptions["reviewer-b"]?.[0];
-		assert.equal(reviewerBOptions?.model, "openai-codex/gpt-6-astra:xhigh");
+		assert.equal(reviewerBOptions?.model, "openai-codex/gpt-6-astra:high");
 		for (const [name, model, fallbacks] of [
 			["research-prompt-refinement-1", "openai-codex/gpt-6-astra:high", promptEngineerFallbacks],
 			["research-1", "openai-codex/gpt-6-astra:medium", researchFallbacks],
 			["orchestrator-1", "openai-codex/gpt-6-astra:medium", orchestratorFallbacks],
 			["reviewer-a", "anthropic/claude-fable-5-1:high", reviewerAFallbacks],
-			["reviewer-b", "openai-codex/gpt-6-astra:xhigh", reviewerFallbacks],
+			["reviewer-b", "openai-codex/gpt-6-astra:high", reviewerFallbacks],
 		] as const) {
 			const options = ctx.calls.taskOptions[name]?.[0];
 			assert.ok(options, `missing ${name} configuration`);
