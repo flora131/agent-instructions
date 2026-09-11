@@ -8,6 +8,7 @@ import {
 	renderPromptCardLayout,
 	renderPromptIdentityBanner,
 	renderPromptRunIdBanner,
+	renderResponseField,
 } from "./prompt-card-render.js";
 import { bannerLines, embedOrchestratorReturnHintInWidget } from "./stage-chat-view-footer-status.js";
 import {
@@ -296,7 +297,33 @@ function renderPrimitivePromptBody(ctx: StageChatViewContext, width: number, bud
 		innerWidth,
 	);
 	const responseLines = new Text(paint("response", ctx.theme.textMuted, { bold: true }), 2, 0).render(innerWidth);
-	const editorLines = editor.render(Math.max(20, innerWidth - 4)).map((line) => `  ${line}`);
+	const rawText = editor.getText();
+	// Native Editor treats ANSI in its text as styling. Keep its editing state raw,
+	// but use our text-only response renderer when the draft contains controls.
+	const cursor = (editor as typeof editor & { getCursor?: () => { line: number; col: number } }).getCursor?.();
+	const caret = cursor
+		? rawText
+				.split("\n")
+				.slice(0, cursor.line)
+				.reduce((offset, line) => offset + line.length + 1, 0) + cursor.col
+		: state.caret;
+	const editorLines = (
+		/[\x00-\x09\x0b-\x1f\x7f-\x9f]/.test(rawText)
+			? renderResponseField(
+					{
+						...state,
+						prompt: rawText.includes("\n") ? { ...state.prompt, kind: "editor" } : state.prompt,
+						rawText,
+						caret,
+					},
+					ctx.theme,
+					Math.max(20, innerWidth - 4),
+					ctx.focused,
+					6,
+					false,
+				)
+			: editor.render(Math.max(20, innerWidth - 4))
+	).map((line) => `  ${line}`);
 	const hintLines = new Text(renderHintsForPrompt(state.prompt.kind, ctx.theme), 2, 0).render(innerWidth);
 	const identity = { runId: ctx.runId, name: ctx.workflowName };
 	const unattributed = renderPrimitivePromptBlockLayout(
