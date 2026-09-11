@@ -140,7 +140,7 @@ workflow({
 
 When neither `enabled` nor `delivery` is set, direct `parallel` runs default to `control-and-result` when Intercom is available; otherwise delivery is off. Treat Intercom payloads from direct runs as user-visible workflow output.
 
-While a workflow stage generation is open, incoming Intercom messages are admitted through the stage session's native steering/follow-up queue. Parallel child asks, sends, and supervisor requests use destination-side reservation and the exact-child probe/commit observation-yield handshake, so terminal stage close cannot overtake an admitted delivery. A destination-side admission failure returns a correlated actionable error to a blocking asker instead of waiting for the 10-minute reply timeout. Claimed single-child parent handoffs remain source-side terminal handoffs.
+While a workflow stage generation is open, incoming Intercom messages are admitted as priority input: the stage's current model call or cancellable tool is cancelled and the message is processed next in the same stage generation. Parallel child asks, sends, and supervisor requests use destination-side reservation and the exact-child probe/commit observation-yield handshake before that cancellation, so a child's own message releases the parent's foreground observation rather than cancelling the child, and terminal stage close cannot overtake an admitted delivery. A destination-side admission failure returns a correlated actionable error to a blocking asker instead of waiting for the 10-minute reply timeout. Claimed single-child parent handoffs remain source-side terminal handoffs.
 
 ### Subagent Control Notices
 

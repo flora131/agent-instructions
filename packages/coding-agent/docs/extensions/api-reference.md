@@ -78,6 +78,8 @@ const response = await ctx.modelRegistry.complete(
 
 Use `getApiKeyAndHeaders()` only when an extension must inspect auth before dispatch; normal requests do not need to resolve or overlay auth themselves.
 
+OpenRouter Chat Completions and Anthropic Messages requests send `x-session-id` by default when `sessionId` is supplied and prompt caching is enabled. Set the model's `compat.sendSessionAffinityHeaders` to `false` to opt out, or set `cacheRetention: "none"` on the request to disable cache-related affinity. Explicit request headers override generated headers.
+
 `await ctx.modelRegistry.refresh(options)` returns `{ aborted, errors }`, not just completion. `errors` is a per-provider map, so extensions can report partial refresh failures; `aborted` reports cancellation. Host integrations that call `ModelRuntime.setRuntimeApiKey(providerId, apiKey, options)` must note that it records the runtime credential but does not refresh the catalog; call `refresh({ providers: [providerId], signal })` explicitly when a fresh catalog is needed.
 
 `ctx.scopedModels` is the read-only list of models scoped to the current session — the same set the `/scoped-models` command shows. It is resolved from the `--models` CLI flag and the `enabledModels` setting, matched against the available catalogue. It is empty when no scoping is configured, meaning every available model is usable. Each entry is `{ model, thinkingLevel? }`, where `thinkingLevel` is set only when a pattern pinned it (for example `anthropic/*:high`). Use it to populate a model picker that mirrors the built-in one instead of enumerating the whole catalogue.

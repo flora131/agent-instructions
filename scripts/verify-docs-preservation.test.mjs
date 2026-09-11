@@ -5,7 +5,14 @@ import { test } from "node:test";
 import {
 	BASELINE,
 	DOCS,
+	DRIFT_FOLLOWUP,
+	DRIFT_HISTORY_PARTS,
+	DRIFT_MAIN,
+	DRIFT_PREDECESSOR,
+	DRIFT_README,
+	DRIFT_RECIPE,
 	digest,
+	driftMainEvidence,
 	FIRST_RECONCILIATION,
 	FOLLOWUP,
 	FOURTH_FOLLOWUP,
@@ -25,11 +32,13 @@ import {
 	REBASE_FOLLOWUP,
 	REBASE_MAIN,
 	REBASE_README,
+	REBASED_RECIPE,
 	REVIEW_PREDECESSOR,
 	REVIEW_README,
 	REVIEW_REPAIRS,
 	readExactSource,
 	rebaseMainEvidence,
+	reconstructDriftMainDelta,
 	reconstructFourthMainDelta,
 	reconstructLatestMainDelta,
 	reconstructRebaseMainDelta,
@@ -755,7 +764,9 @@ test("fourth-main anchors, navigation and compatibility pointers cannot disappea
 		let text = read(repair.target_path);
 		// The maintainer pointer precedes the desktop alias; remove only this repair's addition.
 		const publishedPointer = reconstructRebaseMainDelta(repoRoot).reader_repairs[0];
-		const after = repair.after.replace(publishedPointer.before, () => publishedPointer.after);
+		const after = repair.after
+			.replace(publishedPointer.before, () => publishedPointer.after)
+			.replace(REBASED_RECIPE, DRIFT_RECIPE);
 		assert.ok(text.includes(after));
 		text = text.replace(after, () => repair.before);
 		assert.throws(() => check(new Map([[repair.target_path, text]])), /latest-main delta/u);
@@ -953,18 +964,30 @@ test("rebase-main rejects missing or self-authorized supplemental policy and poi
 	assert.throws(() => verifyCommittedDocumentation({ repoRoot, revision: REBASE_MAIN }), /2847-rebase-main\.json/u);
 	const repair = reconstructRebaseMainDelta(repoRoot).reader_repairs[0];
 	const text = read(repair.target_path);
-	assert.ok(text.includes(repair.after));
+	const currentPointer = repair.after.replace(REBASED_RECIPE, DRIFT_RECIPE);
+	assert.ok(text.includes(currentPointer));
 	for (const replacement of [repair.before, repair.after.replace("/docs/", "/missing/")]) {
-		const overrides = changedJSON(REBASE_FOLLOWUP, (policy) => {
+		// The old proof still rejects forged policy; current pointers now also pass through the sixth layer.
+		assert.throws(
+			() =>
+				check(
+					changedJSON(REBASE_FOLLOWUP, (policy) => {
+						policy.reader_repairs[0].after = replacement;
+					}),
+				),
+			/rebase-main evidence does not reconstruct/u,
+		);
+		// Preserve the prior joint-forgery control through the additional reader layer.
+		const paired = changedJSON(REBASE_FOLLOWUP, (policy) => {
 			policy.reader_repairs[0].after = replacement;
 		});
-		overrides.set(
+		paired.set(
 			repair.target_path,
-			text.replace(repair.after, () => replacement),
+			text.replace(currentPointer, () => replacement),
 		);
-		assert.throws(() => check(overrides), /rebase-main evidence does not reconstruct/u);
+		assert.throws(() => check(paired), /latest-main delta.*drift-main/u);
 		assert.throws(
-			() => check(new Map([[repair.target_path, text.replace(repair.after, () => replacement)]])),
+			() => check(new Map([[repair.target_path, text.replace(currentPointer, () => replacement)]])),
 			/latest-main delta/u,
 		);
 	}
@@ -1002,7 +1025,7 @@ test("cold committed rebase proof uses authentic disposable history without Git 
 			},
 		});
 	const absent = () => {
-		for (const revision of [PR, FIRST_RECONCILIATION, PRE_REBASE])
+		for (const revision of [PR, FIRST_RECONCILIATION, PRE_REBASE, DRIFT_PREDECESSOR, REBASED_RECIPE])
 			assert.throws(
 				() => run(["cat-file", "-e", `${revision}^{commit}`]),
 				`original commit unexpectedly present: ${revision}`,
@@ -1022,6 +1045,14 @@ test("cold committed rebase proof uses authentic disposable history without Git 
 			REBASE_FOLLOWUP,
 			REBASE_README,
 			...HISTORY_PARTS,
+			DRIFT_FOLLOWUP,
+			DRIFT_README,
+			...DRIFT_HISTORY_PARTS,
+			...new Set(
+				[...reconstructDriftMainDelta(repoRoot).edits, ...reconstructDriftMainDelta(repoRoot).reader_repairs].map(
+					(edit) => edit.target_path,
+				),
+			),
 			`${DOCS}computer-use.md`,
 			`${DOCS}workflows/verification.md`,
 		];
@@ -1038,7 +1069,7 @@ test("cold committed rebase proof uses authentic disposable history without Git 
 		assert.equal(run(["merge-base", candidate, REBASE_MAIN]).trim(), REBASE_MAIN);
 		absent();
 		const invalid = [];
-		for (const path of HISTORY_PARTS) {
+		for (const path of [...HISTORY_PARTS, ...DRIFT_HISTORY_PARTS]) {
 			const changed = Buffer.from(readFileSync(resolve(repoRoot, path)));
 			changed[changed.length - 1] ^= 1;
 			put(path, changed);
@@ -1088,6 +1119,8 @@ test("cold committed rebase proof uses authentic disposable history without Git 
 			const repoRoot = ${JSON.stringify(fixture)};
 			const result = module.verifyCommittedDocumentation({ repoRoot });
 			assert.equal(result.rebaseMain.revision, module.REBASE_MAIN);
+			assert.equal(result.driftMain.revision, module.DRIFT_MAIN);
+			assert.equal(result.driftMain.predecessor, module.DRIFT_PREDECESSOR);
 			assert.equal(result.authoringReferenceAdditions, 5); assert.equal(result.reviewRepairs.aliases, 8);
 			assert.ok(imports > 0, 'cold proof must unbundle authentic Git objects');
 			assert.ok(owned.every(path => !fs.existsSync(path)), 'successful proof leaked temporary objects');
@@ -1096,7 +1129,7 @@ test("cold committed rebase proof uses authentic disposable history without Git 
 				assert.ok(owned.every(path => !fs.existsSync(path)), 'failed proof leaked temporary objects');
 			}
 			for (const [revision, pages] of [[module.FIRST_RECONCILIATION, 85], [module.SECOND_RECONCILIATION, 85],
-				[module.FOURTH_PREDECESSOR, 85], [module.REVIEW_PREDECESSOR, 86], [module.PRE_REBASE, 86]]) {
+				[module.FOURTH_PREDECESSOR, 85], [module.REVIEW_PREDECESSOR, 86], [module.PRE_REBASE, 86], [module.DRIFT_PREDECESSOR, 86]]) {
 				assert.equal(module.verifyCommittedDocumentation({ repoRoot, revision }).readerPages, pages);
 				assert.ok(owned.every(path => !fs.existsSync(path)));
 			}
@@ -1111,4 +1144,100 @@ test("cold committed rebase proof uses authentic disposable history without Git 
 	} finally {
 		fs.rmSync(directory, { recursive: true, force: true });
 	}
+});
+
+// #2847 / PR #2971: a new captured main must reverse into the prior replay, not bless its drift.
+test("captured-main drift preserves all earlier proofs and exact source coverage", () => {
+	const result = check();
+	assert.equal(result.driftMain.revision, "3cd994f59031c303c4534df447719a2be899461d");
+	assert.equal(result.driftMain.predecessor, "fc2a511e6e6cf1f07053093b6c1a87a604d38702");
+	assert.equal(result.driftMain.changedPages, 8);
+});
+
+const driftDelta = reconstructDriftMainDelta(repoRoot);
+// #2847: exercise the active current destinations, not archived equivalents or only hashes.
+for (const [index, edit] of driftDelta.edits.entries()) {
+	test(`drift-main source span ${index + 1} requires exact active prose, examples and caveats`, () => {
+		const text = read(edit.target_path);
+		assert.equal(text.split(edit.after).length, 2);
+		for (const replacement of [edit.before, `${edit.after.trimEnd()} altered\n`]) {
+			assert.throws(
+				() => check(new Map([[edit.target_path, text.replace(edit.after, () => replacement)]])),
+				/latest-main delta.*drift-main/u,
+			);
+		}
+	});
+}
+
+test("drift-main evidence cannot omit source coverage or authorize matching reader changes", () => {
+	assert.deepEqual(JSON.parse(read(DRIFT_FOLLOWUP)), driftMainEvidence(driftDelta));
+	assert.equal(driftDelta.edits.length, 12);
+	for (const change of [
+		(record) => record.edits.pop(),
+		(record) => record.unchanged_source_paths.pop(),
+		(record) => record.changed_source_paths.pop(),
+		(record) => {
+			record.edits[0].latest_lines[0]++;
+		},
+		(record) => {
+			record.edits[0].target_path = `${DOCS}compaction.md`;
+		},
+		(record) => {
+			record.source_trees.unchanged_sha256 = "0".repeat(64);
+		},
+		(record) => {
+			record.predecessor = "HEAD";
+		},
+		(record) => {
+			record.history_transport.prerequisites = [];
+		},
+		(record) => record.reader_repairs.pop(),
+	])
+		assert.throws(() => check(changedJSON(DRIFT_FOLLOWUP, change)), /drift-main evidence does not reconstruct/u);
+	assert.throws(() => check(new Map([[DRIFT_README, `${read(DRIFT_README)}\n`]])), /drift-main explanation changed/u);
+	assert.throws(
+		() => verifyCommittedDocumentation({ repoRoot, revision: DRIFT_MAIN }),
+		/prior-replay\.bundle\.part-1/u,
+	);
+	for (const [index, repair] of driftDelta.reader_repairs.entries()) {
+		const text = read(repair.target_path);
+		assert.equal(text.split(repair.after).length, 2);
+		for (const replacement of [repair.before, `${repair.after} altered`]) {
+			const overrides = changedJSON(DRIFT_FOLLOWUP, (record) => {
+				record.reader_repairs[index].after = replacement;
+			});
+			overrides.set(
+				repair.target_path,
+				text.replace(repair.after, () => replacement),
+			);
+			assert.throws(() => check(overrides), /drift-main evidence does not reconstruct/u);
+			assert.throws(() => check(new Map([[repair.target_path, text.replace(repair.after, () => replacement)]])));
+		}
+	}
+});
+
+test("drift-main additions cannot be moved, fenced, duplicated or replaced by hub pointers", () => {
+	for (const index of [0, 1, 2, 4]) {
+		const edit = driftDelta.edits[index];
+		const text = read(edit.target_path);
+		for (const altered of [
+			text.replace(edit.after, () => edit.before) + edit.after,
+			text.replace(edit.after, () => `\`\`\`markdown\n${edit.after}\`\`\`\n`),
+			text + edit.after,
+			text.replace(edit.after, () => "Moved to the compatibility hub.\n"),
+		])
+			assert.throws(() => check(new Map([[edit.target_path, altered]])));
+	}
+});
+
+test("drift-main transport is independently required after warm success", () => {
+	assert.equal(check().driftMain.revision, DRIFT_MAIN);
+	for (const path of DRIFT_HISTORY_PARTS) {
+		const bytes = readFileSync(resolve(repoRoot, path));
+		const changed = Buffer.from(bytes);
+		changed[changed.length - 1] ^= 1;
+		assert.throws(() => check(new Map([[path, changed]])), /drift history transport checksum changed/u);
+		assert.throws(() => check(new Map([[path, Buffer.alloc(0)]])), /drift history transport part size changed/u);
+	}
+	assert.equal(check().driftMain.revision, DRIFT_MAIN);
 });

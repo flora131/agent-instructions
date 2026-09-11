@@ -68,7 +68,7 @@ See [terminal setup and capture commands](/computer-use#terminal-automation-with
 
 <a id="reproduce-stage-skill-terminal-evidence" />
 
-For Atomic source-checkout testing, see the retained [stage-skill terminal reproduction recipe](https://github.com/bastani-inc/atomic/blob/d99113320267d1a6b6e5df284d2aee9743e0abf5/docs/2847-stage-skill-verification.md#reproduce-stage-skill-terminal-evidence).
+For Atomic source-checkout testing, see the retained [stage-skill terminal reproduction recipe](https://github.com/bastani-inc/atomic/blob/e59fd2cfa485d8798c31861e9d9920d96c072cc6/docs/2847-stage-skill-verification.md#reproduce-stage-skill-terminal-evidence).
 
 <a id="desktop-safety" />
 

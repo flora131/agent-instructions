@@ -36,6 +36,21 @@ export const HISTORY = "test/fixtures/docs-preservation-history/";
 export const HISTORY_PARTS = [1, 2].map((part) => `${HISTORY}original-local-history.bundle.part-${part}`);
 const HISTORY_SHA256 = "ff39651dbd53ee373eac0f7b4970f3ad63612adee1ec9c566f2bb9a49a24d314";
 export const REBASED_RECIPE = "d99113320267d1a6b6e5df284d2aee9743e0abf5";
+export const DRIFT_MAIN = "3cd994f59031c303c4534df447719a2be899461d";
+export const DRIFT_PREDECESSOR = "fc2a511e6e6cf1f07053093b6c1a87a604d38702";
+export const DRIFT_RECIPE = "e59fd2cfa485d8798c31861e9d9920d96c072cc6";
+export const DRIFT_FOLLOWUP = "docs/migrations/2847-drift-main.json";
+export const DRIFT_README = "docs/migrations/2847-drift-main.md";
+export const DRIFT_HISTORY_PARTS = [1, 2, 3, 4].map((part) => `${HISTORY}prior-replay.bundle.part-${part}`);
+const DRIFT_HISTORY_SIZES = [480000, 480000, 480000, 473250];
+const DRIFT_HISTORY_HASHES = [
+	"b91f62b9b5d2817634bcfd57723776a79af014626282ee565c1920803cf6b4f6",
+	"a21b1a5ffc2d851c9b52b6f0944452bb04329a96daeecf1dec85946b9230b961",
+	"62280ab6adcef7d0c25b2c218d3f4174ea8c610219203ab8b0ceb9953cc11437",
+	"2e22412acfc72ed240839245d4e6962210482f373d1be27adb3c18d008507b1e",
+];
+const DRIFT_HISTORY_SHA256 = "b5b44c8c9994d603e4823c3d4107843921954031191538346be938d6c355992c";
+const DRIFT_README_SHA256 = "821229b64a699f804f1ee24668dd184fc3ecb8bfb46aa48615fbca7eb6a7cf13";
 // #2847 / PR #2971 review 3: exact append-only reader handoffs, not upstream changes.
 export const AUTHORING_PREDECESSOR = "8da40cc4ddb88b16baf8b4291722c6dabee8cfbb";
 const authoringReferenceAdditions = new Map(
@@ -110,23 +125,66 @@ function historyBundle(context) {
 	}
 }
 
-function hydrateHistory(context) {
-	const bundle = historyBundle(context);
-	context.directory = mkdtempSync(join(tmpdir(), "atomic-docs-history-"));
-	const objects = join(context.directory, "objects");
-	mkdirSync(objects);
-	const original = git(context.repoRoot, ["rev-parse", "--path-format=absolute", "--git-path", "objects"]).trim();
-	context.env = {
-		...process.env,
-		GIT_OBJECT_DIRECTORY: objects,
-		GIT_ALTERNATE_OBJECT_DIRECTORIES: [JSON.stringify(original), process.env.GIT_ALTERNATE_OBJECT_DIRECTORIES]
-			.filter(Boolean)
-			.join(delimiter),
-	};
-	const path = join(context.directory, "history.bundle");
-	writeFileSync(path, bundle);
-	// Unlike fetch, unbundle imports only objects, never refs or FETCH_HEAD.
-	git(context.repoRoot, ["bundle", "unbundle", path]);
+function driftHistoryBundle(context) {
+	if (context.driftBundle) return context.driftBundle;
+	context.readingTransport = true;
+	try {
+		const parts = DRIFT_HISTORY_PARTS.map((path) =>
+			context.transportRevision
+				? git(context.repoRoot, ["show", `${context.transportRevision}:${path}`], undefined, "buffer")
+				: context.overrides?.has(path)
+					? Buffer.from(context.overrides.get(path))
+					: readFileSync(join(context.repoRoot, path)),
+		);
+		assert.deepEqual(
+			parts.map((part) => part.length),
+			DRIFT_HISTORY_SIZES,
+			"drift history transport part size changed",
+		);
+		assert.deepEqual(
+			parts.map((part) => digest(part)),
+			DRIFT_HISTORY_HASHES,
+			"drift history transport checksum changed",
+		);
+		const bundle = Buffer.concat(parts);
+		assert.equal(digest(bundle), DRIFT_HISTORY_SHA256, "drift history transport checksum changed");
+		assert.equal(
+			bundle.subarray(0, bundle.indexOf("\n\n") + 2).toString(),
+			`# v2 git bundle\n-${REBASE_MAIN} Merge pull request #2979 from bastani-inc/perf/windows-workflow-resume\n${DRIFT_PREDECESSOR} refs/heads/prior-replay\n\n`,
+			"drift history transport prerequisites changed",
+		);
+		context.driftBundle = bundle;
+		return bundle;
+	} finally {
+		context.readingTransport = false;
+	}
+}
+
+function hydrateHistory(context, replay = false) {
+	if (!context.env) {
+		const bundle = historyBundle(context);
+		context.directory = mkdtempSync(join(tmpdir(), "atomic-docs-history-"));
+		const objects = join(context.directory, "objects");
+		mkdirSync(objects);
+		const original = git(context.repoRoot, ["rev-parse", "--path-format=absolute", "--git-path", "objects"]).trim();
+		context.env = {
+			...process.env,
+			GIT_OBJECT_DIRECTORY: objects,
+			GIT_ALTERNATE_OBJECT_DIRECTORIES: [JSON.stringify(original), process.env.GIT_ALTERNATE_OBJECT_DIRECTORIES]
+				.filter(Boolean)
+				.join(delimiter),
+		};
+		const path = join(context.directory, "history.bundle");
+		writeFileSync(path, bundle);
+		// Unlike fetch, unbundle imports only objects, never refs or FETCH_HEAD.
+		git(context.repoRoot, ["bundle", "unbundle", path]);
+	}
+	if (replay && !context.replayHydrated) {
+		const path = join(context.directory, "prior-replay.bundle");
+		writeFileSync(path, driftHistoryBundle(context));
+		git(context.repoRoot, ["bundle", "unbundle", path]);
+		context.replayHydrated = true;
+	}
 }
 
 /** Exact immutable source read, also available when rebasing made the old objects unreachable. */
@@ -219,9 +277,16 @@ function git(repoRoot, args, input, encoding = "utf8") {
 			FOURTH_PREDECESSOR,
 			REVIEW_PREDECESSOR,
 			PRE_REBASE,
+			DRIFT_PREDECESSOR,
+			REBASED_RECIPE,
 		];
+		const replay = args.some((arg) =>
+			[DRIFT_PREDECESSOR, REBASED_RECIPE].some(
+				(revision) => arg === revision || arg.startsWith(`${revision}^{`) || arg.startsWith(`${revision}:`),
+			),
+		);
 		if (
-			context?.env ||
+			(context?.env && (!replay || context.replayHydrated)) ||
 			context?.readingTransport ||
 			!args.some((arg) =>
 				checkpoints.some(
@@ -231,7 +296,7 @@ function git(repoRoot, args, input, encoding = "utf8") {
 		)
 			throw error;
 		return withHistory({ repoRoot }, (active) => {
-			hydrateHistory(active);
+			hydrateHistory(active, replay);
 			return git(repoRoot, args, input, encoding);
 		});
 	}
@@ -1773,8 +1838,8 @@ export function rebaseMainEvidence(delta) {
 }
 
 const preRebaseProofs = new Set();
-function verifyRebase({ repoRoot, revision, overrides }) {
-	const current = reader(repoRoot, revision, overrides);
+function verifyRebase({ repoRoot, revision, overrides, snapshot }) {
+	const current = snapshot ?? reader(repoRoot, revision, overrides);
 	// Required by selected-main ancestry, even if every old object happens to be present.
 	const evidence = JSON.parse(current.read(REBASE_FOLLOWUP));
 	historyBundle(historyContexts.get(realpathSync(repoRoot)));
@@ -1838,6 +1903,184 @@ function verifyRebase({ repoRoot, revision, overrides }) {
 	};
 }
 
+/** Sixth capture: only these exact source spans and four reader-only repairs may change. */
+export function reconstructDriftMainDelta(repoRoot) {
+	return withHistory({ repoRoot }, () => {
+		const specs = [
+			["compaction.md", "compaction/reference.md", 109, 2, 109, 22],
+			["extensions.md", "extensions/api-reference.md", 1200, 2, 1200, 4],
+			["extensions.md", "extensions/authoring.md", 2371, 1, 2373, 9],
+			["intercom.md", "intercom.md", 122, 1, 122, 3],
+			["intercom.md", "intercom/operations.md", 401, 1, 403, 1],
+			["providers.md", "providers.md", 121, 1, 121, 1],
+			["settings.md", "settings.md", 190, 1, 190, 2],
+			["settings.md", "settings.md", 204, 2, 205, 21],
+			["subagents.md", "subagents.md", 84, 2, 84, 4],
+			["subagents.md", "subagents.md", 120, 1, 122, 1],
+			["workflows/builtins.md", "workflows/builtins.md", 103, 11, 103, 14],
+			["workflows/operations.md", "workflows/operations.md", 423, 2, 423, 8],
+		];
+		const changed = [...new Set(specs.map(([path]) => DOCS + path))];
+		const previous = git(repoRoot, ["ls-tree", "-r", REBASE_MAIN, "--", DOCS]);
+		const latest = git(repoRoot, ["ls-tree", "-r", DRIFT_MAIN, "--", DOCS]);
+		const paths = (tree) =>
+			tree
+				.trim()
+				.split("\n")
+				.map((line) => line.split("\t")[1]);
+		const unchanged = (tree) =>
+			tree
+				.split("\n")
+				.filter((line) => !changed.includes(line.split("\t")[1]))
+				.join("\n");
+		assert.deepEqual(paths(latest), paths(previous), "drift-main source file set changed");
+		assert.equal(unchanged(latest), unchanged(previous), "unmapped drift-main source/asset change");
+		const source = (revision, path) => git(repoRoot, ["show", `${revision}:${path}`]);
+		const slice = (revision, path, start, count) =>
+			`${source(revision, path)
+				.split("\n")
+				.slice(start - 1, start - 1 + count)
+				.join("\n")}\n`;
+		const edits = specs.map(([path, target, oldStart, oldCount, newStart, newCount]) => ({
+			source_path: DOCS + path,
+			target_path: DOCS + target,
+			previous_lines: [oldStart, oldStart + oldCount - 1],
+			latest_lines: [newStart, newStart + newCount - 1],
+			before: slice(REBASE_MAIN, DOCS + path, oldStart, oldCount),
+			after: slice(DRIFT_MAIN, DOCS + path, newStart, newCount),
+		}));
+		for (const path of changed) {
+			let expected = source(REBASE_MAIN, path);
+			for (const edit of edits.filter((row) => row.source_path === path))
+				expected = replaceDelta(expected, edit.before, edit.after, path);
+			assert.equal(expected, source(DRIFT_MAIN, path), `unmapped drift-main source change: ${path}`);
+		}
+		const recipePath = "docs/2847-stage-skill-verification.md";
+		assert.equal(
+			source(DRIFT_RECIPE, recipePath),
+			source(DRIFT_PREDECESSOR, recipePath),
+			"drift-main rebased recipe differs",
+		);
+		const readerRepairs = [
+			{
+				kind: "compaction-compatibility-pointer",
+				target_path: `${DOCS}compaction.md`,
+				before: "## When compaction runs\n",
+				after: "### Per-model budgets\n\nMoved to [Compaction reference](/compaction/reference#per-model-budgets).\n\n## When compaction runs\n",
+			},
+			{
+				kind: "fireworks-compatibility-pointer",
+				target_path: `${DOCS}extensions.md`,
+				before: "### Overriding Built-in Tools\n",
+				after: "### Fireworks deferred tool loading\n\nMoved to [Writing extensions](/extensions/authoring#fireworks-deferred-tool-loading).\n\n### Overriding Built-in Tools\n",
+			},
+			{
+				kind: "priority-intercom-authoring-contract",
+				target_path: `${DOCS}workflows/authoring.md`,
+				before:
+					"Externally produced traffic has a separate lifecycle rule. Intercom messages and subagent completion notices received while a workflow stage generation is still open are admitted through the stage AgentSession's native steering/follow-up queue. For a busy stage, admission into the generation boundary happens synchronously before the exact foreground subagent owner's probe/commit detach handshake; model-visible queue insertion waits inside that admitted delivery until the handshake is claimed or falls back after an unclaimed/vanished owner. A commit accepted within a parallel foreground group releases aggregate supervision for every active sibling while retaining their process and eventual-result ownership. Reserving admission before the asynchronous handshake prevents terminal close from overtaking an in-flight Intercom delivery, while waiting inside the reservation prevents a blocking child request from queueing behind either a single foreground tool call or a parallel aggregate still waiting on another child. The stage drains already-admitted work before publishing its terminal snapshot, including schema-backed turns that have already called `structured_output`.",
+				after: "Externally produced traffic has a separate lifecycle rule. While a workflow stage generation is still open, Intercom messages are admitted as priority input that cancels the current model call or cancellable tool and continues in the same stage generation; subagent completion notices retain the stage AgentSession's native steering/follow-up queue. For a busy stage, admission into the generation boundary happens synchronously before the exact foreground subagent owner's probe/commit detach handshake; Intercom cancellation and model-visible delivery wait inside that admitted delivery until the handshake is claimed or falls back after an unclaimed/vanished owner. A commit accepted within a parallel foreground group releases aggregate supervision for every active sibling while retaining their process and eventual-result ownership. Reserving admission before the asynchronous handshake prevents terminal close from overtaking an in-flight Intercom delivery, while waiting inside the reservation prevents a blocking child request from queueing behind either a single foreground tool call or a parallel aggregate still waiting on another child. The stage drains already-admitted work before publishing its terminal snapshot, including schema-backed turns that have already called `structured_output`.",
+			},
+			{
+				kind: "reachable-maintainer-recipe-pointer",
+				target_path: `${DOCS}workflows/verification.md`,
+				before: `https://github.com/bastani-inc/atomic/blob/${REBASED_RECIPE}/${recipePath}#reproduce-stage-skill-terminal-evidence`,
+				after: `https://github.com/bastani-inc/atomic/blob/${DRIFT_RECIPE}/${recipePath}#reproduce-stage-skill-terminal-evidence`,
+			},
+		];
+		return {
+			schema: "2847-drift-main-v1",
+			baseline: BASELINE,
+			predecessor: DRIFT_PREDECESSOR,
+			previous_main: REBASE_MAIN,
+			latest_main: DRIFT_MAIN,
+			source_trees: {
+				previous_sha256: digest(previous),
+				latest_sha256: digest(latest),
+				unchanged_sha256: digest(unchanged(previous)),
+			},
+			changed_source_paths: changed,
+			unchanged_source_paths: paths(latest).filter((path) => !changed.includes(path)),
+			edits,
+			reader_repairs: readerRepairs,
+		};
+	});
+}
+
+export function driftMainEvidence(delta) {
+	const { edits, ...rest } = delta;
+	return {
+		...rest,
+		edits: edits.map(({ before, after, ...location }) => ({
+			...location,
+			before_sha256: digest(before),
+			after_sha256: digest(after),
+		})),
+		history_transport: {
+			parts: DRIFT_HISTORY_PARTS,
+			part_bytes: DRIFT_HISTORY_SIZES,
+			part_sha256: DRIFT_HISTORY_HASHES,
+			bytes: 1913250,
+			sha256: DRIFT_HISTORY_SHA256,
+			prerequisites: [REBASE_MAIN],
+			head: DRIFT_PREDECESSOR,
+		},
+	};
+}
+
+const priorReplayProofs = new Set();
+function verifyDrift({ repoRoot, revision, overrides }) {
+	const current = reader(repoRoot, revision, overrides);
+	driftHistoryBundle(historyContexts.get(realpathSync(repoRoot)));
+	const delta = reconstructDriftMainDelta(repoRoot);
+	assert.deepEqual(
+		JSON.parse(current.read(DRIFT_FOLLOWUP)),
+		driftMainEvidence(delta),
+		"drift-main evidence does not reconstruct",
+	);
+	assert.equal(digest(current.read(DRIFT_README)), DRIFT_README_SHA256, "drift-main explanation changed");
+	const edits = [...delta.edits, ...delta.reader_repairs];
+	const restored = new Map();
+	for (const edit of [...edits].reverse()) {
+		const text = restored.get(edit.target_path) ?? current.read(edit.target_path);
+		restored.set(edit.target_path, replaceDelta(text, edit.after, edit.before, `drift-main ${edit.target_path}`));
+	}
+	const paths = current.paths.filter((path) => path !== DRIFT_FOLLOWUP && path !== DRIFT_README);
+	const bytes = (path) => (restored.has(path) ? Buffer.from(restored.get(path)) : current.bytes(path));
+	const root = realpathSync(repoRoot);
+	if (!priorReplayProofs.has(root)) {
+		verifyRebase({ repoRoot, revision: DRIFT_PREDECESSOR });
+		priorReplayProofs.add(root);
+	}
+	const result = verifyRebase({
+		repoRoot,
+		snapshot: { paths, pages: current.pages, read: (path) => bytes(path).toString("utf8"), bytes },
+	});
+	assert.deepEqual(
+		paths.slice().sort(),
+		documentationPaths(repoRoot, DRIFT_PREDECESSOR).sort(),
+		"drift-main frozen file set changed",
+	);
+	for (const path of [...paths, "docs/2847-stage-skill-verification.md", ...HISTORY_PARTS]) {
+		const original = git(repoRoot, ["show", `${DRIFT_PREDECESSOR}:${path}`], undefined, "buffer");
+		assert.ok(bytes(path).equals(original), `drift-main reversed predecessor differs: ${path}`);
+		let expected = original;
+		for (const edit of edits.filter((row) => row.target_path === path))
+			expected = Buffer.from(replaceDelta(expected.toString("utf8"), edit.before, edit.after, path));
+		assert.ok(current.bytes(path).equals(expected), `drift-main exact preservation differs: ${path}`);
+	}
+	return {
+		...result,
+		driftMain: {
+			revision: DRIFT_MAIN,
+			predecessor: DRIFT_PREDECESSOR,
+			changedPages: delta.changed_source_paths.length,
+			edits: delta.edits.length,
+			readerRepairs: delta.reader_repairs.length,
+		},
+	};
+}
+
 /** Committed mode never consults working-tree docs, manifests, or ledger. Safe through a data URL. */
 export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
 	return withHistory({ repoRoot }, (context) => {
@@ -1847,6 +2090,12 @@ export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
 			revision === "HEAD"
 				? context.transportRevision
 				: git(repoRoot, ["rev-parse", "--verify", `${revision}^{commit}`]).trim();
+		if (git(repoRoot, ["merge-base", commit, DRIFT_MAIN]).trim() === DRIFT_MAIN) {
+			context.transportRevision = commit;
+			const result = verifyDrift({ repoRoot, revision: commit });
+			console.log(JSON.stringify({ mode: "committed", revision: commit, ...result }));
+			return result;
+		}
 		const rebased = git(repoRoot, ["merge-base", commit, REBASE_MAIN]).trim() === REBASE_MAIN;
 		if (rebased) {
 			context.transportRevision = commit;
@@ -1875,6 +2124,8 @@ export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
 export function verifyWorkingTreeDocumentation({ repoRoot, overrides = new Map() }) {
 	return withHistory({ repoRoot, overrides }, () => {
 		const commit = git(repoRoot, ["rev-parse", "--verify", "HEAD^{commit}"]).trim();
+		if (git(repoRoot, ["merge-base", commit, DRIFT_MAIN]).trim() === DRIFT_MAIN)
+			return verifyDrift({ repoRoot, overrides });
 		if (git(repoRoot, ["merge-base", commit, REBASE_MAIN]).trim() === REBASE_MAIN)
 			return verifyRebase({ repoRoot, overrides });
 		return verifyLatest({

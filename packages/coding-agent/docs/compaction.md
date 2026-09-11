@@ -93,23 +93,7 @@ Moved to [Compaction reference](/compaction/reference#parameters).
 
 ### Per-model budgets
 
-Use `compaction.modelOverrides` to set `reserveTokens` and/or `preserve_recent` for an exact `"provider/modelId"` key. For example:
-
-```json
-{
-  "compaction": {
-    "reserveTokens": 16384,
-    "preserve_recent": 2,
-    "modelOverrides": {
-      "anthropic/claude-sonnet-4-5": { "reserveTokens": 32768, "preserve_recent": 4 }
-    }
-  }
-}
-```
-
-Each field falls back independently to the ordinary setting, then its built-in default. Keys are case-sensitive and do not support wildcards or reasoning suffixes. Both fields require non-negative safe integers. The active session model selects the budgets for manual, automatic, overflow, and post-tool compaction; switching models changes the next resolution, while borrowing a fallback planner does not. Explicit manual parameters take precedence over resolved defaults.
-
-Atomic intentionally differs from upstream pi: the recent-history override is an exact message count (`preserve_recent`), not a token budget (`keepRecentTokens`). Verbatim line reconstruction, `compression_ratio`, and `query` are unchanged; the latter two and `enabled` remain ordinary settings. See [Settings](/settings#compaction) for merge and validation details.
+Moved to [Compaction reference](/compaction/reference#per-model-budgets).
 
 ## When compaction runs
 
