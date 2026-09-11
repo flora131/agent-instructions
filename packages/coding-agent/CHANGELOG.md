@@ -19,6 +19,7 @@
 - Fixed repeated yielded shell waits replaying the first output page instead of progressing through retained output while the task is still running ([#2972](https://github.com/bastani-inc/atomic/pull/2972)).
 - Preserved an explicit subagent kill when parent cancellation arrives during execution-capacity waiting, and kept grouped Intercom cancellation status consistent when a killed child has parent-cancelled siblings.
 - Embedded Postgres now starts on Windows administrative accounts. PostgreSQL refuses to run for a member of the Administrators or Power Users groups, so Atomic launches the retained server process with the same restricted access token `pg_ctl` uses, keeping exact-process shutdown semantics; non-administrative Windows accounts are unchanged. Postgres processes that exit during startup (including that administrator refusal on older builds) now fail fast with the actual server log instead of a readiness timeout.
+- Preserved embedded Postgres startup logs on regular Windows accounts, honored Unicode environment overrides on administrative launches, and prevented Windows handle leaks across repeated launches.
 
 ## [0.9.19-alpha.3] - 2026-09-09
 

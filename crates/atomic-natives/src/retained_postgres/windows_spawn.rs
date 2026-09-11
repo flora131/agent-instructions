@@ -25,15 +25,16 @@ use std::{
 	ffi::OsStr,
 	io,
 	os::windows::{ffi::OsStrExt, process::ExitStatusExt},
-	process::{Child, Command, ExitStatus},
+	process::{Child, Command, ExitStatus, Stdio},
 	ptr,
 };
 
 use windows_sys::Win32::{
 	Foundation::{
 		CloseHandle, DuplicateHandle, GENERIC_ALL, GENERIC_READ, GetLastError, HANDLE,
-		INVALID_HANDLE_VALUE, WAIT_OBJECT_0,
+		INVALID_HANDLE_VALUE, WAIT_OBJECT_0, WAIT_TIMEOUT,
 	},
+	Globalization::CompareStringOrdinal,
 	Security::{
 		ACCESS_ALLOWED_ACE, ACE_HEADER, ACL, ACL_REVISION, ACL_SIZE_INFORMATION, AclSizeInformation,
 		AddAccessAllowedAceEx, AddAce, AllocateAndInitializeSid, CheckTokenMembership,
@@ -48,8 +49,7 @@ use windows_sys::Win32::{
 		Environment::{FreeEnvironmentStringsW, GetEnvironmentStringsW},
 		Threading::{
 			CreateProcessAsUserW, GetCurrentProcess, GetExitCodeProcess, OpenProcessToken,
-			PROCESS_INFORMATION, ResumeThread, STARTF_USESTDHANDLES, STARTUPINFOW,
-			WaitForSingleObject,
+			PROCESS_INFORMATION, STARTF_USESTDHANDLES, STARTUPINFOW, WaitForSingleObject,
 		},
 	},
 };
@@ -64,7 +64,6 @@ const DUPLICATE_SAME_ACCESS: u32 = 2;
 /// console its children inherit, and DETACHED_PROCESS would give every
 /// console-subsystem descendant its own visible window.
 pub const CREATION_FLAGS: u32 = 0x0800_0000 | 0x0000_0200;
-const CREATE_SUSPENDED_FLAG: u32 = 0x0000_0004;
 /// Required whenever an explicit UTF-16 environment block is passed; without
 /// it CreateProcess interprets the wide buffer as ANSI and fails with
 /// ERROR_INVALID_PARAMETER.
@@ -91,8 +90,10 @@ impl RetainedChild {
 		if let Some(status) = self.status {
 			return Ok(Some(status));
 		}
-		if unsafe { WaitForSingleObject(self.handle, 0) } != WAIT_OBJECT_0 {
-			return Ok(None);
+		match unsafe { WaitForSingleObject(self.handle, 0) } {
+			WAIT_OBJECT_0 => {},
+			WAIT_TIMEOUT => return Ok(None),
+			_ => return Err(last_error()),
 		}
 		let mut code = 0_u32;
 		if unsafe { GetExitCodeProcess(self.handle, &mut code) } == 0 {
@@ -322,6 +323,7 @@ fn restricted_token() -> io::Result<Option<OwnedHandle>> {
 		if OpenProcessToken(GetCurrentProcess(), TOKEN_ALL_ACCESS, &mut original.0) == 0 {
 			return Err(last_error());
 		}
+		let deleted = privileges_to_delete(original.0)?;
 		let authority = SECURITY_NT_AUTHORITY;
 		let mut admins: PSID = ptr::null_mut();
 		if AllocateAndInitializeSid(
@@ -362,7 +364,6 @@ fn restricted_token() -> io::Result<Option<OwnedHandle>> {
 			SID_AND_ATTRIBUTES { Sid: admins, Attributes: 0 },
 			SID_AND_ATTRIBUTES { Sid: power_users, Attributes: 0 },
 		];
-		let deleted = privileges_to_delete(original.0)?;
 		let mut restricted = OwnedHandle(ptr::null_mut());
 		// Flags stay 0 with an explicit deletion list, exactly like pg_ctl:
 		// DISABLE_MAX_PRIVILEGE would make CreateRestrictedToken ignore the
@@ -467,6 +468,14 @@ fn null_input_handle() -> io::Result<HANDLE> {
 	inheritable
 }
 
+fn child_stdio(stdout: HANDLE, stderr: HANDLE) -> io::Result<[OwnedHandle; 3]> {
+	Ok([
+		OwnedHandle(null_input_handle()?),
+		OwnedHandle(inheritable_duplicate(stdout)?),
+		OwnedHandle(inheritable_duplicate(stderr)?),
+	])
+}
+
 /// Spawn `command` with the caller's log-file handles as the child's
 /// stdout/stderr. Returns the exact process handle as the retained child.
 pub fn spawn(
@@ -477,6 +486,10 @@ pub fn spawn(
 	use std::os::windows::io::AsRawHandle;
 	let Some(token) = restricted_token()? else {
 		// Unprivileged caller: keep the exact std spawn path.
+		command
+			.stdin(Stdio::null())
+			.stdout(Stdio::from(stdout.try_clone()?))
+			.stderr(Stdio::from(stderr.try_clone()?));
 		let child = command.spawn()?;
 		return Ok(retain_from_child(child));
 	};
@@ -484,21 +497,18 @@ pub fn spawn(
 		let executable = command.get_program();
 		let args: Vec<String> =
 			command.get_args().map(|argument| argument.to_string_lossy().into_owned()).collect();
-		// CreateProcessAsUserW may write into the command-line buffer, which is
-		// therefore built without its trailing NUL.
+		// CreateProcessAsUserW needs a mutable, NUL-terminated buffer.
 		let mut line = command_line(executable, &args);
-		line.pop();
+		debug_assert_eq!(line.last(), Some(&0), "WinAPI requires a terminated command line");
 		let cwd: Option<Vec<u16>> = command.get_current_dir().map(|dir| wide(dir.as_os_str()));
 		let environment = environment_block(command)?;
-		let input = null_input_handle()?;
-		let output = inheritable_duplicate(stdout.as_raw_handle())?;
-		let error = inheritable_duplicate(stderr.as_raw_handle())?;
+		let [input, output, error] = child_stdio(stdout.as_raw_handle(), stderr.as_raw_handle())?;
 		let startup = STARTUPINFOW {
 			cb: size_of::<STARTUPINFOW>() as u32,
 			dwFlags: STARTF_USESTDHANDLES,
-			hStdInput: input,
-			hStdOutput: output,
-			hStdError: error,
+			hStdInput: input.0,
+			hStdOutput: output.0,
+			hStdError: error.0,
 			..STARTUPINFOW::default()
 		};
 		let mut information = PROCESS_INFORMATION::default();
@@ -510,40 +520,30 @@ pub fn spawn(
 			ptr::null(),
 			ptr::null(),
 			1,
-			CREATION_FLAGS | CREATE_SUSPENDED_FLAG | CREATE_UNICODE_ENVIRONMENT_FLAG,
+			CREATION_FLAGS | CREATE_UNICODE_ENVIRONMENT_FLAG,
 			environment.as_ptr().cast(),
 			cwd.as_ref().map_or(ptr::null(), |dir| dir.as_ptr()),
 			&startup,
 			&mut information,
 		);
 		let failure = if created == 0 { Some(last_error()) } else { None };
-		CloseHandle(input);
-		CloseHandle(output);
-		CloseHandle(error);
+		drop([input, output, error]);
 		if let Some(error) = failure {
 			return Err(error);
 		}
-		let process = OwnedHandle(information.hProcess);
-		let thread = OwnedHandle(information.hThread);
-		let resumed = ResumeThread(thread.0);
-		drop(thread);
-		if resumed == u32::MAX {
-			return Err(last_error());
-		}
-		let retained =
-			RetainedChild { handle: process.0, pid: information.dwProcessId, status: None };
-		std::mem::forget(process); // ownership moved into the retained child
-		Ok(retained)
+		// No post-creation setup is needed: launch running, so a ResumeThread
+		// failure cannot abandon a suspended process without a returned lease.
+		drop(OwnedHandle(information.hThread));
+		Ok(RetainedChild { handle: information.hProcess, pid: information.dwProcessId, status: None })
 	}
 }
 
-/// Wrap the process handle of a std spawn, so both spawn paths share one
-/// ownership type. The handle stays owned by the std Child.
+/// Transfer only the std Child's process handle. Consuming Child also drops its
+/// main-thread handle; forgetting Child would leak that separate resource.
 fn retain_from_child(child: Child) -> RetainedChild {
-	use std::os::windows::io::AsRawHandle;
+	use std::os::windows::io::IntoRawHandle;
 	let pid = child.id();
-	let handle = child.as_raw_handle();
-	std::mem::forget(child); // keep the handle alive; RetainedChild now owns it
+	let handle = child.into_raw_handle();
 	RetainedChild { handle, pid, status: None }
 }
 
@@ -555,7 +555,7 @@ fn environment_block(command: &Command) -> io::Result<Vec<u16>> {
 	if block.is_null() {
 		return Err(last_error());
 	}
-	let mut entries: Vec<(String, String)> = Vec::new();
+	let mut entries: Vec<(Vec<u16>, Vec<u16>)> = Vec::new();
 	unsafe {
 		let mut cursor = block;
 		while *cursor != 0 {
@@ -563,37 +563,109 @@ fn environment_block(command: &Command) -> io::Result<Vec<u16>> {
 			while *end != 0 {
 				end = end.add(1);
 			}
-			let text = String::from_utf16_lossy(std::slice::from_raw_parts(
-				cursor,
-				end.offset_from(cursor) as usize,
-			));
-			// Windows-hidden per-drive working directories ("=C:=...") are not
-			// valid in a CreateProcess environment block.
-			if !text.starts_with('=')
-				&& let Some((name, value)) = text.split_once('=')
+			let text = std::slice::from_raw_parts(cursor, end.offset_from(cursor) as usize);
+			// Preserve raw UTF-16, including hidden per-drive names such as =C:.
+			if let Some(separator) =
+				text.iter().enumerate().skip(1).find_map(|(i, c)| (*c == u16::from(b'=')).then_some(i))
 			{
-				entries.push((name.to_owned(), value.to_owned()));
+				entries.push((text[..separator].to_vec(), text[separator + 1..].to_vec()));
 			}
 			cursor = end.add(1);
 		}
 		FreeEnvironmentStringsW(block);
 	}
 	for (name, value) in command.get_envs() {
-		let name = name.to_string_lossy().into_owned();
-		let uppercase = name.to_ascii_uppercase();
-		entries.retain(|(existing, _)| existing.to_ascii_uppercase() != uppercase);
-		if let Some(value) = value {
-			entries.push((name, value.to_string_lossy().into_owned()));
+		let name: Vec<u16> = name.encode_wide().collect();
+		let mut retained = Vec::with_capacity(entries.len() + 1);
+		for entry in entries {
+			if compare_environment_names(&entry.0, &name)? != std::cmp::Ordering::Equal {
+				retained.push(entry);
+			}
 		}
+		if let Some(value) = value {
+			retained.push((name, value.encode_wide().collect()));
+		}
+		entries = retained;
 	}
-	entries.sort_by_key(|(name, _)| name.to_ascii_uppercase());
+	let mut comparison_error = None;
+	entries.sort_by(|(left, _), (right, _)| {
+		compare_environment_names(left, right).unwrap_or_else(|error| {
+			comparison_error = Some(error);
+			std::cmp::Ordering::Equal
+		})
+	});
+	if let Some(error) = comparison_error {
+		return Err(error);
+	}
 	let mut block = Vec::new();
 	for (name, value) in entries {
-		block.extend(name.encode_utf16());
+		block.extend(name);
 		block.push(u16::from(b'='));
-		block.extend(value.encode_utf16());
+		block.extend(value);
 		block.push(0);
 	}
 	block.push(0);
+	if block.len() == 1 {
+		block.push(0);
+	}
 	Ok(block)
+}
+
+fn compare_environment_names(left: &[u16], right: &[u16]) -> io::Result<std::cmp::Ordering> {
+	let length = |text: &[u16]| {
+		i32::try_from(text.len()).map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))
+	};
+	let result = unsafe {
+		CompareStringOrdinal(left.as_ptr(), length(left)?, right.as_ptr(), length(right)?, 1)
+	};
+	match result {
+		1 => Ok(std::cmp::Ordering::Less),
+		2 => Ok(std::cmp::Ordering::Equal),
+		3 => Ok(std::cmp::Ordering::Greater),
+		_ => Err(last_error()),
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn failed_process_observation_is_not_reported_as_running() {
+		let mut child = RetainedChild { handle: ptr::null_mut(), pid: 0, status: None };
+		assert!(child.try_wait().is_err());
+	}
+
+	#[test]
+	fn failed_stdio_setup_closes_all_created_handles() {
+		use std::os::windows::io::AsRawHandle;
+		use windows_sys::Win32::System::Threading::GetProcessHandleCount;
+		const FIXTURE: &str = "ATOMIC_STDIO_HANDLE_FAILURE";
+		if std::env::var_os(FIXTURE).is_none() {
+			let output = Command::new(std::env::current_exe().unwrap())
+				.args(["failed_stdio_setup_closes_all_created_handles", "--nocapture"])
+				.env(FIXTURE, "1")
+				.output()
+				.unwrap();
+			assert!(
+				output.status.success(),
+				"{}{}",
+				String::from_utf8_lossy(&output.stdout),
+				String::from_utf8_lossy(&output.stderr)
+			);
+			return;
+		}
+		let output = std::fs::File::open("NUL").unwrap();
+		let handles = || {
+			let mut count = 0;
+			assert_ne!(unsafe { GetProcessHandleCount(GetCurrentProcess(), &mut count) }, 0);
+			count
+		};
+		let before = handles();
+		for _ in 0..20 {
+			// The last duplicate fails after stdin/stdout were already acquired.
+			assert!(child_stdio(output.as_raw_handle(), ptr::null_mut()).is_err());
+		}
+		assert_eq!(handles(), before);
+	}
 }
