@@ -11,6 +11,15 @@ function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * The read half of `WriteOperations` for tests whose writes land on the real filesystem. These
+ * suites override `writeFile` to control interleaving, not to relocate the files, so the read
+ * has to see the same disk.
+ */
+async function readIfPresent(path: string): Promise<string | undefined> {
+	return readFile(path, "utf8").catch(() => undefined);
+}
+
 function createDeferred(): { promise: Promise<void>; resolve: () => void } {
 	let resolve!: () => void;
 	const promise = new Promise<void>((promiseResolve) => {
@@ -168,8 +177,12 @@ describe("built-in edit and write tools", () => {
 			},
 		});
 		const writeTool = createWriteTool(dir, {
+			// One store per session, shared with the edit tool above, which is what lets `write`
+			// see the snapshot that edit just recorded and overwrite it.
+			hashlineStore: store,
 			operations: {
 				mkdir: async () => {},
+				readFile: readIfPresent,
 				writeFile: async (path, content) => {
 					await delay(10);
 					await writeFile(path, content, "utf8");
@@ -196,6 +209,7 @@ describe("built-in edit and write tools", () => {
 		const writeTool = createWriteTool(dir, {
 			operations: {
 				mkdir: async () => {},
+				readFile: readIfPresent,
 				writeFile: async (path, content) => {
 					if (content === "first\n") {
 						firstWriteStarted.resolve();
@@ -219,6 +233,7 @@ describe("built-in edit and write tools", () => {
 		controller.abort();
 
 		const secondWrite = writeTool.execute("call-2", { path: filePath, content: "second\n" });
+		// #2482: keep the first write in flight while the second call reaches the queue.
 		expect(await resolvesWithin(secondWriteStarted.promise, 20)).toBe(false);
 
 		finishFirstWrite.resolve();
@@ -257,8 +272,12 @@ describe("built-in edit and write tools", () => {
 			},
 		});
 		const writeTool = createWriteTool(dir, {
+			// Shared with the edit tool, so the aborted edit's post-commit snapshot is what this
+			// write is overwriting. The abort cancelled the result, not the bytes.
+			hashlineStore: store,
 			operations: {
 				mkdir: async () => {},
+				readFile: readIfPresent,
 				writeFile: async (path, content) => {
 					if (content === "second\n") {
 						expect(firstWriteSettled).toBe(true);
@@ -279,6 +298,7 @@ describe("built-in edit and write tools", () => {
 		controller.abort();
 
 		const secondWrite = writeTool.execute("call-2", { path: filePath, content: "second\n" });
+		// #2482: keep the first edit in flight while the second call reaches the queue.
 		expect(await resolvesWithin(secondWriteStarted.promise, 20)).toBe(false);
 
 		finishFirstWrite.resolve();

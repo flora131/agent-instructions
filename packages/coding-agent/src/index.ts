@@ -371,6 +371,7 @@ export {
 	truncateHead,
 	truncateLine,
 	truncateTail,
+	type WriteFileOptions,
 	type WriteOperations,
 	type WriteToolInput,
 	type WriteToolOptions,

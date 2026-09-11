@@ -1,14 +1,16 @@
 /**
  * Gondolin Tool Routing Example
  *
- * Runs Atomic's built-in tools inside a local Gondolin micro-VM. The host working
- * directory is mounted at /workspace in the guest. File changes under
- * /workspace write through to the host; other guest filesystem changes are
- * isolated to the VM.
+ * Routes read, write, edit, bash, find, ls and user ! commands into a local
+ * Gondolin micro-VM. The host working directory is mounted at /workspace;
+ * changes there write through to the host. Other guest changes stay in the VM.
+ * Search and other unoverridden tools still run on the host. For guest-only
+ * content searches use the routed shell; this is not whole-session isolation.
  *
  * Setup:
  *   cd packages/coding-agent/examples/extensions/gondolin
- *   npm install --ignore-scripts
+ *   npm ci --ignore-scripts
+ *   npm run check  # from this repository: full Gondolin + SSH adapter typecheck
  *
  * Usage:
  *   cd /path/to/project
@@ -24,33 +26,22 @@ import type { ExtensionAPI, ExtensionContext } from "@bastani/atomic";
 import {
 	type BashOperations,
 	createBashTool,
+	createCodingTools,
 	createEditTool,
 	createFindTool,
-	createGrepTool,
 	createLsTool,
 	createReadTool,
 	createWriteTool,
-	DEFAULT_MAX_BYTES,
 	type EditOperations,
 	type FindOperations,
-	formatSize,
-	type GrepToolDetails,
-	type GrepToolInput,
 	type LsOperations,
 	type ReadOperations,
-	truncateHead,
-	truncateLine,
 	type WriteOperations,
 } from "@bastani/atomic";
 import { RealFSProvider, VM } from "@earendil-works/gondolin";
 
 const GUEST_WORKSPACE = "/workspace";
-const DEFAULT_GREP_LIMIT = 100;
-
-type TextToolResult<TDetails> = {
-	content: Array<{ type: "text"; text: string }>;
-	details: TDetails | undefined;
-};
+const GUEST_FUSE_MOUNT = "/data";
 
 function stripAtPrefix(value: string): string {
 	return value.startsWith("@") ? value.slice(1) : value;
@@ -98,20 +89,99 @@ function createGondolinReadOps(vm: VM, localCwd: string): ReadOperations {
 	};
 }
 
-function createGondolinWriteOps(vm: VM, localCwd: string): WriteOperations {
+function createGondolinWriteOps(vm: VM, localCwd: string, workspace: RealFSProvider): WriteOperations {
+	const workspaceRelativePath = (target: string) => {
+		for (const mount of [GUEST_WORKSPACE, `${GUEST_FUSE_MOUNT}${GUEST_WORKSPACE}`]) {
+			if (target === mount || target.startsWith(`${mount}/`)) return target.slice(mount.length) || "/";
+		}
+		return undefined;
+	};
 	return {
-		writeFile: async (filePath, content) => {
-			await vm.fs.writeFile(toGuestPath(localCwd, filePath), content, { encoding: "utf8" });
+		writeFile: async (filePath, content, options) => {
+			const target = toGuestPath(localCwd, filePath);
+			if (!options?.exclusive) {
+				await vm.fs.writeFile(target, content, { encoding: "utf8" });
+				return;
+			}
+			// Both fs.writeFile and the 0.12.0 FUSE bridge discard exclusive flags.
+			// Open through the exact provider mounted at /workspace, not unrelated host IO.
+			let relativePath = workspaceRelativePath(target);
+			if (relativePath === undefined) {
+				// A guest symlink can route an otherwise native-looking parent onto FUSE.
+				const parent = await vm.exec(["/bin/sh", "-c", 'cd "$1" && pwd -P', "sh", path.posix.dirname(target)]);
+				if (parent.exitCode !== 0) throw new Error(parent.stderr);
+				relativePath = workspaceRelativePath(
+					path.posix.join(parent.stdout.replace(/\n$/, ""), path.posix.basename(target)),
+				);
+			}
+			if (relativePath !== undefined) {
+				const mountedPath = relativePath;
+				const handle = await workspace.open(mountedPath, "wx").catch(async (error: NodeJS.ErrnoException) => {
+					// The provider resolves links before open: a dangling collision becomes ENOENT.
+					// Check occupancy in that same mounted namespace, without following the link.
+					if (
+						error.code === "ENOENT" &&
+						(await workspace.lstat(mountedPath).catch(() => undefined))?.isSymbolicLink()
+					) {
+						throw Object.assign(new Error(`EEXIST: file already exists, open '${target}'`), { code: "EEXIST" });
+					}
+					throw error;
+				});
+				try {
+					await handle.writeFile(content, { encoding: "utf8" });
+				} finally {
+					await handle.close();
+				}
+				return;
+			}
+			// Native guest paths do not cross FUSE. Noclobber is enforced by the guest OS.
+			const result = await vm.exec(
+				[
+					"/bin/sh",
+					"-c",
+					'(set -C; cat > "$1") || { if [ -e "$1" ] || [ -L "$1" ]; then exit 17; else exit 1; fi; }',
+					"sh",
+					target,
+				],
+				{ stdin: content },
+			);
+			if (result.exitCode !== 0) {
+				const error = new Error(`Failed to create guest file '${target}': ${result.stderr}`);
+				if (result.exitCode === 17) throw Object.assign(error, { code: "EEXIST" });
+				throw error;
+			}
 		},
 		mkdir: async (dirPath) => {
 			await vm.fs.mkdir(toGuestPath(localCwd, dirPath), { recursive: true });
 		},
+		// Reads inside the guest, so the checks `write` runs before overwriting see the same
+		// filesystem the write lands on rather than the host's. Absence is `undefined`; a path
+		// that exists but cannot be read keeps throwing, since it is not a free path.
+		readFile: async (filePath) => {
+			const target = toGuestPath(localCwd, filePath);
+			try {
+				return await vm.fs.readFile(target, { encoding: "utf8" });
+			} catch (error) {
+				// Gondolin 0.12.0 wraps filesystem errors without preserving errno. Probe
+				// the guest namespace rather than parsing localized error messages.
+				const probe = await vm.exec([
+					"/bin/sh",
+					"-c",
+					'(cd "$2") && { if [ -e "$1" ] || [ -L "$1" ]; then exit 0; else exit 44; fi; }',
+					"sh",
+					target,
+					path.posix.dirname(target),
+				]);
+				if (probe.exitCode === 44) return undefined;
+				throw error;
+			}
+		},
 	};
 }
 
-function createGondolinEditOps(vm: VM, localCwd: string): EditOperations {
+function createGondolinEditOps(vm: VM, localCwd: string, workspace: RealFSProvider): EditOperations {
 	const readOps = createGondolinReadOps(vm, localCwd);
-	const writeOps = createGondolinWriteOps(vm, localCwd);
+	const writeOps = createGondolinWriteOps(vm, localCwd, workspace);
 	return {
 		readFile: readOps.readFile,
 		writeFile: writeOps.writeFile,
@@ -203,110 +273,6 @@ function createGondolinFindOps(vm: VM, localCwd: string): FindOperations {
 	};
 }
 
-function createLineMatcher(pattern: string, literal: boolean | undefined, ignoreCase: boolean | undefined) {
-	if (literal) {
-		const needle = ignoreCase ? pattern.toLowerCase() : pattern;
-		return (line: string) => (ignoreCase ? line.toLowerCase() : line).includes(needle);
-	}
-	const regex = new RegExp(pattern, ignoreCase ? "i" : undefined);
-	return (line: string) => regex.test(line);
-}
-
-function appendGrepBlock(params: {
-	outputLines: string[];
-	lines: string[];
-	relativePath: string;
-	lineIndex: number;
-	contextLines: number;
-}): boolean {
-	let linesTruncated = false;
-	const start = params.contextLines > 0 ? Math.max(0, params.lineIndex - params.contextLines) : params.lineIndex;
-	const end =
-		params.contextLines > 0
-			? Math.min(params.lines.length - 1, params.lineIndex + params.contextLines)
-			: params.lineIndex;
-
-	for (let index = start; index <= end; index++) {
-		const rawLine = params.lines[index] ?? "";
-		const { text, wasTruncated } = truncateLine(rawLine.replace(/\r/g, ""));
-		if (wasTruncated) linesTruncated = true;
-		const separator = index === params.lineIndex ? ":" : "-";
-		params.outputLines.push(`${params.relativePath}${separator}${index + 1}${separator} ${text}`);
-	}
-	return linesTruncated;
-}
-
-async function executeGondolinGrep(
-	vm: VM,
-	localCwd: string,
-	params: GrepToolInput,
-	signal?: AbortSignal,
-): Promise<TextToolResult<GrepToolDetails>> {
-	const root = toGuestPath(localCwd, params.path ?? ".");
-	const rootStat = await vm.fs.stat(root, { signal });
-	const rootIsDirectory = rootStat.isDirectory();
-	const matcher = createLineMatcher(params.pattern, params.literal, params.ignoreCase);
-	const contextLines = params.context && params.context > 0 ? params.context : 0;
-	const effectiveLimit = Math.max(1, params.limit ?? DEFAULT_GREP_LIMIT);
-	const outputLines: string[] = [];
-	const details: GrepToolDetails = {};
-	let matchCount = 0;
-	let matchLimitReached = false;
-	let linesTruncated = false;
-
-	await walkGuestFiles(
-		vm,
-		root,
-		async (guestPath, relativePath) => {
-			if (matchCount >= effectiveLimit) return false;
-			if (params.glob && !matchesToolGlob(relativePath, params.glob)) return true;
-			let content: string;
-			try {
-				content = await vm.fs.readFile(guestPath, { encoding: "utf8", signal });
-			} catch {
-				return true;
-			}
-			const lines = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
-			const displayPath = rootIsDirectory ? relativePath : path.posix.basename(guestPath);
-			for (let index = 0; index < lines.length; index++) {
-				if (signal?.aborted) throw new Error("Operation aborted");
-				if (!matcher(lines[index] ?? "")) continue;
-				matchCount++;
-				if (appendGrepBlock({ outputLines, lines, relativePath: displayPath, lineIndex: index, contextLines })) {
-					linesTruncated = true;
-				}
-				if (matchCount >= effectiveLimit) {
-					matchLimitReached = true;
-					return false;
-				}
-			}
-			return true;
-		},
-		signal,
-	);
-	if (matchCount === 0) return { content: [{ type: "text", text: "No matches found" }], details: undefined };
-	const rawOutput = outputLines.join("\n");
-	const truncation = truncateHead(rawOutput, { maxLines: Number.MAX_SAFE_INTEGER });
-	const notices: string[] = [];
-	let output = truncation.content;
-	if (matchLimitReached) {
-		details.matchLimitReached = effectiveLimit;
-		notices.push(`${effectiveLimit} matches limit reached`);
-	}
-	if (linesTruncated) {
-		details.linesTruncated = true;
-		notices.push("long lines truncated");
-	}
-	if (truncation.truncated) {
-		details.truncation = truncation;
-		notices.push(`${formatSize(DEFAULT_MAX_BYTES)} limit reached`);
-	}
-	if (notices.length > 0) output += `\n\n[${notices.join(". ")}]`;
-	return {
-		content: [{ type: "text", text: output }],
-		details: Object.keys(details).length > 0 ? details : undefined,
-	};
-}
 function createGondolinBashOps(vm: VM, localCwd: string, shellPath: string): BashOperations {
 	return {
 		exec: async (command, cwd, { onData, signal, timeout }) => {
@@ -348,23 +314,33 @@ function createGondolinBashOps(vm: VM, localCwd: string, shellPath: string): Bas
 }
 export default function (pi: ExtensionAPI) {
 	const localCwd = process.cwd();
+	const workspace = new RealFSProvider(localCwd);
 	const localRead = createReadTool(localCwd);
 	const localWrite = createWriteTool(localCwd);
 	const localEdit = createEditTool(localCwd);
 	const localBash = createBashTool(localCwd);
-	const localGrep = createGrepTool(localCwd);
 	const localFind = createFindTool(localCwd);
 	const localLs = createLsTool(localCwd);
 	let vm: VM | undefined;
 	let vmStarting: Promise<VM> | undefined;
 	let shellPath = "/bin/sh";
+	let fileTools: ReturnType<typeof createCodingTools> | undefined;
+	function getFileTools(activeVm: VM) {
+		fileTools ??= createCodingTools(GUEST_WORKSPACE, {
+			read: { operations: createGondolinReadOps(activeVm, localCwd) },
+			write: { operations: createGondolinWriteOps(activeVm, localCwd, workspace) },
+			edit: { operations: createGondolinEditOps(activeVm, localCwd, workspace) },
+		});
+		return fileTools;
+	}
 	async function startVm(ctx?: ExtensionContext): Promise<VM> {
 		ctx?.ui.setStatus("gondolin", ctx.ui.theme.fg("accent", `Gondolin: starting ${GUEST_WORKSPACE}`));
 		const created = await VM.create({
 			sessionLabel: `atomic ${path.basename(localCwd)}`,
 			vfs: {
+				fuseMount: GUEST_FUSE_MOUNT,
 				mounts: {
-					[GUEST_WORKSPACE]: new RealFSProvider(localCwd),
+					[GUEST_WORKSPACE]: workspace,
 				},
 			},
 		});
@@ -388,9 +364,11 @@ export default function (pi: ExtensionAPI) {
 		return vmStarting;
 	}
 	pi.on("session_start", async (_event, ctx) => {
+		fileTools = undefined;
 		await ensureVm(ctx);
 	});
 	pi.on("session_shutdown", async (_event, ctx) => {
+		fileTools = undefined;
 		const activeVm = vm;
 		vm = undefined;
 		vmStarting = undefined;
@@ -421,30 +399,27 @@ export default function (pi: ExtensionAPI) {
 		...localRead,
 		async execute(id, params, signal, onUpdate, ctx) {
 			const activeVm = await ensureVm(ctx);
-			const tool = createReadTool(GUEST_WORKSPACE, {
-				operations: createGondolinReadOps(activeVm, localCwd),
-			});
-			return tool.execute(id, params, signal, onUpdate);
+			return getFileTools(activeVm)
+				.find((tool) => tool.name === "read")!
+				.execute(id, params, signal, onUpdate);
 		},
 	});
 	pi.registerTool({
 		...localWrite,
 		async execute(id, params, signal, onUpdate, ctx) {
 			const activeVm = await ensureVm(ctx);
-			const tool = createWriteTool(GUEST_WORKSPACE, {
-				operations: createGondolinWriteOps(activeVm, localCwd),
-			});
-			return tool.execute(id, params, signal, onUpdate);
+			return getFileTools(activeVm)
+				.find((tool) => tool.name === "write")!
+				.execute(id, params, signal, onUpdate);
 		},
 	});
 	pi.registerTool({
 		...localEdit,
 		async execute(id, params, signal, onUpdate, ctx) {
 			const activeVm = await ensureVm(ctx);
-			const tool = createEditTool(GUEST_WORKSPACE, {
-				operations: createGondolinEditOps(activeVm, localCwd),
-			});
-			return tool.execute(id, params, signal, onUpdate);
+			return getFileTools(activeVm)
+				.find((tool) => tool.name === "edit")!
+				.execute(id, params, signal, onUpdate);
 		},
 	});
 	pi.registerTool({
@@ -475,13 +450,6 @@ export default function (pi: ExtensionAPI) {
 				operations: createGondolinFindOps(activeVm, localCwd),
 			});
 			return tool.execute(id, params, signal, onUpdate);
-		},
-	});
-	pi.registerTool({
-		...localGrep,
-		async execute(_id, params, signal, _onUpdate, ctx) {
-			const activeVm = await ensureVm(ctx);
-			return executeGondolinGrep(activeVm, localCwd, params, signal);
 		},
 	});
 	pi.on("user_bash", async (_event, ctx) => {
