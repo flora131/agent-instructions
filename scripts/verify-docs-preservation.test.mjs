@@ -13,18 +13,26 @@ import {
 	FOURTH_PREDECESSOR,
 	FOURTH_README,
 	fourthMainEvidence,
+	HISTORY_PARTS,
 	LATEST_MAIN,
 	latestMainEvidence,
 	MAIN,
 	normalize,
 	orderedContains,
 	PR,
+	PRE_REBASE,
 	PROVENANCE,
+	REBASE_FOLLOWUP,
+	REBASE_MAIN,
+	REBASE_README,
 	REVIEW_PREDECESSOR,
 	REVIEW_README,
 	REVIEW_REPAIRS,
+	readExactSource,
+	rebaseMainEvidence,
 	reconstructFourthMainDelta,
 	reconstructLatestMainDelta,
+	reconstructRebaseMainDelta,
 	reconstructWaitMainDelta,
 	SECOND_RECONCILIATION,
 	splitBlocks,
@@ -40,6 +48,17 @@ const read = (path) => readFileSync(resolve(repoRoot, path), "utf8");
 const manifest = JSON.parse(read(`${PROVENANCE}manifest.json`));
 const mapRows = (source) => manifest[`${source}_map`].flatMap((name) => JSON.parse(read(PROVENANCE + name)));
 const check = (overrides = new Map()) => verifyWorkingTreeDocumentation({ repoRoot, overrides });
+
+test("true-rebased preservation proves the selected main and every earlier layer", () => {
+	const result = check();
+	assert.equal(result.rebaseMain.revision, "fadc434c561da387db764b53f41367fedf721a95");
+	assert.equal(result.rebaseMain.predecessor, "5053a6aa244d7b97346c99f2b508e56783c42fa8");
+	assert.equal(result.rebaseMain.changedPages, 2);
+	assert.equal(result.rebaseMain.edits, 9);
+	assert.equal(result.rebaseMain.activeRetentions, 3);
+	assert.equal(result.authoringReferenceAdditions, 5);
+	assert.equal(result.reviewRepairs.aliases, 8);
+});
 
 // #2847: neither a current-tree snapshot nor the old baseline alone proves the reconciliation.
 test("two immutable source corpora and the original PR connective content are preserved", () => {
@@ -414,11 +433,7 @@ test("latest-main source inventory covers every page and rejects omitted or forg
 });
 
 test("SDK additions are active in its reference and the SDK hub preserves its predecessor plus exact repairs", async () => {
-	const { execFileSync } = await import("node:child_process");
-	const oldHub = execFileSync("git", ["show", `${FIRST_RECONCILIATION}:${DOCS}sdk.md`], {
-		cwd: repoRoot,
-		encoding: "utf8",
-	});
+	const oldHub = readExactSource({ repoRoot, revision: FIRST_RECONCILIATION, path: `${DOCS}sdk.md` });
 	const pointer = waitDelta.compatibility_pointers[0];
 	// #2847 / PR #2971: preserve the entire hub, with only the reviewed image-shape correction.
 	const oldImage = '  images: [{ type: "image", source: { type: "base64", mediaType: "image/png", data: "..." } }]';
@@ -739,8 +754,10 @@ test("fourth-main anchors, navigation and compatibility pointers cannot disappea
 	for (const repair of fourthDelta.reader_repairs.filter((row) => /anchor|pointer|navigation/u.test(row.kind))) {
 		let text = read(repair.target_path);
 		// The maintainer pointer precedes the desktop alias; remove only this repair's addition.
-		assert.ok(text.includes(repair.after));
-		text = text.replace(repair.after, () => repair.before);
+		const publishedPointer = reconstructRebaseMainDelta(repoRoot).reader_repairs[0];
+		const after = repair.after.replace(publishedPointer.before, () => publishedPointer.after);
+		assert.ok(text.includes(after));
+		text = text.replace(after, () => repair.before);
 		assert.throws(() => check(new Map([[repair.target_path, text]])), /latest-main delta/u);
 	}
 });
@@ -883,4 +900,215 @@ test("review repairs leave committed checkpoint verification independent of work
 	const result = verifyCommittedDocumentation({ repoRoot, revision: REVIEW_PREDECESSOR });
 	assert.equal(result.readerPages, 86);
 	assert.equal(result.reviewRepairs, undefined);
+});
+
+test("rebase-main requires every new upstream hunk and complete, actively placed VBA retention", () => {
+	const delta = reconstructRebaseMainDelta(repoRoot);
+	assert.deepEqual(JSON.parse(read(REBASE_FOLLOWUP)), rebaseMainEvidence(delta));
+	const path = `${DOCS}computer-use.md`;
+	const current = read(path);
+	const old = readExactSource({ repoRoot, revision: PRE_REBASE, path });
+	assert.equal(delta.retentions[0].text, `${old.split("\n")[46]}\n`);
+	assert.equal(delta.retentions[1].text, `${old.split("\n").slice(82, 112).join("\n")}\n`);
+	assert.equal(delta.retentions[2].text, `${delta.retentions[2].prefix}${old.split("\n").slice(52, 54).join("\n")}\n`);
+	let upstream = current;
+	for (const retention of delta.retentions) {
+		assert.ok(current.includes(retention.after));
+		upstream = upstream.replace(retention.after, () => retention.before);
+		for (const altered of [
+			current.replace(retention.text, ""),
+			current.replace(retention.text, "") + retention.text,
+			current.replace(retention.text, () => `\`\`\`markdown\n${retention.text}\`\`\`\n`),
+			current + retention.text,
+		])
+			assert.throws(() => check(new Map([[path, altered]])), /fourth-main new page differs/u);
+	}
+	assert.equal(upstream, readExactSource({ repoRoot, revision: REBASE_MAIN, path }));
+	for (const edit of delta.edits) {
+		const text = read(edit.target_path);
+		const added = edit.after.split("\n").find((line) => line.length > 20 && !edit.before.split("\n").includes(line));
+		assert.ok(added && text.includes(added));
+		assert.throws(() => check(new Map([[edit.target_path, text.replace(added, "")]])), /delta|new page differs/u);
+	}
+	for (const fragment of ["deck.save(stream)", "Never enable all macros", "Saving as `.xlsx` cannot retain VBA"]) {
+		assert.ok(current.includes(fragment));
+		assert.throws(() => check(new Map([[path, current.replace(fragment, "")]])), /new page differs/u);
+	}
+});
+
+test("rebase-main rejects missing or self-authorized supplemental policy and pointer changes", () => {
+	for (const change of [
+		(value) => value.edits.pop(),
+		(value) => value.unchanged_source_paths.pop(),
+		(value) => value.active_retentions.pop(),
+		(value) => {
+			value.predecessor = REBASE_MAIN;
+		},
+		(value) => {
+			value.history_transport.sha256 = "0".repeat(64);
+		},
+	])
+		assert.throws(() => check(changedJSON(REBASE_FOLLOWUP, change)), /rebase-main evidence does not reconstruct/u);
+	assert.throws(() => check(new Map([[REBASE_README, ""]])), /rebase-main explanation changed/u);
+	assert.throws(() => verifyCommittedDocumentation({ repoRoot, revision: REBASE_MAIN }), /2847-rebase-main\.json/u);
+	const repair = reconstructRebaseMainDelta(repoRoot).reader_repairs[0];
+	const text = read(repair.target_path);
+	assert.ok(text.includes(repair.after));
+	for (const replacement of [repair.before, repair.after.replace("/docs/", "/missing/")]) {
+		const overrides = changedJSON(REBASE_FOLLOWUP, (policy) => {
+			policy.reader_repairs[0].after = replacement;
+		});
+		overrides.set(
+			repair.target_path,
+			text.replace(repair.after, () => replacement),
+		);
+		assert.throws(() => check(overrides), /rebase-main evidence does not reconstruct/u);
+		assert.throws(
+			() => check(new Map([[repair.target_path, text.replace(repair.after, () => replacement)]])),
+			/latest-main delta/u,
+		);
+	}
+});
+
+test("rebase-main requires authentic transport even with warm original-object caches", () => {
+	assert.equal(check().rebaseMain.revision, REBASE_MAIN);
+	for (const path of HISTORY_PARTS) {
+		const bytes = readFileSync(resolve(repoRoot, path));
+		const changed = Buffer.from(bytes);
+		changed[changed.length - 1] ^= 1;
+		assert.throws(() => check(new Map([[path, changed]])), /history transport checksum changed/u);
+		assert.throws(() => check(new Map([[path, Buffer.alloc(0)]])), /history transport part size changed/u);
+	}
+	assert.equal(check().rebaseMain.revision, REBASE_MAIN);
+});
+
+test("cold committed rebase proof uses authentic disposable history without Git writes or working reads", async () => {
+	const { execFileSync, spawnSync } = await import("node:child_process");
+	const fs = await import("node:fs");
+	const { tmpdir } = await import("node:os");
+	const directory = fs.mkdtempSync(resolve(tmpdir(), "docs-preservation-cold-"));
+	const fixture = resolve(directory, "repo");
+	const run = (args, input) =>
+		execFileSync("git", ["-C", fixture, ...args], {
+			input,
+			encoding: "utf8",
+			stdio: ["pipe", "pipe", "pipe"],
+			env: {
+				...process.env,
+				GIT_AUTHOR_NAME: "Preservation fixture",
+				GIT_AUTHOR_EMAIL: "fixture@example.invalid",
+				GIT_COMMITTER_NAME: "Preservation fixture",
+				GIT_COMMITTER_EMAIL: "fixture@example.invalid",
+			},
+		});
+	const absent = () => {
+		for (const revision of [PR, FIRST_RECONCILIATION, PRE_REBASE])
+			assert.throws(
+				() => run(["cat-file", "-e", `${revision}^{commit}`]),
+				`original commit unexpectedly present: ${revision}`,
+			);
+	};
+	try {
+		const branch = execFileSync("git", ["-C", repoRoot, "branch", "--show-current"], { encoding: "utf8" }).trim();
+		// Network-style transfer excludes backup refs and unreachable local checkpoints.
+		execFileSync(
+			"git",
+			["clone", "--no-local", "--single-branch", "--no-checkout", "--branch", branch, repoRoot, fixture],
+			{ stdio: ["pipe", "pipe", "pipe"] },
+		);
+		absent();
+		run(["read-tree", "HEAD"]);
+		const files = [
+			REBASE_FOLLOWUP,
+			REBASE_README,
+			...HISTORY_PARTS,
+			`${DOCS}computer-use.md`,
+			`${DOCS}workflows/verification.md`,
+		];
+		const put = (path, bytes) => {
+			const oid = run(["hash-object", "-w", "--stdin"], bytes).trim();
+			run(["update-index", "--add", "--cacheinfo", `100644,${oid},${path}`]);
+		};
+		for (const path of files) put(path, readFileSync(resolve(repoRoot, path)));
+		const parent = run(["rev-parse", "HEAD"]).trim();
+		const commit = () =>
+			run(["commit-tree", run(["write-tree"]).trim(), "-p", parent], "isolated preservation candidate\n").trim();
+		const candidate = commit();
+		run(["update-ref", "HEAD", candidate]);
+		assert.equal(run(["merge-base", candidate, REBASE_MAIN]).trim(), REBASE_MAIN);
+		absent();
+		const invalid = [];
+		for (const path of HISTORY_PARTS) {
+			const changed = Buffer.from(readFileSync(resolve(repoRoot, path)));
+			changed[changed.length - 1] ^= 1;
+			put(path, changed);
+			invalid.push([commit(), "history transport checksum changed"]);
+			run(["read-tree", candidate]);
+			run(["update-index", "--force-remove", path]);
+			invalid.push([commit(), "missing committed blob"]);
+			run(["read-tree", candidate]);
+		}
+		// Artifact presence does not select rebase mode without selected-main ancestry.
+		const noAncestry = run(["commit-tree", run(["write-tree"]).trim(), "-p", FOURTH_MAIN], "wrong ancestry\n").trim();
+		invalid.push([noAncestry, "fourth-main requires all predecessor proofs"]);
+		const originalLedger = "docs/migrations/2847-content-ledger.md";
+		put(originalLedger, `${read(originalLedger)}\n`);
+		invalid.push([commit(), "immutable original provenance changed"]);
+		run(["read-tree", candidate]);
+		// There are deliberately no checked-out docs or bundle parts in this clone.
+		assert.equal(fs.existsSync(resolve(fixture, REBASE_FOLLOWUP)), false);
+		const gitState = () =>
+			fs
+				.readdirSync(resolve(fixture, ".git"), { recursive: true, withFileTypes: true })
+				.filter((entry) => entry.isFile())
+				.map((entry) => {
+					const path = resolve(entry.parentPath, entry.name);
+					return [path.slice(fixture.length), digest(readFileSync(path))];
+				})
+				.sort(([a], [b]) => a.localeCompare(b));
+		const before = gitState();
+		const source = read("scripts/verify-docs-preservation.mjs");
+		const child = spawnSync(process.execPath, ["--input-type=module", "-"], {
+			cwd: fixture,
+			input: `import assert from 'node:assert/strict'; import fs from 'node:fs'; import cp from 'node:child_process';
+			import { syncBuiltinESMExports } from 'node:module';
+			const owned = []; const make = fs.mkdtempSync; const write = fs.writeFileSync; const remove = fs.rmSync;
+			fs.mkdtempSync = (...args) => { const path = make(...args); assert.match(path, /atomic-docs-history-/u); owned.push(path); return path; };
+			fs.writeFileSync = (path, ...args) => { assert.ok(owned.some(root => path.startsWith(root + '/'))); return write(path, ...args); };
+			fs.rmSync = (path, ...args) => { assert.ok(owned.includes(path)); return remove(path, ...args); };
+			fs.readFileSync = fs.readdirSync = () => { throw new Error('working-tree read forbidden'); };
+			const execute = cp.execFileSync; let imports = 0;
+			cp.execFileSync = (command, args, options) => {
+				if (args[2] === 'bundle') { imports++; assert.equal(args[3], 'unbundle');
+					assert.ok(owned.some(root => options.env.GIT_OBJECT_DIRECTORY === root + '/objects')); }
+				return execute(command, args, options);
+			};
+			syncBuiltinESMExports();
+			const module = await import(${JSON.stringify(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`)});
+			const repoRoot = ${JSON.stringify(fixture)};
+			const result = module.verifyCommittedDocumentation({ repoRoot });
+			assert.equal(result.rebaseMain.revision, module.REBASE_MAIN);
+			assert.equal(result.authoringReferenceAdditions, 5); assert.equal(result.reviewRepairs.aliases, 8);
+			assert.ok(imports > 0, 'cold proof must unbundle authentic Git objects');
+			assert.ok(owned.every(path => !fs.existsSync(path)), 'successful proof leaked temporary objects');
+			for (const [revision, message] of ${JSON.stringify(invalid)}) {
+				assert.throws(() => module.verifyCommittedDocumentation({ repoRoot, revision }), error => error.message.includes(message));
+				assert.ok(owned.every(path => !fs.existsSync(path)), 'failed proof leaked temporary objects');
+			}
+			for (const [revision, pages] of [[module.FIRST_RECONCILIATION, 85], [module.SECOND_RECONCILIATION, 85],
+				[module.FOURTH_PREDECESSOR, 85], [module.REVIEW_PREDECESSOR, 86], [module.PRE_REBASE, 86]]) {
+				assert.equal(module.verifyCommittedDocumentation({ repoRoot, revision }).readerPages, pages);
+				assert.ok(owned.every(path => !fs.existsSync(path)));
+			}
+			assert.equal(module.verifyCommittedDocumentation({ repoRoot }).rebaseMain.revision, module.REBASE_MAIN);`,
+			encoding: "utf8",
+			timeout: 30_000,
+			maxBuffer: 4 * 1024 * 1024,
+		});
+		assert.equal(child.status, 0, child.stderr);
+		assert.deepEqual(gitState(), before, "verification changed original Git files/objects/refs");
+		absent();
+	} finally {
+		fs.rmSync(directory, { recursive: true, force: true });
+	}
 });

@@ -1470,7 +1470,7 @@ describe("docs references and assets (#2847)", () => {
 		assert.deepEqual(stale, [], "a docs link must reach the content directly, not through a compatibility stub");
 	});
 
-	test("every retargeted docs citation is recorded in the ledger", () => {
+	test("every retargeted docs citation is recorded in the ledger", async () => {
 		// The stale-link test proves no citation still points at a stub. This one
 		// proves the other half: each rewrite the migration performed is recorded,
 		// so the retarget list cannot be emptied or trimmed without failing here.
@@ -1540,21 +1540,19 @@ describe("docs references and assets (#2847)", () => {
 
 		// Preserve original line evidence against the original PR, not a later edited page.
 		// The active citation is then checked by its exact target and resolving current anchor.
+		const { readExactSource } = (await import(resolve(repoRoot, "scripts/verify-docs-preservation.mjs"))) as {
+			readExactSource(options: { repoRoot: string; revision: string; path: string }): string;
+		};
 		const originalPages = new Map<string, string[]>();
 		for (const entry of ledger.link_retargets) {
 			if (!originalPages.has(entry.source_path)) {
 				originalPages.set(
 					entry.source_path,
-					execFileSync(
-						"git",
-						[
-							"-C",
-							repoRoot,
-							"show",
-							`24f58842493deb8ec15dea44ef7e25936feeea60:packages/coding-agent/docs/${entry.source_path}`,
-						],
-						{ encoding: "utf8", timeout: 30_000 },
-					).split("\n"),
+					readExactSource({
+						repoRoot,
+						revision: "24f58842493deb8ec15dea44ef7e25936feeea60",
+						path: `packages/coding-agent/docs/${entry.source_path}`,
+					}).split("\n"),
 				);
 			}
 			assert.ok(

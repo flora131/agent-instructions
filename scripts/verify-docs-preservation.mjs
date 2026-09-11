@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync, realpathSync } from "node:fs";
-import { join, posix, resolve } from "node:path";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { delimiter, join, posix, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 export const BASELINE = "59586efd26afd32a27c999ac8bcce102777e40e4";
@@ -26,6 +27,15 @@ export const REVIEW_REPAIRS = "docs/migrations/2847-review-repairs.json";
 export const REVIEW_README = "docs/migrations/2847-review-repairs.md";
 const REVIEW_REPAIRS_SHA256 = "3d90e267ecc897155b39efd04c9ea84516506f242633b2c7231ea245a055fa95";
 const REVIEW_README_SHA256 = "d79c008720abbeab23af0595ced48b0345d75a5abb3dc3cad496b8efbdef5b27";
+export const PRE_REBASE = "5053a6aa244d7b97346c99f2b508e56783c42fa8";
+export const REBASE_MAIN = "fadc434c561da387db764b53f41367fedf721a95";
+export const REBASE_FOLLOWUP = "docs/migrations/2847-rebase-main.json";
+export const REBASE_README = "docs/migrations/2847-rebase-main.md";
+const REBASE_README_SHA256 = "4e3de52b7fc049e49556b5e64646684ee407e0ee589ef9d97c20c839508a593d";
+export const HISTORY = "test/fixtures/docs-preservation-history/";
+export const HISTORY_PARTS = [1, 2].map((part) => `${HISTORY}original-local-history.bundle.part-${part}`);
+const HISTORY_SHA256 = "ff39651dbd53ee373eac0f7b4970f3ad63612adee1ec9c566f2bb9a49a24d314";
+export const REBASED_RECIPE = "d99113320267d1a6b6e5df284d2aee9743e0abf5";
 // #2847 / PR #2971 review 3: exact append-only reader handoffs, not upstream changes.
 export const AUTHORING_PREDECESSOR = "8da40cc4ddb88b16baf8b4291722c6dabee8cfbb";
 const authoringReferenceAdditions = new Map(
@@ -58,13 +68,86 @@ const sourceCache = new Map();
 const REVIEWED_CORRECTIONS_SHA256 = "89912afa14fa7efe86737b9c1c0db60f9a41e53357527f046b06ddcdeed523f7";
 export const digest = (text) => createHash("sha256").update(text, "utf8").digest("hex");
 
+// Synchronous, invocation-owned context. Only immutable bytes are cached across calls;
+// transport is validated anew, and disposable Git objects never outlive a call.
+const historyContexts = new Map();
+function withHistory({ repoRoot, transportRevision, overrides }, run) {
+	const root = realpathSync(repoRoot);
+	if (historyContexts.has(root)) return run(historyContexts.get(root));
+	const context = { repoRoot, transportRevision, overrides };
+	historyContexts.set(root, context);
+	try {
+		return run(context);
+	} finally {
+		historyContexts.delete(root);
+		if (context.directory) rmSync(context.directory, { recursive: true, force: true });
+	}
+}
+
+function historyBundle(context) {
+	if (context.bundle) return context.bundle;
+	// Mark before reading so a missing committed part cannot recursively trigger hydration.
+	context.readingTransport = true;
+	try {
+		const parts = HISTORY_PARTS.map((path) =>
+			context.transportRevision
+				? git(context.repoRoot, ["show", `${context.transportRevision}:${path}`], undefined, "buffer")
+				: context.overrides?.has(path)
+					? Buffer.from(context.overrides.get(path))
+					: readFileSync(join(context.repoRoot, path)),
+		);
+		assert.deepEqual(
+			parts.map((part) => part.length),
+			[475000, 474604],
+			"history transport part size changed",
+		);
+		const bundle = Buffer.concat(parts);
+		assert.equal(digest(bundle), HISTORY_SHA256, "history transport checksum changed");
+		context.bundle = bundle;
+		return bundle;
+	} finally {
+		context.readingTransport = false;
+	}
+}
+
+function hydrateHistory(context) {
+	const bundle = historyBundle(context);
+	context.directory = mkdtempSync(join(tmpdir(), "atomic-docs-history-"));
+	const objects = join(context.directory, "objects");
+	mkdirSync(objects);
+	const original = git(context.repoRoot, ["rev-parse", "--path-format=absolute", "--git-path", "objects"]).trim();
+	context.env = {
+		...process.env,
+		GIT_OBJECT_DIRECTORY: objects,
+		GIT_ALTERNATE_OBJECT_DIRECTORIES: [JSON.stringify(original), process.env.GIT_ALTERNATE_OBJECT_DIRECTORIES]
+			.filter(Boolean)
+			.join(delimiter),
+	};
+	const path = join(context.directory, "history.bundle");
+	writeFileSync(path, bundle);
+	// Unlike fetch, unbundle imports only objects, never refs or FETCH_HEAD.
+	git(context.repoRoot, ["bundle", "unbundle", path]);
+}
+
+/** Exact immutable source read, also available when rebasing made the old objects unreachable. */
+export function readExactSource({ repoRoot, revision, path }) {
+	assert.match(revision, /^[a-f0-9]{40}$/u, "source must use an immutable commit");
+	safePath(path);
+	return withHistory({ repoRoot }, (context) => {
+		historyBundle(context);
+		return git(repoRoot, ["show", `${revision}:${path}`]);
+	});
+}
+
 const gitSnapshotCache = new Map();
 const revisionBlobCache = new Map();
 const blobCache = new Map();
-const snapshotRoots = [DOCS, "docs/migrations/", "docs/2847-stage-skill-verification.md"];
+const snapshotRoots = [DOCS, "docs/migrations/", "docs/2847-stage-skill-verification.md", HISTORY];
 
 /** Batch immutable trees once; share raw bytes across paths, revisions, and text/binary reads. */
 function revisionBlobs(repoRoot, revision) {
+	if (!historyContexts.has(realpathSync(repoRoot)))
+		return withHistory({ repoRoot }, () => revisionBlobs(repoRoot, revision));
 	assert.match(revision, /^[a-f0-9]{40}$/u, "blob cache requires an immutable commit");
 	const root = realpathSync(repoRoot);
 	const key = `${root}:${revision}`;
@@ -115,13 +198,43 @@ function git(repoRoot, args, input, encoding = "utf8") {
 	// Resolve a caller's revision afresh; all subsequent reads use the resolved commit.
 	const cacheable = args[0] !== "rev-parse";
 	if (cacheable && gitSnapshotCache.has(key)) return gitSnapshotCache.get(key);
-	const output = execFileSync("git", ["-C", repoRoot, ...args], {
-		encoding: encoding === "buffer" ? null : encoding,
-		input,
-		timeout: 30_000,
-		maxBuffer: 64 * 1024 * 1024,
-		stdio: ["pipe", "pipe", "pipe"],
-	});
+	const context = historyContexts.get(realpathSync(repoRoot));
+	let output;
+	try {
+		output = execFileSync("git", ["-C", repoRoot, ...args], {
+			encoding: encoding === "buffer" ? null : encoding,
+			input,
+			env: context?.env,
+			timeout: 30_000,
+			maxBuffer: 64 * 1024 * 1024,
+			stdio: ["pipe", "pipe", "pipe"],
+		});
+	} catch (error) {
+		// Only absent original checkpoints warrant hydration; ordinary Git failures do not.
+		const checkpoints = [
+			PR,
+			FIRST_RECONCILIATION,
+			SECOND_RECONCILIATION,
+			AUTHORING_PREDECESSOR,
+			FOURTH_PREDECESSOR,
+			REVIEW_PREDECESSOR,
+			PRE_REBASE,
+		];
+		if (
+			context?.env ||
+			context?.readingTransport ||
+			!args.some((arg) =>
+				checkpoints.some(
+					(revision) => arg === revision || arg.startsWith(`${revision}^{`) || arg.startsWith(`${revision}:`),
+				),
+			)
+		)
+			throw error;
+		return withHistory({ repoRoot }, (active) => {
+			hydrateHistory(active);
+			return git(repoRoot, args, input, encoding);
+		});
+	}
 	if (cacheable) gitSnapshotCache.set(key, output);
 	return output;
 }
@@ -247,13 +360,25 @@ export function sourceDocuments(repoRoot, revision) {
 	return documents;
 }
 
+const inventoryCache = new Map();
+const connectiveCache = new Map();
+const firstProofs = new Set();
+// Parse exact text once, not once per mapped block. Mutated reader text gets a
+// different key; this cache stores syntax only, never a preservation verdict.
+const parsedBlockCache = new Map();
+function parsedBlocks(text) {
+	if (!parsedBlockCache.has(text)) parsedBlockCache.set(text, splitBlocks(text));
+	return parsedBlockCache.get(text);
+}
+
 export function reconstructInventory(repoRoot, revision) {
 	const documents = sourceDocuments(repoRoot, revision);
+	if (inventoryCache.has(documents)) return inventoryCache.get(documents);
 	const pages = [],
 		blocks = [];
 	for (const [path, text] of documents) {
 		pages.push({ path, sha256: digest(text) });
-		for (const [index, block] of splitBlocks(text).entries()) {
+		for (const [index, block] of parsedBlocks(text).entries()) {
 			blocks.push({
 				id: `${path.replace(/\.mdx?$/u, "")}::${String(index + 1).padStart(3, "0")}`,
 				source_path: path,
@@ -273,7 +398,9 @@ export function reconstructInventory(repoRoot, revision) {
 			});
 		}
 	}
-	return { revision, normalization: "2847-v2", pages, blocks };
+	const result = { revision, normalization: "2847-v2", pages, blocks };
+	inventoryCache.set(documents, result);
+	return result;
 }
 
 function safePath(path) {
@@ -288,12 +415,14 @@ function safePath(path) {
  * original mapped baseline block. 2847-v1 is used only to identify the old source lines;
  * retained additions are verified with strict v2 text, including their exact link targets. */
 export function reconstructPRConnective(repoRoot) {
+	const root = realpathSync(repoRoot);
+	if (connectiveCache.has(root)) return connectiveCache.get(root);
 	const inventory = JSON.parse(git(repoRoot, ["show", `${PR}:docs/migrations/2847-baseline-inventory.json`]));
 	const mapping = JSON.parse(git(repoRoot, ["show", `${PR}:docs/migrations/2847-destination-map.json`]));
 	const baseline = sourceDocuments(repoRoot, BASELINE);
 	const records = [];
 	for (const [path, text] of sourceDocuments(repoRoot, PR)) {
-		for (const block of splitBlocks(text)) {
+		for (const block of parsedBlocks(text)) {
 			const old = inventory.blocks.find(
 				(row) => mapping.blocks[row.id].dest_path === path && mapping.blocks[row.id].dest_anchor === block.anchor,
 			);
@@ -330,31 +459,52 @@ export function reconstructPRConnective(repoRoot) {
 				});
 		}
 	}
+	connectiveCache.set(root, records);
 	return records;
+}
+
+function documentationPaths(repoRoot, revision) {
+	const roots = [DOCS, "docs/migrations/"];
+	return revision
+		? git(repoRoot, ["ls-tree", "-r", "--name-only", revision, "--", ...roots])
+				.trim()
+				.split("\n")
+		: roots.flatMap((root) =>
+				readdirSync(join(repoRoot, root), { recursive: true, withFileTypes: true })
+					.filter((entry) => entry.isFile())
+					.map((entry) =>
+						posix.join(
+							root,
+							resolve(entry.parentPath, entry.name)
+								.slice(resolve(repoRoot, root).length + 1)
+								.replaceAll("\\", "/"),
+						),
+					),
+			);
 }
 
 function reader(repoRoot, revision, overrides = new Map()) {
 	const cache = new Map();
-	const read = (path) => {
+	const bytes = (path) => {
 		safePath(path);
 		if (!cache.has(path))
 			cache.set(
 				path,
 				revision
-					? git(repoRoot, ["show", `${revision}:${path}`])
+					? git(repoRoot, ["show", `${revision}:${path}`], undefined, "buffer")
 					: overrides.has(path)
-						? overrides.get(path)
-						: readFileSync(join(repoRoot, path), "utf8"),
+						? Buffer.from(overrides.get(path))
+						: readFileSync(join(repoRoot, path)),
 			);
-		assert.equal(typeof cache.get(path), "string", `missing destination ${path}`);
 		return cache.get(path);
 	};
-	const paths = revision
-		? git(repoRoot, ["ls-tree", "-r", "--name-only", revision, "--", DOCS]).trim().split("\n")
-		: readdirSync(join(repoRoot, DOCS), { recursive: true, encoding: "utf8" }).map(
-				(path) => DOCS + path.replaceAll("\\", "/"),
-			);
-	return { read, pages: paths.filter((path) => /\.mdx?$/u.test(path)).sort() };
+	const paths = documentationPaths(repoRoot, revision);
+	return {
+		read: (path) => bytes(path).toString("utf8"),
+		bytes,
+		paths,
+		pages: paths.filter((path) => path.startsWith(DOCS) && /\.mdx?$/u.test(path)).sort(),
+	};
 }
 
 export function destinationText(read, target) {
@@ -370,7 +520,7 @@ export function destinationText(read, target) {
 			.slice(target.lines[0] - 1, target.lines[1])
 			.join("\n");
 	}
-	const block = splitBlocks(text).find((candidate) => candidate.anchor === target.anchor);
+	const block = parsedBlocks(text).find((candidate) => candidate.anchor === target.anchor);
 	assert.ok(block, `missing destination ${target.path}#${target.anchor}`);
 	assert.equal(block.occurrence, target.occurrence, `wrong occurrence ${target.path}#${target.anchor}`);
 	return block.text;
@@ -404,7 +554,7 @@ function resolveLink(read, page, target) {
 	assert.notEqual(text, undefined, `retarget page does not resolve: ${page}: ${target}`);
 	if (anchor)
 		assert.ok(
-			splitBlocks(text).some((block) => block.anchor === anchor),
+			parsedBlocks(text).some((block) => block.anchor === anchor),
 			`retarget anchor does not resolve: ${page}: ${target}`,
 		);
 }
@@ -1256,6 +1406,7 @@ function verifyLatest({
 	repoRoot,
 	revision,
 	overrides,
+	snapshot,
 	waitMain = false,
 	authoringReferences = false,
 	fourthMain = false,
@@ -1263,8 +1414,12 @@ function verifyLatest({
 }) {
 	// Prove the immutable predecessor with the original rules; reverse the closed
 	// reader anchors, source-derived edits and new SDK pointer before the prior proof.
-	verify({ repoRoot, revision: FIRST_RECONCILIATION });
-	const current = reader(repoRoot, revision, overrides);
+	const root = realpathSync(repoRoot);
+	if (!firstProofs.has(root)) {
+		verify({ repoRoot, revision: FIRST_RECONCILIATION });
+		firstProofs.add(root);
+	}
+	const current = snapshot ?? reader(repoRoot, revision, overrides);
 	const delta = reconstructLatestMainDelta(repoRoot);
 	assert.deepEqual(
 		JSON.parse(current.read(FOLLOWUP)),
@@ -1369,22 +1524,7 @@ function verifyLatest({
 			[...frozenPaths, FOLLOWUP, WAIT_FOLLOWUP].sort(),
 			"fourth-main predecessor frozen file set differs",
 		);
-	const currentPaths = revision
-		? git(repoRoot, ["ls-tree", "-r", "--name-only", revision, "--", ...roots])
-				.trim()
-				.split("\n")
-		: roots.flatMap((root) =>
-				readdirSync(join(repoRoot, root), { recursive: true, withFileTypes: true })
-					.filter((entry) => entry.isFile())
-					.map((entry) =>
-						posix.join(
-							root,
-							resolve(entry.parentPath, entry.name)
-								.slice(resolve(repoRoot, root).length + 1)
-								.replaceAll("\\", "/"),
-						),
-					),
-			);
+	const currentPaths = current.paths;
 	assert.deepEqual(
 		currentPaths
 			.filter(
@@ -1437,11 +1577,7 @@ function verifyLatest({
 			for (const edit of reviewEdits.filter((row) => row.target_path === path))
 				expected = Buffer.from(replaceDelta(expected.toString("utf8"), edit.before, edit.after, path));
 		}
-		const actual = revision
-			? git(repoRoot, ["show", `${revision}:${path}`], undefined, "buffer")
-			: overrides?.has(path)
-				? Buffer.from(overrides.get(path))
-				: readFileSync(join(repoRoot, path));
+		const actual = current.bytes(path);
 		assert.ok(actual.equals(expected), `latest-main exact preservation differs: ${path}`);
 	}
 	return {
@@ -1493,34 +1629,262 @@ function verifyLatest({
 	};
 }
 
+/** Fifth source capture: closed hunks, complete upstream files, and binary asset closure. */
+export function reconstructRebaseMainDelta(repoRoot) {
+	return withHistory({ repoRoot }, () => {
+		const specs = [
+			["computer-use.md", 13, 13, 13, 16],
+			["computer-use.md", 27, 6, 30, 8],
+			["computer-use.md", 39, 18, 44, 19],
+			["computer-use.md", 80, 35, 86, 47],
+			["computer-use.md", 124, 7, 142, 7],
+			["computer-use.md", 181, 7, 199, 7],
+			["computer-use.md", 320, 7, 338, 7],
+			["computer-use.md", 334, 18, 352, 18],
+			["workflows/operations.md", 525, 6, 525, 8],
+		];
+		const changed = [...new Set(specs.map(([path]) => DOCS + path))];
+		const previous = git(repoRoot, ["ls-tree", "-r", FOURTH_MAIN, "--", DOCS]);
+		const latest = git(repoRoot, ["ls-tree", "-r", REBASE_MAIN, "--", DOCS]);
+		const paths = (tree) =>
+			tree
+				.trim()
+				.split("\n")
+				.map((line) => line.split("\t")[1]);
+		const unchanged = (tree) =>
+			tree
+				.split("\n")
+				.filter((line) => !changed.includes(line.split("\t")[1]))
+				.join("\n");
+		assert.deepEqual(paths(latest), paths(previous), "rebase-main source file set changed");
+		assert.equal(unchanged(latest), unchanged(previous), "unmapped rebase-main source/asset change");
+		const source = (revision, path) => git(repoRoot, ["show", `${revision}:${path}`]);
+		const slice = (revision, path, start, count) =>
+			`${source(revision, path)
+				.split("\n")
+				.slice(start - 1, start - 1 + count)
+				.join("\n")}\n`;
+		const edits = specs.map(([path, oldStart, oldCount, newStart, newCount]) => ({
+			source_path: DOCS + path,
+			target_path: DOCS + path,
+			previous_lines: [oldStart, oldStart + oldCount - 1],
+			latest_lines: [newStart, newStart + newCount - 1],
+			before: slice(FOURTH_MAIN, DOCS + path, oldStart, oldCount),
+			after: slice(REBASE_MAIN, DOCS + path, newStart, newCount),
+		}));
+		for (const path of changed) {
+			let expected = source(FOURTH_MAIN, path);
+			for (const edit of edits.filter((row) => row.source_path === path))
+				expected = replaceDelta(expected, edit.before, edit.after, path);
+			assert.equal(expected, source(REBASE_MAIN, path), `unmapped rebase-main source change: ${path}`);
+		}
+		const computer = `${DOCS}computer-use.md`;
+		const row = slice(PRE_REBASE, computer, 47, 1);
+		const recipe = slice(PRE_REBASE, computer, 83, 30);
+		const com = slice(REBASE_MAIN, computer, 56, 1);
+		assert.ok(row.startsWith("| VBA in desktop"), "VBA source row moved");
+		assert.ok(com.startsWith("| PowerShell with COM automation"), "VBA placement source moved");
+		assert.ok(recipe.startsWith("### Office recipe: format an Excel report with VBA\n"), "VBA recipe source moved");
+		const heading = "### Office Scripts, app runtimes, and file tools\n";
+		const retentions = [
+			{
+				target_path: computer,
+				source_revision: PRE_REBASE,
+				source_lines: [47, 47],
+				before: com,
+				after: com + row,
+				text: row,
+				placement: "after PowerShell COM row",
+			},
+			{
+				target_path: computer,
+				source_revision: PRE_REBASE,
+				source_lines: [83, 112],
+				before: heading,
+				after: recipe + heading,
+				text: recipe,
+				placement: "before Office Scripts heading",
+			},
+		];
+		const prefix = "For scripts that operate an application, also keep these application-specific checks:\n\n";
+		const applicationChecks = prefix + slice(PRE_REBASE, computer, 53, 2);
+		const macHeading = "### macOS recipe: create a draft with osascript\n";
+		retentions.push({
+			target_path: computer,
+			source_revision: PRE_REBASE,
+			source_lines: [53, 54],
+			prefix,
+			before: macHeading,
+			after: applicationChecks + macHeading,
+			text: applicationChecks,
+			placement: "before macOS recipe heading",
+		});
+		const recipePath = "docs/2847-stage-skill-verification.md";
+		assert.equal(
+			source(REBASED_RECIPE, recipePath),
+			source(PRE_REBASE, recipePath),
+			"rebased maintainer recipe differs",
+		);
+		const readerRepairs = [
+			{
+				kind: "published-maintainer-recipe-pointer",
+				target_path: `${DOCS}workflows/verification.md`,
+				before: `https://github.com/bastani-inc/atomic/blob/${FOURTH_PREDECESSOR}/${DOCS}workflows/verification.md#reproduce-stage-skill-terminal-evidence`,
+				after: `https://github.com/bastani-inc/atomic/blob/${REBASED_RECIPE}/${recipePath}#reproduce-stage-skill-terminal-evidence`,
+			},
+		];
+		return {
+			schema: "2847-rebase-main-v1",
+			baseline: BASELINE,
+			predecessor: PRE_REBASE,
+			previous_main: FOURTH_MAIN,
+			latest_main: REBASE_MAIN,
+			source_trees: {
+				previous_sha256: digest(previous),
+				latest_sha256: digest(latest),
+				unchanged_sha256: digest(unchanged(previous)),
+			},
+			changed_source_paths: changed,
+			unchanged_source_paths: paths(latest).filter((path) => !changed.includes(path)),
+			edits,
+			retentions,
+			reader_repairs: readerRepairs,
+		};
+	});
+}
+
+export function rebaseMainEvidence(delta) {
+	const { edits, retentions, ...sources } = delta;
+	return {
+		...sources,
+		edits: edits.map(({ before, after, ...location }) => ({
+			...location,
+			before_sha256: digest(before),
+			after_sha256: digest(after),
+		})),
+		active_retentions: retentions.map(({ before, after, text, ...location }) => ({
+			...location,
+			sha256: digest(text),
+			before_sha256: digest(before),
+			after_sha256: digest(after),
+		})),
+		history_transport: { parts: HISTORY_PARTS, bytes: 949604, sha256: HISTORY_SHA256 },
+	};
+}
+
+const preRebaseProofs = new Set();
+function verifyRebase({ repoRoot, revision, overrides }) {
+	const current = reader(repoRoot, revision, overrides);
+	// Required by selected-main ancestry, even if every old object happens to be present.
+	const evidence = JSON.parse(current.read(REBASE_FOLLOWUP));
+	historyBundle(historyContexts.get(realpathSync(repoRoot)));
+	const delta = reconstructRebaseMainDelta(repoRoot);
+	assert.deepEqual(evidence, rebaseMainEvidence(delta), "rebase-main evidence does not reconstruct");
+	assert.equal(digest(current.read(REBASE_README)), REBASE_README_SHA256, "rebase-main explanation changed");
+	const restored = new Map();
+	for (const edit of [...delta.edits, ...delta.retentions, ...delta.reader_repairs].reverse()) {
+		const text = restored.get(edit.target_path) ?? current.read(edit.target_path);
+		// Retain the earlier computer-use diagnostic for existing negative controls.
+		assert.equal(
+			text.split(edit.after).length,
+			2,
+			edit.target_path.endsWith("/computer-use.md")
+				? `fourth-main new page differs: rebase-main delta/active retention at ${edit.target_path}`
+				: `latest-main delta must occur exactly once: rebase-main ${edit.target_path}`,
+		);
+		restored.set(
+			edit.target_path,
+			text.replace(edit.after, () => edit.before),
+		);
+	}
+	const paths = current.paths.filter((path) => path !== REBASE_FOLLOWUP && path !== REBASE_README);
+	const bytes = (path) => (restored.has(path) ? Buffer.from(restored.get(path)) : current.bytes(path));
+	const flags = { waitMain: true, authoringReferences: true, fourthMain: true, reviewRepairs: true };
+	// Do not infer the earlier reader repairs from now-unpublished local ancestry.
+	const root = realpathSync(repoRoot);
+	if (!preRebaseProofs.has(root)) {
+		verifyLatest({ repoRoot, revision: PRE_REBASE, ...flags });
+		preRebaseProofs.add(root);
+	}
+	const result = verifyLatest({
+		repoRoot,
+		snapshot: { paths, pages: current.pages, read: (path) => bytes(path).toString("utf8"), bytes },
+		...flags,
+	});
+	assert.deepEqual(
+		paths.slice().sort(),
+		documentationPaths(repoRoot, PRE_REBASE).sort(),
+		"rebase-main frozen file set changed",
+	);
+	for (const path of [...paths, "docs/2847-stage-skill-verification.md"]) {
+		const original = git(repoRoot, ["show", `${PRE_REBASE}:${path}`], undefined, "buffer");
+		assert.ok(bytes(path).equals(original), `rebase-main reversed predecessor differs: ${path}`);
+		let expected = original;
+		for (const edit of [...delta.edits, ...delta.retentions, ...delta.reader_repairs].filter(
+			(row) => row.target_path === path,
+		))
+			expected = Buffer.from(replaceDelta(expected.toString("utf8"), edit.before, edit.after, path));
+		assert.ok(current.bytes(path).equals(expected), `rebase-main exact preservation differs: ${path}`);
+	}
+	return {
+		...result,
+		rebaseMain: {
+			revision: REBASE_MAIN,
+			predecessor: PRE_REBASE,
+			changedPages: delta.changed_source_paths.length,
+			edits: delta.edits.length,
+			activeRetentions: delta.retentions.length,
+		},
+	};
+}
+
 /** Committed mode never consults working-tree docs, manifests, or ledger. Safe through a data URL. */
 export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
-	const commit = git(repoRoot, ["rev-parse", "--verify", `${revision}^{commit}`]).trim();
-	const latest = git(repoRoot, ["merge-base", commit, LATEST_MAIN]).trim() === LATEST_MAIN;
-	const waitMain = git(repoRoot, ["merge-base", commit, WAIT_MAIN]).trim() === WAIT_MAIN;
-	const fourthMain = git(repoRoot, ["merge-base", commit, FOURTH_MAIN]).trim() === FOURTH_MAIN;
-	const reviewRepairs =
-		commit !== REVIEW_PREDECESSOR &&
-		git(repoRoot, ["merge-base", commit, REVIEW_PREDECESSOR]).trim() === REVIEW_PREDECESSOR;
-	const authoringReferences =
-		commit !== AUTHORING_PREDECESSOR &&
-		git(repoRoot, ["merge-base", commit, AUTHORING_PREDECESSOR]).trim() === AUTHORING_PREDECESSOR;
-	const result = latest
-		? verifyLatest({ repoRoot, revision: commit, waitMain, authoringReferences, fourthMain, reviewRepairs })
-		: verify({ repoRoot, revision: commit });
-	console.log(JSON.stringify({ mode: "committed", revision: commit, ...result }));
-	return result;
+	return withHistory({ repoRoot }, (context) => {
+		// Historical commits predate transport: cold historical reads use committed HEAD.
+		context.transportRevision = git(repoRoot, ["rev-parse", "--verify", "HEAD^{commit}"]).trim();
+		const commit =
+			revision === "HEAD"
+				? context.transportRevision
+				: git(repoRoot, ["rev-parse", "--verify", `${revision}^{commit}`]).trim();
+		const rebased = git(repoRoot, ["merge-base", commit, REBASE_MAIN]).trim() === REBASE_MAIN;
+		if (rebased) {
+			context.transportRevision = commit;
+			const result = verifyRebase({ repoRoot, revision: commit });
+			console.log(JSON.stringify({ mode: "committed", revision: commit, ...result }));
+			return result;
+		}
+		const latest = git(repoRoot, ["merge-base", commit, LATEST_MAIN]).trim() === LATEST_MAIN;
+		const waitMain = git(repoRoot, ["merge-base", commit, WAIT_MAIN]).trim() === WAIT_MAIN;
+		const fourthMain = git(repoRoot, ["merge-base", commit, FOURTH_MAIN]).trim() === FOURTH_MAIN;
+		const reviewRepairs =
+			commit !== REVIEW_PREDECESSOR &&
+			git(repoRoot, ["merge-base", commit, REVIEW_PREDECESSOR]).trim() === REVIEW_PREDECESSOR;
+		const authoringReferences =
+			commit !== AUTHORING_PREDECESSOR &&
+			git(repoRoot, ["merge-base", commit, AUTHORING_PREDECESSOR]).trim() === AUTHORING_PREDECESSOR;
+		const result = latest
+			? verifyLatest({ repoRoot, revision: commit, waitMain, authoringReferences, fourthMain, reviewRepairs })
+			: verify({ repoRoot, revision: commit });
+		console.log(JSON.stringify({ mode: "committed", revision: commit, ...result }));
+		return result;
+	});
 }
 
 /** Explicit precommit mode; overrides are a disposable in-memory negative-control fixture. */
 export function verifyWorkingTreeDocumentation({ repoRoot, overrides = new Map() }) {
-	return verifyLatest({
-		repoRoot,
-		overrides,
-		waitMain: true,
-		authoringReferences: true,
-		fourthMain: true,
-		reviewRepairs: true,
+	return withHistory({ repoRoot, overrides }, () => {
+		const commit = git(repoRoot, ["rev-parse", "--verify", "HEAD^{commit}"]).trim();
+		if (git(repoRoot, ["merge-base", commit, REBASE_MAIN]).trim() === REBASE_MAIN)
+			return verifyRebase({ repoRoot, overrides });
+		return verifyLatest({
+			repoRoot,
+			overrides,
+			waitMain: true,
+			authoringReferences: true,
+			fourthMain: true,
+			reviewRepairs: true,
+		});
 	});
 }
 

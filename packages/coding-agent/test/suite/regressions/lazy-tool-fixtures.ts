@@ -91,10 +91,6 @@ export function runIntercomFixture<T>(heavySource: string, scriptBody: string): 
 			readFileSync(resolve(repoRoot, "packages/intercom/config.ts"), "utf-8"),
 		);
 		writeFileSync(
-			join(tempDir, "context-owner.ts"),
-			readFileSync(resolve(repoRoot, "packages/intercom/context-owner.ts"), "utf-8"),
-		);
-		writeFileSync(
 			join(tempDir, "lifecycle-lease.ts"),
 			readFileSync(resolve(repoRoot, "packages/intercom/lifecycle-lease.ts"), "utf-8"),
 		);
