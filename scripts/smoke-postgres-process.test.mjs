@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -31,16 +31,56 @@ test("a successful launcher returns while its server still inherits stdout and s
 		// Returning must not require terminating the successfully launched server.
 		process.kill(Number(readFileSync(pidFile, "utf8")), 0);
 	} finally {
-		await stopFixtureServer(Number(readFileSync(pidFile, "utf8")));
+		await cleanupFixtureServer(cwd, pidFile);
+	}
+});
+
+async function cleanupFixtureServer(cwd, pidFile) {
+	try {
+		let pid;
+		try {
+			pid = Number(readFileSync(pidFile, "utf8"));
+		} catch (error) {
+			if (error.code !== "ENOENT") throw error;
+		}
+		if (Number.isInteger(pid) && pid > 0) await stopFixtureServer(pid);
+	} finally {
 		// Windows may briefly retain directory handles even after the PID reports exited.
 		await rm(cwd, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
 	}
+}
+
+test("fixture cleanup preserves launcher failure before PID publication", async () => {
+	const cwd = mkdtempSync(join(tmpdir(), "atomic-pg-no-pid-"));
+	await assert.rejects(
+		async () => {
+			try {
+				runSmokeCommand(process.execPath, ["-e", "console.error('launcher failed'); process.exit(7)"], {
+					cwd,
+					env: process.env,
+				});
+			} finally {
+				await cleanupFixtureServer(cwd, join(cwd, "server.pid"));
+			}
+		},
+		(error) => {
+			assert.equal(error.status, 7);
+			assert.match(error.stderr, /launcher failed/u);
+			return true;
+		},
+	);
+	assert.equal(existsSync(cwd), false);
 });
 
 const SERVER_EXIT_TIMEOUT_MS = 5_000;
 
 async function stopFixtureServer(pid) {
-	process.kill(pid);
+	try {
+		process.kill(pid);
+	} catch (error) {
+		if (error.code === "ESRCH") return;
+		throw error;
+	}
 	const deadline = performance.now() + SERVER_EXIT_TIMEOUT_MS;
 	for (;;) {
 		try {

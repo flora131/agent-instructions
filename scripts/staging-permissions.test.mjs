@@ -24,6 +24,8 @@ function fixture(t) {
 	mkdirSync(join(work, "extracted", "bin"), { recursive: true });
 	writeFileSync(artifact, "artifact");
 	writeFileSync(source, "real executable bytes", { mode: 0o755 });
+	// Creation modes are filtered by umask; these exact-mode regressions require 0755.
+	chmodSync(source, 0o755);
 	const observation = observeStagedExecutable(t, artifact);
 	copyFileSync(artifact, join(work, "artifact.tgz"));
 	const mode = lstatSync(source).mode & 0o777;
@@ -37,6 +39,18 @@ test("executable-copy observation forwards a real copy and exact chmod", (t) => 
 	observation.assertCopiedTo(destination);
 	assert.equal(readFileSync(destination, "utf8"), "real executable bytes");
 	if (process.platform !== "win32") assert.equal(lstatSync(destination).mode & 0o111, 0o111);
+});
+
+test("executable-copy fixture retains exact permissions under a restrictive umask", (t) => {
+	const previousMask = process.umask(0o077);
+	try {
+		const { source, destination, mode, observation } = fixture(t);
+		copyFileSync(source, destination);
+		chmodSync(destination, mode);
+		observation.assertCopiedTo(destination);
+	} finally {
+		process.umask(previousMask);
+	}
 });
 
 for (const [label, chmod] of [
