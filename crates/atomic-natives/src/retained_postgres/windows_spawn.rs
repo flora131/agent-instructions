@@ -22,9 +22,13 @@
 //! administrative accounts take the restricted-token route.
 
 use std::{
-	ffi::OsStr,
+	ffi::{OsStr, OsString},
 	io,
-	os::windows::{ffi::OsStrExt, process::ExitStatusExt},
+	os::windows::{
+		ffi::{OsStrExt, OsStringExt},
+		process::ExitStatusExt,
+	},
+	path::{Path, PathBuf},
 	process::{Child, Command, ExitStatus, Stdio},
 	ptr,
 };
@@ -44,9 +48,13 @@ use windows_sys::Win32::{
 		SetTokenInformation, TOKEN_ALL_ACCESS, TOKEN_DEFAULT_DACL, TOKEN_INFORMATION_CLASS,
 		TOKEN_PRIVILEGES, TOKEN_USER, TokenDefaultDacl, TokenPrivileges, TokenUser,
 	},
-	Storage::FileSystem::{CreateFileW, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING},
+	Storage::FileSystem::{
+		CreateFileW, FILE_SHARE_READ, FILE_SHARE_WRITE, GetFileAttributesW, INVALID_FILE_ATTRIBUTES,
+		OPEN_EXISTING,
+	},
 	System::{
 		Environment::{FreeEnvironmentStringsW, GetEnvironmentStringsW},
+		SystemInformation::{GetSystemDirectoryW, GetWindowsDirectoryW},
 		Threading::{
 			CreateProcessAsUserW, GetCurrentProcess, GetExitCodeProcess, OpenProcessToken,
 			PROCESS_INFORMATION, STARTF_USESTDHANDLES, STARTUPINFOW, WaitForSingleObject,
@@ -476,6 +484,160 @@ fn child_stdio(stdout: HANDLE, stderr: HANDLE) -> io::Result<[OwnedHandle; 3]> {
 	])
 }
 
+/// Match Rust std 1.98's resolve_exe/search_paths, not CreateProcess's default
+/// search (which ignores the child's PATH and searches the caller's cwd).
+/// Source: rust-lang/rust 48a229cea, library/std/src/sys/process/windows.rs.
+fn resolve_executable(command: &Command) -> io::Result<Vec<u16>> {
+	let executable = command.get_program();
+	let bytes = executable.as_encoded_bytes();
+	let verbatim = bytes.starts_with(br"\\?\");
+	if bytes.is_empty() || bytes.last() == Some(&b'\\') || (!verbatim && bytes.last() == Some(&b'/'))
+	{
+		return Err(io::Error::new(io::ErrorKind::InvalidInput, "program path has no file name"));
+	}
+	let exists = |path: &Path| {
+		let path = application_path(path).ok()?;
+		(unsafe { GetFileAttributesW(path.as_ptr()) } != INVALID_FILE_ATTRIBUTES).then_some(path)
+	};
+	// A subpath is relative to the caller, never the requested child cwd.
+	if bytes.iter().any(|c| matches!(c, b'/' | b'\\')) {
+		if !bytes
+			.get(bytes.len().saturating_sub(4)..)
+			.is_some_and(|suffix| suffix.eq_ignore_ascii_case(b".exe"))
+		{
+			let mut appended = executable.to_os_string();
+			appended.push(".exe");
+			if let Some(path) = exists(Path::new(&appended)) {
+				return Ok(path);
+			}
+		}
+		return application_path(Path::new(executable));
+	}
+	let mut name = executable.to_os_string();
+	if !bytes.contains(&b'.') {
+		name.push(".exe");
+	}
+	let search = |paths: &OsStr| {
+		std::env::split_paths(paths)
+			.filter(|path| !path.as_os_str().is_empty())
+			.find_map(|path| exists(&path.join(&name)))
+	};
+	// Explicit child PATH first; an empty or removed PATH still permits the
+	// application/system directories and the parent's PATH, as std does.
+	if let Some(paths) = command.get_envs().find_map(|(key, value)| {
+		key.as_encoded_bytes().eq_ignore_ascii_case(b"PATH").then_some(value).flatten()
+	}) && let Some(path) = search(paths)
+	{
+		return Ok(path);
+	}
+	if let Ok(mut path) = std::env::current_exe() {
+		path.pop();
+		if let Some(path) = exists(&path.join(&name)) {
+			return Ok(path);
+		}
+	}
+	for directory in [GetSystemDirectoryW, GetWindowsDirectoryW] {
+		if let Ok(path) = system_directory(directory)
+			&& let Some(path) = exists(&path.join(&name))
+		{
+			return Ok(path);
+		}
+	}
+	if let Some(paths) = std::env::var_os("PATH")
+		&& let Some(path) = search(&paths)
+	{
+		return Ok(path);
+	}
+	Err(io::Error::new(io::ErrorKind::NotFound, "program not found"))
+}
+
+fn system_directory(get: unsafe extern "system" fn(*mut u16, u32) -> u32) -> io::Result<PathBuf> {
+	let mut buffer = vec![0; 260];
+	loop {
+		let length = unsafe { get(buffer.as_mut_ptr(), buffer.len() as u32) } as usize;
+		if length == 0 {
+			return Err(last_error());
+		}
+		if length < buffer.len() {
+			return Ok(OsString::from_wide(&buffer[..length]).into());
+		}
+		buffer.resize(length + 1, 0);
+	}
+}
+
+fn application_path(path: &Path) -> io::Result<Vec<u16>> {
+	// std's get_long_path also preserves the NT namespace prefix, which
+	// std::path::absolute otherwise treats as a drive-relative rooted path.
+	if path.as_os_str().as_encoded_bytes().starts_with(br"\??\") {
+		return Ok(wide(path.as_os_str()));
+	}
+	// std::path::absolute uses GetFullPathNameW without following symlinks and
+	// leaves verbatim paths untouched. Retain Win32's normalization of unusual
+	// valid names; canonicalize would require existence and change that behavior.
+	let absolute = std::path::absolute(path)?;
+	let text = absolute.as_os_str();
+	let bytes = text.as_encoded_bytes();
+	let mut result = wide(text);
+	// std's to_user_path/get_long_path uses a verbatim prefix for long paths.
+	if result.len() >= 248 && !bytes.starts_with(br"\\?\") && !bytes.starts_with(br"\??\") {
+		let (prefix, start) = if bytes.starts_with(br"\\.\") {
+			(r"\\?\", 4)
+		} else if bytes.starts_with(br"\\") {
+			(r"\\?\UNC\", 2)
+		} else {
+			(r"\\?\", 0)
+		};
+		result = prefix.encode_utf16().chain(result[start..].iter().copied()).collect();
+	}
+	// std's to_user_path strips short verbatim disk/UNC prefixes only when
+	// GetFullPathNameW leaves the unprefixed spelling completely unchanged.
+	if result.len() <= 260 {
+		let candidate = if bytes.starts_with(br"\\?\UNC\") {
+			Some([&[b'\\' as u16, b'\\' as u16][..], &result[8..result.len() - 1]].concat())
+		} else if bytes.starts_with(br"\\?\") && bytes.get(5..7) == Some(br":\") {
+			Some(result[4..result.len() - 1].to_vec())
+		} else {
+			None
+		};
+		if let Some(candidate) = candidate {
+			let text = OsString::from_wide(&candidate);
+			if std::path::absolute(&text)?.as_os_str() == text {
+				result = candidate;
+				result.push(0);
+			}
+		}
+	}
+	Ok(result)
+}
+
+fn validate_command(command: &Command) -> io::Result<()> {
+	let no_nuls = |value: &OsStr| {
+		if value.as_encoded_bytes().contains(&0) {
+			Err(io::Error::new(
+				io::ErrorKind::InvalidInput,
+				"strings passed to WinAPI cannot contain NULs",
+			))
+		} else {
+			Ok(())
+		}
+	};
+	no_nuls(command.get_program())?;
+	for argument in command.get_args() {
+		no_nuls(argument)?;
+	}
+	if let Some(directory) = command.get_current_dir() {
+		no_nuls(directory.as_os_str())?;
+	}
+	for (name, value) in command.get_envs() {
+		// Removed entries are not serialized, matching std's make_envp.
+		if let Some(value) = value {
+			no_nuls(name)?;
+			no_nuls(value)?;
+		}
+	}
+	Ok(())
+}
+
 /// Spawn `command` with the caller's log-file handles as the child's
 /// stdout/stderr. Returns the exact process handle as the retained child.
 pub fn spawn(
@@ -493,6 +655,9 @@ pub fn spawn(
 		let child = command.spawn()?;
 		return Ok(retain_from_child(child));
 	};
+	// Manual Win32 buffers must retain Command's rejection boundary before
+	// serialization can turn a NUL into truncation or an environment entry.
+	validate_command(command)?;
 	unsafe {
 		let executable = command.get_program();
 		let args: Vec<String> =
@@ -512,7 +677,7 @@ pub fn spawn(
 			..STARTUPINFOW::default()
 		};
 		let mut information = PROCESS_INFORMATION::default();
-		let application = wide(executable);
+		let application = resolve_executable(command)?;
 		let created = CreateProcessAsUserW(
 			token.0,
 			application.as_ptr(),
