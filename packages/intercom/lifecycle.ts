@@ -107,9 +107,12 @@ export function registerIntercomLifecycle(pi: ExtensionAPI, deps: LifecycleDeps)
     await cleanupRuntime("Session shutting down");
   });
 
-  pi.on("turn_end", () => {
+  pi.on("turn_end", (event) => {
     if (!deps.getLiveContext()) return;
-    activeReplyTracker().endTurn();
+    const message = (event as { message?: { role?: string; stopReason?: string; content?: unknown[] } }).message;
+    const cancelledBeforeReply = message?.role === "assistant" && message.stopReason === "aborted" && message.content?.length === 0;
+    if (cancelledBeforeReply) activeReplyTracker().restoreTurnContext();
+    else activeReplyTracker().endTurn();
     // Preserve the normal grace period so a same-tick terminal barrier can
     // claim accepted child messages before idle delivery releases ownership.
     deps.scheduleInboundFlush();

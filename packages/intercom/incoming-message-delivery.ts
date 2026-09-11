@@ -3,7 +3,7 @@ import type { InboundMessageEntry } from "./intercom-utils.js";
 import type { IntercomContext } from "./reply-tracker.js";
 import type { Message } from "./types.js";
 
-export type IncomingMessageDelivery = "trigger" | "followUp" | "prelude";
+export type IncomingMessageDelivery = "trigger" | "interrupt" | "followUp" | "prelude";
 export type IncomingMessageSender = (
   entry: InboundMessageEntry,
   delivery: IncomingMessageDelivery,
@@ -24,7 +24,7 @@ export function createIncomingMessageSender(input: {
     if (!input.canDeliver(generation)) {
       return Promise.reject(new Error("Intercom session retired before inbound delivery"));
     }
-    if (delivery === "trigger" && trackReplyContext) {
+    if ((delivery === "trigger" || delivery === "interrupt") && trackReplyContext) {
       input.queueTurnContext(turnContext ?? { from: entry.from, message: entry.message, receivedAt: Date.now() });
     }
     const baseOptions = {
@@ -32,7 +32,9 @@ export function createIncomingMessageSender(input: {
       persistWhenStreaming: true,
       ...(stageAdmissionBarrier ? { stageAdmissionBarrier } : {}),
     } as const;
-    const options = delivery === "trigger"
+    const options = delivery === "interrupt"
+      ? { ...baseOptions, triggerTurn: true, deliverAs: "interrupt" } as const
+      : delivery === "trigger"
       ? { ...baseOptions, triggerTurn: true } as const
       : delivery === "followUp" ? { ...baseOptions, deliverAs: "followUp" } as const : baseOptions;
     return Promise.resolve(input.pi.sendMessage(buildIncomingCustomMessage(entry), options));

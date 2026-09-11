@@ -44,6 +44,12 @@ export class ReplyTracker {
     this.currentTurnContext = null;
   }
 
+  /** A cancelled turn that produced nothing could not have replied; keep its context for the next turn. */
+  restoreTurnContext(): void {
+    if (this.currentTurnContext) this.pendingTurnContexts.unshift(this.currentTurnContext);
+    this.currentTurnContext = null;
+  }
+
   reset(): void {
     this.pendingAsks.clear();
     this.pendingTurnContexts.length = 0;

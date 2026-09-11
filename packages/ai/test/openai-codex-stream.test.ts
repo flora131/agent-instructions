@@ -1192,6 +1192,45 @@ describe("openai-codex streaming", () => {
 		expect(requestedReasoning).toEqual({ effort: "low", summary: "auto" });
 	});
 
+	// Regression for upstream #9191: Off must reach Codex unless the model forbids it.
+	it.each([undefined, "none", "low", null] as const)("serializes the Off mapping %s", async (off) => {
+		const model: Model<"openai-codex-responses"> = {
+			id: "test-codex",
+			name: "Test Codex",
+			api: "openai-codex-responses",
+			provider: "openai-codex",
+			baseUrl: "http://127.0.0.1:9",
+			reasoning: true,
+			thinkingLevelMap: { off },
+			input: ["text"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			contextWindow: 128000,
+			maxTokens: 16384,
+		};
+		for (const reasoningEffort of [undefined, "none"] as const) {
+			let payload: { reasoning?: { effort: string; summary?: string } } | undefined;
+			await streamOpenAICodexResponses(
+				model,
+				{ messages: [{ role: "user", content: "Hello", timestamp: 0 }] },
+				{
+					apiKey: mockToken(),
+					transport: "sse",
+					reasoningEffort,
+					onPayload(value) {
+						payload = value as typeof payload;
+						throw new Error("payload captured");
+					},
+				},
+			).result();
+			expect(payload).toBeDefined();
+			expect(payload?.reasoning).toEqual(
+				off === null
+					? undefined
+					: { effort: off ?? "none", ...(reasoningEffort === undefined ? {} : { summary: "auto" }) },
+			);
+		}
+	});
+
 	it.each([
 		["gpt-5.1-codex", "flex", 0.5],
 		["gpt-5.1-codex", "priority", 2],

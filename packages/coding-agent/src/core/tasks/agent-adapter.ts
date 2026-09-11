@@ -100,6 +100,11 @@ export class AgentTaskHost {
 		});
 	}
 
+	/** Let inbound routing reach SDK admission instead of waiting for this owner to become idle. */
+	get hasActiveTaskWaits(): boolean {
+		return this.messageWaits.size > 0;
+	}
+
 	/** Incoming owner messages release observation only, never the child execution. */
 	yieldTaskWaits(reason: C.YieldReason): void {
 		for (const wait of this.messageWaits) this.supervisor.yieldTaskWait(wait, reason);

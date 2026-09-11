@@ -352,7 +352,11 @@ test("pins the opencode, OpenRouter, and Vercel AI Gateway mirrors", () => {
 	assert.equal(openrouter.contextWindow, 1_048_576);
 	assert.equal(openrouter.maxTokens, 65_536);
 	assert.deepEqual(openrouter.cost, { input: 0.75, output: 3.75, cacheRead: 0.075, cacheWrite: 0.041667 });
-	assert.deepEqual(openrouter.compat, { supportsDeveloperRole: false, thinkingFormat: "openrouter" });
+	assert.deepEqual(openrouter.compat, {
+		supportsDeveloperRole: false,
+		thinkingFormat: "openrouter",
+		sendSessionAffinityHeaders: true,
+	});
 	// OpenRouter builds a full map from its own reasoning metadata and already denies `minimal`,
 	// which is the same three efforts the Google-path fix arrives at from Google's docs.
 	assert.deepEqual(openrouter.thinkingLevelMap, {

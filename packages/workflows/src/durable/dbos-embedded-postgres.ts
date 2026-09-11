@@ -13,6 +13,10 @@
  * and can be shared by concurrent sessions. Orderly shutdown signals and waits
  * on that exact retained process instance; attached clusters are untouched.
  *
+ * On Windows, Administrative accounts run PostgreSQL through a restricted
+ * access token (mirroring pg_ctl), because the server refuses to start for a
+ * member of the Administrators or Power Users groups.
+ *
  * PostgreSQL refuses to run as UID 0, so a root Atomic process (containers,
  * CI sandboxes, eval harnesses) resolves an unprivileged system account, keeps
  * the cluster under `/var/lib/atomic-postgres` instead (a root home directory
@@ -166,6 +170,7 @@ async function rollbackStartedCluster(
 	}
 	throw startupError;
 }
+
 async function waitForClusterReadiness(
 	logFile: string,
 	rollbackCluster: ActiveEmbeddedPostgres | undefined,
@@ -175,7 +180,13 @@ async function waitForClusterReadiness(
 ): Promise<void> {
 	try {
 		for (let attempt = 0; attempt < attempts; attempt += 1) {
-			if (await isReachable(EMBEDDED_HOST, EMBEDDED_PORT)) return;
+			await assertRetainedPostgresRunning(rollbackCluster, logFile);
+			if (await isReachable(EMBEDDED_HOST, EMBEDDED_PORT)) {
+				// The owned process can exit while the asynchronous TCP probe connects
+				// to another listener. Observe it again before accepting readiness.
+				await assertRetainedPostgresRunning(rollbackCluster, logFile);
+				return;
+			}
 			await wait(READY_DELAY_MS);
 		}
 		throw new Error(
@@ -183,6 +194,26 @@ async function waitForClusterReadiness(
 		);
 	} catch (startupError) {
 		await rollbackStartedCluster(rollbackCluster, startupError);
+	}
+}
+
+async function assertRetainedPostgresRunning(
+	cluster: ActiveEmbeddedPostgres | undefined,
+	logFile: string,
+): Promise<void> {
+	if (cluster === undefined) return;
+	// Native wait(0) has no typed timeout code: match only its exact live-child
+	// timeout. Query/lock failures must reach the owned startup rollback.
+	const observed = await cluster.lease.wait(0).catch((error: Error) => {
+		if (error instanceof Error && error.message === "Timed out waiting for the retained Postgres process to exit") {
+			return undefined;
+		}
+		throw error;
+	});
+	if (observed?.exited) {
+		throw new Error(
+			`The embedded Postgres process exited early before accepting connections on ${EMBEDDED_HOST}:${EMBEDDED_PORT}; see ${logFile}.${logTail(logFile)}`,
+		);
 	}
 }
 

@@ -17,7 +17,7 @@ import type { AgentMessage, AgentTool } from "@earendil-works/pi-agent-core";
 import { Agent } from "@earendil-works/pi-agent-core";
 import { AgentSession, type AgentSessionEvent } from "../../src/core/agent-session.ts";
 import { AuthStorage } from "../../src/core/auth-storage.ts";
-import type { ExtensionRunner } from "../../src/core/extensions/index.ts";
+import type { ExtensionRunner, OrchestrationContext, SubagentChildPolicy } from "../../src/core/extensions/index.ts";
 import { convertToLlm } from "../../src/core/messages.ts";
 import { ModelRuntime } from "../../src/core/model-runtime.ts";
 import { InMemoryCodingAgentModelsStore } from "../../src/core/models-store.ts";
@@ -75,6 +75,9 @@ export interface HarnessOptions {
 	resourceLoader?: ResourceLoader;
 	extensionFactories?: Array<ExtensionFactory | CreateTestExtensionsResultInput>;
 	withConfiguredAuth?: boolean;
+	subagentPolicy?: SubagentChildPolicy;
+	orchestrationContext?: OrchestrationContext;
+	shouldStopAfterTurn?: Agent["shouldStopAfterTurn"];
 }
 
 export interface Harness {
@@ -146,6 +149,7 @@ export async function createHarness(options: HarnessOptions = {}): Promise<Harne
 
 	const agent = new Agent({
 		streamFn: streamSimple,
+		shouldStopAfterTurn: options.shouldStopAfterTurn,
 		getApiKey: () => (withConfiguredAuth ? "faux-key" : undefined),
 		initialState: {
 			model,
@@ -195,6 +199,8 @@ export async function createHarness(options: HarnessOptions = {}): Promise<Harne
 		allowedToolNames: options.allowedToolNames,
 		excludedToolNames: options.excludedToolNames,
 		extensionRunnerRef,
+		subagentPolicy: options.subagentPolicy,
+		orchestrationContext: options.orchestrationContext,
 	});
 
 	const events: AgentSessionEvent[] = [];

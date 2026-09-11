@@ -38,6 +38,7 @@ import { InboundMessageAdmission } from "./inbound-message-admission.js";
 import { registerLateStageMessageRouter } from "./late-stage-message-router.js";
 import { retryStableDelivery } from "./stable-delivery-retry.js";
 import type { IntercomExtensionTestOverrides } from "./intercom-test-seams.js";
+import { admitActiveSessionInbound } from "./active-session-admission.js";
 import { admitWorkflowStageInbound } from "./workflow-stage-admission.js";
 import { bindWorkflowReplyTracker, preserveWorkflowReplyTracker } from "./workflow-reply-tracker.js";
 import { routeClosedWorkflowStageMessage } from "./closed-workflow-stage-message.js";
@@ -402,21 +403,26 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
       replyContext,
       currentClient: () => client,
       commit,
+      failurePrefix: liveContext.subagentPolicy?.executionEnded === undefined ? undefined : "Subagent could not admit intercom ask",
     });
-    const stageDelivery = admitWorkflowStageInbound(
+    const activeDelivery = admitActiveSessionInbound(
       liveContext,
       (admissionBarrier) => {
         replyTracker.queueTurnContext(replyContext);
+        // Peer ask/send is priority input: cancel the receiver's supported active
+        // operation and continue the same task/stage with the message.
         return retryStableDelivery({
-          deliver: () => sendIncomingMessage(entry, "trigger", messageGeneration, false, undefined, admissionBarrier),
-          isCurrent: () => Boolean(getLiveContext(liveContext, messageGeneration)),
+          deliver: () => sendIncomingMessage(entry, "interrupt", messageGeneration, false, undefined, admissionBarrier),
+          isCurrent: () => Boolean(getLiveContext(liveContext, messageGeneration)) &&
+            liveContext.subagentPolicy?.executionEnded?.aborted !== true &&
+            liveContext.subagentPolicy?.messageAdmission?.isOpen() !== false,
         });
       },
       () => foregroundDetachHandoff.claim(from, message, messageGeneration, () => Boolean(getLiveContext(liveContext, messageGeneration))),
       release,
     );
-    if (stageDelivery !== false) {
-      void stageDelivery.then(commit, release);
+    if (activeDelivery !== false) {
+      void activeDelivery.then(commit, release);
       return;
     }
     return (async () => {
@@ -426,7 +432,10 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
           release(new Error("Intercom session retired before inbound delivery"));
           return;
         }
-        if (!activeContext.isIdle()) {
+        // Parent-addressed peers need not match an exact child handshake. Reach
+        // SDK admission while this owner is observing a task: persistence and
+        // model-queue insertion then yield its waits, never the child execution.
+        if (!activeContext.isIdle() && !activeContext.getAgentTaskHost?.().hasActiveTaskWaits) {
           if (!activeContext.hasUI) {
             const activeClient = client;
             if (!message.replyTo && activeClient?.isConnected()) {
@@ -471,6 +480,16 @@ export default function piIntercomExtension(pi: ExtensionAPI, testOverrides: Int
             onDelivered: () => { pendingIdleMessages.remove(entry); },
           });
           return;
+        }
+        // Observing parents still owe the exact child first refusal: its commit
+        // releases parallel/queued sibling observations as well as its own wait.
+        // Unrelated peers remain unclaimed and reach protected SDK admission.
+        if (!activeContext.isIdle()) {
+          const disposition = await foregroundDetachHandoff.claim(from, message, messageGeneration, () => Boolean(getLiveContext(liveContext, messageGeneration)));
+          if (disposition === "abandoned") {
+            release(new Error("Intercom session retired during foreground-owner admission"));
+            return;
+          }
         }
         replyTracker.queueTurnContext(replyContext);
         await retryStableDelivery({ deliver: () => sendIncomingMessage(entry, "trigger", messageGeneration, false), isCurrent: () => Boolean(getLiveContext(liveContext, messageGeneration)) });

@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { getModel, getModels, getProviders, getSupportedThinkingLevels } from "../src/compat.ts";
 
+describe("retired provider models", () => {
+	// Regressions for upstream #9423 and #9394: retired aliases must not remain selectable.
+	it("omits retired DeepSeek Flash and Codex GPT-5.4 models", () => {
+		const deepseekIds = getModels("deepseek").map((model) => model.id);
+		expect(deepseekIds).toContain("deepseek-flash");
+		expect(deepseekIds).not.toContain("deepseek-v4-flash");
+		expect(deepseekIds).not.toContain("deepseek-v4-flash-vision-exp");
+		const codexIds = getModels("openai-codex").map((model) => model.id);
+		expect(codexIds).not.toContain("gpt-5.4");
+		expect(codexIds).not.toContain("gpt-5.4-mini");
+		expect(codexIds).toContain("gpt-5.5");
+	});
+});
+
 describe("getSupportedThinkingLevels", () => {
 	it("includes max but not xhigh for Anthropic Opus 4.6 on anthropic-messages API", () => {
 		const model = getModel("anthropic", "claude-opus-4-6");
@@ -88,7 +102,7 @@ describe("getSupportedThinkingLevels", () => {
 		expect(getSupportedThinkingLevels(model!)).not.toContain("max");
 	});
 
-	it.each(["gpt-5.4", "gpt-5.5", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"] as const)(
+	it.each(["gpt-5.5", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-6-astra"] as const)(
 		"includes xhigh for openai-codex %s models",
 		(modelId) => {
 			const model = getModel("openai-codex", modelId);
@@ -132,8 +146,8 @@ describe("getSupportedThinkingLevels", () => {
 		expect(getSupportedThinkingLevels(model!)).toEqual(["medium", "high", "xhigh"]);
 	});
 
-	it("includes low/high/max plus off for DeepSeek V4 Flash on the DeepSeek provider", () => {
-		const model = getModel("deepseek", "deepseek-v4-flash");
+	it("includes low/high/max plus off for DeepSeek V4.1 Flash on the DeepSeek provider", () => {
+		const model = getModel("deepseek", "deepseek-flash");
 		expect(model).toBeDefined();
 		expect(getSupportedThinkingLevels(model!)).toEqual(["off", "low", "high", "max"]);
 	});

@@ -285,6 +285,7 @@ export {
 } from "./core/session-manager-classification.ts";
 export type { DefaultProjectTrust } from "./core/settings-manager.ts";
 export {
+	type CompactionModelOverride,
 	type CompactionSettings,
 	type ImageSettings,
 	type PackageSource,

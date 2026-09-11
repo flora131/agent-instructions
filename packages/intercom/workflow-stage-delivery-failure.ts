@@ -38,6 +38,7 @@ export function createWorkflowStageDeliveryFailureHandler(input: {
   replyContext: IntercomContext;
   currentClient: () => IntercomClient | null;
   commit: () => void;
+  failurePrefix?: string;
 }): (error: unknown) => Promise<void> {
   let settlement: Promise<void> | undefined;
   return (error) => {
@@ -55,6 +56,7 @@ async function settleOpenStageDeliveryFailure(
     replyContext: IntercomContext;
     currentClient: () => IntercomClient | null;
     commit: () => void;
+    failurePrefix?: string;
   },
   error: unknown,
 ): Promise<void> {
@@ -70,7 +72,7 @@ async function settleOpenStageDeliveryFailure(
     input.tracker,
     input.currentClient,
     () => input.currentClient()?.isConnected() === true,
-    "Running workflow stage could not admit intercom ask",
+    input.failurePrefix ?? "Running workflow stage could not admit intercom ask",
   );
   if (delivered) input.commit();
   else input.admission.release(input.reservation, failure);
