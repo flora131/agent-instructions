@@ -1444,6 +1444,7 @@ test("broker rejects same-group replacement of an active pending route owner", a
 	assert.equal(brokerOutput.includes(canary), false);
 });
 
+// Regression for #2990.
 test("a refused production route settles its pipelined list barrier with the broker's authorization reason", async () => {
 	// Regression: the broker refuses an unauthorized route update with the same
 	// `registration_failed` frame it uses before registration, then ends the socket

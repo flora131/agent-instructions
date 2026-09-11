@@ -776,6 +776,7 @@ describe("workflows-owned pending-stage delivery event bridge", () => {
 			payload.completion = claim.promise;
 		});
 
+	// Regression for #2990.
 	test("an unchanged route is republished neither while its acknowledgement is pending nor after it resolves", async () => {
 		const routes: Record<string, unknown>[] = [];
 		const claims: PromiseWithResolvers<void>[] = [];
@@ -798,6 +799,7 @@ describe("workflows-owned pending-stage delivery event bridge", () => {
 		dispose();
 	});
 
+	// Regression for #2990.
 	test("a rejected route publication is retried on the next unchanged invalidation", async () => {
 		const routes: Record<string, unknown>[] = [];
 		const claims: PromiseWithResolvers<void>[] = [];
@@ -814,6 +816,7 @@ describe("workflows-owned pending-stage delivery event bridge", () => {
 		dispose();
 	});
 
+	// Regression for #2990.
 	test("a stale rejection cannot evict the claim of a route republished after A -> B -> A", async () => {
 		const routes: Record<string, unknown>[] = [];
 		const claims: PromiseWithResolvers<void>[] = [];
@@ -837,6 +840,7 @@ describe("workflows-owned pending-stage delivery event bridge", () => {
 		dispose();
 	});
 
+	// Regression for #2990.
 	test("an unclaimed announcement republishes until a consumer acknowledges it", () => {
 		const routes: Record<string, unknown>[] = [];
 		let acknowledging = false;
@@ -856,6 +860,7 @@ describe("workflows-owned pending-stage delivery event bridge", () => {
 		dispose();
 	});
 
+	// Regression for #2990.
 	test("a replacement bridge republishes once and survives the disposed bridge's late rejection", async () => {
 		const routes: Record<string, unknown>[] = [];
 		const claims: PromiseWithResolvers<void>[] = [];

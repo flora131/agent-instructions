@@ -2818,6 +2818,7 @@ test("one composite workflow-stage target transitions atomically from durable qu
 // `listSessions()` barrier could expire on its own timer. A burst of route-neutral churn
 // must leave durable queueing, stage startup, and live delivery externally unchanged, and
 // must not produce a pending-stage-route relay failure.
+// Regression for #2990.
 test("route-neutral store churn preserves durable queueing and live delivery for a starting stage", async () => {
 	const runId = randomUUID();
 	const group = `workflow:${runId}`;

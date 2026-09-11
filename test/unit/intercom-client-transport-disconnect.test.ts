@@ -272,6 +272,7 @@ test("pre-registration failures stay non-recoverable", async () => {
 	});
 });
 
+// Regression for #2990.
 test("a post-registration refusal settles pipelined work with its reason while the broker stays open", async () => {
 	let brokerSide: net.Socket | undefined;
 	onConnection = acceptRegistration((socket) => {
