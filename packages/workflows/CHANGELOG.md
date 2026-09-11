@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - Pausing or quitting a workflow no longer waits for answers to an open agent questionnaire, and live stages awaiting input remain eligible for pause. Resuming a retained workflow allows subsequent workflow tools to run and save their results ([#2700](https://github.com/bastani-inc/atomic/pull/2700)).
+- Concurrent resume no longer interrupts an unfinished quit or leaves its tool-registration drain stuck; retry resume after quit completes ([#2700](https://github.com/bastani-inc/atomic/pull/2700)).
 
 ## [0.9.19-alpha.6] - 2026-09-11
 
