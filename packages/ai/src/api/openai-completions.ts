@@ -804,15 +804,16 @@ function createClient(
 		Object.assign(headers, copilotHeaders);
 	}
 
+	const sessionAffinityHeaders: ProviderHeaders = {};
 	if (sessionId && compat.sendSessionAffinityHeaders) {
 		if (compat.sessionAffinityFormat === "openrouter") {
-			headers["x-session-id"] = sessionId;
+			sessionAffinityHeaders["x-session-id"] = sessionId;
 		} else {
 			if (compat.sessionAffinityFormat === "openai") {
-				headers.session_id = sessionId;
+				sessionAffinityHeaders.session_id = sessionId;
 			}
-			headers["x-client-request-id"] = sessionId;
-			headers["x-session-affinity"] = sessionId;
+			sessionAffinityHeaders["x-client-request-id"] = sessionId;
+			sessionAffinityHeaders["x-session-affinity"] = sessionId;
 		}
 	}
 
@@ -826,7 +827,8 @@ function createClient(
 		baseURL: model.baseUrl,
 		dangerouslyAllowBrowser: true,
 		fetch,
-		defaultHeaders: headers,
+		// Affinity defaults yield to explicit model and request headers, including null suppression.
+		defaultHeaders: { ...sessionAffinityHeaders, ...headers },
 	});
 }
 
@@ -1760,7 +1762,7 @@ function detectCompat(model: Model<"openai-completions">): ResolvedOpenAIComplet
 		supportsStrictMode: !isMoonshot && !isTogether && !isCloudflareAiGateway && !isNvidia,
 		supportsOpenAIGrammarTools: false,
 		cacheControlFormat,
-		sendSessionAffinityHeaders: false,
+		sendSessionAffinityHeaders: isOpenRouter,
 		deferredToolsMode: undefined,
 		sessionAffinityFormat: isOpenRouter ? "openrouter" : "openai",
 		supportsLongCacheRetention: !(

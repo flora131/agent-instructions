@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stream as streamOpenAICompletions } from "../src/api/openai-completions.ts";
 import { getModel } from "../src/compat.ts";
-import type { Model } from "../src/types.ts";
+import type { Model, ProviderHeaders } from "../src/types.ts";
 
 interface FakeOpenAIClientOptions {
 	apiKey: string;
 	baseURL: string;
 	dangerouslyAllowBrowser: boolean;
-	defaultHeaders?: Record<string, string>;
+	defaultHeaders?: ProviderHeaders;
 }
 
 interface CapturedCompletionsPayload {
@@ -93,7 +93,7 @@ describe("openai-completions prompt caching", () => {
 		options?: {
 			cacheRetention?: "none" | "short" | "long";
 			sessionId?: string;
-			headers?: Record<string, string>;
+			headers?: ProviderHeaders;
 		},
 		model: Model<"openai-completions"> = createModel(),
 	) {
@@ -210,12 +210,8 @@ describe("openai-completions prompt caching", () => {
 		expect(headers["x-session-affinity"]).toBeUndefined();
 	});
 
-	it("auto-detects OpenRouter session-affinity header for OpenRouter endpoints", async () => {
-		const model = createModel({
-			provider: "openrouter",
-			baseUrl: "https://openrouter.ai/api/v1",
-			compat: { sendSessionAffinityHeaders: true },
-		});
+	it("sends OpenRouter session-affinity header by default for built-in OpenRouter models", async () => {
+		const model = getModel("openrouter", "auto");
 		const { payload, headers } = await captureRequest({ sessionId: "session-openrouter" }, model);
 
 		expect(payload?.session_id).toBeUndefined();
@@ -226,10 +222,53 @@ describe("openai-completions prompt caching", () => {
 		expect(headers["x-session-affinity"]).toBeUndefined();
 	});
 
+	it.each(["model-session", null])(
+		"lets model headers override default OpenRouter session affinity with %s",
+		async (sessionId) => {
+			const model = {
+				...getModel("openrouter", "auto"),
+				headers: { "x-session-id": sessionId },
+			};
+			const { headers } = await captureRequest({ sessionId: "generated-session" }, model);
+
+			expect(headers["x-session-id"]).toBe(sessionId);
+		},
+	);
+
+	it.each(["request-session", null])(
+		"lets request headers override model and default OpenRouter session affinity with %s",
+		async (sessionId) => {
+			const model = {
+				...getModel("openrouter", "auto"),
+				headers: { "x-session-id": "model-session" },
+			};
+			const { headers } = await captureRequest(
+				{ sessionId: "generated-session", headers: { "x-session-id": sessionId } },
+				model,
+			);
+
+			expect(headers["x-session-id"]).toBe(sessionId);
+		},
+	);
+
+	it("omits default OpenRouter session affinity when cacheRetention is none", async () => {
+		const model = getModel("openrouter", "auto");
+		const { payload, headers } = await captureRequest(
+			{ cacheRetention: "none", sessionId: "session-openrouter" },
+			model,
+		);
+
+		expect(headers["x-session-id"]).toBeUndefined();
+		expect(payload?.session_id).toBeUndefined();
+		expect(payload?.prompt_cache_key).toBeUndefined();
+		expect(payload?.prompt_cache_retention).toBeUndefined();
+	});
+
 	it("omits OpenRouter session-affinity data when disabled", async () => {
 		const model = createModel({
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
+			compat: { sendSessionAffinityHeaders: false },
 		});
 		const { payload, headers } = await captureRequest({ sessionId: "session-openrouter" }, model);
 

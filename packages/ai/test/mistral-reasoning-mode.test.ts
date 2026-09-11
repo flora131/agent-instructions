@@ -78,6 +78,21 @@ describe("Mistral reasoning mode selection", () => {
 		expect(payload.promptMode).toBeUndefined();
 	});
 
+	// Regression for upstream #9375: Mistral-hosted GLM-5.2 ignores prompt_mode.
+	describe("zai-glm-5-2", () => {
+		const model = { ...getModel("mistral", "mistral-small-2603"), id: "zai-glm-5-2", reasoning: true };
+		it("uses reasoning_effort when thinking is enabled", async () => {
+			const payload = await capturePayload(model, { reasoning: "medium" });
+			expect(payload.reasoningEffort).toBe("high");
+			expect(payload.promptMode).toBeUndefined();
+		});
+		it("omits reasoning controls when thinking is off", async () => {
+			const payload = await capturePayload(model);
+			expect(payload.reasoningEffort).toBeUndefined();
+			expect(payload.promptMode).toBeUndefined();
+		});
+	});
+
 	// Regression for upstream #8700: Medium aliases use reasoning_effort, not prompt_mode.
 	describe.each(["mistral-medium-2604", "mistral-medium-latest"])("%s", (id) => {
 		it("uses reasoning_effort when thinking is enabled", async () => {
