@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { describe, test } from "vitest";
 import { moduleDir } from "../helpers/runtime.js";
 
@@ -1540,7 +1541,9 @@ describe("docs references and assets (#2847)", () => {
 
 		// Preserve original line evidence against the original PR, not a later edited page.
 		// The active citation is then checked by its exact target and resolving current anchor.
-		const { readExactSource } = (await import(resolve(repoRoot, "scripts/verify-docs-preservation.mjs"))) as {
+		const { readExactSource } = (await import(
+			pathToFileURL(resolve(repoRoot, "scripts/verify-docs-preservation.mjs")).href
+		)) as {
 			readExactSource(options: { repoRoot: string; revision: string; path: string }): string;
 		};
 		const originalPages = new Map<string, string[]>();
