@@ -83,6 +83,10 @@ export function runIntercomFixture<T>(heavySource: string, scriptBody: string): 
 		const indexSource = readFileSync(resolve(repoRoot, "packages/intercom/index.ts"), "utf-8");
 		writeFileSync(join(tempDir, "index.ts"), indexSource);
 		writeFileSync(
+			join(tempDir, "context-owner.ts"),
+			readFileSync(resolve(repoRoot, "packages/intercom/context-owner.ts"), "utf-8"),
+		);
+		writeFileSync(
 			join(tempDir, "config.ts"),
 			readFileSync(resolve(repoRoot, "packages/intercom/config.ts"), "utf-8"),
 		);

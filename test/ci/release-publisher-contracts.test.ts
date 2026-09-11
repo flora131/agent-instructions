@@ -100,12 +100,10 @@ test(
 
 			const tarballs = readdirSync(outputDir).filter((file) => file.endsWith(".tgz"));
 			assert.equal(tarballs.length, 1);
-			const extracted = spawnSyncCollect([
-				"tar",
-				"-xOf",
-				join(outputDir, tarballs[0] as string),
-				"package/package.json",
-			]);
+			// Keep the archive name relative so GNU tar does not parse a Windows drive as a remote host.
+			const extracted = spawnSyncCollect(["tar", "-xOf", tarballs[0] as string, "package/package.json"], {
+				cwd: outputDir,
+			});
 			assert.equal(extracted.exitCode, 0, extracted.stderr.toString());
 			const packedJson = extracted.stdout.toString();
 			const packed = JSON.parse(packedJson) as NativeManifest;
