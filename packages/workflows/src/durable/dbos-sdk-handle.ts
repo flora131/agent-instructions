@@ -123,9 +123,13 @@ export function createRealDbosHandle(
 				const wid = s.workflowID ?? s.workflowId ?? "";
 				const stepName = wid.slice(prefix.length);
 				if (stepName.length === 0) continue;
-				// loadOutput already deserializes successful outputs. Re-reading each
-				// checkpoint adds a serial database round trip per record on every hydration.
-				const output = s.output !== undefined ? s.output : await dbos.retrieveWorkflow(wid).getResult();
+				// DBOS listings use safeParse: strings may be raw text from a decoding
+				// failure. Keep strict getResult errors for ambiguous/missing outputs;
+				// reuse decoded non-strings (including checkpoint envelopes) in bulk.
+				const output =
+					s.output === undefined || typeof s.output === "string"
+						? await dbos.retrieveWorkflow(wid).getResult()
+						: s.output;
 				records.push({ stepName, output, completedAt: s.createdAt });
 			}
 			return records;

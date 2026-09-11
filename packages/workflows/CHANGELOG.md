@@ -16,7 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
-- Reduced durable `/workflow resume` latency for checkpoint-heavy workflows, especially on Windows, by reusing already-loaded checkpoint outputs instead of fetching every result again ([#2897](https://github.com/bastani-inc/atomic/issues/2897)).
+- Reduced durable `/workflow resume` latency for checkpoint-heavy workflows, especially on Windows, by reusing loaded checkpoint envelopes while preserving original checkpoint decoding errors and completed-output values.
 
 ## [0.9.19-alpha.3] - 2026-09-09
 

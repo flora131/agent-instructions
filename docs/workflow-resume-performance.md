@@ -45,11 +45,11 @@ Timing starts immediately before the real command handler call. `acknowledgement
 
 `readyMs`/`readyQueries` separately measure backend configuration and launch. They are **excluded** from command timing. "Cold" means the first resume in a fresh process after backend launch; "warm" means later distinct targets in that same process, with an already populated backend. Neither means cold OS/PostgreSQL disk caches. Module loading, embedded-server provisioning, interactive picker rendering, and host/engine IPC are not measured. Warm samples also see fewer remaining paused targets, so compare like positions/workloads rather than treating the labels as pure cache effects.
 
-## Windows measurements — 2026-09-10
+## Initial Windows measurements — 2026-09-10
 
 Same machine, Windows x64 (after report OS `10.0.20348`), Bun 1.4.2, PostgreSQL 18.4. The reports' `runtime: v26.3.0` is Bun's `process.version`, not the Node executable; validation used Node v24.21.0. The installed DBOS SDK is 4.25.14. Per phase: three separate databases, each containing three 500-effect targets; three fresh resume processes yield **3 cold and 6 warm samples**.
 
-Root cause: DBOS `listWorkflows({ loadOutput: true })` already deserializes successful outputs. The old adapter nevertheless fetched each checkpoint result again serially on every hydration/status-claim read. Reusing present listing outputs removes those redundant requests without removing hydration, classification, claim, or replay checks. Only an omitted (`undefined`) output retains the result-read fallback.
+Root cause: the old adapter fetched each checkpoint result serially after DBOS `listWorkflows({ loadOutput: true })` had already loaded it, on every hydration/status-claim read. The repaired adapter reuses decoded non-string outputs, including valid checkpoint envelopes, without removing hydration, classification, claim, or replay checks. DBOS 4.25.14 listings use best-effort `safeParse`: decoding failures become raw strings. Strings (even empty or JSON-looking strings) and omitted (`undefined`) outputs therefore require strict `getResult()` retrieval to preserve original decoding failures and legitimate string values. The initial optimization below reused every defined output; the repaired-source measurements follow separately.
 
 Medians (ranges in parentheses), milliseconds except SQL calls:
 
@@ -65,8 +65,8 @@ After configuration/launch took 123, 362, and 205 ms, with 11 requests per proce
 Artifacts (local verification paths, not shipped assets):
 
 - Before: `C:/Users/coder/AppData/Local/Temp/atomic-resume-689e3462/before-{1,2,3}/` (`manifest.json`, `seed.json`, `resume.json`, and per-run `.effects`/`.useful` files). These inherited baseline reports predate source fingerprints and the strengthened manifest/checkpoint assertions; identities and effect files were re-audited, but their source revision is recorded by the original investigation rather than embedded in each JSON report.
-- Fresh after: `C:/Users/coder/AppData/Local/Temp/atomic-resume-64313a0d/after-{1,2,3}/` (same files, plus source/manifest SHA-256, platform, database identity, checkpoint additions, and phase query counts in reports). Database names `atomic_resume_probe_64313a0d_after_{1,2,3}`, isolated port 62774. Cluster ownership was verified by `SHOW data_directory`, and the cluster was stopped after measuring.
-- The after root also holds `run-after.mjs`, `run-after.log`, per-process seed/resume logs, `cluster.json`, `postgres.log`, `stop.log`, and `audit-artifacts.mjs`/`audit.json`/`audit.log`. The audit checked all 18 identities/effect files and after source fingerprints against the final adapter/probe/lockfile. Reports record pre-commit HEAD plus hashes because the fix was uncommitted during measurement.
+- Initial after: `C:/Users/coder/AppData/Local/Temp/atomic-resume-64313a0d/after-{1,2,3}/` (same files, plus source/manifest SHA-256, platform, database identity, checkpoint additions, and phase query counts in reports). Database names `atomic_resume_probe_64313a0d_after_{1,2,3}`, isolated port 62774. Cluster ownership was verified by `SHOW data_directory`, and the cluster was stopped after measuring.
+- That initial after root also holds `run-after.mjs`, `run-after.log`, per-process seed/resume logs, `cluster.json`, `postgres.log`, `stop.log`, and `audit-artifacts.mjs`/`audit.json`/`audit.log`. Its audit checked all 18 identities/effect files and fingerprints for the initial optimization, not the decoding repair. Reports record pre-commit HEAD plus hashes because that change was uncommitted during measurement.
 
 Exact samples (`cold` is first in each batch; warm rows retain invocation order):
 
@@ -92,3 +92,34 @@ Exact samples (`cold` is first in each batch; warm rows retain invocation order)
 | after-3/warm | `fdb963fc-22da-41f3-91a8-fade3810928b` | 365.0 / 486.1 / 503.9 | 87 |
 
 These are local diagnostic measurements, not a latency guarantee. Before/after runs were not interleaved and did not use OS-cache resets. Deterministic unit regressions guard the eliminated result reads and value preservation rather than wall-clock thresholds. Existing durable tests cover hydration, lifecycle, cancellation, concurrent resume claims, DAG edge validation, and cycle rejection; this live probe establishes pause/resume and nested side-effect replay but is not a live multi-process contention or adversarial-DAG test.
+
+## Repaired-source Windows measurements — 2026-09-11 UTC
+
+The strict string fallback preserves the speedup for valid checkpoint envelopes. On the same Windows/Bun/PostgreSQL/DBOS setup, three fresh processes and nine distinct owned 500-effect targets produced **3 cold and 6 warm samples**. These runs were not interleaved with the earlier baseline, and are not a latency guarantee.
+
+| Phase/state | n | Acknowledgement | Useful work | Completed | SQL calls |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Repaired cold | 3 | 578 (550–595) | 727 (669–728) | 749 (688–749) | 96 (96–96) |
+| Repaired warm | 6 | 411 (337–443) | 541 (454–599) | 560 (470–613) | 92 (87–97) |
+
+Configuration/launch took 301, 206, and 204 ms with 11 requests each, excluded from command timing. Acknowledgement/useful-work request counts remained 47/47 for cold, 48/48 for second targets, and 38/38 for third targets. The original baseline medians above were 3060/3200 ms cold and 1995/2125 ms warm (acknowledgement/useful work).
+
+An independent earlier reviewer supplied a source-bound baseline at `C:/Users/coder/AppData/Local/Temp/atomic-resume-review-b7564b89/before/`: one cold target took 2469/2611/2628 ms with 14267 SQL calls, and two warm targets had medians 1760/1877/1894 ms with 9710 calls. `variant-provenance.json`, `commands.json`, and `live.mjs` in its parent directory identify the byte-exact baseline adapter and successful owned PostgreSQL commands. The repair audit rechecked these reports against the baseline adapter from Git; the reviewer's probe/lockfile snapshot differs from this checkout only by CRLF versus LF. No historical fixture was resumed again.
+
+Fresh repair evidence: `C:/Users/coder/AppData/Local/Temp/atomic-resume-eff52556/after-{1,2,3}/`, with manifests, seed/resume reports and per-run effect files. The parent contains `run-after.mjs`, `commands.json`, per-process logs, `cluster.json`, `stop.log`, and `audit.mjs`/`audit.json`/`audit.log`. Port 63940 and databases `atomic_resume_probe_eff52556_after_{1,2,3}` belonged to this disposable instance; `SHOW data_directory` verified ownership, and it was stopped after measurement. Every fixture command exited 0.
+
+The audit verified 21 distinct identities/effect files (9 original baseline, 3 source-bound reviewer baseline, 9 repaired), exactly ordered 0–499 plus one nested effect and exactly one continuation per run. All 12 source-bound runs retain 504 seeded checkpoints and finish with 507; source and manifest hashes match their respective variants. The repaired adapter SHA-256 is `dc00bea6c77dacf216805aa5ec50f2409fc709124e01964f5c01447790b2d1ba`. Reports carry pre-repair HEAD `54c5a0c23` plus hashes because measurement preceded the repair commit.
+
+| Fixture/sample | Exact run ID | Ack / useful / completed (ms) | SQL calls |
+| --- | --- | --- | --- |
+| repaired-1/cold | `6092a3f4-6557-47f8-850d-478952bd8f5f` | 578.2 / 727.0 / 748.8 | 96 |
+| repaired-1/warm | `3f6ae9af-672f-4b07-beaf-db351d99395a` | 443.4 / 562.5 / 578.8 | 97 |
+| repaired-1/warm | `e3df1410-dd98-48b7-81fa-a5d28753b786` | 399.1 / 598.9 / 613.4 | 87 |
+| repaired-2/cold | `f7c5f8cb-284d-445f-8f1b-7042e9f979d7` | 595.3 / 728.4 / 749.5 | 96 |
+| repaired-2/warm | `eb0ce0a2-11d6-40d8-8b5b-e1bce351d78b` | 421.9 / 532.5 / 550.6 | 97 |
+| repaired-2/warm | `14beacea-de3d-4a16-9807-b911f556ec3e` | 337.2 / 458.0 / 473.1 | 87 |
+| repaired-3/cold | `2514b917-6045-43ee-8980-83244f654ef3` | 549.6 / 669.0 / 687.6 | 96 |
+| repaired-3/warm | `2f5c5f7f-eda9-4c3f-9cf5-6a528ccc069b` | 423.2 / 548.9 / 569.0 | 97 |
+| repaired-3/warm | `53c08138-b1f1-4b94-ab87-19ba20eaa58f` | 350.5 / 454.2 / 470.3 | 87 |
+
+Installed-SDK regressions cover malformed JSON and unavailable serializers through both adapter and hydration boundaries, preserving the original error rather than hiding a root as malformed. Native/portable serialization, valid strings/falsy values, envelope bulk reads and reference/order preservation are covered without wall-clock thresholds. The preexisting `durable-local-command` Windows inherited-pipe liveness test failure remains separate; this repair does not claim full-suite green.
