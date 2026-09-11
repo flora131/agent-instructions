@@ -210,26 +210,85 @@ fn token_is_admin() -> bool {
 	}
 }
 
-fn token_information(token: HANDLE, class: TOKEN_INFORMATION_CLASS) -> io::Result<Vec<u8>> {
+/// Pointer-aligned, immovable backing allocation for Win32 token structures and
+/// their interior SID/ACL pointers. Keep the reported byte length, not padding.
+struct TokenInformation {
+	storage: Vec<usize>,
+	length: usize,
+}
+
+impl TokenInformation {
+	fn as_bytes(&self) -> &[u8] {
+		// SAFETY: all words are initialized, length is within the allocation, and
+		// no Win32 call mutates the buffer after it is returned to the caller.
+		unsafe { std::slice::from_raw_parts(self.storage.as_ptr().cast(), self.length) }
+	}
+}
+
+fn token_information(
+	token: HANDLE,
+	class: TOKEN_INFORMATION_CLASS,
+) -> io::Result<TokenInformation> {
 	let mut length = 0_u32;
 	unsafe { GetTokenInformation(token, class, ptr::null_mut(), 0, &mut length) };
 	if length == 0 {
 		return Err(last_error());
 	}
-	let mut buffer = vec![0_u8; length as usize];
-	if unsafe { GetTokenInformation(token, class, buffer.as_mut_ptr().cast(), length, &mut length) }
-		== 0
+	let capacity = length;
+	let mut storage = vec![0_usize; (capacity as usize).div_ceil(size_of::<usize>())];
+	if unsafe {
+		GetTokenInformation(token, class, storage.as_mut_ptr().cast(), capacity, &mut length)
+	} == 0
 	{
 		return Err(last_error());
 	}
-	Ok(buffer)
+	if length > capacity {
+		return Err(io::Error::new(io::ErrorKind::InvalidData, "oversized token information"));
+	}
+	Ok(TokenInformation { storage, length: length as usize })
+}
+
+/// Resolve a Win32 interior pointer through its live owner, without dereferencing
+/// the returned pointer or allowing a length to reach outside that allocation.
+fn buffer_region(
+	buffer: &[u8],
+	pointer: *const core::ffi::c_void,
+	length: usize,
+) -> io::Result<&[u8]> {
+	let invalid = || io::Error::new(io::ErrorKind::InvalidData, "invalid token buffer range");
+	let offset = (pointer as usize).checked_sub(buffer.as_ptr() as usize).ok_or_else(invalid)?;
+	buffer.get(offset..offset.checked_add(length).ok_or_else(invalid)?).ok_or_else(invalid)
+}
+
+/// GetAce borrows from the ACL; success alone must not authorize a Rust pointer
+/// dereference or an unbounded AddAce read. ACL/ACE addresses and sizes are DWORD
+/// aligned: https://learn.microsoft.com/windows/win32/api/winnt/ns-winnt-acl
+fn ace_bytes(acl: &[u8], ace: *const core::ffi::c_void) -> io::Result<&[u8]> {
+	let invalid = || io::Error::new(io::ErrorKind::InvalidData, "invalid token ACE");
+	if ace.is_null()
+		|| !(ace as usize).is_multiple_of(size_of::<u32>())
+		|| (ace as usize)
+			.checked_sub(acl.as_ptr() as usize)
+			.is_none_or(|offset| offset < size_of::<ACL>())
+	{
+		return Err(invalid());
+	}
+	let header = buffer_region(acl, ace, size_of::<ACE_HEADER>())?;
+	// ACE_HEADER is BYTE AceType, BYTE AceFlags, WORD AceSize. Read only checked
+	// bytes, never form a typed reference from the opaque GetAce out-pointer.
+	let length = u16::from_ne_bytes([header[2], header[3]]) as usize;
+	if length < size_of::<ACE_HEADER>() || !length.is_multiple_of(size_of::<u32>()) {
+		return Err(invalid());
+	}
+	buffer_region(acl, ace, length)
 }
 
 /// pg_ctl's `AddUserToTokenDacl`: without it the restricted token's default
 /// DACL only grants SYSTEM, and the postmaster's later CreatePipe/CreateProcess
 /// calls fail with access denied on administrative accounts.
 fn add_user_to_token_dacl(token: HANDLE) -> io::Result<()> {
-	let default_buffer = token_information(token, TokenDefaultDacl)?;
+	let default_storage = token_information(token, TokenDefaultDacl)?;
+	let default_buffer = default_storage.as_bytes();
 	if default_buffer.len() < size_of::<TOKEN_DEFAULT_DACL>() {
 		return Err(io::Error::new(io::ErrorKind::InvalidData, "short TokenDefaultDacl"));
 	}
@@ -249,7 +308,10 @@ fn add_user_to_token_dacl(token: HANDLE) -> io::Result<()> {
 	{
 		return Err(last_error());
 	}
-	let user_buffer = token_information(token, TokenUser)?;
+	let source_acl =
+		buffer_region(default_buffer, default.DefaultDacl.cast(), size.AclBytesInUse as usize)?;
+	let user_storage = token_information(token, TokenUser)?;
+	let user_buffer = user_storage.as_bytes();
 	if user_buffer.len() < size_of::<TOKEN_USER>() {
 		return Err(io::Error::new(io::ErrorKind::InvalidData, "short TokenUser"));
 	}
@@ -257,7 +319,9 @@ fn add_user_to_token_dacl(token: HANDLE) -> io::Result<()> {
 	let sid_length = unsafe { GetLengthSid(user.User.Sid) } as usize;
 	let new_length =
 		size.AclBytesInUse as usize + size_of::<ACCESS_ALLOWED_ACE>() + sid_length - size_of::<u32>();
-	let mut acl = vec![0_u8; new_length];
+	// ACL and ACE storage must begin on a DWORD boundary, not merely the byte
+	// alignment guaranteed by Vec<u8>. Keep the byte size passed to Win32.
+	let mut acl = vec![0_u32; new_length.div_ceil(size_of::<u32>())];
 	let acl_ptr = acl.as_mut_ptr() as *mut ACL;
 	if unsafe { InitializeAcl(acl_ptr, new_length as u32, ACL_REVISION) } == 0 {
 		return Err(last_error());
@@ -267,8 +331,10 @@ fn add_user_to_token_dacl(token: HANDLE) -> io::Result<()> {
 		if unsafe { GetAce(default.DefaultDacl, index, &mut ace) } == 0 {
 			return Err(last_error());
 		}
-		let ace_size = unsafe { (*(ace as *mut ACE_HEADER)).AceSize } as u32;
-		if unsafe { AddAce(acl_ptr, ACL_REVISION, u32::MAX, ace, ace_size) } == 0 {
+		let ace = ace_bytes(source_acl, ace)?;
+		if unsafe { AddAce(acl_ptr, ACL_REVISION, u32::MAX, ace.as_ptr().cast(), ace.len() as u32) }
+			== 0
+		{
 			return Err(last_error());
 		}
 	}
@@ -305,7 +371,8 @@ fn privileges_to_delete(token: HANDLE) -> io::Result<Vec<LUID_AND_ATTRIBUTES>> {
 	{
 		return Err(last_error());
 	}
-	let buffer = token_information(token, TokenPrivileges)?;
+	let storage = token_information(token, TokenPrivileges)?;
+	let buffer = storage.as_bytes();
 	if buffer.len() < size_of::<TOKEN_PRIVILEGES>() {
 		return Err(io::Error::new(io::ErrorKind::InvalidData, "short TokenPrivileges"));
 	}
@@ -1049,6 +1116,143 @@ fn compare_environment_names(left: &[u16], right: &[u16]) -> io::Result<std::cmp
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	// PR #2982 / CodeQL #198: a GetAce result must not authorize an unchecked
+	// header read or a copy beyond the owning ACL, even when it is non-null.
+	#[test]
+	fn ace_copy_rejects_invalid_pointers_and_sizes() {
+		let mut storage = [0_u32; 4];
+		let acl = unsafe {
+			std::slice::from_raw_parts_mut(storage.as_mut_ptr().cast::<u8>(), size_of_val(&storage))
+		};
+		let offset = size_of::<ACL>();
+		acl[offset..offset + 4].copy_from_slice(&[0, 0, 8, 0]);
+		let ace = acl.as_ptr().wrapping_add(offset).cast();
+		assert_eq!(ace_bytes(acl, ace).unwrap(), &acl[offset..]);
+		for pointer in [
+			ptr::null(),
+			acl.as_ptr().wrapping_sub(4).cast(),
+			acl.as_ptr().cast(),
+			acl.as_ptr().wrapping_add(offset + 1).cast(),
+			acl.as_ptr().wrapping_add(acl.len()).cast(),
+		] {
+			assert_eq!(ace_bytes(acl, pointer).unwrap_err().kind(), io::ErrorKind::InvalidData);
+		}
+		// Both a truncated header and a complete header claiming too many bytes
+		// must fail before AddAce can read from the source.
+		assert!(ace_bytes(&acl[..offset + 2], ace).is_err());
+		for length in [0_u16, 2, 6, 12, u16::MAX] {
+			acl[offset + 2..offset + 4].copy_from_slice(&length.to_ne_bytes());
+			assert_eq!(ace_bytes(acl, ace).unwrap_err().kind(), io::ErrorKind::InvalidData);
+		}
+	}
+
+	// PR #2982: exercise the real Win32 token update, not a mocked GetAce.
+	#[test]
+	fn token_dacl_copy_preserves_aces_and_appends_the_user_grant() {
+		use windows_sys::Win32::{
+			Foundation::GENERIC_WRITE,
+			Security::{
+				AddAccessDeniedAceEx, DuplicateTokenEx, IsValidAcl, SecurityImpersonation, TokenPrimary,
+			},
+		};
+		let mut original = OwnedHandle(ptr::null_mut());
+		assert_ne!(
+			unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_ALL_ACCESS, &mut original.0) },
+			0
+		);
+		let mut token = OwnedHandle(ptr::null_mut());
+		assert_ne!(
+			unsafe {
+				DuplicateTokenEx(
+					original.0,
+					TOKEN_ALL_ACCESS,
+					ptr::null(),
+					SecurityImpersonation,
+					TokenPrimary,
+					&mut token.0,
+				)
+			},
+			0
+		);
+		let user_storage = token_information(token.0, TokenUser).unwrap();
+		let user = unsafe { &*user_storage.as_bytes().as_ptr().cast::<TOKEN_USER>() };
+		for existing_aces in [0, 2] {
+			let mut expected = [0_u32; 64];
+			let acl = expected.as_mut_ptr().cast::<ACL>();
+			assert_ne!(unsafe { InitializeAcl(acl, size_of_val(&expected) as u32, ACL_REVISION) }, 0);
+			if existing_aces != 0 {
+				assert_ne!(
+					unsafe { AddAccessDeniedAceEx(acl, ACL_REVISION, 0, GENERIC_READ, user.User.Sid) },
+					0
+				);
+				assert_ne!(
+					unsafe {
+						AddAccessAllowedAceEx(
+							acl,
+							ACL_REVISION,
+							OBJECT_INHERIT_ACE,
+							GENERIC_WRITE,
+							user.User.Sid,
+						)
+					},
+					0
+				);
+			}
+			let initial = TOKEN_DEFAULT_DACL { DefaultDacl: acl };
+			assert_ne!(
+				unsafe {
+					SetTokenInformation(
+						token.0,
+						TokenDefaultDacl,
+						ptr::from_ref(&initial).cast(),
+						size_of_val(&initial) as u32,
+					)
+				},
+				0
+			);
+			add_user_to_token_dacl(token.0).unwrap();
+			// Construct the expected final ACE sequence independently via Win32.
+			assert_ne!(
+				unsafe {
+					AddAccessAllowedAceEx(
+						acl,
+						ACL_REVISION,
+						OBJECT_INHERIT_ACE,
+						GENERIC_ALL,
+						user.User.Sid,
+					)
+				},
+				0
+			);
+			let result = token_information(token.0, TokenDefaultDacl).unwrap();
+			let default = unsafe { &*result.as_bytes().as_ptr().cast::<TOKEN_DEFAULT_DACL>() };
+			assert_ne!(unsafe { IsValidAcl(default.DefaultDacl) }, 0);
+			let mut size = ACL_SIZE_INFORMATION::default();
+			assert_ne!(
+				unsafe {
+					GetAclInformation(
+						default.DefaultDacl,
+						ptr::from_mut(&mut size).cast(),
+						size_of_val(&size) as u32,
+						AclSizeInformation,
+					)
+				},
+				0
+			);
+			assert_eq!(size.AceCount, existing_aces + 1);
+			let actual = buffer_region(
+				result.as_bytes(),
+				default.DefaultDacl.cast(),
+				size.AclBytesInUse as usize,
+			)
+			.unwrap();
+			let expected = unsafe {
+				std::slice::from_raw_parts(expected.as_ptr().cast::<u8>(), size_of_val(&expected))
+			};
+			assert_eq!(&actual[size_of::<ACL>()..], &expected[size_of::<ACL>()..actual.len()]);
+		}
+	}
 
 	#[test]
 	fn failed_process_observation_is_not_reported_as_running() {
