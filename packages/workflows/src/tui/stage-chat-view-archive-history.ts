@@ -105,7 +105,7 @@ function renderReadOnlyPromptArchiveBody(
 	const innerWidth = Math.max(2, width - 2);
 	const bodyLines: string[] = [];
 	const messageBox = new Box(2, 1);
-	messageBox.addChild(new Text(paint(prompt.message, t.text), 0, 0));
+	messageBox.addChild(new Text(paint(sanitizeToolDisplayText(prompt.message), t.text), 0, 0));
 	bodyLines.push(...messageBox.render(innerWidth));
 	bodyLines.push(
 		...new Text(paint("prompt type", t.textMuted, { bold: true }) + paint(`  ${prompt.kind}`, t.text), 2, 0).render(
@@ -116,7 +116,9 @@ function renderReadOnlyPromptArchiveBody(
 	if (prompt.kind === "select" && prompt.choices && prompt.choices.length > 0) {
 		bodyLines.push(...new Text(paint("choices", t.textMuted, { bold: true }), 2, 0).render(innerWidth));
 		for (const choice of prompt.choices) {
-			bodyLines.push(...new Text(paint("• ", t.dim) + paint(choice, t.text), 4, 0).render(innerWidth));
+			bodyLines.push(
+				...new Text(paint("• ", t.dim) + paint(sanitizeToolDisplayText(choice), t.text), 4, 0).render(innerWidth),
+			);
 		}
 	} else if (prompt.kind === "confirm") {
 		bodyLines.push(
@@ -128,13 +130,17 @@ function renderReadOnlyPromptArchiveBody(
 
 	if ((prompt.kind === "input" || prompt.kind === "editor") && prompt.initial && prompt.initial.length > 0) {
 		bodyLines.push(...new Text(paint("initial value shown", t.textMuted, { bold: true }), 2, 0).render(innerWidth));
-		bodyLines.push(...new Text(paint(prompt.initial, t.dim), 4, 0).render(innerWidth));
+		bodyLines.push(...new Text(paint(sanitizeToolDisplayText(prompt.initial), t.dim), 4, 0).render(innerWidth));
 	}
 
 	const answer = readOnlyPromptAnswer(ctx, stage, prompt);
 	bodyLines.push("");
 	bodyLines.push(...new Text(paint("your response", t.textMuted, { bold: true }), 2, 0).render(innerWidth));
-	bodyLines.push(...new Text(paint(answer, answer.startsWith("(") ? t.dim : t.text), 4, 0).render(innerWidth));
+	bodyLines.push(
+		...new Text(paint(sanitizeToolDisplayText(answer), answer.startsWith("(") ? t.dim : t.text), 4, 0).render(
+			innerWidth,
+		),
+	);
 	bodyLines.push("");
 
 	const title = stage.status === "skipped" ? "QUESTION SKIPPED" : "QUESTION ASKED";
