@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { runSmokeCommand, startOnAvailablePort } from "./smoke-postgres-process.mjs";
 
-test("a successful launcher returns while its server still inherits stdout and stderr", () => {
+test("a successful launcher returns while its server still inherits stdout and stderr", async () => {
 	const cwd = mkdtempSync(join(tmpdir(), "atomic-pg-inherited-pipes-"));
 	const pidFile = join(cwd, "server.pid");
 	try {
@@ -29,13 +31,29 @@ test("a successful launcher returns while its server still inherits stdout and s
 		// Returning must not require terminating the successfully launched server.
 		process.kill(Number(readFileSync(pidFile, "utf8")), 0);
 	} finally {
-		try {
-			process.kill(Number(readFileSync(pidFile, "utf8")));
-		} finally {
-			rmSync(cwd, { recursive: true, force: true });
-		}
+		await stopFixtureServer(Number(readFileSync(pidFile, "utf8")));
+		// Windows may briefly retain directory handles even after the PID reports exited.
+		await rm(cwd, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
 	}
 });
+
+const SERVER_EXIT_TIMEOUT_MS = 5_000;
+
+async function stopFixtureServer(pid) {
+	process.kill(pid);
+	const deadline = performance.now() + SERVER_EXIT_TIMEOUT_MS;
+	for (;;) {
+		try {
+			process.kill(pid, 0);
+		} catch (error) {
+			if (error.code === "ESRCH") return;
+			throw error;
+		}
+		// TerminateProcess is asynchronous: the server can still hold its cwd open.
+		assert.ok(performance.now() < deadline, "fixture server must exit before removing its working directory");
+		await delay(10);
+	}
+}
 
 function listen(server, port) {
 	return new Promise((done, reject) => {
