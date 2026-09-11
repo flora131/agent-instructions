@@ -20,6 +20,9 @@ import {
 	orderedContains,
 	PR,
 	PROVENANCE,
+	REVIEW_PREDECESSOR,
+	REVIEW_README,
+	REVIEW_REPAIRS,
 	reconstructFourthMainDelta,
 	reconstructLatestMainDelta,
 	reconstructWaitMainDelta,
@@ -410,16 +413,20 @@ test("latest-main source inventory covers every page and rejects omitted or forg
 		assert.throws(() => check(changedJSON(FOLLOWUP, change)), /latest-main evidence does not reconstruct/u);
 });
 
-test("SDK additions are active in its reference and the SDK hub preserves its predecessor plus the exact wait pointer", async () => {
+test("SDK additions are active in its reference and the SDK hub preserves its predecessor plus exact repairs", async () => {
 	const { execFileSync } = await import("node:child_process");
 	const oldHub = execFileSync("git", ["show", `${FIRST_RECONCILIATION}:${DOCS}sdk.md`], {
 		cwd: repoRoot,
 		encoding: "utf8",
 	});
 	const pointer = waitDelta.compatibility_pointers[0];
+	// #2847 / PR #2971: preserve the entire hub, with only the reviewed image-shape correction.
+	const oldImage = '  images: [{ type: "image", source: { type: "base64", mediaType: "image/png", data: "..." } }]';
+	const currentImage = '  images: [{ type: "image", data: "...", mimeType: "image/png" }]';
+	assert.equal(oldHub.split(oldImage).length, 2);
 	assert.equal(
 		read(`${DOCS}sdk.md`),
-		oldHub.replace(pointer.before, () => pointer.after),
+		oldHub.replace(pointer.before, () => pointer.after).replace(oldImage, () => currentImage),
 	);
 	for (const edit of latestDelta.edits.filter((row) => row.source_path === `${DOCS}sdk.md`))
 		assert.ok(read(`${DOCS}sdk/reference.md`).includes(edit.after));
@@ -810,4 +817,70 @@ test("cold data-URL verification batches each immutable blob once and isolates w
 		timeout: 30_000,
 	});
 	assert.equal(child.status, 0, child.stderr);
+});
+
+// #2847 / PR #2971 review 1: corrections must not rewrite the previously proved corpus.
+test("review repairs preserve the immutable checkpoint and expose eight compatible fragments", () => {
+	const result = check();
+	assert.equal(result.reviewRepairs.predecessor, "98acef56143df33311536a23a9ea95d796a61ed9");
+	assert.equal(result.reviewRepairs.aliases, 8);
+});
+
+test("review repairs reject reverting or altering every authentication and SDK correction", () => {
+	const policy = JSON.parse(read(REVIEW_REPAIRS));
+	for (const edit of policy.edits.filter((row) => row.kind !== "compatible-fragment")) {
+		const text = read(edit.target_path);
+		assert.ok(text.includes(edit.after));
+		for (const replacement of [edit.before, `${edit.after} altered`]) {
+			assert.throws(() => check(new Map([[edit.target_path, text.replace(edit.after, () => replacement)]])));
+		}
+	}
+});
+
+test("review repairs reject removing each compatible fragment", () => {
+	const policy = JSON.parse(read(REVIEW_REPAIRS));
+	const aliases = policy.edits.filter((row) => row.kind === "compatible-fragment");
+	assert.equal(aliases.length, 8);
+	for (const edit of aliases) {
+		const text = read(edit.target_path);
+		assert.ok(text.includes(edit.after));
+		assert.throws(
+			() => check(new Map([[edit.target_path, text.replace(edit.after, () => edit.before)]])),
+			/latest-main delta must occur exactly once/u,
+		);
+	}
+});
+
+test("review repairs reject missing history and self-authorized policy changes", () => {
+	const history = read(REVIEW_README);
+	for (const replacement of ["", history.replace("mediaType", "mimeType")])
+		assert.throws(() => check(new Map([[REVIEW_README, replacement]])), /review-repair history changed/u);
+	const policy = JSON.parse(read(REVIEW_REPAIRS));
+	const edit = policy.edits.find((row) => row.kind === "sdk-image-shape");
+	const text = read(edit.target_path);
+	const before = edit.after;
+	edit.after = edit.before;
+	assert.throws(
+		() =>
+			check(
+				new Map([
+					[REVIEW_REPAIRS, JSON.stringify(policy)],
+					[edit.target_path, text.replace(before, () => edit.after)],
+				]),
+			),
+		/review-repair policy changed/u,
+	);
+});
+
+test("review repairs reject unrelated content edits on a corrected page", () => {
+	const path = `${DOCS}sdk.md`;
+	const text = read(path);
+	assert.ok(text.includes('await session.prompt("What files are here?");'));
+	assert.throws(() => check(new Map([[path, text.replace('await session.prompt("What files are here?");', "")]])));
+});
+
+test("review repairs leave committed checkpoint verification independent of working files", () => {
+	const result = verifyCommittedDocumentation({ repoRoot, revision: REVIEW_PREDECESSOR });
+	assert.equal(result.readerPages, 86);
+	assert.equal(result.reviewRepairs, undefined);
 });

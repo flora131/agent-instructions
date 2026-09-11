@@ -1397,6 +1397,8 @@ Constructive quorum relies on existing Intercom mechanics: every workflow invoca
 
 #### Pattern diagrams
 
+<a id="1-classify-and-act"></a>
+
 ##### 1. Classify-and-act
 
 Builtin definition and contracts: [Six composable pattern builtins](/workflows/builtins#six-composable-pattern-builtins).
@@ -1421,6 +1423,8 @@ Best practices:
 - Make the classifier return a structured category and confidence, not free-form prose.
 - Keep each action branch isolated with the minimum tools and context it needs.
 - Add a fallback or human-input branch for low-confidence classifications.
+
+<a id="2-fan-out-and-synthesize"></a>
 
 ##### 2. Fan-out-and-synthesize
 
@@ -1489,6 +1493,8 @@ Best practices:
 - The builtin input defaults are `verifier_count=3`, `max_repairs=2`, `accept_mean=14` on the 1–20 scale, and `reask_limit=1`; omitted `criteria` uses the `task_fit`, `evidence`, and `completeness` record. A round expects one schema-valid score for every criterion/verifier cell, and the normal call shape is criteria length multiplied by verifier count.
 - Invalid criterion reports are written as invalid artifacts and re-asked in bounded waves up to `reask_limit`; an invalid or missing report is counted in `invalidCount` only and is never converted into a fail vote or included in the mean. If the required quorum is still missing after the re-asks, the round is `indeterminate` rather than silently narrowing the decision.
 - `score_table_path` names the durable `verification-summary-<round>.json` for the final round. Its object contains `scores` (`criterion_id`, integer `score`, `evidence`, and `findings` with `finding` plus `severity`), `mean`, `invalidCount`, the `decision` (`accept`, `repair`, or `indeterminate` with its corresponding mean/findings or missing count), and folded `usage`; `review_report_path` carries repair guidance or quorum evidence.
+
+<a id="4-generate-and-filter"></a>
 
 ##### 4. Generate-and-filter
 
@@ -1584,6 +1590,8 @@ Best practices:
 - The builtin defaults `max_iterations=5`, `progress_scoring=true`, and `progress_repeats=1`; set `progress_scoring` false to omit advisory scoring, while `progress_repeats` is the repeat count passed to the scoring primitive. Each scored iteration adds a `progress` entry to `progress-ledger.json` with `score`, `perRepeat` (null for an invalid repeat), `trend`, and the classifier `window`; the ledger also emits `progress_curve`, `final_trend`, and `progress_disclaimer`.
 - Progress scores use the anchored 1–20 scale and average valid repeat scores per checkpoint. `classify_trend` uses `window=3`, `riseDelta=1.5`, and `fallDelta=-1.5`; it compares equal leading/trailing halves of the trailing two windows, drops an odd middle sample, and classifies inclusive threshold crossings as `rising`, `flat`, or `regressing`. A short series is `flat` evidence.
 - The trend is monitoring and escalation evidence only: it never kills, terminates, or approves a loop, and the explicit evaluator stop condition remains authoritative. `progress_curve`, `final_trend`, and `progress_disclaimer` are advisory outputs, not alternate closure signals.
+
+<a id="7-constructive-quorum"></a>
 
 ##### 7. Constructive quorum
 

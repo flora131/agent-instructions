@@ -279,7 +279,7 @@ await session.prompt("What files are here?");
 
 // With images
 await session.prompt("What's in this image?", {
-  images: [{ type: "image", source: { type: "base64", mediaType: "image/png", data: "..." } }]
+  images: [{ type: "image", data: "...", mimeType: "image/png" }]
 });
 
 // During streaming: must specify how to queue the message

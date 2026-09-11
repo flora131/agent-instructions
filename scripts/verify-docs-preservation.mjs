@@ -21,6 +21,11 @@ export const FOURTH_PREDECESSOR = "c075c61a7dcae05a767db7372d991f421b3fc507";
 export const FOURTH_FOLLOWUP = "docs/migrations/2847-fourth-main.json";
 export const FOURTH_README = "docs/migrations/2847-fourth-main.md";
 const FOURTH_README_SHA256 = "19202517c989bb552d7f5e7fd3679cf3616fd541789664bfbc1156d2507572bb";
+export const REVIEW_PREDECESSOR = "98acef56143df33311536a23a9ea95d796a61ed9";
+export const REVIEW_REPAIRS = "docs/migrations/2847-review-repairs.json";
+export const REVIEW_README = "docs/migrations/2847-review-repairs.md";
+const REVIEW_REPAIRS_SHA256 = "3d90e267ecc897155b39efd04c9ea84516506f242633b2c7231ea245a055fa95";
+const REVIEW_README_SHA256 = "d79c008720abbeab23af0595ced48b0345d75a5abb3dc3cad496b8efbdef5b27";
 // #2847 / PR #2971 review 3: exact append-only reader handoffs, not upstream changes.
 export const AUTHORING_PREDECESSOR = "8da40cc4ddb88b16baf8b4291722c6dabee8cfbb";
 const authoringReferenceAdditions = new Map(
@@ -1219,6 +1224,34 @@ export function fourthMainEvidence(delta) {
 	};
 }
 
+/** Closed review policy; predecessor text and historical copies remain independently reproducible. */
+function reviewedRepairs(repoRoot, current) {
+	const policy = JSON.parse(current.read(REVIEW_REPAIRS));
+	assert.equal(digest(JSON.stringify(policy)), REVIEW_REPAIRS_SHA256, "review-repair policy changed");
+	assert.equal(policy.predecessor, REVIEW_PREDECESSOR, "review-repair source changed");
+	assert.equal(policy.captured_main, FOURTH_MAIN, "review-repair upstream changed");
+	const history = current.read(REVIEW_README);
+	assert.equal(digest(history), REVIEW_README_SHA256, "review-repair history changed");
+	const source = (path) => git(repoRoot, ["show", `${REVIEW_PREDECESSOR}:${DOCS}${path}`]);
+	assert.ok(
+		history.includes(source("getting-started/authentication.md")),
+		"review-repair authentication history missing",
+	);
+	assert.ok(
+		history.includes(source("sdk.md").split("\n").slice(275, 288).join("\n")),
+		"review-repair SDK history missing",
+	);
+	for (const edit of policy.edits) {
+		safePath(edit.target_path);
+		assert.equal(
+			git(repoRoot, ["show", `${REVIEW_PREDECESSOR}:${edit.target_path}`]).split(edit.before).length,
+			2,
+			`review-repair before-text must occur exactly once at checkpoint: ${edit.target_path}`,
+		);
+	}
+	return policy.edits;
+}
+
 function verifyLatest({
 	repoRoot,
 	revision,
@@ -1226,6 +1259,7 @@ function verifyLatest({
 	waitMain = false,
 	authoringReferences = false,
 	fourthMain = false,
+	reviewRepairs = false,
 }) {
 	// Prove the immutable predecessor with the original rules; reverse the closed
 	// reader anchors, source-derived edits and new SDK pointer before the prior proof.
@@ -1288,6 +1322,9 @@ function verifyLatest({
 		);
 		readerEdits.push(...fourthEdits);
 	}
+	const reviewEdits = reviewRepairs ? reviewedRepairs(repoRoot, current) : [];
+	if (reviewRepairs) assert.ok(fourthMain, "review repairs require the fourth-main proof");
+	readerEdits.push(...reviewEdits);
 	const restored = new Map();
 	if (authoringReferences) {
 		for (const [path, addition] of authoringReferenceAdditions) {
@@ -1354,7 +1391,8 @@ function verifyLatest({
 				(path) =>
 					path !== FOLLOWUP &&
 					!(waitMain && path === WAIT_FOLLOWUP) &&
-					!(fourthMain && (path === FOURTH_FOLLOWUP || path === FOURTH_README || newPaths.has(path))),
+					!(fourthMain && (path === FOURTH_FOLLOWUP || path === FOURTH_README || newPaths.has(path))) &&
+					!(reviewRepairs && (path === REVIEW_REPAIRS || path === REVIEW_README)),
 			)
 			.sort(),
 		frozenPaths.sort(),
@@ -1367,7 +1405,8 @@ function verifyLatest({
 				row.target_path === path &&
 				!waitDelta?.edits.includes(row) &&
 				!waitDelta?.compatibility_pointers.includes(row) &&
-				!fourthEdits.includes(row),
+				!fourthEdits.includes(row) &&
+				!reviewEdits.includes(row),
 		))
 			expected = Buffer.from(replaceDelta(expected.toString("utf8"), edit.before, edit.after, path));
 		if (waitDelta) {
@@ -1390,6 +1429,14 @@ function verifyLatest({
 			for (const edit of fourthEdits.filter((row) => row.target_path === path))
 				expected = Buffer.from(replaceDelta(expected.toString("utf8"), edit.before, edit.after, path));
 		}
+		if (reviewRepairs) {
+			assert.ok(
+				expected.equals(git(repoRoot, ["show", `${REVIEW_PREDECESSOR}:${path}`], undefined, "buffer")),
+				`review-repair predecessor differs: ${path}`,
+			);
+			for (const edit of reviewEdits.filter((row) => row.target_path === path))
+				expected = Buffer.from(replaceDelta(expected.toString("utf8"), edit.before, edit.after, path));
+		}
 		const actual = revision
 			? git(repoRoot, ["show", `${revision}:${path}`], undefined, "buffer")
 			: overrides?.has(path)
@@ -1400,6 +1447,15 @@ function verifyLatest({
 	return {
 		...result,
 		readerPages: current.pages.length,
+		...(reviewRepairs
+			? {
+					reviewRepairs: {
+						predecessor: REVIEW_PREDECESSOR,
+						edits: reviewEdits.length,
+						aliases: reviewEdits.filter((edit) => edit.kind === "compatible-fragment").length,
+					},
+				}
+			: {}),
 		...(fourthDelta
 			? {
 					fourthMain: {
@@ -1443,11 +1499,14 @@ export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
 	const latest = git(repoRoot, ["merge-base", commit, LATEST_MAIN]).trim() === LATEST_MAIN;
 	const waitMain = git(repoRoot, ["merge-base", commit, WAIT_MAIN]).trim() === WAIT_MAIN;
 	const fourthMain = git(repoRoot, ["merge-base", commit, FOURTH_MAIN]).trim() === FOURTH_MAIN;
+	const reviewRepairs =
+		commit !== REVIEW_PREDECESSOR &&
+		git(repoRoot, ["merge-base", commit, REVIEW_PREDECESSOR]).trim() === REVIEW_PREDECESSOR;
 	const authoringReferences =
 		commit !== AUTHORING_PREDECESSOR &&
 		git(repoRoot, ["merge-base", commit, AUTHORING_PREDECESSOR]).trim() === AUTHORING_PREDECESSOR;
 	const result = latest
-		? verifyLatest({ repoRoot, revision: commit, waitMain, authoringReferences, fourthMain })
+		? verifyLatest({ repoRoot, revision: commit, waitMain, authoringReferences, fourthMain, reviewRepairs })
 		: verify({ repoRoot, revision: commit });
 	console.log(JSON.stringify({ mode: "committed", revision: commit, ...result }));
 	return result;
@@ -1455,7 +1514,14 @@ export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
 
 /** Explicit precommit mode; overrides are a disposable in-memory negative-control fixture. */
 export function verifyWorkingTreeDocumentation({ repoRoot, overrides = new Map() }) {
-	return verifyLatest({ repoRoot, overrides, waitMain: true, authoringReferences: true, fourthMain: true });
+	return verifyLatest({
+		repoRoot,
+		overrides,
+		waitMain: true,
+		authoringReferences: true,
+		fourthMain: true,
+		reviewRepairs: true,
+	});
 }
 
 if (

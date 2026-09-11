@@ -59,6 +59,8 @@ Artificial Analysis separates performance by benchmark, which lets a workflow pi
 
 Artificial Analysis also publishes per-domain capability indices — **Agentic, Coding, Finance & Accounting, Strategy & Ops, Legal, Healthcare & Medical, Engineering, Economics**. When a workflow is domain-specific, pick by the matching capability index rather than the general Intelligence Index.
 
+<a id="role-benchmark-map"></a>
+
 ## Role → benchmark map
 
 A quick lookup for which benchmark to weight per role:

@@ -26,6 +26,8 @@ There is one context-compaction door: `compact`.
 
 ## Verbatim Line Compaction
 
+<a id="what-verbatim-means"></a>
+
 ### What "verbatim" means
 
 Atomic serializes the compactable part of the conversation into role-tagged lines:

@@ -21,7 +21,7 @@ Start Atomic and run:
 /login
 ```
 
-Then select a provider. Built-in subscription logins include Claude Pro/Max, ChatGPT Plus/Pro (Codex), and GitHub Copilot.
+Choose **Use a subscription**, then select a provider. Built-in subscription logins include Claude Pro/Max, ChatGPT Plus/Pro (Codex), and GitHub Copilot.
 
 ### Option 2: API key
 
@@ -32,7 +32,7 @@ export ANTHROPIC_API_KEY=sk-ant-...
 atomic
 ```
 
-You can also run `/login` and select an API-key provider to store the key in `~/.atomic/agent/auth.json`.
+You can also run `/login`, choose **Use an API key**, then select a provider to store the key in `~/.atomic/agent/auth.json`.
 
 See [Providers](/providers) for all supported providers, environment variables, and cloud-provider setup.
 
@@ -44,9 +44,11 @@ Start Atomic in any directory and run:
 /model
 ```
 
-Expected result: the model picker opens and lists selectable models for the provider you just connected, with the active one marked. If it opens empty, or Atomic reports that no provider is configured, the credential did not take — re-run `/login`, or confirm the API-key environment variable is exported in the same shell you launched Atomic from.
+Expected result: the model picker opens and lists selectable models for the provider you just configured, with the active one marked. If it opens empty, or Atomic reports that no provider is configured, re-run `/login`, or confirm the API-key environment variable is exported in the same shell you launched Atomic from.
 
-`/login` on its own also reports which providers currently have stored credentials, which is the quickest way to confirm what Atomic can reach.
+`/login` opens **Select authentication method:**. Choose **Use a subscription** or **Use an API key** to see the corresponding provider picker and credential-configuration status. That status can reflect stored, environment, runtime, or configuration credentials; it does not test connectivity or prove that a provider will accept a request.
+
+Select a model with `/model`, then send a short prompt such as `Reply with hello.` A successful response confirms access for that request. If it fails, check the reported authentication, quota, model-access, or network error before retrying. A configured credential or a listed model alone does not prove access.
 
 ## Next step
 
