@@ -289,6 +289,7 @@ export class InteractiveModeBase {
 	interactiveEngineShortcutHandler: ((data: string) => boolean) | undefined;
 
 	disposeInteractiveEngineHost: () => void = () => {};
+	disposeMarkitDiagnosticSink: () => void = () => {};
 
 	version: string;
 
@@ -582,6 +583,7 @@ export class InteractiveModeBase {
 		// `resume-hint` keeps whatever the alternate screen held: the prior
 		// shell contents reappear and shutdown prints only the resume line.
 		this.ui.stop({ preserveScreen: isFullscreen && fullscreenExitOutput === "resume-hint" });
+		this.disposeMarkitDiagnosticSink();
 	}
 
 	declare options: InteractiveModeOptions;
@@ -684,7 +686,7 @@ export class InteractiveModeBase {
 			(diagnostic) =>
 				renderEngineDiagnostic(diagnostic, {
 					stopWorkingLoader: () => this.stopWorkingLoader(),
-					showStatus: (message) => this.showStatus(message),
+					showStatus: (message, persist) => this.showStatus(message, persist),
 					showError: (message) => this.showError(message),
 				}),
 			{

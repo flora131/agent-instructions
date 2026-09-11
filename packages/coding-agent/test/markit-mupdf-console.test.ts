@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { convertFileWithMarkit } from "../src/utils/markit.ts";
+import { convertFileWithMarkit, setMarkitDiagnosticSink } from "../src/utils/markit.js";
 
 const tempDirs: string[] = [];
 
@@ -38,7 +38,8 @@ afterEach(async () => {
 });
 
 describe("markit mupdf diagnostics", () => {
-	it("keeps mupdf's zlib chatter off every console sink and in the error instead", async () => {
+	// Regression #2964: retain malformed-PDF diagnostics through the selected output route.
+	it("logs bounded mupdf diagnostics through console.log and retains the conversion error", async () => {
 		const dir = await tempDir();
 		const path = join(dir, "broken.pdf");
 		await writeFile(path, makeBrokenFlatePdf());
@@ -47,14 +48,32 @@ describe("markit mupdf diagnostics", () => {
 		const collect = (...args: unknown[]) => {
 			written.push(args.map((arg) => String(arg)).join(" "));
 		};
-		for (const sink of ["log", "info", "debug", "warn", "error"] as const) {
-			vi.spyOn(console, sink).mockImplementation(collect);
-		}
+		const log = vi.spyOn(console, "log").mockImplementation(collect);
+		const error = vi.spyOn(console, "error").mockImplementation(() => {});
 
 		const result = await convertFileWithMarkit(path);
 
-		expect(written.filter((line) => /zlib/i.test(line))).toEqual([]);
+		expect(written.some((line) => /zlib/i.test(line))).toBe(true);
+		expect(log).toHaveBeenCalled();
+		expect(error).not.toHaveBeenCalled();
 		expect(result.ok).toBe(false);
 		expect(result.error).toMatch(/mupdf:/);
-	}, 60_000);
+	});
+	it("delivers malformed-PDF diagnostics to the interactive sink and restores console routing", async () => {
+		const path = join(await tempDir(), "broken.pdf");
+		await writeFile(path, makeBrokenFlatePdf());
+		const log = vi.spyOn(console, "log").mockImplementation(() => {});
+		const messages: string[] = [];
+		const dispose = setMarkitDiagnosticSink((message) => messages.push(message));
+		try {
+			const result = await convertFileWithMarkit(path);
+			expect(result.ok).toBe(false);
+			expect(messages.join("\n")).toMatch(/zlib/);
+			expect(log).not.toHaveBeenCalled();
+		} finally {
+			dispose();
+		}
+		await convertFileWithMarkit(path);
+		expect(log).toHaveBeenCalled();
+	});
 });

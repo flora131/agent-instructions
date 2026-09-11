@@ -49,15 +49,23 @@ Never use `__dirname` directly for package assets.
 - Last messages sent to the LLM
 
 For startup measurements, see the [Windows startup benchmark](https://github.com/bastani-inc/atomic/blob/main/scripts/perf/windows-startup/README.md). Internal timing marks do not prove terminal first paint.
-## Engine stderr log
 
-The interactive host paints pi-tui's alternate screen on fd 2, so it never echoes its RPC
-engine child's stderr there. Those bytes go to `~/.atomic/agent/atomic-engine-stderr.log`
-instead, truncated once it exceeds 1 MiB. Read that file when diagnosing a child that dies
-or complains without surfacing an error; failure paths still carry the bounded stderr tail
-in their own messages. A plain `RpcClient` with no `interactiveEngine` owns no screen and
-keeps writing child stderr to the terminal.
+## PDF and engine diagnostics
 
+MuPDF diagnostics appear as status messages in interactive sessions and use `console.log`
+otherwise. Conversion failures also retain the diagnostic suffix in their error result.
+Each conversion retains at most 32 diagnostics, each limited to 4096 characters.
+Interactive diagnostic display removes terminal escape sequences and replaces remaining
+control characters with spaces (except tabs and newlines). Stored diagnostics and conversion
+error results retain their original text within these bounds.
+
+RPC mode's existing stdout guard redirects `console.log` to stderr so stdout remains JSON.
+The interactive host drains child stderr without filesystem writes, batches it outside
+the pipe callback, and renders it through the engine diagnostic status path rather than
+writing raw bytes onto the alternate screen. Pending batches and failure tails retain
+at most 256 KiB, with a truncation marker on overflow. A noninteractive `RpcClient` uses
+`console.log` for those batches. Unicode characters are preserved across child output
+chunks in both routes and failure tails. No `atomic-engine-stderr.log` file is written.
 
 ## Testing
 

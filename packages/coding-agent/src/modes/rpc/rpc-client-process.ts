@@ -1,9 +1,7 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import { appendFileSync, statSync, writeFileSync } from "node:fs";
 import { rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getEngineStderrLogPath } from "../../config.ts";
 import { markLifecycleTiming } from "../../core/lifecycle-timings.ts";
 import { createChildProcessEnvironment } from "../../utils/child-process.ts";
 import { flushPersistentCompileCache } from "../../utils/compile-cache.ts";
@@ -151,29 +149,26 @@ const MAX_STDERR_BYTES = 256 * 1024;
 export function appendBoundedStderr(existing: string, chunk: string): string {
 	const next = existing + chunk;
 	if (Buffer.byteLength(next, "utf8") <= MAX_STDERR_BYTES) return next;
-	return `${Buffer.from(next).subarray(-MAX_STDERR_BYTES).toString("utf8")}\n[stderr truncated]`;
+	const marker = "\n[stderr truncated]";
+	const bytes = Buffer.from(next);
+	let start = bytes.length - MAX_STDERR_BYTES + Buffer.byteLength(marker);
+	while (start < bytes.length && (bytes[start]! & 0xc0) === 0x80) start++;
+	return `${bytes.subarray(start).toString("utf8")}${marker}`;
 }
 
-/** Keep the engine stderr log bounded; a runaway child must not fill the disk. */
-const MAX_ENGINE_STDERR_LOG_BYTES = 1024 * 1024;
-
-/**
- * Persist engine-child stderr instead of echoing it to fd 2.
- *
- * The interactive host paints pi-tui's alternate screen on that descriptor with
- * a differential renderer that only repaints rows whose model changed, so a
- * foreign write survives until a resize. Every failure path already carries the
- * bounded `RpcClient.stderr` tail into its error message, so the terminal echo
- * bought nothing. Logging never throws: losing a diagnostic line must not break
- * the engine transport.
- */
-export function writeEngineStderrLog(data: Buffer | string): void {
-	const path = getEngineStderrLogPath();
-	try {
-		const size = statSync(path, { throwIfNoEntry: false })?.size ?? 0;
-		if (size >= MAX_ENGINE_STDERR_LOG_BYTES) writeFileSync(path, data);
-		else appendFileSync(path, data);
-	} catch {
-		// An unwritable agent dir must never break the engine transport.
-	}
+/** Batch noisy child output outside the pipe callback without filesystem work. */
+export function createStderrReporter(report: (message: string) => void): (data: string) => void {
+	let pending = "";
+	let scheduled = false;
+	return (data) => {
+		pending = appendBoundedStderr(pending, data);
+		if (scheduled) return;
+		scheduled = true;
+		setImmediate(() => {
+			const message = pending;
+			pending = "";
+			scheduled = false;
+			report(message);
+		});
+	};
 }

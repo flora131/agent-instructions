@@ -1,9 +1,17 @@
+import { stripVTControlCharacters } from "node:util";
 import { type ActivityWatchdogDiagnostic, shouldRenderEngineDiagnosticAsChatError } from "./activity-watchdog.ts";
 
 export interface EngineDiagnosticView {
 	stopWorkingLoader(): void;
-	showStatus(message: string): void;
+	showStatus(message: string, persist?: boolean): void;
 	showError(message: string): void;
+}
+
+/** Sanitize only the display copy, like task-detail's multiline presentation. */
+export function renderDiagnosticStatus(message: string, view: Pick<EngineDiagnosticView, "showStatus">): void {
+	// ANSI stripping alone misses bare C0/C1 controls and incomplete escape sequences.
+	const text = stripVTControlCharacters(message).replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, " ");
+	view.showStatus(text, true);
 }
 
 /**
@@ -15,6 +23,10 @@ export interface EngineDiagnosticView {
  * internal. Concrete engine failures still surface as chat errors.
  */
 export function renderEngineDiagnostic(diagnostic: ActivityWatchdogDiagnostic, view: EngineDiagnosticView): void {
+	if (diagnostic.source === "stderr") {
+		renderDiagnosticStatus(diagnostic.message, view);
+		return;
+	}
 	if (diagnostic.source === "recovery") {
 		view.stopWorkingLoader();
 		view.showStatus(diagnostic.message);

@@ -64,12 +64,16 @@ InteractiveModeBase.prototype.maybeShowAssistantDiagnostics = function (
 	}
 };
 
-InteractiveModeBase.prototype.showStatus = function (this: InteractiveModeBase, message: string): void {
+InteractiveModeBase.prototype.showStatus = function (
+	this: InteractiveModeBase,
+	message: string,
+	persist = false,
+): void {
 	const children = this.chatContainer.children;
 	const last = children.length > 0 ? children[children.length - 1] : undefined;
 	const secondLast = children.length > 1 ? children[children.length - 2] : undefined;
 
-	if (last && secondLast && last === this.lastStatusText && secondLast === this.lastStatusSpacer) {
+	if (!persist && last && secondLast && last === this.lastStatusText && secondLast === this.lastStatusSpacer) {
 		this.lastStatusText.setText(theme.fg("dim", message));
 		this.ui.requestRender();
 		return;
@@ -79,8 +83,8 @@ InteractiveModeBase.prototype.showStatus = function (this: InteractiveModeBase, 
 	const text = new Text(theme.fg("dim", message), 1, 0);
 	this.chatContainer.addChild(spacer);
 	this.chatContainer.addChild(text);
-	this.lastStatusSpacer = spacer;
-	this.lastStatusText = text;
+	this.lastStatusSpacer = persist ? undefined : spacer;
+	this.lastStatusText = persist ? undefined : text;
 	this.ui.requestRender();
 };
 
