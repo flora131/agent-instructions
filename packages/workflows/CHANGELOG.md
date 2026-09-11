@@ -20,6 +20,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Embedded Postgres startup now reports an early process exit with its actual log output instead of waiting out the full readiness timeout. When the retained postmaster exits before accepting connections (a corrupt cluster, a refused setting, or PostgreSQL's administrator refusal on an unrestricted Windows launch), the startup error includes the log tail from the exact retained process; attached servers, shutdown retry semantics, and non-Postgres platforms are unchanged.
 - Embedded Postgres startup no longer treats a competing listener as ready after the owned server exits, and reports process-status query failures without replacing them with a generic timeout.
 
+### Changed
+
+- Incoming Intercom `send` and `ask` messages to a live workflow stage now cancel the stage's current model call or cancellable tool and are processed immediately within the same stage generation, instead of waiting for the next natural model turn. Admitted input survives consumed preflight and overlapping SDK interrupt turns, and persistence retries retain their FIFO position. The stage task is not restarted, completed tool results are kept, and the exact-child foreground detach handshake still runs before cancellation so a child asking its parent stage is not cancelled by its own message.
+
 ## [0.9.19-alpha.3] - 2026-09-09
 
 ### Fixed

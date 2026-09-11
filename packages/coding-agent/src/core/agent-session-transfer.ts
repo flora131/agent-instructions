@@ -5,6 +5,7 @@ import {
 import type { AgentSessionInternalSurface as AgentSession } from "./agent-session-methods.ts";
 import { transferProtectedStreamingCustomMessages } from "./agent-session-persistent-custom-messages.ts";
 import { composePauseAbortBoundaries } from "./agent-session-queue-pause.ts";
+import { priorityHoldCounts } from "./agent-session-types.ts";
 
 /** Atomically retire one stage session and prepend all of its delivery ownership to the replacement. */
 export function transferWorkflowStageDeliveriesTo(this: AgentSession, target: object): void {
@@ -59,6 +60,15 @@ export function transferWorkflowStageDeliveriesTo(this: AgentSession, target: ob
 		// A transferred interrupt keeps exclusive ownership of the combined hold.
 		// Its finalizer restores the hold only after the last live-owner delivery.
 		next._activeInterruptQueueHold = transferred;
+		// Keep the insertion boundary after older priority input, including a
+		// replacement's own priority prefix behind the prepended source queues.
+		const targetPriorityCount = priorityHoldCounts.get(targetHeld) ?? 0;
+		priorityHoldCounts.set(
+			transferred,
+			targetPriorityCount > 0
+				? sourceQueues.steering.length + targetPriorityCount
+				: (priorityHoldCounts.get(sourceHeld) ?? 0),
+		);
 	} else {
 		next._restoreQueuedAgentMessages(transferred);
 	}

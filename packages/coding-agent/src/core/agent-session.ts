@@ -113,6 +113,9 @@ class AgentSessionBase {
 	protected _admittedRecoveryTurn: Promise<void> | undefined = undefined;
 	protected _workflowStageDeliveryForwardTarget: AgentSessionInternalSurface | undefined = undefined;
 	protected _activeInterruptAbortMessage: string | undefined = undefined;
+	/** Priority input cancels the native operation, not the host-owned task. */
+	protected _priorityInterruptPending = false;
+	protected _activePromptCount = 0;
 	protected _pendingNextTurnMessages: CustomMessage[] = [];
 	/** Context-only custom messages queued during a run, flushed after the current turn's tool results. */
 	protected _pendingCustomMessages: CustomMessage[] = [];
@@ -189,6 +192,7 @@ class AgentSessionBase {
 	/** Protection claim on this session's temp tree and tool-results directory. */
 	protected _tempStorageLease: ProtectedPathLease | undefined;
 	protected _workflowStageAdmission: WorkflowStageAdmissionBoundary | undefined;
+	protected _subagentMessageAdmission: WorkflowStageAdmissionBoundary | undefined;
 	protected _agentTaskHost: import("./tasks/agent-adapter.js").AgentTaskHost | undefined;
 	protected _taskCompletionOutbox: import("./tasks/completion.js").TaskCompletionOutbox | undefined;
 	protected _taskAdmission: WorkflowStageAdmissionBoundary | undefined;
@@ -211,6 +215,24 @@ class AgentSessionBase {
 		this._sessionStartEvent = config.sessionStartEvent ?? { type: "session_start", reason: "startup" };
 		this._orchestrationContext = config.orchestrationContext;
 		this._subagentPolicy = config.subagentPolicy;
+		if (config.subagentPolicy?.executionEnded !== undefined) {
+			// Reuse the stable-key admission/drain primitive, not workflow identity or task ownership.
+			const admission = WorkflowStageAdmissionBoundary.restore(this.sessionManager.getBranch());
+			this._subagentMessageAdmission = admission;
+			this._subagentPolicy = {
+				...config.subagentPolicy,
+				messageAdmission: {
+					isOpen: () => admission.isOpen(),
+					run: (deliver) =>
+						admission.runMessageDelivery(deliver, () => {
+							throw new Error("Subagent execution is terminal and cannot accept messages");
+						}),
+				},
+			};
+			const ended = config.subagentPolicy.executionEnded;
+			if (ended.aborted) admission.seal();
+			else ended.addEventListener("abort", () => admission.seal(), { once: true });
+		}
 		this._systemPromptTransform = config.systemPromptTransform;
 		const stageContext =
 			config.orchestrationContext?.kind === "workflow-stage" ? config.orchestrationContext : undefined;
