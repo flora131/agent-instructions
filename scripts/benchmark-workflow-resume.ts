@@ -1,4 +1,4 @@
-/** Owned, disposable DBOS fixture. Usage and timing boundaries: docs/workflow-resume-performance.md. */
+/** Owned, disposable DBOS fixture for measuring workflow resume latency. */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
