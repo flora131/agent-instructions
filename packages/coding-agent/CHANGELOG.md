@@ -31,6 +31,7 @@
 - Standalone write tools retain their implicit observation store across `local://` writes, so overwriting a file the same tool just created no longer incorrectly fails with `no_prior_observation`.
 - Preserved typed `edit` conflicts when parent-directory permissions change after patch preparation. The rejection retains the original target identity and filesystem error code instead of escaping as a raw permission error ([#2329](https://github.com/bastani-inc/atomic/issues/2329)).
 - Fixed the Gondolin example failing to load after removal of the legacy grep tool API. It now registers only its supported file and shell overrides; the search tool remains on the host, and guest-only content searches use the routed shell ([#2482](https://github.com/bastani-inc/atomic/pull/2482)).
+- Agent questionnaires retain unsubmitted answers, partial multiselect choices, inline text, notes, and editing position when a workflow stage is detached and reattached. A new questionnaire starts unanswered; cancellation remains a cancellation ([#2700](https://github.com/bastani-inc/atomic/pull/2700)).
 
 ## [0.9.19-alpha.5] - 2026-09-11
 
