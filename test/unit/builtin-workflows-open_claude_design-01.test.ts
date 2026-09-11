@@ -158,7 +158,7 @@ describe("open-claude-design", () => {
 			assert.ok(readPathEndsWith(ctx.calls.taskOptions["generate-1"]?.[0], "references.md"));
 			for (const [name, entries] of Object.entries(ctx.calls.taskOptions)) {
 				for (const options of entries) {
-					assert.equal(options.model, "openai-codex/gpt-6-astra:medium", name);
+					assert.equal(options.model, "anthropic/claude-fable-5-1:medium", name);
 					assert.deepEqual(options.fallbackModels, designFallbacks, name);
 				}
 			}

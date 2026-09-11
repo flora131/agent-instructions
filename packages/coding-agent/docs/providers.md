@@ -118,7 +118,7 @@ Run `/login xai`, then select **Use a subscription**. `XAI_API_KEY` remains avai
 
 Atomic defaults xAI sessions to `grok-4.6`. Built-in workflow and subagent fallback chains use `xai/grok-4.6:xhigh`, `github-copilot/grok-4.6:xhigh`, and `openrouter/x-ai/grok-4.6:xhigh`; GitHub Copilot also exposes Grok 4.6 when the account's model policy enables it. Network-backed catalogs refresh and cache these newer entries independently of the bundled catalog snapshot.
 
-The `codebase-locator`, `codebase-pattern-finder`, and `codebase-research-locator` agents use GPT-5.6 Luna at `xhigh` and Grok fallbacks at `medium` instead. Goal and Ralph orchestration, Ralph research, and Open Claude Design use GPT-6 Astra at `medium`; Ralph prompt refinement remains at `high`.
+The `codebase-locator`, `codebase-pattern-finder`, and `codebase-research-locator` agents use GPT-5.6 Luna at `xhigh` and Grok fallbacks at `medium` instead. Goal and Ralph orchestration, Ralph research, and the debugger use GPT-6 Astra at `medium`; Ralph prompt refinement remains at `high`. Open Claude Design starts with Anthropic Fable 5.1 at `medium`, then GitHub Copilot Fable 5.1 and Codex, Copilot, and OpenAI Astra at `medium`.
 
 ### Radius
 

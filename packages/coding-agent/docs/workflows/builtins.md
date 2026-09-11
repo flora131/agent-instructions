@@ -102,14 +102,17 @@ The current `goal`, `ralph`, and `open-claude-design` defaults are:
 
 | Role | Primary model |
 |---|---|
-| Goal and Ralph orchestrators | `openai-codex/gpt-6-astra:high` |
-| Goal reviewers | `openai-codex/gpt-6-astra:xhigh` |
-| Ralph prompt engineer and research | `openai-codex/gpt-6-astra:high` |
+| Goal and Ralph orchestrators | `openai-codex/gpt-6-astra:medium` |
+| Goal reviewers | `openai-codex/gpt-6-astra:high` |
+| Ralph prompt engineer | `openai-codex/gpt-6-astra:high` |
+| Ralph research | `openai-codex/gpt-6-astra:medium` |
 | Ralph reviewer A | `anthropic/claude-fable-5-1:high` |
-| Ralph reviewer B | `openai-codex/gpt-6-astra:xhigh` |
-| Open Claude Design model stages | `openai-codex/gpt-6-astra:high` |
+| Ralph reviewer B | `openai-codex/gpt-6-astra:high` |
+| Open Claude Design model stages | `anthropic/claude-fable-5-1:medium` |
 
-Astra-led chains try GitHub Copilot Astra, OpenAI Astra, Anthropic Fable 5.1, then GitHub Copilot Fable 5.1 before older models. Ralph reviewer A starts with GitHub Copilot Fable 5.1, then Codex, Copilot, and OpenAI Astra at `xhigh`. Later fallback order is role-specific: Ralph research puts Fable 5 before Sol, while the orchestrators put Sol before Fable 5. Reviewer A puts Kimi before Sol; Goal reviewers and Ralph reviewer B put Sol before Kimi. OpenRouter mirrors follow direct-provider candidates. These are configured preferences, not guarantees of provider or account availability.
+Astra-led chains try GitHub Copilot Astra, OpenAI Astra, Anthropic Fable 5.1, then GitHub Copilot Fable 5.1 before older models. Ralph reviewer A starts with GitHub Copilot Fable 5.1, then Codex, Copilot, and OpenAI Astra at `high`. Open Claude Design starts with Anthropic and Copilot Fable 5.1, then Codex, Copilot, and OpenAI Astra, all at `medium`; its OpenRouter group also puts Fable 5.1 before Astra.
+
+Goal and Ralph orchestration, Ralph research, and design use Fable 5.1/Fable 5 at `medium` and Sol at `high` in their fallbacks. Goal and Ralph reviewers use Astra/Sol at `high`. Ralph prompt refinement keeps its Fable `high` and Sol `xhigh` fallbacks. Later fallback order remains role-specific: Ralph research puts Fable 5 before Sol, while the orchestrators put Sol before Fable 5. Reviewer A puts Kimi before Sol; Goal reviewers and Ralph reviewer B put Sol before Kimi. OpenRouter mirrors follow direct-provider candidates. These are configured preferences, not guarantees of provider or account availability.
 
 ### Six composable pattern builtins
 

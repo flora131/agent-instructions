@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Open Claude Design now starts with Claude Fable 5.1 at medium effort, followed by Copilot Fable 5.1 and Astra at medium effort, with the same Fable-first order on OpenRouter.
+- Tuned bundled debugger, Goal, and Ralph reasoning efforts: debugger uses Astra/Fable at medium and Sol at high; Goal and Ralph reviewers use Astra/Sol at high; orchestration, Ralph research, and design use Fable at medium and Sol at high in their fallbacks. Ralph prompt refinement and other bundled agents retain their existing configurations.
+
 ## [0.9.19-alpha.4] - 2026-09-10
 
 ### Breaking Changes

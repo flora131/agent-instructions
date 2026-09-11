@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The bundled debugger now uses GPT-6 Astra at `medium`, with Astra/Fable 5.1/Fable 5 fallbacks at `medium` and Sol at `high`. Its complete fallback order, other model efforts, and all other bundled agent configurations remain unchanged.
+
 ## [0.9.19-alpha.4] - 2026-09-10
 
 ### Breaking Changes
