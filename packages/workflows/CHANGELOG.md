@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Added effective model and thinking identity to graph node cards, preserving thinking and canonical fast model suffixes in narrow rows and restoring identity through durable resume. Live fallback replacements update the model row; the `BACKGROUND` widget is unchanged ([#1859](https://github.com/bastani-inc/atomic/pull/1859) by [@sina85](https://github.com/sina85)).
 
+### Fixed
+
+- Reduced durable `/workflow resume` latency for checkpoint-heavy workflows, especially on Windows, by reusing loaded checkpoint envelopes while preserving original checkpoint decoding errors and completed-output values.
+
 ## [0.9.19-alpha.3] - 2026-09-09
 
 ### Fixed
