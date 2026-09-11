@@ -200,6 +200,9 @@ const proseNames = new Set([
 	"inheritEnv",
 	"bash",
 	"powershell",
+	// PR #2982: PostgreSQL command and Windows executable-search environment variable, not exports.
+	"pg_ctl",
+	"PATH",
 	"openrouter",
 	"flex",
 	"undefined",
