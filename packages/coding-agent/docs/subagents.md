@@ -7,6 +7,8 @@ description: "Run focused Atomic child agents"
 
 Atomic bundles `@bastani/subagents`, an extension for bounded specialist delegation with separate context while the parent remains in control. Use a single agent or parallel fan-out when isolation or a specialist pass materially helps with locating code, analyzing behavior, researching references, reproducing actual failures, or simplifying code. Keep interactive, exploratory, conceptual, and conversation-led work inline when direct user steering is more useful.
 
+Keep immediately blocking work local unless specialist expertise, context isolation, or an explicit delegation request makes a child worthwhile. Delegate independent work you can overlap with your own next steps, then continue without duplicating the child's task. If a specialist's result is needed next, foreground observation is still available. Wait when the result becomes a dependency; otherwise rely on completion notices rather than repeated short waits or status polls.
+
 You do not need to install anything separately when you use `@bastani/atomic`.
 
 Background subagents are supported. See [Background tasks](/background-tasks) for launch examples, the below-prompt status indicator, `/tasks`, shell output, cancellation, and completion notices.
@@ -67,7 +69,7 @@ Subagents now run and return their results directly. Atomic does not infer accep
 
 ## Owner-bound task observation
 
-Runtime-created session contexts bind single launches to their actual session or workflow-stage owner. Omitted `wait` returns an admitted observation with reason `default-background`; `wait: {kind: "background"}` uses reason `explicit`. `wait: {kind: "foreground", budgetMs: 30000}` opts into foreground-first observation. The omitted foreground budget is 30000 ms. `subagent({action: "wait", id: taskId, budgetMs: 1000})` observes an existing task in the same owner without restarting it.
+Runtime-created session contexts bind single launches to their actual session or workflow-stage owner. Omitted `wait` returns an admitted observation with reason `default-background`; `wait: {kind: "background"}` uses reason `explicit`. `wait: {kind: "foreground", budgetMs: 30000}` opts into foreground-first observation. The omitted foreground budget is 30000 ms. `subagent({action: "wait", id: taskId})` observes an existing task in the same owner without restarting it, using the owner's observation budget unless explicitly overridden.
 
 The agent may choose foreground-first or background observation for each authorized call without asking the user merely to select a mode. When a foreground observation expires, the returned task is still running. Wait for terminal completion before using its result in dependent work. See [Choosing how long to wait](/background-tasks#choose-how-long-to-wait) for shell and subagent defaults and the separate execution-timeout behavior.
 

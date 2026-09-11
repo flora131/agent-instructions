@@ -108,8 +108,9 @@ export const bashToolSystemPromptContribution = Object.freeze({
 	snippet: "Execute a shell command.",
 	guidelines: Object.freeze([
 		"You can inspect ATOMIC_* or PI_* environment variables for current model and session details.",
-		'Use { action: "wait", id: taskId, budgetMs: 1000 } to observe an existing shell task. Omit budgetMs for owner policy; zero polls. Never relaunch a yielded command. Waiting does not extend execution timeout or owner lifetime.',
-		"Choose foreground or background bash observation as needed without asking the user each time. Background yields after admission; foreground waits for its optional budget then the same command continues in background. Omitted wait uses owner-configured automatic background yield (default 10s). Observation never changes the execution timeout, which stops the command. Background requires a supported task owner; unbound foreground waits until completion regardless of budget.",
+		'Use { action: "wait", id: taskId } to observe an existing shell task with the owner policy. Avoid repeated short polls; await completion notifications when no dependent work is blocked. Never relaunch a yielded command. Waiting does not extend execution timeout or owner lifetime.',
+		"For ordinary commands, omit wait to use the owner's observation policy (normally 10s). Do not routinely request one-second waits: premature yields add tool calls without making the command faster. Use a short budget only for a concrete responsiveness need, or explicit background observation when you have independent work to do. Explicit budgets, including zero for polling, remain available.",
+		"Choose foreground or background shell observation as needed without asking the user each time. Background yields after admission; foreground waits for its optional budget then the same command continues in background. Omitted wait uses owner-configured automatic background yield (default 10s). Observation never changes the execution timeout, which stops the command. Background requires a supported task owner; unbound foreground waits until completion regardless of budget.",
 	] as const),
 } as const);
 export type BashToolInput = Static<typeof bashSchema>;

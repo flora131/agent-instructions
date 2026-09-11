@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Delegation guidance now favors keeping immediately blocking work local unless specialist expertise, context isolation, or an explicit request warrants a child. Parents are guided to continue independent work and wait on dependencies rather than repeatedly polling. Background launch defaults and explicit foreground waits are unchanged.
+
 ## [0.9.19-alpha.5] - 2026-09-11
 
 ### Changed

@@ -176,10 +176,12 @@ Show me the current subagent status.
 
 The agent can choose a mode for each authorized call without asking you merely to select an execution mode:
 
+Keep immediately blocking work local unless specialist expertise, context isolation, or an explicit delegation request makes a child worthwhile. Continue independent work after spawning without duplicating the child's task. Wait when its result becomes a dependency; otherwise rely on completion notices rather than repeated short waits or status polls.
+
 ```ts
 subagent({ agent: "codebase-analyzer", task: "Trace authentication.", wait: { kind: "background" } })
 subagent({ agent: "codebase-analyzer", task: "Trace authentication.", wait: { kind: "foreground", budgetMs: 30000 } })
-subagent({ action: "wait", id: taskId, budgetMs: 1000 })
+subagent({ action: "wait", id: taskId })
 subagent({ action: "status", id: taskId })
 subagent({ action: "kill", id: taskId })
 ```
