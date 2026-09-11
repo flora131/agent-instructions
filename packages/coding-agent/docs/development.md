@@ -52,20 +52,13 @@ For startup measurements, see the [Windows startup benchmark](https://github.com
 
 ## PDF and engine diagnostics
 
-MuPDF diagnostics appear as status messages in interactive sessions and use `console.log`
-otherwise. Conversion failures also retain the diagnostic suffix in their error result.
-Each conversion retains at most 32 diagnostics, each limited to 4096 characters.
-Interactive diagnostic display removes terminal escape sequences and replaces remaining
-control characters with spaces (except tabs and newlines). Stored diagnostics and conversion
-error results retain their original text within these bounds.
+PDF conversion and engine diagnostics appear as status messages in interactive sessions
+and console output otherwise. Conversion failures also include diagnostic details in
+their error result. Long or noisy diagnostics may be truncated.
 
-RPC mode's existing stdout guard redirects `console.log` to stderr so stdout remains JSON.
-The interactive host drains child stderr without filesystem writes, batches it outside
-the pipe callback, and renders it through the engine diagnostic status path rather than
-writing raw bytes onto the alternate screen. Pending batches and failure tails retain
-at most 256 KiB, with a truncation marker on overflow. A noninteractive `RpcClient` uses
-`console.log` for those batches. Unicode characters are preserved across child output
-chunks in both routes and failure tails. No `atomic-engine-stderr.log` file is written.
+Diagnostics are displayed as text, not terminal commands. RPC clients receive diagnostics
+separately from JSON responses. No `atomic-engine-stderr.log` file is written; include the
+displayed diagnostic and conversion error when reporting a PDF problem.
 
 ## Testing
 

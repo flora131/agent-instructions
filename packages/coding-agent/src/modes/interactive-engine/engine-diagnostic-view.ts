@@ -1,4 +1,4 @@
-import { stripVTControlCharacters } from "node:util";
+import { stripAnsi } from "../../utils/ansi.js";
 import { type ActivityWatchdogDiagnostic, shouldRenderEngineDiagnosticAsChatError } from "./activity-watchdog.ts";
 
 export interface EngineDiagnosticView {
@@ -10,7 +10,7 @@ export interface EngineDiagnosticView {
 /** Sanitize only the display copy, like task-detail's multiline presentation. */
 export function renderDiagnosticStatus(message: string, view: Pick<EngineDiagnosticView, "showStatus">): void {
 	// ANSI stripping alone misses bare C0/C1 controls and incomplete escape sequences.
-	const text = stripVTControlCharacters(message).replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, " ");
+	const text = stripAnsi(message).replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, " ");
 	view.showStatus(text, true);
 }
 

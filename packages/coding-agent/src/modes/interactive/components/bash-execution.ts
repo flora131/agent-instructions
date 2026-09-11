@@ -9,7 +9,7 @@ import {
 	type TruncationResult,
 	truncateTail,
 } from "../../../core/tools/truncate.ts";
-import { stripAnsi } from "../../../utils/ansi.ts";
+import { stripAnsi } from "../../../utils/ansi.js";
 import { theme } from "../theme/theme.js";
 import { DynamicBorder } from "./dynamic-border.ts";
 import { keyText, parenthesizedKeyHint } from "./keybinding-hints.js";

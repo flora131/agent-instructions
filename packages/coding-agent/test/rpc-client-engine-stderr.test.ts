@@ -138,14 +138,18 @@ describe("RpcClient engine stderr routing", () => {
 				received = Promise.withResolvers<void>();
 				completed = Promise.withResolvers<void>();
 				messages = [];
+				// Own fd 2 so end() actually closes it. process.stderr deliberately keeps
+				// its fd open, and Windows pipe shutdown alone does not deliver EOF.
 				writeFileSync(
 					path,
 					`import { createInterface } from "node:readline";
+				import { createWriteStream } from "node:fs";
+				const stderr = createWriteStream(null, {fd:2, autoClose:true});
 				process.stdout.write(JSON.stringify({type:"engine_ready",protocolVersion:4,pid:process.pid})+"\\n");
-				process.stderr.write(Buffer.concat([Buffer.from("prefix "), Buffer.from([${bytes}])]));
+				stderr.write(Buffer.concat([Buffer.from("prefix "), Buffer.from([${bytes}])]));
 				createInterface({input:process.stdin}).on("line", line => {
 					const command = JSON.parse(line);
-					process.stderr.end();
+					stderr.end();
 					process.stdout.write(JSON.stringify({type:"response",id:command.id,command:command.type,success:true,data:{}})+"\\n");
 				});`,
 				);
@@ -157,6 +161,7 @@ describe("RpcClient engine stderr routing", () => {
 					await completed.promise;
 					expect(messages.join("")).toBe(`prefix ${expected}`);
 					expect(client.getStderr()).toBe(`prefix ${expected}`);
+					expect(await client.getState()).toEqual({});
 				} finally {
 					await client.stop();
 				}

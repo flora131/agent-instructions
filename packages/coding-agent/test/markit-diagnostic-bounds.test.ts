@@ -78,3 +78,15 @@ test("displays MuPDF controls inertly while retaining raw failure diagnostics", 
 		fixture.lines = [];
 	}
 });
+
+// Regression #2965: CSI must not consume printable text up to a later BEL (Node 26).
+test.each([
+	["\x1b[2J\x1b[1;1HAFTER\x07", "AFTER "],
+	["\x9b2JAFTER", "AFTER"],
+	["\x1b]0;hidden title\x07AFTER", "AFTER"],
+	["\x1b]0;hidden title\x1b\\AFTER", "AFTER"],
+])("preserves diagnostic text around terminal controls %j", (input, expected) => {
+	const showStatus = vi.fn();
+	renderDiagnosticStatus(`BEFORE${input}`, { showStatus });
+	expect(showStatus).toHaveBeenCalledExactlyOnceWith(`BEFORE${expected}`, true);
+});
