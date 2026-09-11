@@ -8,7 +8,7 @@
 - Preserved log-file stdout/stderr and closed stdin on regular Windows launches, released the child thread handle after each retained spawn, and honored Unicode case-insensitive environment overrides. Restricted launches now clean up partially acquired standard handles and propagate failed process observations instead of reporting the process as still running.
 - Preserved executable lookup through `PATH` and relative paths for administrative Windows Postgres launches, including child environment overrides. Embedded NUL characters in launch paths, arguments, or environment entries are rejected before a process starts instead of truncating inputs or injecting environment variables.
 - Fixed `.cmd` and `.bat` launchers with arguments on administrative Windows accounts, including paths with spaces. Restored batch-specific argument quoting and unsafe-input rejection without changing reduced privileges or direct `postgres.exe` launches.
-- Preserved ordinary argument quoting for explicit Windows command interpreters and safe `\\?\` working-directory handling on administrative launches. Concurrent restricted retained children now inherit only their selected standard streams instead of keeping other launches' log files open.
+- Preserved ordinary argument quoting for explicit Windows command interpreters and safe `\\?\` working-directory handling on administrative launches. Concurrent restricted retained children inherit only their selected standard streams, and unrelated concurrent commands cannot keep those log files open after their owners finish.
 
 ## [0.9.19-alpha.2] - 2026-09-08
 

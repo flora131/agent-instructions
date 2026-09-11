@@ -725,16 +725,17 @@ fn concurrent_children_inherit_only_their_own_log_handles() {
 	use std::sync::{Arc, Barrier};
 	let root = root();
 	let mut differences = Vec::new();
-	for retained in [false, true] {
+	for group in ["std", "retained", "mixed"] {
 		let barrier = Arc::new(Barrier::new(8));
 		let workers: Vec<_> = (0..8)
 			.map(|worker| {
 				let root = root.clone();
 				let barrier = Arc::clone(&barrier);
 				thread::spawn(move || {
+					let retained = group == "retained" || (group == "mixed" && worker < 4);
 					let mut observations = Vec::new();
-					for round in 0..20 {
-						let name = format!("{retained}-{worker}-{round}.log");
+					for round in 0..40 {
+						let name = format!("{group}-{retained}-{worker}-{round}.log");
 						let log = root.join(&name);
 						let result = log.with_extension("handles");
 						let output = fs::File::create(&log).unwrap();

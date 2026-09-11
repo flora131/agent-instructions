@@ -22,7 +22,7 @@
 - Preserved embedded Postgres startup logs on regular Windows accounts, honored Unicode environment overrides on administrative launches, and prevented Windows handle leaks across repeated launches.
 - Preserved `PATH` lookup and relative executable paths for administrative Windows Postgres launches. Invalid launch inputs containing embedded NUL characters now fail before starting a process rather than using truncated paths, arguments, or environment values.
 - Fixed custom Windows Postgres `.cmd` and `.bat` launchers failing with arguments on administrative accounts, including launcher paths containing spaces. Batch arguments retain their existing quoting and line-break rejection.
-- Fixed explicit `cmd.exe` Postgres launchers and safe verbatim working directories on Windows administrative accounts. Concurrent restricted Postgres launches no longer inherit one another's log files.
+- Fixed explicit `cmd.exe` Postgres launchers and safe verbatim working directories on Windows administrative accounts. Concurrent Postgres launches no longer keep one another's log files open or expose them to unrelated commands starting at the same time.
 
 ## [0.9.19-alpha.3] - 2026-09-09
 

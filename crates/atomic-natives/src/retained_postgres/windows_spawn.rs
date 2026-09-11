@@ -54,14 +54,20 @@ use windows_sys::Win32::{
 	},
 	System::{
 		Environment::{FreeEnvironmentStringsW, GetEnvironmentStringsW},
+		JobObjects::{
+			CreateJobObjectW, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+			JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+			JobObjectExtendedLimitInformation, SetInformationJobObject,
+		},
 		Memory::{GetProcessHeap, HeapAlloc, HeapFree},
 		SystemInformation::{GetSystemDirectoryW, GetWindowsDirectoryW},
 		Threading::{
-			CreateProcessAsUserW, DeleteProcThreadAttributeList, EXTENDED_STARTUPINFO_PRESENT,
-			GetCurrentProcess, GetExitCodeProcess, InitializeProcThreadAttributeList,
-			LPPROC_THREAD_ATTRIBUTE_LIST, OpenProcessToken, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-			PROCESS_INFORMATION, STARTF_USESTDHANDLES, STARTUPINFOEXW, STARTUPINFOW,
-			UpdateProcThreadAttribute, WaitForSingleObject,
+			CREATE_SUSPENDED, CreateProcessAsUserW, CreateProcessW, DeleteProcThreadAttributeList,
+			EXTENDED_STARTUPINFO_PRESENT, GetCurrentProcess, GetExitCodeProcess, INFINITE,
+			InitializeProcThreadAttributeList, LPPROC_THREAD_ATTRIBUTE_LIST, OpenProcessToken,
+			PROC_THREAD_ATTRIBUTE_HANDLE_LIST, PROC_THREAD_ATTRIBUTE_JOB_LIST,
+			PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, PROCESS_INFORMATION, STARTF_USESTDHANDLES,
+			STARTUPINFOEXW, STARTUPINFOW, UpdateProcThreadAttribute, WaitForSingleObject,
 		},
 	},
 };
@@ -502,10 +508,7 @@ fn append_batch_argument(line: &mut Vec<u16>, argument: &OsStr) {
 	}
 }
 
-/// One documented HANDLE_LIST, with aligned heap storage and borrowed handle
-/// values that outlive DeleteProcThreadAttributeList. Restricting inheritance
-/// here prevents concurrent retained children from acquiring each other's logs.
-/// It cannot coordinate unrelated callers of inherit-all CreateProcess.
+/// Aligned attribute storage whose borrowed values outlive list deletion.
 /// https://learn.microsoft.com/windows/win32/api/processthreadsapi/nf-processthreadsapi-updateprocthreadattribute
 struct HandleAttributeList<'a> {
 	list: LPPROC_THREAD_ATTRIBUTE_LIST,
@@ -514,9 +517,10 @@ struct HandleAttributeList<'a> {
 }
 
 impl<'a> HandleAttributeList<'a> {
-	fn new(handles: &'a [HANDLE]) -> io::Result<Self> {
+	fn new(attributes: &[(u32, &'a [HANDLE])]) -> io::Result<Self> {
+		let count = attributes.len() as u32;
 		let mut size = 0;
-		unsafe { InitializeProcThreadAttributeList(ptr::null_mut(), 1, 0, &mut size) };
+		unsafe { InitializeProcThreadAttributeList(ptr::null_mut(), count, 0, &mut size) };
 		// The first call is documented to fail while returning the required size.
 		if size == 0 {
 			return Err(last_error());
@@ -526,23 +530,25 @@ impl<'a> HandleAttributeList<'a> {
 			return Err(io::ErrorKind::OutOfMemory.into());
 		}
 		let mut owned = Self { list, initialized: false, _handles: std::marker::PhantomData };
-		if unsafe { InitializeProcThreadAttributeList(list, 1, 0, &mut size) } == 0 {
+		if unsafe { InitializeProcThreadAttributeList(list, count, 0, &mut size) } == 0 {
 			return Err(last_error());
 		}
 		owned.initialized = true;
-		if unsafe {
-			UpdateProcThreadAttribute(
-				list,
-				0,
-				PROC_THREAD_ATTRIBUTE_HANDLE_LIST as usize,
-				handles.as_ptr().cast(),
-				std::mem::size_of_val(handles),
-				ptr::null_mut(),
-				ptr::null(),
-			)
-		} == 0
-		{
-			return Err(last_error());
+		for (attribute, handles) in attributes {
+			if unsafe {
+				UpdateProcThreadAttribute(
+					list,
+					0,
+					*attribute as usize,
+					handles.as_ptr().cast(),
+					std::mem::size_of_val(*handles),
+					ptr::null_mut(),
+					ptr::null(),
+				)
+			} == 0
+			{
+				return Err(last_error());
+			}
 		}
 		Ok(owned)
 	}
@@ -559,30 +565,108 @@ impl Drop for HandleAttributeList<'_> {
 	}
 }
 
-/// Duplicate a handle so the child inherits exactly this one. The duplicate is
-/// owned by the caller and must be closed after process creation.
-fn inheritable_duplicate(handle: HANDLE) -> io::Result<HANDLE> {
-	let mut duplicate: HANDLE = ptr::null_mut();
-	if unsafe {
-		DuplicateHandle(
-			GetCurrentProcess(),
-			handle,
-			GetCurrentProcess(),
-			&mut duplicate,
-			0,
-			1,
-			DUPLICATE_SAME_ACCESS,
-		)
-	} == 0
-	{
-		return Err(last_error());
-	}
-	Ok(duplicate)
+/// Inheritable handles exist ONLY in this never-executed process, so even
+/// unrelated inherit-all std spawns cannot acquire them. The launcher itself
+/// still creates the real child and owns its exact creation HANDLE.
+/// https://devblogs.microsoft.com/oldnewthing/20200306-00/?p=103538
+struct HandleContainer {
+	process: OwnedHandle,
+	job: Option<OwnedHandle>,
 }
 
-/// An inheritable readable NUL device handle for the child's stdin, matching
-/// `Stdio::null`. Every handle passed with STARTF_USESTDHANDLES must itself be
-/// inheritable, or CreateProcess fails with ERROR_INVALID_PARAMETER.
+impl HandleContainer {
+	fn new() -> io::Result<Self> {
+		let application = wide(std::env::current_exe()?.as_os_str());
+		let job = unsafe { CreateJobObjectW(ptr::null(), ptr::null()) };
+		if job.is_null() {
+			return Err(last_error());
+		}
+		let job = OwnedHandle(job);
+		let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+		// Only the container belongs to this job. Silent breakaway leaves the
+		// real child in the caller's original job chain, never in this guard.
+		limits.BasicLimitInformation.LimitFlags =
+			JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK;
+		if unsafe {
+			SetInformationJobObject(
+				job.0,
+				JobObjectExtendedLimitInformation,
+				(&limits as *const JOBOBJECT_EXTENDED_LIMIT_INFORMATION).cast(),
+				size_of_val(&limits) as u32,
+			)
+		} == 0
+		{
+			return Err(last_error());
+		}
+		let jobs = [job.0];
+		let attributes = HandleAttributeList::new(&[(PROC_THREAD_ATTRIBUTE_JOB_LIST, &jobs)])?;
+		let startup = STARTUPINFOEXW {
+			StartupInfo: STARTUPINFOW { cb: size_of::<STARTUPINFOEXW>() as u32, ..Default::default() },
+			lpAttributeList: attributes.list,
+		};
+		let mut information = PROCESS_INFORMATION::default();
+		// JOB_LIST attaches atomically: no crash gap between creating a
+		// suspended process and assigning its kill-on-close job. No helper code,
+		// loader initialization, inherited handles, IPC or packaged binary.
+		if unsafe {
+			CreateProcessW(
+				application.as_ptr(),
+				ptr::null_mut(),
+				ptr::null(),
+				ptr::null(),
+				0,
+				CREATION_FLAGS | CREATE_SUSPENDED | EXTENDED_STARTUPINFO_PRESENT,
+				ptr::null(),
+				ptr::null(),
+				&startup.StartupInfo,
+				&mut information,
+			)
+		} == 0
+		{
+			return Err(last_error());
+		}
+		drop(OwnedHandle(information.hThread));
+		Ok(Self { process: OwnedHandle(information.hProcess), job: Some(job) })
+	}
+
+	fn duplicate(&self, handle: HANDLE) -> io::Result<HANDLE> {
+		let mut duplicate = ptr::null_mut();
+		if unsafe {
+			DuplicateHandle(
+				GetCurrentProcess(),
+				handle,
+				self.process.0,
+				&mut duplicate,
+				0,
+				1,
+				DUPLICATE_SAME_ACCESS,
+			)
+		} == 0
+		{
+			return Err(last_error());
+		}
+		// This value belongs to the REMOTE handle table, not an OwnedHandle in
+		// ours. Container termination closes all partial/successful duplicates.
+		Ok(duplicate)
+	}
+
+	fn stdio(&self, stdout: HANDLE, stderr: HANDLE) -> io::Result<[HANDLE; 3]> {
+		let input = OwnedHandle(null_input_handle()?);
+		Ok([self.duplicate(input.0)?, self.duplicate(stdout)?, self.duplicate(stderr)?])
+	}
+}
+
+impl Drop for HandleContainer {
+	fn drop(&mut self) {
+		// All handles to this unnamed job are local and noninheritable; closing
+		// it also works on abort/crash. The never-run container has no pending
+		// user-mode I/O, and is reaped before its creation HANDLE is released.
+		drop(self.job.take());
+		unsafe { WaitForSingleObject(self.process.0, INFINITE) };
+	}
+}
+
+/// Local NUL stays noninheritable, just like the caller's log files.
 fn null_input_handle() -> io::Result<HANDLE> {
 	let path: Vec<u16> = OsStr::new("NUL").encode_wide().chain(Some(0)).collect();
 	let handle = unsafe {
@@ -599,17 +683,7 @@ fn null_input_handle() -> io::Result<HANDLE> {
 	if handle == INVALID_HANDLE_VALUE {
 		return Err(last_error());
 	}
-	let inheritable = inheritable_duplicate(handle);
-	unsafe { CloseHandle(handle) };
-	inheritable
-}
-
-fn child_stdio(stdout: HANDLE, stderr: HANDLE) -> io::Result<[OwnedHandle; 3]> {
-	Ok([
-		OwnedHandle(null_input_handle()?),
-		OwnedHandle(inheritable_duplicate(stdout)?),
-		OwnedHandle(inheritable_duplicate(stderr)?),
-	])
+	Ok(handle)
 }
 
 /// Match Rust std 1.98's resolve_exe/search_paths, not CreateProcess's default
@@ -839,18 +913,20 @@ pub fn spawn(
 		debug_assert_eq!(line.last(), Some(&0), "WinAPI requires a terminated command line");
 		let cwd = command.get_current_dir().map(directory_path);
 		let environment = environment_block(command)?;
-		let [input, output, error] = child_stdio(stdout.as_raw_handle(), stderr.as_raw_handle())?;
-		// HANDLE_LIST requires inheritable real handles and bInheritHandles=TRUE.
-		// Only these three duplicates, not every inheritable process handle, pass.
-		let handles = [input.0, output.0, error.0];
-		let attributes = HandleAttributeList::new(&handles)?;
+		let container = HandleContainer::new()?;
+		let handles = container.stdio(stdout.as_raw_handle(), stderr.as_raw_handle())?;
+		let parent = [container.process.0];
+		let attributes = HandleAttributeList::new(&[
+			(PROC_THREAD_ATTRIBUTE_HANDLE_LIST, &handles),
+			(PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, &parent),
+		])?;
 		let startup = STARTUPINFOEXW {
 			StartupInfo: STARTUPINFOW {
 				cb: size_of::<STARTUPINFOEXW>() as u32,
 				dwFlags: STARTF_USESTDHANDLES,
-				hStdInput: input.0,
-				hStdOutput: output.0,
-				hStdError: error.0,
+				hStdInput: handles[0],
+				hStdOutput: handles[1],
+				hStdError: handles[2],
 				..STARTUPINFOW::default()
 			},
 			lpAttributeList: attributes.list,
@@ -871,7 +947,7 @@ pub fn spawn(
 		);
 		let failure = if created == 0 { Some(last_error()) } else { None };
 		drop(attributes);
-		drop([input, output, error]);
+		drop(container);
 		if let Some(error) = failure {
 			return Err(error);
 		}
@@ -1005,11 +1081,31 @@ mod tests {
 			assert_ne!(unsafe { GetProcessHandleCount(GetCurrentProcess(), &mut count) }, 0);
 			count
 		};
+		// CreateProcess's one-time OS initialization opens two persistent handles,
+		// also observed with plain std. Measure repeated failures after that control.
+		let cold = handles();
+		assert!(
+			Command::new(system_directory(GetSystemDirectoryW).unwrap().join("cmd.exe"))
+				.args(["/d", "/c", "exit", "0"])
+				.stdin(Stdio::null())
+				.stdout(Stdio::null())
+				.stderr(Stdio::null())
+				.status()
+				.unwrap()
+				.success()
+		);
+		eprintln!("plain std initialization handles: {cold} -> {}", handles());
 		let before = handles();
 		for _ in 0..20 {
 			// The last duplicate fails after stdin/stdout were already acquired.
-			assert!(child_stdio(output.as_raw_handle(), ptr::null_mut()).is_err());
+			let container = HandleContainer::new().unwrap();
+			assert!(container.stdio(output.as_raw_handle(), ptr::null_mut()).is_err());
+			drop(container);
 		}
 		assert_eq!(handles(), before);
 	}
 }
+
+#[cfg(test)]
+#[path = "windows_spawn_lifecycle.rs"]
+mod lifecycle_tests;
