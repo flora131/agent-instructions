@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.19-alpha.4] - 2026-09-10
+
 ### Breaking Changes
 
 - Renamed the terminal subagent control action from `interrupt` to `kill`. Replace `subagent({ action: "interrupt", id })` with `subagent({ action: "kill", id })`, including calls using `runId`. The old action is rejected, not aliased. Killed children cannot be resumed; launch a fresh child with explicit context for follow-up work. Command results and status report killed, while parent cancellation and lower-level host/native interruption retain their existing semantics.
