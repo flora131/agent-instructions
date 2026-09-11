@@ -2,6 +2,7 @@ import type { Component } from "@earendil-works/pi-tui";
 import { visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { OVERLAY_ACTIVE_ROW_MARKER } from "../../../../extensions/ui-types.ts";
 import { ROW_INTENT_META } from "../../state/row-intent.ts";
+import { escapeDisplayText } from "../escape-display-text.js";
 
 /**
  * Row-intent discriminated union. `kind` is the single discriminator —
@@ -245,14 +246,14 @@ export class WrappingSelect implements Component {
 
 	private inputTextWithCursor(): string {
 		const cursor = this.clampInputCursor(this.inputCursor ?? this.inputBuffer.length);
-		const before = this.inputBuffer.slice(0, cursor);
+		const before = escapeDisplayText(this.inputBuffer.slice(0, cursor));
 		const after = this.inputBuffer.slice(cursor);
 		const [at = ""] = Array.from(after);
 		if (at === "") {
 			return `${before}${WrappingSelect.CURSOR_INVERSE_START} ${WrappingSelect.CURSOR_INVERSE_END}`;
 		}
-		const rest = after.slice(at.length);
-		return `${before}${WrappingSelect.CURSOR_INVERSE_START}${at}${WrappingSelect.CURSOR_INVERSE_END}${rest}`;
+		const rest = escapeDisplayText(after.slice(at.length));
+		return `${before}${WrappingSelect.CURSOR_INVERSE_START}${escapeDisplayText(at)}${WrappingSelect.CURSOR_INVERSE_END}${rest}`;
 	}
 
 	private clampInputCursor(cursor: number): number {
@@ -267,7 +268,7 @@ export class WrappingSelect implements Component {
 		contentWidth: number,
 		applySelectedStyle: boolean,
 	): string[] {
-		const wrapped = wrapTextWithAnsi(label, contentWidth);
+		const wrapped = wrapTextWithAnsi(escapeDisplayText(label), contentWidth);
 		return wrapped.map((segment, index) => {
 			const prefix = index === 0 ? rowPrefix : continuationPrefix;
 			const line = `${prefix}${segment}`;
@@ -281,7 +282,7 @@ export class WrappingSelect implements Component {
 		contentWidth: number,
 	): string[] {
 		if (!description) return [];
-		const wrapped = wrapTextWithAnsi(description, contentWidth);
+		const wrapped = wrapTextWithAnsi(escapeDisplayText(description), contentWidth);
 		return wrapped.map((segment) => `${continuationPrefix}${this.theme.description(segment)}`);
 	}
 }
