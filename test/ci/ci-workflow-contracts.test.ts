@@ -642,7 +642,7 @@ test("release build retains Atomic native, smoke, shrinkwrap, metadata, and asse
 	assert.match(workflow, /native optionalDependencies must be the eight exact-version platform packages/u);
 	assert.match(workflow, /test .* = 11/u);
 	assert.match(workflow, /Build Linux musl archive[\s\S]*--platform "\$\{\{ matrix\.platform \}\}"/u);
-	assert.match(workflow, /Install musl archive tooling[\s\S]*patchelf/u);
+	assert.match(workflow, /Verify installed musl archive tooling[\s\S]*patchelf/u);
 	assert.doesNotMatch(
 		workflow,
 		/Release-base-ref|Release-base-sha|RELEASE_BASE_REFS|deterministic release tree|create-event binding/iu,
@@ -713,7 +713,7 @@ test("native-artifacts bounds every dependency acquisition step", async () => {
 	};
 	assert.equal(budget("tool: cargo-zigbuild@"), 3);
 	assert.equal(budget("tool: cargo-xwin@"), 3);
-	assert.equal(budget("apt-get install"), 5);
+	assert.equal(budget("Select installed Windows cross-compile tooling"), 1);
 	assert.equal(budget("cargo-xwin xwin cache xwin"), 8);
 
 	// The rustup fetch that killed both 0.9.16-alpha.5 publish runs overran this
