@@ -8,14 +8,14 @@ import { test } from "node:test";
 const repoRoot = resolve(import.meta.dirname, "..");
 
 // #2847 / PR #2971: typecheck the reader's actual image prompt, not a duplicated fixture.
-test("SDK image prompt example matches the built session API", () => {
+test("SDK image prompt example matches the source session API without a coding-agent build", () => {
 	const docs = readFileSync(resolve(repoRoot, "packages/coding-agent/docs/sdk.md"), "utf8");
 	const specimen = /\/\/ With images\n([\s\S]*?)\n\n/u.exec(docs)?.[1];
 	assert.ok(specimen, "SDK image prompt example is missing");
 	const directory = mkdtempSync(join(tmpdir(), "atomic-sdk-image-"));
 	try {
 		const path = join(directory, "image.ts");
-		const sdk = resolve(repoRoot, "packages/coding-agent/dist/index.js").replaceAll("\\", "/");
+		const sdk = resolve(repoRoot, "packages/coding-agent/src/index.js").replaceAll("\\", "/");
 		writeFileSync(
 			path,
 			`import type { AgentSession } from ${JSON.stringify(sdk)};\ndeclare const session: AgentSession;\n${specimen}\n`,
@@ -27,6 +27,7 @@ test("SDK image prompt example matches the built session API", () => {
 				"--noEmit",
 				"--strict",
 				"--skipLibCheck",
+				"--allowImportingTsExtensions",
 				"--moduleResolution",
 				"bundler",
 				"--module",

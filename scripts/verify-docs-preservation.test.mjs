@@ -58,6 +58,55 @@ const manifest = JSON.parse(read(`${PROVENANCE}manifest.json`));
 const mapRows = (source) => manifest[`${source}_map`].flatMap((name) => JSON.parse(read(PROVENANCE + name)));
 const check = (overrides = new Map()) => verifyWorkingTreeDocumentation({ repoRoot, overrides });
 
+// #2847 / PR #2971: Node 22's rmSync calls the mutable fs.readdirSync export.
+// Permit that internal traversal only during removal of a directory this child created.
+// Verifier reads (including directory reads) remain forbidden outside synchronous cleanup.
+const committedReadGuard = `
+	const { resolve: resolveGuardPath, sep: guardSeparator } = await import('node:path');
+	const cleanupDirectories = new Set(); let cleanupRoot;
+	const makeDirectory = fs.mkdtempSync; const removeDirectory = fs.rmSync; const listDirectory = fs.readdirSync;
+	fs.mkdtempSync = (...args) => { const path = makeDirectory(...args); cleanupDirectories.add(path); return path; };
+	const forbiddenRead = () => { throw new Error('working-tree read forbidden'); };
+	fs.readFileSync = forbiddenRead;
+	fs.readdirSync = (path, ...args) => {
+		const resolved = resolveGuardPath(String(path));
+		if (cleanupRoot && (resolved === cleanupRoot || resolved.startsWith(cleanupRoot + guardSeparator)))
+			return listDirectory(path, ...args);
+		return forbiddenRead();
+	};
+	fs.rmSync = (path, ...args) => {
+		if (!cleanupDirectories.has(path)) throw new Error('unowned cleanup forbidden');
+		cleanupRoot = resolveGuardPath(path);
+		try { return removeDirectory(path, ...args); }
+		finally { cleanupRoot = undefined; }
+	};`;
+
+test("committed read guard permits only owned temporary cleanup, not document or directory reads", async () => {
+	const { spawnSync } = await import("node:child_process");
+	const child = spawnSync(process.execPath, ["--input-type=module", "-"], {
+		cwd: repoRoot,
+		input: `import assert from 'node:assert/strict'; import fs from 'node:fs';
+		import { join } from 'node:path'; import { tmpdir } from 'node:os';
+		${committedReadGuard}
+		const docs = ${JSON.stringify(resolve(repoRoot, DOCS))};
+		const directory = fs.mkdtempSync(join(tmpdir(), 'atomic-docs-history-guard-'));
+		try {
+			fs.mkdirSync(join(directory, 'nested'));
+			fs.writeFileSync(join(directory, 'nested', 'object'), 'temporary object');
+			assert.throws(() => fs.readFileSync(join(docs, 'sdk.md')), /working-tree read forbidden/u);
+			assert.throws(() => fs.readdirSync(docs), /working-tree read forbidden/u);
+			assert.throws(() => fs.readdirSync(directory), /working-tree read forbidden/u);
+			assert.throws(() => fs.rmSync(join(directory, 'nested'), { recursive: true }), /unowned cleanup forbidden/u);
+		} finally { fs.rmSync(directory, { recursive: true, force: true }); }
+		assert.equal(fs.existsSync(directory), false);
+		assert.throws(() => fs.readdirSync(docs), /working-tree read forbidden/u);
+		assert.throws(() => fs.readdirSync(directory), /working-tree read forbidden/u);`,
+		encoding: "utf8",
+		timeout: 30_000,
+	});
+	assert.equal(child.status, 0, child.stderr);
+});
+
 test("true-rebased preservation proves the selected main and every earlier layer", () => {
 	const result = check();
 	assert.equal(result.rebaseMain.revision, "fadc434c561da387db764b53f41367fedf721a95");
@@ -474,7 +523,7 @@ test("committed predecessor proof works from a data URL with filesystem document
 		cwd: repoRoot,
 		input: `import fs from 'node:fs'; import { syncBuiltinESMExports } from 'node:module';
 		const module = await import(${JSON.stringify(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`)});
-		fs.readFileSync = fs.readdirSync = () => { throw new Error('working-tree read forbidden'); };
+		${committedReadGuard}
 		syncBuiltinESMExports();
 		const result = module.verifyCommittedDocumentation({repoRoot: ${JSON.stringify(repoRoot)}, revision: module.FIRST_RECONCILIATION});
 		if (result.readerPages !== 85 || module.MAIN !== ${JSON.stringify(MAIN)}) process.exit(2);
@@ -652,7 +701,7 @@ test("committed second predecessor works from a data URL without filesystem docu
 		cwd: repoRoot,
 		input: `import fs from 'node:fs'; import { syncBuiltinESMExports } from 'node:module';
 		const module = await import(${JSON.stringify(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`)});
-		fs.readFileSync = fs.readdirSync = () => { throw new Error('working-tree read forbidden'); };
+		${committedReadGuard}
 		syncBuiltinESMExports();
 		const result = module.verifyCommittedDocumentation({repoRoot: ${JSON.stringify(repoRoot)}, revision: module.SECOND_RECONCILIATION});
 		if (result.readerPages !== 85 || result.latestMain.revision !== module.LATEST_MAIN || 'waitMain' in result) process.exit(2);`,
@@ -1032,13 +1081,11 @@ test("cold committed rebase proof uses authentic disposable history without Git 
 			);
 	};
 	try {
-		const branch = execFileSync("git", ["-C", repoRoot, "branch", "--show-current"], { encoding: "utf8" }).trim();
-		// Network-style transfer excludes backup refs and unreachable local checkpoints.
-		execFileSync(
-			"git",
-			["clone", "--no-local", "--single-branch", "--no-checkout", "--branch", branch, repoRoot, fixture],
-			{ stdio: ["pipe", "pipe", "pipe"] },
-		);
+		const revision = execFileSync("git", ["-C", repoRoot, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+		// Fetch exactly HEAD, including detached CI merge refs, without backup refs or unreachable checkpoints.
+		execFileSync("git", ["init", fixture], { stdio: ["pipe", "pipe", "pipe"] });
+		run(["fetch", "--no-tags", repoRoot, revision]);
+		run(["update-ref", "HEAD", revision]);
 		absent();
 		run(["read-tree", "HEAD"]);
 		const files = [
@@ -1107,7 +1154,7 @@ test("cold committed rebase proof uses authentic disposable history without Git 
 			fs.mkdtempSync = (...args) => { const path = make(...args); assert.match(path, /atomic-docs-history-/u); owned.push(path); return path; };
 			fs.writeFileSync = (path, ...args) => { assert.ok(owned.some(root => path.startsWith(root + '/'))); return write(path, ...args); };
 			fs.rmSync = (path, ...args) => { assert.ok(owned.includes(path)); return remove(path, ...args); };
-			fs.readFileSync = fs.readdirSync = () => { throw new Error('working-tree read forbidden'); };
+			${committedReadGuard}
 			const execute = cp.execFileSync; let imports = 0;
 			cp.execFileSync = (command, args, options) => {
 				if (args[2] === 'bundle') { imports++; assert.equal(args[3], 'unbundle');
