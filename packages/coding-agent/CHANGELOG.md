@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.19-alpha.4] - 2026-09-10
+
 ### Breaking Changes
 
 - Workflow controls, completion, help, and status hints use `/workflow pause`, `/workflow quit`, and `/workflow resume`. The workflow tool supports run, stage, and individual durable-tool pause targets; `/workflow pause [run-id|--all]` controls runs. Workflow lifecycle control events report `action: "pause"` for pause requests.
