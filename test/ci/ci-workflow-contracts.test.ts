@@ -76,6 +76,20 @@ test("every test suite entry point resolves to one shared per-test timeout", asy
 	assert.match(await readText(join(root, ".github/workflows/test.yml")), /run-flaky-test-suite\.ts/u);
 });
 
+test("workflows workspace test scripts delegate to the root Vitest suites", async () => {
+	const manifest = await readJson<{ scripts: Record<string, string> }>(join(root, "packages/workflows/package.json"));
+	// npm test visits workspace test scripts after running the root suites.
+	// Delegate to the same root entry points as CI, never back to root `test`.
+	for (const [entry, target] of Object.entries({
+		test: "test:unit",
+		"test:unit": "test:unit",
+		"test:integration": "test:integration",
+		"test:all": "test:all",
+	})) {
+		assert.equal(manifest.scripts[entry], `npm --prefix ../.. run ${target} --`, `${entry} bypasses root test setup`);
+	}
+});
+
 /**
  * Run 33833721342 reached `npm ci` with an exact-key cache hit, then emitted
  * nothing for the full six-minute static-checks job cap. npm's former default
