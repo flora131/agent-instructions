@@ -14,6 +14,7 @@ import {
 	type BashToolDetails,
 	type BashToolInput,
 	type BashToolOptions,
+	bashToolSystemPromptContribution,
 	createBashToolDefinition,
 	type ShellToolPresentation,
 	validateExplicitTimeoutSeconds,
@@ -34,10 +35,7 @@ const POWERSHELL_PRESENTATION: ShellToolPresentation = {
 const UTF8_OUTPUT_PREFIX = "try { [Console]::OutputEncoding=[System.Text.Encoding]::UTF8 } catch {}\n";
 export const powershellToolSystemPromptContribution = Object.freeze({
 	snippet: "Execute PowerShell commands.",
-	guidelines: Object.freeze([
-		"You can inspect ATOMIC_* or PI_* environment variables for current model and session details.",
-		'Use { action: "wait", id: taskId, budgetMs: 1000 } to observe an existing shell task without executing another command. Omit budgetMs for owner policy; zero polls. Waiting does not extend execution timeout or owner lifetime.',
-	] as const),
+	guidelines: bashToolSystemPromptContribution.guidelines,
 } as const);
 export type PowerShellOperations = BashOperations;
 export type PowerShellToolDetails = BashToolDetails;

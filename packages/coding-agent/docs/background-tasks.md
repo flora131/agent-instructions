@@ -25,6 +25,10 @@ Opening `/tasks` is navigation, not an approval request. It does not mark the ag
 
 The agent can choose foreground-first or background observation for each authorized shell or subagent call. Choosing a mode does not require a separate user confirmation and does not relax tool permissions or task ownership.
 
+For ordinary shell commands, leave `wait` out rather than routinely requesting one-second waits. Short waits can background otherwise brief commands and add follow-up calls without speeding up execution. Use explicit background observation when you have independent work to do, and a short budget only when you need control back sooner. Explicit budgets remain supported on every platform.
+
+Keep immediately blocking work local unless a specialist, isolated context, or your explicit delegation request makes a subagent worthwhile. After spawning, continue independent work without duplicating the child's task. Wait when its result becomes a dependency; otherwise rely on completion notices rather than repeated short waits or status polls.
+
 | Call | Observation behavior |
 | --- | --- |
 | `bash` or `powershell` without `wait` | Waits for the owner's command observation budget, normally 10 seconds, then automatically returns if still running. |
@@ -75,7 +79,7 @@ A launch result says **Launched in background**. This records what happened at l
 
 ### Waiting is not restarting
 
-To wait briefly before continuing:
+When specialist delegation is useful and its result is needed next, use foreground observation:
 
 ```ts
 subagent({
@@ -88,7 +92,7 @@ subagent({
 If that observation budget expires, the same child continues in the background. It is not an execution timeout. Observe the task ID returned by the original call:
 
 ```ts
-subagent({ action: "wait", id: taskId, budgetMs: 1000 })
+subagent({ action: "wait", id: taskId })
 subagent({ action: "status", id: taskId })
 ```
 
@@ -156,14 +160,14 @@ Completed, failed, and stopped tasks retain inspection but do not offer executio
 Top-level model `bash` calls on POSIX and native Windows, and `powershell` calls on native Windows, use the session's task owner. A long command can outlive its foreground observation budget and return a task ID while continuing to run. Its status then appears below the prompt and under **Shells** in `/tasks`. An explicit execution timeout still ends the command; it is separate from observation yielding.
 
 ```ts
-// Background immediately, keeping the command owned and its output retained.
+// Ordinary commands use the owner's observation budget, normally 10 seconds.
+bash({ command: "npm run check" })
+
+// Background a build when you can do independent work while it runs.
 bash({ command: "npm run build", wait: { kind: "background" }, timeout: 600 })
 
-// Foreground-first, automatically yielding after one second if still running.
-bash({ command: "npm test", wait: { kind: "foreground", budgetMs: 1000 }, timeout: 600 })
-
-// Keep the default automatic observation budget.
-bash({ command: "npm run check" })
+// Wait longer when the test result is needed next; execution timeout is separate.
+bash({ command: "npm test", wait: { kind: "foreground", budgetMs: 30000 }, timeout: 600 })
 ```
 
 The shell execution timeout is separate: `timeout` is seconds and defaults to 300, with a maximum of 3600. It continues counting after backgrounding. Choose a timeout appropriate for the command; reducing `budgetMs` does not shorten or extend it. Use the returned task ID to inspect or stop the existing task through `/tasks`. Background completion notifies the parent automatically, so there is no need to launch the command again to collect its result.
@@ -171,8 +175,8 @@ The shell execution timeout is separate: `timeout` is seconds and defaults to 30
 Observe an existing task without running its command again:
 
 ```ts
-bash({ action: "wait", id: taskId, budgetMs: 1000 })
-powershell({ action: "wait", id: taskId, budgetMs: 1000 })
+bash({ action: "wait", id: taskId })
+powershell({ action: "wait", id: taskId })
 ```
 
 Use the original task ID from the same owning session or workflow stage. Omit `budgetMs` to use the owner's command observation policy, or pass `0` to poll. A wait returns retained output and a yielded or settled observation; settled results include available exit and failure details. While running, successive yielded waits advance through retained output in bounded pages, including after a session reload. A caught-up wait returns no output until more arrives. Settled waits return all retained output again, subject to labelled gaps and truncation, so they may repeat output you have already seen.

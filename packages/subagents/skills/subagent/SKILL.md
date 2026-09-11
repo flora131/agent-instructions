@@ -209,9 +209,11 @@ Concurrent writers conflict. `code-simplifier` and `debugger` change files. Do n
 
 ### Foreground, background, and automatic yielding
 
+Keep immediately blocking work local unless specialist expertise, context isolation, or an explicit user request justifies delegation. Prefer independent tasks you can overlap with useful parent work. Do not spawn a child merely to wait immediately, or duplicate its assigned work while it runs.
+
 Choose the observation mode for each authorized task. No extra user confirmation is needed merely to choose foreground or background. In owner-bound main and workflow-stage sessions, omitted `wait` or `wait: { kind: "background" }` returns after admission. Use `wait: { kind: "foreground", budgetMs: 30000 }` when the result is needed next. If the observation budget expires, the same child keeps running in the background; do not relaunch it. This applies to single and parallel calls.
 
-Use `subagent({ action: "wait", id: taskId, budgetMs: 1000 })` to observe an existing task, `status` to inspect its state, or `kill` to terminally stop it. A yielded receipt is not a terminal result. Background counts stay below the prompt; `/tasks` opens inspection only on command. A shaded completion notification reaches the owning chat without requiring a model reply. A later wait does not extend the owner's lifetime.
+Use `subagent({ action: "wait", id: taskId })` to observe an existing task with the owner's budget, `status` to inspect its state, or `kill` to terminally stop it. Wait when the result becomes a dependency; otherwise rely on completion notices. Avoid repeated short waits or status polls; override the budget only for a concrete responsiveness need. A yielded receipt is not a terminal result. Background counts stay below the prompt; `/tasks` opens inspection only on command. A shaded completion notification reaches the owning chat without requiring a model reply. A later wait does not extend the owner's lifetime.
 
 Intercom `ask` cannot revive a completed, failed, interrupted, or cancelled noninteractive child, even if its retained registration says `idle`. New asks fail immediately, and termination fails an already-admitted ask that has not received a reply. Use a fresh child for follow-up work. Live interactive idle sessions and workflow post-mortem conversations remain separate reply-capable cases; `send` transport behavior is unchanged.
 
