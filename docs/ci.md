@@ -385,6 +385,8 @@ The static job also runs `scripts/test-installers-containers.sh`. It executes `i
 
 A manual dispatch is available only for release recovery. It requires `tag` and accepts optional `source_ref`; when omitted, `source_ref` defaults to the tag. The integrity job always verifies the release tag itself. Native, smoke, and payload builds consume `source_ref`, matching pi's recovery model; payload metadata validation still requires the recovery source's package version to equal the release tag.
 
+For a workflow-only repair, dispatch with `--ref` selecting the reviewed branch containing the corrected workflow, supply the original `tag`, and omit `source_ref`. This executes the corrected workflow while building the unchanged tagged source. `source_ref` selects build inputs, not the workflow definition. Do not move the release tag to repair CI tooling.
+
 Concurrency is scoped per release tag and does not cancel an in-progress publication.
 
 ## Lightweight integrity gate
@@ -473,7 +475,7 @@ carries its own `timeout-minutes`:
 | `mlugg/setup-zig`, plus one retry | 2 min each | 3.2× the worst healthy acquisition over eight releases (37 s); the retry re-shuffles the 16-mirror list, so a stall costs at most 4 min and fails loudly |
 | `dtolnay/rust-toolchain` | 4 min | one rustup fetch took 135 s against a 4–14 s norm |
 | `taiki-e/install-action` | 3 min | |
-| `apt-get` LLVM install | 5 min | |
+| Verify installed LLVM 18 | 1 min | Local executable checks; no apt downloads |
 | `cargo-xwin xwin cache xwin` | 8 min | 1.27× the worst measured full CRT/SDK download (6 m 19 s) |
 | `Build native binding`, plus one retry | `matrix.build_timeout_minutes` each | each attempt keeps the leg's measured p100 compile bound; a stall costs at most two bounds and the retry fails loudly if needed |
 
@@ -507,6 +509,14 @@ the steps reserved at their bound) + those bounds + 2 x build_timeout_minutes +
 rename its jobs. Re-measure before tightening any of them further, and never
 tighten a leg on fewer than five samples: a cap below a real p100 turns a slow
 but healthy run into the cancellation this section exists to prevent.
+
+### Windows host LLVM
+
+Both Windows targets build on x64 Ubuntu runners. The publisher selects `/usr/lib/llvm-18/bin`, verifies `clang`, `clang-cl`, `lld-link`, `llvm-ar`, `llvm-lib`, `llvm-dlltool`, and `llvm-ml`, logs compiler/linker versions, and prepends that directory through `GITHUB_PATH`. Missing tools fail the job rather than silently selecting another compiler version.
+
+This uses the runner image's versioned LLVM installation instead of installing the unversioned `clang lld llvm` apt metapackages. The old apt step failed twice during `0.9.19-alpha.4` publication because Ubuntu HTTP mirror downloads stalled. Compiler patch versions remain image-provided, not independently pinned. Preserve both Windows build checks when changing the runner image or LLVM major version.
+
+The x64 and ARM64 Alpine smoke jobs and the payload job likewise verify the image-provided `patchelf` with `command -v` and `--version` instead of refreshing apt indexes. These checks have a one-minute bound and fail on missing tooling. Validate ELF editing on both host architectures when changing the runner image.
 
 ### MSVC CRT cache epoch
 
