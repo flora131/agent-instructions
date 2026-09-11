@@ -49,15 +49,19 @@ use windows_sys::Win32::{
 		TOKEN_PRIVILEGES, TOKEN_USER, TokenDefaultDacl, TokenPrivileges, TokenUser,
 	},
 	Storage::FileSystem::{
-		CreateFileW, FILE_SHARE_READ, FILE_SHARE_WRITE, GetFileAttributesW, INVALID_FILE_ATTRIBUTES,
-		OPEN_EXISTING,
+		CreateFileW, FILE_SHARE_READ, FILE_SHARE_WRITE, GetFileAttributesW, GetFullPathNameW,
+		INVALID_FILE_ATTRIBUTES, OPEN_EXISTING,
 	},
 	System::{
 		Environment::{FreeEnvironmentStringsW, GetEnvironmentStringsW},
+		Memory::{GetProcessHeap, HeapAlloc, HeapFree},
 		SystemInformation::{GetSystemDirectoryW, GetWindowsDirectoryW},
 		Threading::{
-			CreateProcessAsUserW, GetCurrentProcess, GetExitCodeProcess, OpenProcessToken,
-			PROCESS_INFORMATION, STARTF_USESTDHANDLES, STARTUPINFOW, WaitForSingleObject,
+			CreateProcessAsUserW, DeleteProcThreadAttributeList, EXTENDED_STARTUPINFO_PRESENT,
+			GetCurrentProcess, GetExitCodeProcess, InitializeProcThreadAttributeList,
+			LPPROC_THREAD_ATTRIBUTE_LIST, OpenProcessToken, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+			PROCESS_INFORMATION, STARTF_USESTDHANDLES, STARTUPINFOEXW, STARTUPINFOW,
+			UpdateProcThreadAttribute, WaitForSingleObject,
 		},
 	},
 };
@@ -398,37 +402,40 @@ fn restricted_token() -> io::Result<Option<OwnedHandle>> {
 	}
 }
 
-/// Quote one argument following the CommandLineToArgvW rules, matching what
-/// std's Windows Command produces for the same argument.
-fn quote_argument(argument: &str) -> String {
-	let mut result = String::from("\"");
-	let mut backslashes = 0_usize;
-	for character in argument.chars() {
-		if character == '\\' {
-			backslashes += 1;
-			continue;
+/// Rust std 1.98.1's make_command_line/append_arg for regular arguments
+/// (rust-lang/rust 48a229cea, library/std/src/sys/{process,args}/windows.rs).
+/// Only empty arguments or those containing spaces/tabs get outer quotes;
+/// explicit interpreters such as cmd.exe depend on this exact distinction.
+fn command_line(command: &Command) -> Vec<u16> {
+	let mut line = vec![u16::from(b'"')];
+	line.extend(command.get_program().encode_wide());
+	line.push(u16::from(b'"'));
+	for argument in command.get_args() {
+		line.push(u16::from(b' '));
+		let quote = argument.is_empty()
+			|| argument.as_encoded_bytes().iter().any(|c| matches!(c, b' ' | b'\t'));
+		if quote {
+			line.push(u16::from(b'"'));
 		}
-		if character == '"' {
-			result.push_str(&"\\".repeat(backslashes * 2 + 1));
-			result.push('"');
-		} else {
-			result.push_str(&"\\".repeat(backslashes));
-			result.push(character);
+		let mut backslashes = 0;
+		for character in argument.encode_wide() {
+			if character == u16::from(b'\\') {
+				backslashes += 1;
+			} else {
+				if character == u16::from(b'"') {
+					line.extend(std::iter::repeat_n(u16::from(b'\\'), backslashes + 1));
+				}
+				backslashes = 0;
+			}
+			line.push(character);
 		}
-		backslashes = 0;
+		if quote {
+			line.extend(std::iter::repeat_n(u16::from(b'\\'), backslashes));
+			line.push(u16::from(b'"'));
+		}
 	}
-	result.push_str(&"\\".repeat(backslashes * 2));
-	result.push('"');
-	result
-}
-
-fn command_line(executable: &OsStr, args: &[String]) -> Vec<u16> {
-	let mut line = format!("\"{}\"", executable.to_string_lossy());
-	for argument in args {
-		line.push(' ');
-		line.push_str(&quote_argument(argument));
-	}
-	line.encode_utf16().chain(Some(0)).collect()
+	line.push(0);
+	line
 }
 
 /// Rust std 1.98.1's make_bat_command_line/append_bat_arg, for the regular
@@ -492,6 +499,63 @@ fn append_batch_argument(line: &mut Vec<u16>, argument: &OsStr) {
 	if quote {
 		line.extend(std::iter::repeat_n(u16::from(b'\\'), backslashes));
 		line.push(u16::from(b'"'));
+	}
+}
+
+/// One documented HANDLE_LIST, with aligned heap storage and borrowed handle
+/// values that outlive DeleteProcThreadAttributeList. Restricting inheritance
+/// here prevents concurrent retained children from acquiring each other's logs.
+/// It cannot coordinate unrelated callers of inherit-all CreateProcess.
+/// https://learn.microsoft.com/windows/win32/api/processthreadsapi/nf-processthreadsapi-updateprocthreadattribute
+struct HandleAttributeList<'a> {
+	list: LPPROC_THREAD_ATTRIBUTE_LIST,
+	initialized: bool,
+	_handles: std::marker::PhantomData<&'a [HANDLE]>,
+}
+
+impl<'a> HandleAttributeList<'a> {
+	fn new(handles: &'a [HANDLE]) -> io::Result<Self> {
+		let mut size = 0;
+		unsafe { InitializeProcThreadAttributeList(ptr::null_mut(), 1, 0, &mut size) };
+		// The first call is documented to fail while returning the required size.
+		if size == 0 {
+			return Err(last_error());
+		}
+		let list = unsafe { HeapAlloc(GetProcessHeap(), 0, size) };
+		if list.is_null() {
+			return Err(io::ErrorKind::OutOfMemory.into());
+		}
+		let mut owned = Self { list, initialized: false, _handles: std::marker::PhantomData };
+		if unsafe { InitializeProcThreadAttributeList(list, 1, 0, &mut size) } == 0 {
+			return Err(last_error());
+		}
+		owned.initialized = true;
+		if unsafe {
+			UpdateProcThreadAttribute(
+				list,
+				0,
+				PROC_THREAD_ATTRIBUTE_HANDLE_LIST as usize,
+				handles.as_ptr().cast(),
+				std::mem::size_of_val(handles),
+				ptr::null_mut(),
+				ptr::null(),
+			)
+		} == 0
+		{
+			return Err(last_error());
+		}
+		Ok(owned)
+	}
+}
+
+impl Drop for HandleAttributeList<'_> {
+	fn drop(&mut self) {
+		unsafe {
+			if self.initialized {
+				DeleteProcThreadAttributeList(self.list);
+			}
+			HeapFree(GetProcessHeap(), 0, self.list);
+		}
 	}
 }
 
@@ -674,6 +738,40 @@ fn application_path(path: &Path) -> io::Result<Vec<u16>> {
 	Ok(result)
 }
 
+/// Match std's make_dirp/is_absolute_exact (Rust 48a229cea). Unlike executable
+/// paths, cwd is not made absolute or converted to a long path. Strip a verbatim
+/// prefix only when GetFullPathNameW preserves every UTF-16 code unit, including
+/// the terminator; otherwise keep the caller's spelling and Win32's rejection.
+fn directory_path(directory: &Path) -> Vec<u16> {
+	let mut path = wide(directory.as_os_str());
+	let start = if path.starts_with(&r"\\?\UNC".encode_utf16().collect::<Vec<_>>()) {
+		path[6] = u16::from(b'\\');
+		6
+	} else if path.starts_with(&r"\\?\".encode_utf16().collect::<Vec<_>>()) {
+		4
+	} else {
+		return path;
+	};
+	let candidate = &path[start..];
+	let mut absolute = vec![0; candidate.len()];
+	let length = unsafe {
+		GetFullPathNameW(
+			candidate.as_ptr(),
+			absolute.len() as u32,
+			absolute.as_mut_ptr(),
+			ptr::null_mut(),
+		)
+	} as usize;
+	if length != 0 && length == candidate.len() - 1 && absolute == candidate {
+		absolute
+	} else {
+		if start == 6 {
+			path[6] = u16::from(b'C');
+		}
+		path
+	}
+}
+
 fn validate_command(command: &Command) -> io::Result<()> {
 	let no_nuls = |value: &OsStr| {
 		if value.as_encoded_bytes().contains(&0) {
@@ -736,21 +834,26 @@ pub fn spawn(
 			application = wide(system_directory(GetSystemDirectoryW)?.join("cmd.exe").as_os_str());
 			line
 		} else {
-			let args: Vec<String> =
-				command.get_args().map(|argument| argument.to_string_lossy().into_owned()).collect();
-			command_line(command.get_program(), &args)
+			command_line(command)
 		};
 		debug_assert_eq!(line.last(), Some(&0), "WinAPI requires a terminated command line");
-		let cwd: Option<Vec<u16>> = command.get_current_dir().map(|dir| wide(dir.as_os_str()));
+		let cwd = command.get_current_dir().map(directory_path);
 		let environment = environment_block(command)?;
 		let [input, output, error] = child_stdio(stdout.as_raw_handle(), stderr.as_raw_handle())?;
-		let startup = STARTUPINFOW {
-			cb: size_of::<STARTUPINFOW>() as u32,
-			dwFlags: STARTF_USESTDHANDLES,
-			hStdInput: input.0,
-			hStdOutput: output.0,
-			hStdError: error.0,
-			..STARTUPINFOW::default()
+		// HANDLE_LIST requires inheritable real handles and bInheritHandles=TRUE.
+		// Only these three duplicates, not every inheritable process handle, pass.
+		let handles = [input.0, output.0, error.0];
+		let attributes = HandleAttributeList::new(&handles)?;
+		let startup = STARTUPINFOEXW {
+			StartupInfo: STARTUPINFOW {
+				cb: size_of::<STARTUPINFOEXW>() as u32,
+				dwFlags: STARTF_USESTDHANDLES,
+				hStdInput: input.0,
+				hStdOutput: output.0,
+				hStdError: error.0,
+				..STARTUPINFOW::default()
+			},
+			lpAttributeList: attributes.list,
 		};
 		let mut information = PROCESS_INFORMATION::default();
 		let created = CreateProcessAsUserW(
@@ -760,13 +863,14 @@ pub fn spawn(
 			ptr::null(),
 			ptr::null(),
 			1,
-			CREATION_FLAGS | CREATE_UNICODE_ENVIRONMENT_FLAG,
+			CREATION_FLAGS | CREATE_UNICODE_ENVIRONMENT_FLAG | EXTENDED_STARTUPINFO_PRESENT,
 			environment.as_ptr().cast(),
 			cwd.as_ref().map_or(ptr::null(), |dir| dir.as_ptr()),
-			&startup,
+			&startup.StartupInfo,
 			&mut information,
 		);
 		let failure = if created == 0 { Some(last_error()) } else { None };
+		drop(attributes);
 		drop([input, output, error]);
 		if let Some(error) = failure {
 			return Err(error);

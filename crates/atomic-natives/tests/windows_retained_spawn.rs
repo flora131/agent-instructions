@@ -135,6 +135,66 @@ fn windows_spawn_fixture() {
 			);
 			fs::write(env::var_os("ATOMIC_RESULT_FILE").unwrap(), text).unwrap();
 		},
+		"command-line-leaf" => {
+			use std::os::windows::ffi::OsStrExt;
+			let line = unsafe { windows_sys::Win32::System::Environment::GetCommandLineW() };
+			let mut length = 0;
+			while unsafe { *line.add(length) } != 0 {
+				length += 1;
+			}
+			let line = unsafe { std::slice::from_raw_parts(line, length) };
+			let args: Vec<Vec<u16>> =
+				env::args_os().skip(5).map(|arg| arg.encode_wide().collect()).collect();
+			let raw_environment: Vec<u16> =
+				env::var_os("ATOMIC_RAW_UTF16").unwrap().encode_wide().collect();
+			fs::write(
+				env::var_os("ATOMIC_RESULT_FILE").unwrap(),
+				format!("{line:?}\n{args:?}\n{raw_environment:?}"),
+			)
+			.unwrap();
+		},
+		"inherited-files" => {
+			use windows_sys::Win32::{
+				Foundation::HANDLE,
+				Storage::FileSystem::GetFinalPathNameByHandleW,
+				System::Console::{GetStdHandle, STD_ERROR_HANDLE, STD_OUTPUT_HANDLE},
+			};
+			// Query actual child-side file identities, not a process handle count.
+			// Check the scan covers our stdio and positively observes both handles.
+			const HANDLE_LIMIT: usize = 65_536;
+			for stream in [STD_OUTPUT_HANDLE, STD_ERROR_HANDLE] {
+				assert!((unsafe { GetStdHandle(stream) } as usize) < HANDLE_LIMIT);
+			}
+			let mut names = Vec::new();
+			let canonical_root = fs::canonicalize(&root).unwrap();
+			for number in (4..HANDLE_LIMIT).step_by(4) {
+				let mut buffer = [0_u16; 1024];
+				let length = unsafe {
+					GetFinalPathNameByHandleW(
+						number as HANDLE,
+						buffer.as_mut_ptr(),
+						buffer.len() as u32,
+						0,
+					)
+				} as usize;
+				if length != 0 && length < buffer.len() {
+					let path = PathBuf::from(String::from_utf16_lossy(&buffer[..length]));
+					if path.parent() == Some(canonical_root.as_path())
+						&& path.extension().is_some_and(|ext| ext == "log")
+					{
+						names.push(path.file_name().unwrap().to_string_lossy().into_owned());
+					}
+				}
+			}
+			fs::write(env::var_os("ATOMIC_RESULT_FILE").unwrap(), names.join("\n")).unwrap();
+		},
+		"cwd-leaf" => {
+			fs::write(
+				env::var_os("ATOMIC_RESULT_FILE").unwrap(),
+				fs::read("relative-marker.txt").unwrap(),
+			)
+			.unwrap();
+		},
 		"batch-parent" => check_batch_launchers(&root),
 		"batch-leaf" => {
 			let admin = unsafe { windows_sys::Win32::UI::Shell::IsUserAnAdmin() } != 0;
@@ -555,4 +615,207 @@ fn batch_launchers_match_std_command() {
 	);
 	fs::remove_dir_all(root).unwrap();
 	assert!(output.status.success());
+}
+
+fn command_output(command: &mut Command, root: &Path, retained: bool) -> (Option<i32>, String) {
+	let log_path = root.join("command.log");
+	let log = fs::File::create(&log_path).unwrap();
+	windows_spawn::configure_process(command, None, None);
+	let status = if retained {
+		let mut child = windows_spawn::spawn(command, &log, &log).unwrap();
+		let deadline = Instant::now() + Duration::from_secs(20);
+		loop {
+			if let Some(status) = child.try_wait().unwrap() {
+				break status;
+			}
+			assert!(Instant::now() < deadline, "child {} timed out", child.id());
+			thread::sleep(Duration::from_millis(5));
+		}
+	} else {
+		command
+			.stdin(std::process::Stdio::null())
+			.stdout(log.try_clone().unwrap())
+			.stderr(log)
+			.status()
+			.unwrap()
+	};
+	(status.code(), fs::read_to_string(log_path).unwrap())
+}
+
+#[test]
+fn explicit_command_interpreter_matches_std_command() {
+	let root = root();
+	let interpreter =
+		PathBuf::from(env::var_os("SystemRoot").unwrap()).join("System32").join("cmd.exe");
+	for arguments in [vec!["/d", "/c", "cd"], vec!["/d", "/c", "echo atomic-marker"]] {
+		let result = |retained| {
+			command_output(
+				Command::new(&interpreter).args(&arguments).current_dir(&root),
+				&root,
+				retained,
+			)
+		};
+		let baseline = result(false);
+		assert_eq!(
+			baseline.0,
+			Some(0),
+			"command={interpreter:?} args={arguments:?} result={baseline:?}"
+		);
+		let retained = result(true);
+		println!("{arguments:?}: std={baseline:?} retained={retained:?}");
+		assert_eq!(retained, baseline);
+	}
+	fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn working_directory_matches_std_command() {
+	let root = root();
+	let ordinary = root.join("directory");
+	fs::create_dir(&ordinary).unwrap();
+	fs::write(ordinary.join("relative-marker.txt"), "ordinary-directory").unwrap();
+	let verbatim = fs::canonicalize(&ordinary).unwrap();
+	let dotted = PathBuf::from(format!("{}.", verbatim.display()));
+	let spaced = PathBuf::from(format!("{} ", verbatim.display()));
+	for (directory, marker) in
+		[(&dotted, "literal-dot-directory"), (&spaced, "literal-space-directory")]
+	{
+		fs::create_dir(directory).unwrap();
+		fs::write(directory.join("relative-marker.txt"), marker).unwrap();
+	}
+	let script = root.join("cwd.cmd");
+	fs::write(&script, "@echo off\r\ntype relative-marker.txt\r\n").unwrap();
+	let mut differences = Vec::new();
+	for (name, cwd) in [
+		("ordinary", ordinary),
+		("safe-verbatim", verbatim.clone()),
+		("literal-dot", dotted),
+		("literal-space", spaced),
+		("verbatim-dot-component", PathBuf::from(format!(r"{}\.", verbatim.display()))),
+	] {
+		let result = |retained| {
+			let mut command = boundary_command(env::current_exe().unwrap().as_os_str(), &root);
+			command.env(MODE, "cwd-leaf").current_dir(&cwd);
+			launch_result(&mut command, &root, retained)
+		};
+		let baseline = result(false);
+		let retained = result(true);
+		println!("direct {name}: std={baseline:?} retained={retained:?}");
+		if baseline != retained {
+			differences.push(format!("direct {name}"));
+		}
+		let result =
+			|retained| command_output(Command::new(&script).current_dir(&cwd), &root, retained);
+		let baseline = result(false);
+		let retained = result(true);
+		println!("batch {name}: std={baseline:?} retained={retained:?}");
+		if matches!(name, "ordinary" | "safe-verbatim") {
+			assert_eq!(baseline, (Some(0), "ordinary-directory".to_owned()));
+		}
+		if baseline != retained {
+			differences.push(format!("batch {name}"));
+		}
+	}
+	fs::remove_dir_all(fs::canonicalize(&root).unwrap()).unwrap();
+	assert!(differences.is_empty(), "cwd behavior differs: {differences:?}");
+}
+
+#[test]
+fn concurrent_children_inherit_only_their_own_log_handles() {
+	use std::sync::{Arc, Barrier};
+	let root = root();
+	let mut differences = Vec::new();
+	for retained in [false, true] {
+		let barrier = Arc::new(Barrier::new(8));
+		let workers: Vec<_> = (0..8)
+			.map(|worker| {
+				let root = root.clone();
+				let barrier = Arc::clone(&barrier);
+				thread::spawn(move || {
+					let mut observations = Vec::new();
+					for round in 0..20 {
+						let name = format!("{retained}-{worker}-{round}.log");
+						let log = root.join(&name);
+						let result = log.with_extension("handles");
+						let output = fs::File::create(&log).unwrap();
+						let mut command = fixture_command(&root, "inherited-files");
+						command.env("ATOMIC_RESULT_FILE", &result);
+						barrier.wait();
+						if retained {
+							let mut child = windows_spawn::spawn(&mut command, &output, &output).unwrap();
+							let deadline = Instant::now() + Duration::from_secs(20);
+							loop {
+								if let Some(status) = child.try_wait().unwrap() {
+									assert!(status.success(), "{}", fs::read_to_string(&log).unwrap());
+									break;
+								}
+								assert!(Instant::now() < deadline);
+								thread::sleep(Duration::from_millis(1));
+							}
+						} else {
+							let status = command
+								.stdin(std::process::Stdio::null())
+								.stdout(output.try_clone().unwrap())
+								.stderr(output)
+								.status()
+								.unwrap();
+							assert!(status.success(), "{}", fs::read_to_string(&log).unwrap());
+						}
+						let names = fs::read_to_string(result).unwrap();
+						observations.push((name, names));
+					}
+					observations
+				})
+			})
+			.collect();
+		for worker in workers {
+			for (name, names) in worker.join().unwrap() {
+				println!("{name}: {names:?}");
+				assert!(
+					names.lines().filter(|file| *file == name).count() >= 2,
+					"must observe both own log handles: {names}"
+				);
+				if names.lines().any(|file| file != name) {
+					differences.push((name, names));
+				}
+			}
+		}
+	}
+	fs::remove_dir_all(root).unwrap();
+	assert!(differences.is_empty(), "children inherited another launch's files: {differences:?}");
+}
+
+#[test]
+fn native_command_line_and_utf16_environment_match_std_command() {
+	use std::os::windows::ffi::{OsStrExt, OsStringExt};
+	let root = root();
+	let arguments = [
+		"plain",
+		"",
+		"two words",
+		"tab\tvalue",
+		"line\nvalue",
+		"quote\"value",
+		"slash\\\"value",
+		"trailing\\",
+		"space trailing\\",
+		"😀é",
+		"\u{85}",
+	];
+	let raw = [0x61, 0xd800, 0x62, 0xdc00];
+	let result = |retained| {
+		let mut command = boundary_command(env::current_exe().unwrap().as_os_str(), &root);
+		command
+			.env(MODE, "command-line-leaf")
+			.env("ATOMIC_RAW_UTF16", std::ffi::OsString::from_wide(&raw))
+			.args(["--"])
+			.args(arguments);
+		launch_result(&mut command, &root, retained).unwrap()
+	};
+	let baseline = result(false);
+	let expected: Vec<Vec<u16>> =
+		arguments.iter().map(|arg| std::ffi::OsStr::new(arg).encode_wide().collect()).collect();
+	assert!(baseline.ends_with(&format!("\n{expected:?}\n{raw:?}")));
+	assert_eq!(result(true), baseline);
+	fs::remove_dir_all(root).unwrap();
 }
