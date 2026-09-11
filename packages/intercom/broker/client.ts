@@ -415,7 +415,25 @@ export class IntercomClient extends EventEmitter {
       }
       case "registration_failed": {
         if (typeof brokerMessage.reason !== "string") throw new Error("Invalid registration_failed message");
-        this.emit("_registration_failed", new Error(brokerMessage.reason));
+        const refusal = new Error(brokerMessage.reason);
+        if (this._sessionId === null) {
+          // Still registering: `connect()` owns the failure and its own cleanup.
+          this.emit("_registration_failed", refusal);
+          break;
+        }
+        // The broker reuses this frame to refuse an *established* client's request
+        // (for example a rejected pending-stage route update) and then ends the
+        // socket, deliberately dropping anything already pipelined behind it. By
+        // this point `connect()` has removed its `_registration_failed` listener,
+        // so emitting there would discard the refusal and leave every pipelined
+        // request — notably the `listSessions()` barrier — to expire on its own
+        // five-second timer with an unusable diagnostic. Record the refusal as the
+        // disconnect cause, settle outstanding work with it, and destroy the socket
+        // so no new work is accepted while we wait for the peer FIN. `onClose`
+        // still owns session/socket teardown and the `disconnected` emission.
+        this.disconnectError ??= refusal;
+        this.failPending(this.disconnectError);
+        this.socket?.destroy();
         break;
       }
       case "question_target": {

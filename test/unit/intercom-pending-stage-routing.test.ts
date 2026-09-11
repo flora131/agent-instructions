@@ -18,7 +18,7 @@ import { DbosDurableBackend } from "../../packages/workflows/src/durable/dbos-ba
 import { setDurableBackend } from "../../packages/workflows/src/durable/factory.js";
 import { registerPendingStageIntercomBridge } from "../../packages/workflows/src/extension/pending-stage-intercom.js";
 import { createWorkflowPendingStageDelivery } from "../../packages/workflows/src/runs/foreground/pending-stage-delivery.js";
-import { createStore } from "../../packages/workflows/src/shared/store.js";
+import { createStore, type Store } from "../../packages/workflows/src/shared/store.js";
 import { createMockSdk } from "./durable-dbos-backend-helpers.js";
 
 const RUN_ID = "4ac72924-c452-4e5f-9e63-2435722109f7";
@@ -191,7 +191,7 @@ test("pending-stage ask refusal recommends nonblocking send", () => {
 });
 
 describe("workflows-owned pending-stage delivery event bridge", () => {
-	function harness() {
+	function harness(onRoute?: (payload: Record<string, unknown>) => void) {
 		const store = createStore();
 		store.recordRunStart({
 			id: RUN_ID,
@@ -219,6 +219,9 @@ describe("workflows-owned pending-stage delivery event bridge", () => {
 			events: {
 				emit(event: string, payload: Record<string, unknown>) {
 					emitted.push({ event, payload });
+					// A route consumer claims the announcement synchronously by assigning
+					// `completion`; every other event keeps today's plain fan-out.
+					if (event === "atomic:workflow-pending-stage-route") onRoute?.(payload);
 					listeners.get(event)?.(payload);
 				},
 				on(event: string, listener: (payload: unknown) => void) {
@@ -257,7 +260,7 @@ describe("workflows-owned pending-stage delivery event bridge", () => {
 			listeners.get("atomic:workflow-pending-stage-message")?.(payload);
 			return { payload, result: payload.completion === undefined ? undefined : await payload.completion };
 		};
-		return { store, backend, emitted, request, dispose };
+		return { store, backend, emitted, pi, request, dispose };
 	}
 
 	test("announces ownership and enforces group isolation without requesting", async () => {
@@ -740,6 +743,140 @@ describe("workflows-owned pending-stage delivery event bridge", () => {
 		assert.equal(completion.outcome, "forward");
 		assert.equal(completion.target, advertisedTarget);
 		dispose();
+	});
+
+	// Route publication deduplication: every store invalidation used to republish every
+	// run, so tool events, attachment toggles, and notices each cost a broker round trip
+	// whose `listSessions()` barrier can expire on its own 5s timer.
+	const turn = (): Promise<void> => new Promise<void>((resolve) => setImmediate(resolve));
+	/** Observable route payload, without the acknowledgement the consumer attaches. */
+	const routeData = (payload: Record<string, unknown>): Record<string, unknown> =>
+		Object.fromEntries(Object.entries(payload).filter(([key]) => key !== "completion"));
+	const pendingReviewerStages = [
+		{
+			stageId: "reviewer-id",
+			stageName: "reviewer",
+			target: `workflow:${RUN_ID}/reviewer-id`,
+			lifecycle: "pending",
+			routeEligible: true,
+			group: GROUP,
+		},
+	];
+	const runningReviewerStages = pendingReviewerStages.map((stage) => ({ ...stage, lifecycle: "running" }));
+	const toggleAttachment = (store: Store, count: number): void => {
+		for (let index = 0; index < count; index += 1) {
+			store.recordStageAttached(RUN_ID, "reviewer-id", index % 2 === 0);
+		}
+	};
+	const claimingHarness = (routes: Record<string, unknown>[], claims: PromiseWithResolvers<void>[]) =>
+		harness((payload) => {
+			routes.push(payload);
+			const claim = Promise.withResolvers<void>();
+			claims.push(claim);
+			payload.completion = claim.promise;
+		});
+
+	// Regression for #2990.
+	test("an unchanged route is republished neither while its acknowledgement is pending nor after it resolves", async () => {
+		const routes: Record<string, unknown>[] = [];
+		const claims: PromiseWithResolvers<void>[] = [];
+		const { store, dispose } = claimingHarness(routes, claims);
+		assert.equal(routes.length, 1);
+		assert.deepEqual(routes[0]?.stages, pendingReviewerStages);
+		// 1,000 attachment toggles leave the route projection identical. Before the fix
+		// this measured 1,001 announcements — one broker directory request each.
+		toggleAttachment(store, 1000);
+		assert.equal(routes.length, 1);
+		assert.deepEqual(routes[0]?.stages, pendingReviewerStages);
+		claims[0]?.resolve();
+		await turn();
+		toggleAttachment(store, 1000);
+		assert.equal(routes.length, 1);
+		// A genuine routing change is never debounced behind the acknowledged claim.
+		store.recordStageSession(RUN_ID, "reviewer-id", { sessionId: "reviewer-session" });
+		assert.equal(routes.length, 2);
+		assert.deepEqual(routes[1]?.stages, runningReviewerStages);
+		dispose();
+	});
+
+	// Regression for #2990.
+	test("a rejected route publication is retried on the next unchanged invalidation", async () => {
+		const routes: Record<string, unknown>[] = [];
+		const claims: PromiseWithResolvers<void>[] = [];
+		const { store, dispose } = claimingHarness(routes, claims);
+		assert.equal(routes.length, 1);
+		claims[0]?.reject(new Error("relay failed"));
+		await turn();
+		toggleAttachment(store, 1);
+		assert.equal(routes.length, 2);
+		assert.deepEqual(routeData(routes[1]!), routeData(routes[0]!));
+		// The retry is claimed, so the unchanged route stops republishing again.
+		toggleAttachment(store, 2);
+		assert.equal(routes.length, 2);
+		dispose();
+	});
+
+	// Regression for #2990.
+	test("a stale rejection cannot evict the claim of a route republished after A -> B -> A", async () => {
+		const routes: Record<string, unknown>[] = [];
+		const claims: PromiseWithResolvers<void>[] = [];
+		const { store, dispose } = claimingHarness(routes, claims);
+		const initialRun = structuredClone(store.runs()[0]!);
+		assert.equal(routes.length, 1);
+		assert.deepEqual(routes[0]?.stages, pendingReviewerStages);
+		// B publishes immediately even though A is still unacknowledged.
+		store.recordStageSession(RUN_ID, "reviewer-id", { sessionId: "reviewer-session" });
+		assert.equal(routes.length, 2);
+		assert.deepEqual(routes[1]?.stages, runningReviewerStages);
+		// A again, from the pre-session snapshot of the same run.
+		store.removeRun(RUN_ID);
+		store.recordRunStart(initialRun);
+		assert.equal(routes.length, 3);
+		assert.deepEqual(routeData(routes[2]!), routeData(routes[0]!));
+		claims[0]?.reject(new Error("relay failed"));
+		await turn();
+		toggleAttachment(store, 1);
+		assert.equal(routes.length, 3);
+		dispose();
+	});
+
+	// Regression for #2990.
+	test("an unclaimed announcement republishes until a consumer acknowledges it", () => {
+		const routes: Record<string, unknown>[] = [];
+		let acknowledging = false;
+		const { store, dispose } = harness((payload) => {
+			routes.push(payload);
+			if (acknowledging) payload.completion = Promise.resolve();
+		});
+		assert.equal(routes.length, 1);
+		// Nobody claimed the initial emission, so it is not proof of publication.
+		acknowledging = true;
+		toggleAttachment(store, 1);
+		assert.equal(routes.length, 2);
+		assert.deepEqual(routeData(routes[1]!), routeData(routes[0]!));
+		assert.deepEqual(routes[1]?.stages, pendingReviewerStages);
+		toggleAttachment(store, 2);
+		assert.equal(routes.length, 2);
+		dispose();
+	});
+
+	// Regression for #2990.
+	test("a replacement bridge republishes once and survives the disposed bridge's late rejection", async () => {
+		const routes: Record<string, unknown>[] = [];
+		const claims: PromiseWithResolvers<void>[] = [];
+		const { store, pi, dispose } = claimingHarness(routes, claims);
+		assert.equal(routes.length, 1);
+		dispose();
+		const replacement = registerPendingStageIntercomBridge(pi, store);
+		assert.equal(routes.length, 2);
+		assert.deepEqual(routeData(routes[1]!), routeData(routes[0]!));
+		// The disposed bridge's claim was still outstanding; its rejection belongs to a
+		// cache that no longer exists and must not invalidate the replacement's claim.
+		claims[0]?.reject(new Error("relay failed"));
+		await turn();
+		toggleAttachment(store, 1);
+		assert.equal(routes.length, 2);
+		replacement();
 	});
 });
 

@@ -80,6 +80,15 @@ interface PendingStageUndeliverableEvent extends Record<string, unknown> {
 	readonly reason: string;
 }
 
+/**
+ * Route announcement payload. The consumer (the lightweight relay or the heavy
+ * handler) attaches `completion` to the object in place, so the producer must
+ * project its signature before emitting and read the acknowledgement after.
+ */
+interface PendingStageRouteEvent extends Record<string, unknown> {
+	completion?: Promise<void>;
+}
+
 export function registerPendingStageIntercomBridge(pi: WorkflowEventSurface, activeStore: Store): () => void {
 	let disposed = false;
 	let sweepPromise: Promise<void> = Promise.resolve();
@@ -104,12 +113,25 @@ export function registerPendingStageIntercomBridge(pi: WorkflowEventSurface, act
 		pi.events?.emit?.(PENDING_STAGE_UNDELIVERABLE_EVENT, payload);
 		return payload.handled && (await payload.completion) === true;
 	};
+	/**
+	 * Latest route payload this bridge claims to have published, per run id.
+	 *
+	 * Every store invalidation republished every run, so tool events, attachment
+	 * changes, and notices — none of which alter the route projection — each cost a
+	 * broker round trip whose `listSessions()` barrier can expire on its own timer.
+	 * The cache is bridge-local: a new bridge, or a run whose durable owner is gone,
+	 * starts with no claim. An entry records a *claim*, not proof of acknowledgement,
+	 * so a rejected or unacknowledged emission invalidates it again below.
+	 */
+	const announcedRoutes = new Map<string, { readonly signature: string }>();
 	const announceRoutes = (): void => {
 		if (disposed) return;
+		const ownedRunIds = new Set<string>();
 		const runs = activeStore.runs();
 		for (const run of runs) {
 			const rootRunId = durableRootRunIdForRun(runs, run.id);
 			if (rootRunId === undefined) continue;
+			ownedRunIds.add(run.id);
 			const parentRun = runs.find((candidate) => candidate.id === run.parentRunId);
 			const boundary = parentRun?.stages.find((stage) => stage.id === run.parentStageId);
 			const parent =
@@ -121,7 +143,7 @@ export function registerPendingStageIntercomBridge(pi: WorkflowEventSurface, act
 								(key) => resolveChildRun(runs, parentRun, key)?.id === run.id,
 							),
 						};
-			pi.events?.emit?.(PENDING_STAGE_ROUTE_EVENT, {
+			const announcement: PendingStageRouteEvent = {
 				runId: run.id,
 				group: workflowInvocationIntercomGroup(rootRunId),
 				capability: workflowPendingStageRouteCapability(activeStore, run.id),
@@ -167,7 +189,43 @@ export function registerPendingStageIntercomBridge(pi: WorkflowEventSurface, act
 				// possible-future rows. Presence replaces, so a terminal root publishes `[]` and
 				// the broker drops the rows.
 				...(run.id === rootRunId ? { possibleStages: possibleStageRows(runs, rootRunId, run) } : {}),
-			});
+			};
+			// Compute the signature *before* emitting: the consumer mutates the payload
+			// by attaching `completion`, so a post-emit projection would never match.
+			const signature = JSON.stringify(announcement);
+			if (announcedRoutes.get(run.id)?.signature === signature) continue;
+			// Different snapshots are never debounced or serialized: A → B → A publishes
+			// all three immediately, even while an earlier completion is outstanding.
+			// Delaying a real change would hide new stages, nested aliases, and terminal
+			// rosters behind a slow acknowledgement.
+			const entry = { signature };
+			announcedRoutes.set(run.id, entry);
+			try {
+				pi.events?.emit?.(PENDING_STAGE_ROUTE_EVENT, announcement);
+			} catch (error) {
+				// Never cache a failed emission; the store observer owns the error.
+				if (announcedRoutes.get(run.id) === entry) announcedRoutes.delete(run.id);
+				throw error;
+			}
+			// Both the lightweight relay and the direct heavy handler assign this
+			// synchronously. It is observed, never awaited here and never overwritten.
+			const completion = announcement.completion;
+			if (completion === undefined) {
+				// No consumer claimed it: an absent event surface or a not-yet-installed
+				// relay must not make the route look published. Retry next invalidation.
+				announcedRoutes.delete(run.id);
+			} else {
+				completion.catch(() => {
+					// Identity, not signature: an older rejected A must not evict the
+					// newer A published after A → B → A. Reporting is the relay's job.
+					if (announcedRoutes.get(run.id) === entry) announcedRoutes.delete(run.id);
+				});
+			}
+		}
+		// Drop claims for runs with no currently resolvable durable owner, so a removed
+		// and re-added run re-announces instead of inheriting a stale claim.
+		for (const runId of announcedRoutes.keys()) {
+			if (!ownedRunIds.has(runId)) announcedRoutes.delete(runId);
 		}
 		sweepPromise = sweepPromise
 			.then(() => settleUndeliverablePendingStageMessages(activeStore, notifyUndeliverable))
@@ -268,6 +326,9 @@ export function registerPendingStageIntercomBridge(pi: WorkflowEventSurface, act
 		unsubscribeStore();
 		if (typeof subscription === "function") subscription();
 		if (typeof stickySubscription === "function") stickySubscription();
+		// A replacement bridge over the same store starts with no claims, and a
+		// completion still pending across disposal cannot evict the replacement's.
+		announcedRoutes.clear();
 	};
 	pi.on?.("session_shutdown", dispose);
 	return dispose;
