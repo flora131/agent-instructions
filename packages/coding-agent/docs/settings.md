@@ -188,6 +188,7 @@ On a genuine first run, Atomic previews available themes and asks whether to opt
 | `compaction.compression_ratio` | number | `0.5` | Fraction of compactable transcript **lines to keep** (`0 < value < 1`) |
 | `compaction.preserve_recent` | number | `2` | Exact number of newest context-visible messages kept outside the compactable region; `0` keeps none |
 | `compaction.query` | string | last user message | Optional relevance focus for selecting older lines to retain |
+| `compaction.modelOverrides` | object | `{}` | Exact `"provider/modelId"` keys with optional `reserveTokens` and `preserve_recent` overrides |
 
 ```json
 {
@@ -202,6 +203,25 @@ On a genuine first run, Atomic previews available themes and asks whether to opt
 ```
 
 The model emits numbered line ranges only; Atomic reconstructs retained text mechanically. `preserve_recent` is enforced client-side and is not a provider parameter. Atomic does not widen this exact message count to a user-turn boundary or force a final logical turn to remain outside compaction.
+
+Per-model budgets use exact, case-sensitive provider/model IDs (including any slashes in the model ID), not patterns or reasoning suffixes:
+
+```json
+{
+  "compaction": {
+    "reserveTokens": 16384,
+    "preserve_recent": 2,
+    "modelOverrides": {
+      "anthropic/claude-sonnet-4-5": { "reserveTokens": 32768, "preserve_recent": 4 },
+      "openai/gpt-5": { "preserve_recent": 0 }
+    }
+  }
+}
+```
+
+Each field resolves independently: the active model's override, then the ordinary compaction setting, then the built-in default. Global and trusted-project settings merge overrides per model and per field. Model switches take effect on the next compaction check or manual call; borrowing a fallback planner does not change the selected budgets. Explicit manual `preserve_recent` parameters still take precedence.
+
+Both fields must be non-negative safe integers, including ordinary settings. Invalid ordinary values are reported even if a model override exists; malformed matching entries and invalid override values are reported when that model is used. `enabled`, `compression_ratio`, and `query` remain ordinary settings, not per-model overrides. Unlike upstream pi's token-based recent-history budget, Atomic uses the exact-message `preserve_recent` setting, not `keepRecentTokens`, and retains its verbatim line compactor.
 
 ### Branch Summary
 

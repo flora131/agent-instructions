@@ -1,10 +1,39 @@
 import { randomUUID } from "node:crypto";
-import { DEFAULT_MAX_AGENT_RETRY_DELAY_MS } from "@bastani/pi-ai";
+import { DEFAULT_MAX_AGENT_RETRY_DELAY_MS, type Model } from "@bastani/pi-ai";
 import { normalizePath } from "../utils/paths.ts";
 import { DEFAULT_HTTP_IDLE_TIMEOUT_MS, parseHttpIdleTimeoutMs } from "./http-dispatcher.ts";
 import { SettingsManager } from "./settings-manager-core.ts";
 import { settingsInternals } from "./settings-manager-internals.ts";
-import type { TransportSetting } from "./settings-types.ts";
+import type { CompactionModelOverride, CompactionSettings, TransportSetting } from "./settings-types.ts";
+
+type CompactionModel = Pick<Model<string>, "provider" | "id">;
+
+function resolveCompactionSetting(
+	compaction: CompactionSettings | undefined,
+	field: keyof CompactionModelOverride,
+	model?: CompactionModel,
+): number {
+	const ordinary = compaction?.[field];
+	if (ordinary !== undefined && (typeof ordinary !== "number" || !Number.isSafeInteger(ordinary) || ordinary < 0)) {
+		throw new Error(
+			`Invalid compaction.${field} setting: ${String(ordinary)}. Expected a non-negative safe integer.`,
+		);
+	}
+	const modelKey = model ? `${model.provider}/${model.id}` : undefined;
+	const entry = modelKey === undefined ? undefined : compaction?.modelOverrides?.[modelKey];
+	if (entry !== undefined && (entry === null || typeof entry !== "object" || Array.isArray(entry))) {
+		throw new Error(
+			`Invalid compaction.modelOverrides["${modelKey}"] setting: ${String(entry)}. Expected an object.`,
+		);
+	}
+	const override = entry?.[field];
+	if (override !== undefined && (typeof override !== "number" || !Number.isSafeInteger(override) || override < 0)) {
+		throw new Error(
+			`Invalid compaction.modelOverrides["${modelKey}"].${field} setting: ${String(override)}. Expected a non-negative safe integer.`,
+		);
+	}
+	return override ?? ordinary ?? (field === "reserveTokens" ? 16384 : 2);
+}
 
 interface SettingsManagerBasicAccessors {
 	getLastChangelogVersion(): string | undefined;
@@ -50,11 +79,11 @@ interface SettingsManagerBasicAccessors {
 	setTransport(transport: TransportSetting): void;
 	getCompactionEnabled(): boolean;
 	setCompactionEnabled(enabled: boolean): void;
-	getCompactionReserveTokens(): number;
+	getCompactionReserveTokens(model?: CompactionModel): number;
 	getCompactionCompressionRatio(): number;
-	getCompactionPreserveRecent(): number;
+	getCompactionPreserveRecent(model?: CompactionModel): number;
 	getCompactionQuery(): string | undefined;
-	getCompactionSettings(): {
+	getCompactionSettings(model?: CompactionModel): {
 		enabled: boolean;
 		reserveTokens: number;
 		compression_ratio: number;
@@ -298,8 +327,8 @@ const basicAccessors: SettingsManagerBasicAccessors = {
 		state.save();
 	},
 
-	getCompactionReserveTokens() {
-		return settingsInternals(this).settings.compaction?.reserveTokens ?? 16384;
+	getCompactionReserveTokens(model) {
+		return resolveCompactionSetting(settingsInternals(this).settings.compaction, "reserveTokens", model);
 	},
 
 	getCompactionCompressionRatio() {
@@ -307,9 +336,8 @@ const basicAccessors: SettingsManagerBasicAccessors = {
 		return typeof value === "number" && Number.isFinite(value) && value > 0 && value < 1 ? value : 0.5;
 	},
 
-	getCompactionPreserveRecent() {
-		const value = settingsInternals(this).settings.compaction?.preserve_recent;
-		return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 2;
+	getCompactionPreserveRecent(model) {
+		return resolveCompactionSetting(settingsInternals(this).settings.compaction, "preserve_recent", model);
 	},
 
 	getCompactionQuery() {
@@ -317,13 +345,13 @@ const basicAccessors: SettingsManagerBasicAccessors = {
 		return query && query.length > 0 ? query : undefined;
 	},
 
-	getCompactionSettings() {
+	getCompactionSettings(model) {
 		const query = this.getCompactionQuery();
 		return {
 			enabled: this.getCompactionEnabled(),
-			reserveTokens: this.getCompactionReserveTokens(),
+			reserveTokens: this.getCompactionReserveTokens(model),
 			compression_ratio: this.getCompactionCompressionRatio(),
-			preserve_recent: this.getCompactionPreserveRecent(),
+			preserve_recent: this.getCompactionPreserveRecent(model),
 			...(query === undefined ? {} : { query }),
 		};
 	},

@@ -12,6 +12,7 @@
 - Added a model row to the `/workflow connect` graph node cards showing each stage's effective model and thinking level, including canonical fast model identity, with model-name truncation preserving the suffixes. Cards retain duration, status and dependencies in a six-row layout, reflect live fallbacks, and restore identity through durable resume ([#1859](https://github.com/bastani-inc/atomic/pull/1859) by [@sina85](https://github.com/sina85)).
 - Added `{ action: "wait", id, budgetMs }` to Bash and PowerShell for observing existing asynchronous tasks without rerunning commands. The observation budget is optional. Waits retain output and terminal metadata, follow owner observation policy, and release on cancellation or incoming messages without stopping execution or extending task lifetime.
 - Added the agent-callable `kill({ id })` tool for owned background bash and PowerShell tasks in main and workflow-stage chat. It cancels by task ID, preserves retained output and original outcomes, reports current cleanup state, and rejects other owners' tasks and subagents.
+- Added exact per-model compaction overrides for `reserveTokens` and Atomic's `preserve_recent` message count. Each field falls back to ordinary settings and then built-in defaults, with non-negative safe-integer validation. Manual, automatic, and post-tool compaction use the active model's budgets while retaining verbatim line compaction.
 
 ### Fixed
 
