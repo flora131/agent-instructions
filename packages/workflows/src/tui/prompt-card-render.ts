@@ -1,6 +1,7 @@
 import { keyHint, keyText, rawKeyHint } from "@bastani/atomic";
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import type { PendingPrompt } from "../shared/store-types.js";
+import { sanitizeToolDisplayText } from "../shared/tool-payload-bounds.js";
 import { BOLD, hexBg, hexToAnsi, paint, RESET } from "./color-utils.js";
 import type { GraphTheme } from "./graph-theme.js";
 import { createPromptSelectList } from "./prompt-card-select.js";
@@ -144,7 +145,7 @@ function renderPromptBodyBlock(
 	maxRows: number | undefined,
 	messageOffset: number,
 ): PromptCardLayout {
-	const messageRows = wrapText(state.prompt.message, innerWidth - 4);
+	const messageRows = wrapText(sanitizeToolDisplayText(state.prompt.message), innerWidth - 4);
 	const totalQuestionRows = messageRows.length;
 	if (maxRows !== undefined && maxRows === 0) {
 		return { lines: [], totalQuestionRows, visibleQuestionRows: 0 };

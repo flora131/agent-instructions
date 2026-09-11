@@ -263,6 +263,45 @@ describe("installWorkflowHilAnswerNotifications", () => {
 		unsubscribe();
 	});
 
+	// PR2700 LIVE-U1: Cancel retains drafts but must not announce a successful answer.
+	for (const answers of [[], [{ question: "What color?", answer: "Amber", selected: ["Amber"] }]]) {
+		test(`does not announce a cancelled questionnaire with ${answers.length} draft answers`, async () => {
+			const { broker, sent, unsubscribe } = setup();
+			const adapter = buildStagePromptAdapter(
+				"ask-cancel",
+				"ask_user_question",
+				{
+					questions: [
+						{ question: "What color?", options: [{ label: "Amber" }, { label: "Blue" }] },
+						{ question: "What shape?", options: [{ label: "Square" }, { label: "Circle" }] },
+					],
+				},
+				1,
+			)!;
+			broker.provideStagePrompt("run-1", "stage-1", adapter);
+			let request: StageCustomUiRequest | undefined;
+			const unregister = broker.registerHost("run-1", "stage-1", {
+				showCustomUi(next) {
+					request = next;
+				},
+			});
+			try {
+				const pending = broker.requestCustomUi("run-1", "stage-1", () => ({
+					render: () => [],
+					invalidate: () => {},
+				}));
+				assert.ok(request);
+				const result = { answers, cancelled: true };
+				broker.resolve(request, result);
+				assert.strictEqual(await pending, result, "retain the exact cancelled result and ordered drafts");
+				assert.deepEqual(sent, [], "cancellation must not create a HIL ANSWERED notice");
+			} finally {
+				unregister();
+				unsubscribe();
+			}
+		});
+	}
+
 	test("does not notify when a brokered structured prompt is answered by the workflow tool", async () => {
 		const { broker, sent, unsubscribe } = setup();
 		const adapter = buildStagePromptAdapter("ask-1", "ask_user_question", COLOR_ARGS, 1)!;

@@ -105,6 +105,16 @@ export function installWorkflowHilAnswerNotifications(options: WorkflowHilAnswer
 	);
 	const unsubscribeBroker = options.stageUiBroker?.onStagePromptResolved((event) => {
 		if (event.answerSource === "workflow_tool") return;
+		// Questionnaire cancellation can retain draft answers; those were never submitted.
+		if (
+			event.prompt.kind === "ask_user_question" &&
+			typeof event.answer === "object" &&
+			event.answer !== null &&
+			"cancelled" in event.answer &&
+			event.answer.cancelled === true
+		) {
+			return;
+		}
 		const answeredStage = findStageSnapshot(readGraphStoreSnapshot(options.store), event.runId, event.stageId);
 		if (answeredStage === undefined) return;
 
