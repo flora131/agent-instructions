@@ -272,6 +272,42 @@ test("pre-registration failures stay non-recoverable", async () => {
 	});
 });
 
+test("a post-registration refusal settles pipelined work with its reason while the broker stays open", async () => {
+	let brokerSide: net.Socket | undefined;
+	onConnection = acceptRegistration((socket) => {
+		brokerSide = socket;
+	});
+	const established = await connectedClient();
+	assert.ok(brokerSide);
+
+	// A real pipelined barrier the fake broker never answers: without the refusal
+	// reaching it, the only other way out is the client's own 5000 ms list timer.
+	const pending = established.client.listSessions();
+	const startedAt = Date.now();
+
+	// The broker reuses this frame to refuse an *established* client (a rejected
+	// pending-stage route) and deliberately keeps its own socket open here, so the
+	// refusal itself — not a peer FIN and not the timer — has to settle the barrier.
+	writeMessage(brokerSide, { type: "registration_failed", reason: "Invalid workflow-stage roster" });
+
+	let refusal: unknown;
+	await assert.rejects(pending, (error: unknown) => {
+		refusal = error;
+		assert.ok(error instanceof Error);
+		assert.equal(error.message, "Invalid workflow-stage roster");
+		assert.equal(isRecoverableIntercomDisconnect(error), false);
+		return true;
+	});
+	const elapsed = Date.now() - startedAt;
+	assert.equal(elapsed < 2000, true, `the refusal settled the list after ${elapsed}ms, not on the 5000ms timer`);
+	assert.equal(brokerSide.destroyed, false, "the broker side stayed open for the whole rejection");
+	assert.equal(established.client.isConnected(), false);
+
+	await established.closed;
+	assert.equal(established.disconnectPayload, refusal);
+	assert.equal(isRecoverableIntercomDisconnect(established.disconnectPayload), false);
+});
+
 test("plain errors cannot opt into recoverable classification by copying the marker", () => {
 	const spoofed = Object.assign(new Error("Client disconnected"), { intercomRecoverableDisconnect: true });
 	assert.equal(isRecoverableIntercomDisconnect(spoofed), false);

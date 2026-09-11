@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { type ChildProcess, spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import net from "node:net";
 import { tmpdir } from "node:os";
@@ -8,6 +9,7 @@ import type { AgentSession, CreateAgentSessionOptions } from "@bastani/atomic";
 import { Type } from "typebox";
 import { afterAll, beforeAll, test, vi } from "vitest";
 import type { WorkflowStageAdmissionBoundary } from "../../packages/coding-agent/src/core/workflow-stage-admission.ts";
+import { isRecoverableIntercomDisconnect } from "../../packages/intercom/recoverable-disconnect.js";
 import type { BrokerMessage } from "../../packages/intercom/types.js";
 import type { StageSessionRuntime } from "../../packages/workflows/src/runs/foreground/stage-runner.js";
 import { createMockSdk } from "../unit/durable-dbos-backend-helpers.js";
@@ -780,10 +782,14 @@ test("control connections cannot acquire live workflow recipient aliases", async
 		});
 		control.registerPendingStageRoute(runId, group, "control-alias-capability");
 		await control.listDirectory();
+		// The broker refuses the unauthorized alias claim and ends the connection; the
+		// pipelined request settles with that refusal, which is never a recoverable
+		// transport disconnect, so callers see an actionable authorization failure.
 		await assert.rejects(
 			control.registerLiveWorkflowStageRoute(runId, ["tool-id", "tool-name"], "control-alias-capability"),
-			/Client disconnected/,
+			(error: unknown) => error instanceof Error && !isRecoverableIntercomDisconnect(error),
 		);
+		assert.equal(control.isConnected(), false);
 	} finally {
 		await control.disconnect();
 	}
@@ -844,8 +850,9 @@ test("a legacy route-ineligible roster row does not prevent a genuine agent from
 		await nonAgentRoute.connect({ ...registration, name: "not-a-tool-agent", recipientPurpose: "agent" });
 		await assert.rejects(
 			nonAgentRoute.registerLiveWorkflowStageRoute(runId, ["tool-id"], "legacy-roster-capability"),
-			/Client disconnected/,
+			(error: unknown) => error instanceof Error && !isRecoverableIntercomDisconnect(error),
 		);
+		assert.equal(nonAgentRoute.isConnected(), false);
 	} finally {
 		await nonAgentRoute.disconnect();
 		await agent.disconnect();
@@ -2803,6 +2810,124 @@ test("one composite workflow-stage target transitions atomically from durable qu
 		disposeBridge();
 		await sender.shutdown();
 		await owner.shutdown();
+	}
+});
+
+// Route republication used to fire on every store invalidation, so churn that leaves the
+// route projection untouched still cost a broker round trip whose same-socket
+// `listSessions()` barrier could expire on its own timer. A burst of route-neutral churn
+// must leave durable queueing, stage startup, and live delivery externally unchanged, and
+// must not produce a pending-stage-route relay failure.
+test("route-neutral store churn preserves durable queueing and live delivery for a starting stage", async () => {
+	const runId = randomUUID();
+	const group = `workflow:${runId}`;
+	const idTarget = `${group}/reviewer-id`;
+	const nameTarget = `${group}/reviewer`;
+	const stageSessionId = "burst-reviewer-session";
+	const store = createStore();
+	const backend = new InMemoryDurableBackend();
+	setDurableBackend(backend);
+	const owner = extensionFixture("burst-owner-session", "burst-owner", undefined, "default");
+	const sender = extensionFixture("burst-sender-session", "burst-sender", undefined, group);
+	intercom(owner.pi as never);
+	const disposeBridge = registerPendingStageIntercomBridge(owner.pi as never, store);
+	intercom(sender.pi as never);
+	let stage: ReturnType<typeof extensionFixture> | undefined;
+	const relayFailures: string[] = [];
+	const forwardConsoleError = console.error.bind(console);
+	// Forwarding spy: real failures still reach the reporter, they are only observed here.
+	const consoleError = vi.spyOn(console, "error").mockImplementation((...args) => {
+		if (typeof args[0] === "string" && args[0].includes("atomic:workflow-pending-stage-route")) {
+			relayFailures.push(args.map((value) => (value instanceof Error ? value.message : String(value))).join(" "));
+		}
+		forwardConsoleError(...args);
+	});
+
+	try {
+		await owner.start();
+		backend.registerWorkflow({ workflowId: runId, name: "burst", inputs: {}, status: "running", createdAt: 1 });
+		store.recordRunStart({
+			id: runId,
+			name: "burst",
+			inputs: {},
+			status: "running",
+			stages: [
+				{
+					id: "reviewer-id",
+					name: "reviewer",
+					// Started but not yet hosting a session: the projection advertises this
+					// pre-start identity as `lifecycle: "pending"`.
+					status: "running",
+					parentIds: [],
+					toolEvents: [],
+					pendingStageDeliveryAvailable: true,
+				},
+			],
+			startedAt: 1,
+		});
+		// Attachment is not part of the route projection, so none of these invalidations
+		// is a real routing change.
+		for (let index = 0; index < 1000; index += 1) store.recordStageAttached(runId, "reviewer-id", index % 2 === 0);
+		await owner.waitForEventCompletion("atomic:workflow-pending-stage-route");
+
+		await sender.start();
+		const pendingList = await executeIntercom(sender, { action: "list" });
+		assert.equal(pendingList.isError, false);
+		assert.equal(
+			(pendingList.content[0]?.text ?? "").includes(`[PENDING] — target: \`${idTarget}\``),
+			true,
+			pendingList.content[0]?.text,
+		);
+
+		const queued = await executeIntercom(sender, { action: "send", to: nameTarget, message: "queued-before-start" });
+		assert.equal(queued.isError, false);
+		assert.equal(queued.details.queued, true);
+		assert.equal(queued.details.delivered, false);
+		assert.equal(store.pendingStageMessagesFor(runId, "reviewer").length, 1);
+		assert.equal(store.pendingStageMessagesFor(runId, "reviewer")[0]?.id, queued.details.messageId);
+
+		const pendingStageDelivery = createWorkflowPendingStageDelivery(store, runId, "reviewer-id", "reviewer");
+		stage = extensionFixture(stageSessionId, "reviewer", pendingStageDelivery, group, {
+			intercomGroup: group,
+			kind: "workflow-stage",
+			workflowRunId: runId,
+			workflowStageId: "reviewer-id",
+			workflowStageName: "reviewer",
+			pendingStageDelivery,
+		});
+		intercom(stage.pi as never);
+		await stage.start();
+		store.recordStageSession(runId, "reviewer-id", { sessionId: stageSessionId });
+		await owner.waitForEventCompletion("atomic:workflow-pending-stage-route");
+
+		await stage.waitForInjectedCount(1);
+		assert.equal(stage.injectedMessages.filter(({ content }) => content?.includes("queued-before-start")).length, 1);
+		const drained = store.runs().find((entry) => entry.id === runId)?.pendingStageMessages ?? [];
+		assert.equal(drained.length, 1);
+		assert.equal(drained[0]?.stageId, "reviewer-id");
+		assert.equal(drained[0]?.status, "delivered");
+
+		for (const [to, marker] of [
+			[idTarget, "live-by-id"],
+			[nameTarget, "live-by-name"],
+		] as const) {
+			const live = await executeIntercom(sender, { action: "send", to, message: marker });
+			assert.equal(live.isError, false, live.content[0]?.text);
+			assert.equal(live.details.delivered, true);
+			assert.equal(live.details.queued, undefined);
+		}
+		await stage.waitForInjectedCount(3);
+		for (const marker of ["live-by-id", "live-by-name"]) {
+			assert.equal(stage.injectedMessages.filter(({ content }) => content?.includes(marker)).length, 1);
+		}
+		assert.equal(store.runs().find((entry) => entry.id === runId)?.stages[0]?.status, "running");
+		assert.deepEqual(relayFailures, []);
+	} finally {
+		consoleError.mockRestore();
+		if (stage !== undefined) await stage.shutdown();
+		await sender.shutdown();
+		await owner.shutdown();
+		disposeBridge();
 	}
 });
 
