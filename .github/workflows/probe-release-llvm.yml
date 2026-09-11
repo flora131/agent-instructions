@@ -1,0 +1,80 @@
+name: Probe release LLVM
+on:
+  push:
+    branches: [fix/release-llvm-preinstalled]
+    paths: [.github/workflows/probe-release-llvm.yml]
+permissions:
+  contents: read
+jobs:
+  windows-native:
+    name: Probe LLVM 18 ${{ matrix.arch }}
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, target: x86_64-pc-windows-msvc, xwin_arch: x86_64 }
+          - { arch: arm64, target: aarch64-pc-windows-msvc, xwin_arch: aarch64 }
+    env:
+      RUSTUP_TOOLCHAIN: 1.97.0
+      XWIN_ARCH: ${{ matrix.xwin_arch }}
+      XWIN_ACCEPT_LICENSE: "1"
+    steps:
+      - uses: useblacksmith/checkout@6fd481652155169ed4d2f25ebaf97464f685175f # v1.1
+        with:
+          ref: ec20ba66d6df06cd7d82bf0e8728384c6a86d5bc
+          persist-credentials: false
+      - name: Inspect and select installed LLVM 18
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat /etc/os-release
+          dpkg-query -W 'clang*' 'lld*' 'llvm*' || true
+          llvm_bin=/usr/lib/llvm-18/bin
+          for tool in clang clang-cl lld-link llvm-ar llvm-lib llvm-dlltool llvm-ml; do
+            test -x "$llvm_bin/$tool" || { echo "Missing LLVM 18 tool: $tool" >&2; exit 1; }
+          done
+          "$llvm_bin/clang" --version
+          "$llvm_bin/lld-link" --version
+          echo "$llvm_bin" >> "$GITHUB_PATH"
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        timeout-minutes: 4
+        with:
+          toolchain: 1.97.0
+          targets: ${{ matrix.target }}
+      - run: npm ci --ignore-scripts
+      - name: Set baseline x64 CPU flags
+        if: matrix.arch == 'x64'
+        run: echo 'RUSTFLAGS=-C target-cpu=x86-64-v2' >> "$GITHUB_ENV"
+      - uses: taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2.87.8
+        timeout-minutes: 3
+        with:
+          tool: cargo-xwin@0.23.0
+      - run: echo "XWIN_CACHE_DIR=$HOME/.cache/cargo-xwin" >> "$GITHUB_ENV"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/cargo-xwin
+          key: xwin-v1-${{ matrix.arch }}-17
+      - run: cargo-xwin xwin cache xwin
+        timeout-minutes: 8
+      - name: Build original tagged Windows native binding without apt
+        timeout-minutes: 5
+        env:
+          CROSS_TARGET: ${{ matrix.target }}
+        run: bun run --cwd packages/natives build
+      - name: Verify generated native architecture
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          binding="packages/natives/native/atomic_natives.win32-${ARCH}-msvc.node"
+          test -s "$binding"
+          file "$binding"
+          /usr/lib/llvm-18/bin/llvm-readobj --file-headers "$binding"
