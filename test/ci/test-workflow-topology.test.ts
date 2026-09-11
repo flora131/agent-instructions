@@ -112,7 +112,7 @@ test("every work job the gate names exists and is otherwise independent", async 
 	}
 });
 
-/** Measured headroom, including a full Windows integration retry; evidence lives in docs/ci.md. */
+/** Measured headroom, including a full integration retry on both hosts; evidence lives in docs/ci.md. */
 test("each split job retains its measured timeout hang detector", async () => {
 	const workflow = await readText(testPath);
 	const blocks = await jobs();
@@ -122,14 +122,21 @@ test("each split job retains its measured timeout hang detector", async () => {
 		// Run 34270757695: Linux job 102211457492 / Windows job 102211457215 were
 		// timeout-censored at 869s / 870s, including bounded retries and teardown.
 		"unit-tests": [Math.ceil((869 * 1.5) / 60), Math.ceil((870 * 1.5) / 60)],
-		// RFC #2884, run 34142104101: Linux job 101806128732 took 145s;
+		// Linux run 34652319107 / job 103437056550: 135s setup before cancellation;
+		// five successful runs on September 11: at most 116s per attempt; allow 7s tail (6s + 1s margin).
 		// PR #2934, run 34275410217 / job 102227085985: 147s setup, 186.92s first
-		// attempt, 7s teardown. Reserve two complete attempts, then add 50% headroom.
-		"integration-tests": [Math.ceil((145 * 1.5) / 60), Math.ceil(((147 + 2 * 186.92 + 7) * 1.5) / 60)],
+		// attempt, 7s teardown. Both hosts reserve two attempts, then add 50% headroom.
+		"integration-tests": [
+			Math.ceil(((135 + 2 * 116 + 7) * 1.5) / 60),
+			Math.ceil(((147 + 2 * 186.92 + 7) * 1.5) / 60),
+		],
 		// Run 34270757695: jobs 102211457418 / 102211457032 reached 382s / 552s. Test steps
 		// passed without retry, but both jobs still exceeded their 6/9-minute caps.
 		"agent-suite": [Math.ceil((382 * 1.5) / 60), Math.ceil((552 * 1.5) / 60)],
-		"release-archive": [Math.ceil((80 * 1.5) / 60), Math.ceil((244 * 1.5) / 60)],
+		// Linux run 34653564242 / job 103440964907: 49s setup + 84s censored build.
+		// Reserve another full 15s packaging (successful max rounded up), 5s smoke and 5s tail.
+		// The partial build is not a measured completion; docs/ci.md records this projection's limits.
+		"release-archive": [Math.ceil(((49 + 84 + 15 + 5 + 5) * 1.5) / 60), Math.ceil((244 * 1.5) / 60)],
 	};
 	for (const [job, [linux, windows]] of Object.entries(caps)) {
 		const block = blocks.get(job) as string;
