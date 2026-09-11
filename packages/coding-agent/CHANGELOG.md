@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.19-alpha.5] - 2026-09-11
+
 ### Changed
 
 - Open Claude Design now starts with Claude Fable 5.1 at medium effort, followed by Copilot Fable 5.1 and Astra at medium effort, with the same Fable-first order on OpenRouter.
