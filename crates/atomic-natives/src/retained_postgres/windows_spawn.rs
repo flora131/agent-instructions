@@ -1,0 +1,599 @@
+//! Windows spawn path for the retained Postgres lease.
+//!
+//! PostgreSQL refuses to run for an effective member of the Administrators or
+//! Power Users groups (`pgwin32_is_admin`), so an Atomic process launched from
+//! an elevated or administrator account cannot hand its own token to
+//! `postgres.exe`: the server prints "Execution of PostgreSQL by a user with
+//! administrative permissions is not permitted" and exits, which previously
+//! surfaced only as a readiness timeout that hid the real failure.
+//!
+//! `pg_ctl start` solves this with a restricted token: drop the Administrators
+//! and Power Users SIDs, delete every privilege except the ones PostgreSQL
+//! keeps, re-add the current user to the token's default DACL (otherwise the
+//! postmaster's later CreatePipe/CreateProcess calls fail with access denied
+//! on administrative accounts), then `CreateProcessAsUser`. This module
+//! performs the same restriction and keeps the exact process handle
+//! `CreateProcessAsUserW` returned, so lease ownership, exact-handle fast
+//! shutdown, and release semantics are unchanged. The spawn fails closed: any
+//! failure surfaces as the OS error instead of retrying with the unrestricted
+//! token.
+//!
+//! A non-administrative caller keeps today's exact `Command::spawn` path; only
+//! administrative accounts take the restricted-token route.
+
+use std::{
+	ffi::OsStr,
+	io,
+	os::windows::{ffi::OsStrExt, process::ExitStatusExt},
+	process::{Child, Command, ExitStatus},
+	ptr,
+};
+
+use windows_sys::Win32::{
+	Foundation::{
+		CloseHandle, DuplicateHandle, GENERIC_ALL, GENERIC_READ, GetLastError, HANDLE,
+		INVALID_HANDLE_VALUE, WAIT_OBJECT_0,
+	},
+	Security::{
+		ACCESS_ALLOWED_ACE, ACE_HEADER, ACL, ACL_REVISION, ACL_SIZE_INFORMATION, AclSizeInformation,
+		AddAccessAllowedAceEx, AddAce, AllocateAndInitializeSid, CheckTokenMembership,
+		CreateRestrictedToken, FreeSid, GetAce, GetAclInformation, GetLengthSid, GetTokenInformation,
+		InitializeAcl, LUID_AND_ATTRIBUTES, LookupPrivilegeValueW, OBJECT_INHERIT_ACE, PSID,
+		SE_CHANGE_NOTIFY_NAME, SE_LOCK_MEMORY_NAME, SECURITY_NT_AUTHORITY, SID_AND_ATTRIBUTES,
+		SetTokenInformation, TOKEN_ALL_ACCESS, TOKEN_DEFAULT_DACL, TOKEN_INFORMATION_CLASS,
+		TOKEN_PRIVILEGES, TOKEN_USER, TokenDefaultDacl, TokenPrivileges, TokenUser,
+	},
+	Storage::FileSystem::{CreateFileW, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING},
+	System::{
+		Environment::{FreeEnvironmentStringsW, GetEnvironmentStringsW},
+		Threading::{
+			CreateProcessAsUserW, GetCurrentProcess, GetExitCodeProcess, OpenProcessToken,
+			PROCESS_INFORMATION, ResumeThread, STARTF_USESTDHANDLES, STARTUPINFOW,
+			WaitForSingleObject,
+		},
+	},
+};
+
+const SECURITY_BUILTIN_DOMAIN_RID: u32 = 0x0000_0020;
+const DOMAIN_ALIAS_RID_ADMINS: u32 = 0x0000_0220;
+const DOMAIN_ALIAS_RID_POWER_USERS: u32 = 0x0000_0223;
+const DUPLICATE_SAME_ACCESS: u32 = 2;
+
+/// CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP, unchanged from the previous
+/// std Command configuration: the postmaster stays attached to an invisible
+/// console its children inherit, and DETACHED_PROCESS would give every
+/// console-subsystem descendant its own visible window.
+pub const CREATION_FLAGS: u32 = 0x0800_0000 | 0x0000_0200;
+const CREATE_SUSPENDED_FLAG: u32 = 0x0000_0004;
+/// Required whenever an explicit UTF-16 environment block is passed; without
+/// it CreateProcess interprets the wide buffer as ANSI and fails with
+/// ERROR_INVALID_PARAMETER.
+const CREATE_UNICODE_ENVIRONMENT_FLAG: u32 = 0x0000_0400;
+
+pub fn configure_process(command: &mut Command, _uid: Option<u32>, _gid: Option<u32>) {
+	use std::os::windows::process::CommandExt;
+	command.creation_flags(CREATION_FLAGS);
+}
+
+/// The exact retained postmaster handle returned by process creation.
+pub struct RetainedChild {
+	handle: HANDLE,
+	pid: u32,
+	status: Option<ExitStatus>,
+}
+
+impl RetainedChild {
+	pub fn id(&self) -> u32 {
+		self.pid
+	}
+
+	pub fn try_wait(&mut self) -> io::Result<Option<ExitStatus>> {
+		if let Some(status) = self.status {
+			return Ok(Some(status));
+		}
+		if unsafe { WaitForSingleObject(self.handle, 0) } != WAIT_OBJECT_0 {
+			return Ok(None);
+		}
+		let mut code = 0_u32;
+		if unsafe { GetExitCodeProcess(self.handle, &mut code) } == 0 {
+			return Err(last_error());
+		}
+		let status = ExitStatusExt::from_raw(code);
+		self.status = Some(status);
+		Ok(Some(status))
+	}
+}
+
+impl Drop for RetainedChild {
+	fn drop(&mut self) {
+		if !self.handle.is_null() && self.handle != INVALID_HANDLE_VALUE {
+			unsafe { CloseHandle(self.handle) };
+		}
+	}
+}
+
+// SAFETY: the handle is only used while the lease's mutex is held, so exactly
+// one thread observes it at a time; closing happens once in Drop.
+unsafe impl Send for RetainedChild {}
+unsafe impl Sync for RetainedChild {}
+
+struct OwnedHandle(HANDLE);
+
+impl Drop for OwnedHandle {
+	fn drop(&mut self) {
+		if !self.0.is_null() && self.0 != INVALID_HANDLE_VALUE {
+			unsafe { CloseHandle(self.0) };
+		}
+	}
+}
+
+fn last_error() -> io::Error {
+	io::Error::from_raw_os_error(unsafe { GetLastError() } as i32)
+}
+
+fn wide(value: &OsStr) -> Vec<u16> {
+	value.encode_wide().chain(Some(0)).collect()
+}
+
+/// True when the effective token is a member of Administrators or Power Users
+/// (PostgreSQL's own `pgwin32_is_admin` predicate).
+fn token_is_admin() -> bool {
+	unsafe {
+		let authority = SECURITY_NT_AUTHORITY;
+		let mut admins: PSID = ptr::null_mut();
+		if AllocateAndInitializeSid(
+			&authority,
+			2,
+			SECURITY_BUILTIN_DOMAIN_RID,
+			DOMAIN_ALIAS_RID_ADMINS,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+			&mut admins,
+		) == 0
+		{
+			return true;
+		}
+		let mut power_users: PSID = ptr::null_mut();
+		if AllocateAndInitializeSid(
+			&authority,
+			2,
+			SECURITY_BUILTIN_DOMAIN_RID,
+			DOMAIN_ALIAS_RID_POWER_USERS,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+			&mut power_users,
+		) == 0
+		{
+			FreeSid(admins);
+			return true;
+		}
+		let mut is_admin = 0;
+		let mut is_power_user = 0;
+		let checked = CheckTokenMembership(ptr::null_mut(), admins, &mut is_admin) != 0
+			&& CheckTokenMembership(ptr::null_mut(), power_users, &mut is_power_user) != 0;
+		FreeSid(admins);
+		FreeSid(power_users);
+		if !checked {
+			// An unknown answer must not fall through to the unrestricted path;
+			// report admin so the restricted-token spawn (which fails closed on
+			// its own errors) decides the outcome.
+			return true;
+		}
+		is_admin != 0 || is_power_user != 0
+	}
+}
+
+fn token_information(token: HANDLE, class: TOKEN_INFORMATION_CLASS) -> io::Result<Vec<u8>> {
+	let mut length = 0_u32;
+	unsafe { GetTokenInformation(token, class, ptr::null_mut(), 0, &mut length) };
+	if length == 0 {
+		return Err(last_error());
+	}
+	let mut buffer = vec![0_u8; length as usize];
+	if unsafe { GetTokenInformation(token, class, buffer.as_mut_ptr().cast(), length, &mut length) }
+		== 0
+	{
+		return Err(last_error());
+	}
+	Ok(buffer)
+}
+
+/// pg_ctl's `AddUserToTokenDacl`: without it the restricted token's default
+/// DACL only grants SYSTEM, and the postmaster's later CreatePipe/CreateProcess
+/// calls fail with access denied on administrative accounts.
+fn add_user_to_token_dacl(token: HANDLE) -> io::Result<()> {
+	let default_buffer = token_information(token, TokenDefaultDacl)?;
+	if default_buffer.len() < size_of::<TOKEN_DEFAULT_DACL>() {
+		return Err(io::Error::new(io::ErrorKind::InvalidData, "short TokenDefaultDacl"));
+	}
+	let default = unsafe { &*(default_buffer.as_ptr() as *const TOKEN_DEFAULT_DACL) };
+	if default.DefaultDacl.is_null() {
+		return Ok(());
+	}
+	let mut size = ACL_SIZE_INFORMATION::default();
+	if unsafe {
+		GetAclInformation(
+			default.DefaultDacl,
+			&mut size as *mut ACL_SIZE_INFORMATION as *mut core::ffi::c_void,
+			size_of::<ACL_SIZE_INFORMATION>() as u32,
+			AclSizeInformation,
+		)
+	} == 0
+	{
+		return Err(last_error());
+	}
+	let user_buffer = token_information(token, TokenUser)?;
+	if user_buffer.len() < size_of::<TOKEN_USER>() {
+		return Err(io::Error::new(io::ErrorKind::InvalidData, "short TokenUser"));
+	}
+	let user = unsafe { &*(user_buffer.as_ptr() as *const TOKEN_USER) };
+	let sid_length = unsafe { GetLengthSid(user.User.Sid) } as usize;
+	let new_length =
+		size.AclBytesInUse as usize + size_of::<ACCESS_ALLOWED_ACE>() + sid_length - size_of::<u32>();
+	let mut acl = vec![0_u8; new_length];
+	let acl_ptr = acl.as_mut_ptr() as *mut ACL;
+	if unsafe { InitializeAcl(acl_ptr, new_length as u32, ACL_REVISION) } == 0 {
+		return Err(last_error());
+	}
+	for index in 0..size.AceCount {
+		let mut ace: *mut core::ffi::c_void = ptr::null_mut();
+		if unsafe { GetAce(default.DefaultDacl, index, &mut ace) } == 0 {
+			return Err(last_error());
+		}
+		let ace_size = unsafe { (*(ace as *mut ACE_HEADER)).AceSize } as u32;
+		if unsafe { AddAce(acl_ptr, ACL_REVISION, u32::MAX, ace, ace_size) } == 0 {
+			return Err(last_error());
+		}
+	}
+	if unsafe {
+		AddAccessAllowedAceEx(acl_ptr, ACL_REVISION, OBJECT_INHERIT_ACE, GENERIC_ALL, user.User.Sid)
+	} == 0
+	{
+		return Err(last_error());
+	}
+	let replacement = TOKEN_DEFAULT_DACL { DefaultDacl: acl_ptr };
+	if unsafe {
+		SetTokenInformation(
+			token,
+			TokenDefaultDacl,
+			ptr::from_ref(&replacement).cast(),
+			size_of::<TOKEN_DEFAULT_DACL>() as u32,
+		)
+	} == 0
+	{
+		return Err(last_error());
+	}
+	Ok(())
+}
+
+/// pg_ctl's `GetPrivilegesToDelete`: every privilege except the two PostgreSQL
+/// keeps (`SeLockMemoryPrivilege` for large pages, `SeChangeNotifyPrivilege`
+/// enabled by default) is passed to CreateRestrictedToken for deletion.
+fn privileges_to_delete(token: HANDLE) -> io::Result<Vec<LUID_AND_ATTRIBUTES>> {
+	let mut lock_pages = windows_sys::Win32::Foundation::LUID::default();
+	let mut change_notify = windows_sys::Win32::Foundation::LUID::default();
+	if unsafe { LookupPrivilegeValueW(ptr::null(), SE_LOCK_MEMORY_NAME, &mut lock_pages) } == 0
+		|| unsafe { LookupPrivilegeValueW(ptr::null(), SE_CHANGE_NOTIFY_NAME, &mut change_notify) }
+			== 0
+	{
+		return Err(last_error());
+	}
+	let buffer = token_information(token, TokenPrivileges)?;
+	if buffer.len() < size_of::<TOKEN_PRIVILEGES>() {
+		return Err(io::Error::new(io::ErrorKind::InvalidData, "short TokenPrivileges"));
+	}
+	let privileges = unsafe { &*(buffer.as_ptr() as *const TOKEN_PRIVILEGES) };
+	let count = privileges.PrivilegeCount as usize;
+	if buffer.len()
+		< size_of::<TOKEN_PRIVILEGES>() + count.saturating_sub(1) * size_of::<LUID_AND_ATTRIBUTES>()
+	{
+		return Err(io::Error::new(io::ErrorKind::InvalidData, "truncated TokenPrivileges"));
+	}
+	let kept = |luid: windows_sys::Win32::Foundation::LUID| {
+		(luid.LowPart == lock_pages.LowPart && luid.HighPart == lock_pages.HighPart)
+			|| (luid.LowPart == change_notify.LowPart && luid.HighPart == change_notify.HighPart)
+	};
+	let mut deleted = Vec::with_capacity(count);
+	for index in 0..count {
+		let entry = unsafe { &*privileges.Privileges.as_ptr().add(index) };
+		if !kept(entry.Luid) {
+			deleted.push(*entry);
+		}
+	}
+	Ok(deleted)
+}
+
+/// Build the restricted token pg_ctl hands to postgres.exe. `None` means the
+/// caller's token is already unprivileged and needs no restriction.
+fn restricted_token() -> io::Result<Option<OwnedHandle>> {
+	if !token_is_admin() {
+		return Ok(None);
+	}
+	unsafe {
+		let mut original = OwnedHandle(ptr::null_mut());
+		if OpenProcessToken(GetCurrentProcess(), TOKEN_ALL_ACCESS, &mut original.0) == 0 {
+			return Err(last_error());
+		}
+		let authority = SECURITY_NT_AUTHORITY;
+		let mut admins: PSID = ptr::null_mut();
+		if AllocateAndInitializeSid(
+			&authority,
+			2,
+			SECURITY_BUILTIN_DOMAIN_RID,
+			DOMAIN_ALIAS_RID_ADMINS,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+			&mut admins,
+		) == 0
+		{
+			return Err(last_error());
+		}
+		let mut power_users: PSID = ptr::null_mut();
+		if AllocateAndInitializeSid(
+			&authority,
+			2,
+			SECURITY_BUILTIN_DOMAIN_RID,
+			DOMAIN_ALIAS_RID_POWER_USERS,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+			&mut power_users,
+		) == 0
+		{
+			FreeSid(admins);
+			return Err(last_error());
+		}
+		let drop_sids = [
+			SID_AND_ATTRIBUTES { Sid: admins, Attributes: 0 },
+			SID_AND_ATTRIBUTES { Sid: power_users, Attributes: 0 },
+		];
+		let deleted = privileges_to_delete(original.0)?;
+		let mut restricted = OwnedHandle(ptr::null_mut());
+		// Flags stay 0 with an explicit deletion list, exactly like pg_ctl:
+		// DISABLE_MAX_PRIVILEGE would make CreateRestrictedToken ignore the
+		// list and also drop SeLockMemoryPrivilege, which PostgreSQL keeps for
+		// large pages.
+		let created = CreateRestrictedToken(
+			original.0,
+			0,
+			drop_sids.len() as u32,
+			drop_sids.as_ptr(),
+			deleted.len() as u32,
+			if deleted.is_empty() { ptr::null() } else { deleted.as_ptr() },
+			0,
+			ptr::null(),
+			&mut restricted.0,
+		);
+		FreeSid(admins);
+		FreeSid(power_users);
+		if created == 0 {
+			return Err(last_error());
+		}
+		add_user_to_token_dacl(restricted.0)?;
+		Ok(Some(restricted))
+	}
+}
+
+/// Quote one argument following the CommandLineToArgvW rules, matching what
+/// std's Windows Command produces for the same argument.
+fn quote_argument(argument: &str) -> String {
+	let mut result = String::from("\"");
+	let mut backslashes = 0_usize;
+	for character in argument.chars() {
+		if character == '\\' {
+			backslashes += 1;
+			continue;
+		}
+		if character == '"' {
+			result.push_str(&"\\".repeat(backslashes * 2 + 1));
+			result.push('"');
+		} else {
+			result.push_str(&"\\".repeat(backslashes));
+			result.push(character);
+		}
+		backslashes = 0;
+	}
+	result.push_str(&"\\".repeat(backslashes * 2));
+	result.push('"');
+	result
+}
+
+fn command_line(executable: &OsStr, args: &[String]) -> Vec<u16> {
+	let mut line = format!("\"{}\"", executable.to_string_lossy());
+	for argument in args {
+		line.push(' ');
+		line.push_str(&quote_argument(argument));
+	}
+	line.encode_utf16().chain(Some(0)).collect()
+}
+
+/// Duplicate a handle so the child inherits exactly this one. The duplicate is
+/// owned by the caller and must be closed after process creation.
+fn inheritable_duplicate(handle: HANDLE) -> io::Result<HANDLE> {
+	let mut duplicate: HANDLE = ptr::null_mut();
+	if unsafe {
+		DuplicateHandle(
+			GetCurrentProcess(),
+			handle,
+			GetCurrentProcess(),
+			&mut duplicate,
+			0,
+			1,
+			DUPLICATE_SAME_ACCESS,
+		)
+	} == 0
+	{
+		return Err(last_error());
+	}
+	Ok(duplicate)
+}
+
+/// An inheritable readable NUL device handle for the child's stdin, matching
+/// `Stdio::null`. Every handle passed with STARTF_USESTDHANDLES must itself be
+/// inheritable, or CreateProcess fails with ERROR_INVALID_PARAMETER.
+fn null_input_handle() -> io::Result<HANDLE> {
+	let path: Vec<u16> = OsStr::new("NUL").encode_wide().chain(Some(0)).collect();
+	let handle = unsafe {
+		CreateFileW(
+			path.as_ptr(),
+			GENERIC_READ,
+			FILE_SHARE_READ | FILE_SHARE_WRITE,
+			ptr::null(),
+			OPEN_EXISTING,
+			0,
+			ptr::null_mut(),
+		)
+	};
+	if handle == INVALID_HANDLE_VALUE {
+		return Err(last_error());
+	}
+	let inheritable = inheritable_duplicate(handle);
+	unsafe { CloseHandle(handle) };
+	inheritable
+}
+
+/// Spawn `command` with the caller's log-file handles as the child's
+/// stdout/stderr. Returns the exact process handle as the retained child.
+pub fn spawn(
+	command: &mut Command,
+	stdout: &std::fs::File,
+	stderr: &std::fs::File,
+) -> io::Result<RetainedChild> {
+	use std::os::windows::io::AsRawHandle;
+	let Some(token) = restricted_token()? else {
+		// Unprivileged caller: keep the exact std spawn path.
+		let child = command.spawn()?;
+		return Ok(retain_from_child(child));
+	};
+	unsafe {
+		let executable = command.get_program();
+		let args: Vec<String> =
+			command.get_args().map(|argument| argument.to_string_lossy().into_owned()).collect();
+		// CreateProcessAsUserW may write into the command-line buffer, which is
+		// therefore built without its trailing NUL.
+		let mut line = command_line(executable, &args);
+		line.pop();
+		let cwd: Option<Vec<u16>> = command.get_current_dir().map(|dir| wide(dir.as_os_str()));
+		let environment = environment_block(command)?;
+		let input = null_input_handle()?;
+		let output = inheritable_duplicate(stdout.as_raw_handle())?;
+		let error = inheritable_duplicate(stderr.as_raw_handle())?;
+		let startup = STARTUPINFOW {
+			cb: size_of::<STARTUPINFOW>() as u32,
+			dwFlags: STARTF_USESTDHANDLES,
+			hStdInput: input,
+			hStdOutput: output,
+			hStdError: error,
+			..STARTUPINFOW::default()
+		};
+		let mut information = PROCESS_INFORMATION::default();
+		let application = wide(executable);
+		let created = CreateProcessAsUserW(
+			token.0,
+			application.as_ptr(),
+			line.as_mut_ptr(),
+			ptr::null(),
+			ptr::null(),
+			1,
+			CREATION_FLAGS | CREATE_SUSPENDED_FLAG | CREATE_UNICODE_ENVIRONMENT_FLAG,
+			environment.as_ptr().cast(),
+			cwd.as_ref().map_or(ptr::null(), |dir| dir.as_ptr()),
+			&startup,
+			&mut information,
+		);
+		let failure = if created == 0 { Some(last_error()) } else { None };
+		CloseHandle(input);
+		CloseHandle(output);
+		CloseHandle(error);
+		if let Some(error) = failure {
+			return Err(error);
+		}
+		let process = OwnedHandle(information.hProcess);
+		let thread = OwnedHandle(information.hThread);
+		let resumed = ResumeThread(thread.0);
+		drop(thread);
+		if resumed == u32::MAX {
+			return Err(last_error());
+		}
+		let retained =
+			RetainedChild { handle: process.0, pid: information.dwProcessId, status: None };
+		std::mem::forget(process); // ownership moved into the retained child
+		Ok(retained)
+	}
+}
+
+/// Wrap the process handle of a std spawn, so both spawn paths share one
+/// ownership type. The handle stays owned by the std Child.
+fn retain_from_child(child: Child) -> RetainedChild {
+	use std::os::windows::io::AsRawHandle;
+	let pid = child.id();
+	let handle = child.as_raw_handle();
+	std::mem::forget(child); // keep the handle alive; RetainedChild now owns it
+	RetainedChild { handle, pid, status: None }
+}
+
+/// Reproduce std's env merge semantics: the caller's overrides replace
+/// inherited values with case-insensitive Windows names, removals drop them,
+/// and the block is sorted case-insensitively as CreateProcess requires.
+fn environment_block(command: &Command) -> io::Result<Vec<u16>> {
+	let block = unsafe { GetEnvironmentStringsW() };
+	if block.is_null() {
+		return Err(last_error());
+	}
+	let mut entries: Vec<(String, String)> = Vec::new();
+	unsafe {
+		let mut cursor = block;
+		while *cursor != 0 {
+			let mut end = cursor;
+			while *end != 0 {
+				end = end.add(1);
+			}
+			let text = String::from_utf16_lossy(std::slice::from_raw_parts(
+				cursor,
+				end.offset_from(cursor) as usize,
+			));
+			// Windows-hidden per-drive working directories ("=C:=...") are not
+			// valid in a CreateProcess environment block.
+			if !text.starts_with('=')
+				&& let Some((name, value)) = text.split_once('=')
+			{
+				entries.push((name.to_owned(), value.to_owned()));
+			}
+			cursor = end.add(1);
+		}
+		FreeEnvironmentStringsW(block);
+	}
+	for (name, value) in command.get_envs() {
+		let name = name.to_string_lossy().into_owned();
+		let uppercase = name.to_ascii_uppercase();
+		entries.retain(|(existing, _)| existing.to_ascii_uppercase() != uppercase);
+		if let Some(value) = value {
+			entries.push((name, value.to_string_lossy().into_owned()));
+		}
+	}
+	entries.sort_by_key(|(name, _)| name.to_ascii_uppercase());
+	let mut block = Vec::new();
+	for (name, value) in entries {
+		block.extend(name.encode_utf16());
+		block.push(u16::from(b'='));
+		block.extend(value.encode_utf16());
+		block.push(0);
+	}
+	block.push(0);
+	Ok(block)
+}

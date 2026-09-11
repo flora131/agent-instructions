@@ -13,6 +13,10 @@
  * and can be shared by concurrent sessions. Orderly shutdown signals and waits
  * on that exact retained process instance; attached clusters are untouched.
  *
+ * On Windows, Administrative accounts run PostgreSQL through a restricted
+ * access token (mirroring pg_ctl), because the server refuses to start for a
+ * member of the Administrators or Power Users groups.
+ *
  * PostgreSQL refuses to run as UID 0, so a root Atomic process (containers,
  * CI sandboxes, eval harnesses) resolves an unprivileged system account, keeps
  * the cluster under `/var/lib/atomic-postgres` instead (a root home directory
@@ -166,6 +170,7 @@ async function rollbackStartedCluster(
 	}
 	throw startupError;
 }
+
 async function waitForClusterReadiness(
 	logFile: string,
 	rollbackCluster: ActiveEmbeddedPostgres | undefined,
@@ -176,6 +181,22 @@ async function waitForClusterReadiness(
 	try {
 		for (let attempt = 0; attempt < attempts; attempt += 1) {
 			if (await isReachable(EMBEDDED_HOST, EMBEDDED_PORT)) return;
+			// A postmaster that exits before listening is the actual startup
+			// failure (bad data directory, refused configuration, PostgreSQL's
+			// administrator refusal, ...). Report it from the exact retained
+			// process instead of burning the whole readiness budget on a
+			// timeout that hides the cause. wait(0) resolves with `exited` for
+			// an exited/reaped child and rejects with the timeout for a live
+			// one, so observing the lease never reconstructs ownership from a
+			// PID or pidfile.
+			if (rollbackCluster !== undefined) {
+				const observed = await rollbackCluster.lease.wait(0).catch(() => undefined);
+				if (observed?.exited) {
+					throw new Error(
+						`The embedded Postgres process exited early before accepting connections on ${EMBEDDED_HOST}:${EMBEDDED_PORT}; see ${logFile}.${logTail(logFile)}`,
+					);
+				}
+			}
 			await wait(READY_DELAY_MS);
 		}
 		throw new Error(

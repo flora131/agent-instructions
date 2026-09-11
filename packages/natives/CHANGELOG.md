@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- The retained embedded Postgres process now starts on Windows administrative accounts with the same restricted access token `pg_ctl` applies: the Administrators and Power Users SIDs become deny-only, every privilege except the ones PostgreSQL keeps is deleted, and the current user is re-added to the token's default DACL so the postmaster's own child processes remain creatable. The exact process handle from `CreateProcessAsUserW` stays the retained lease, preserving exact-handle fast shutdown, retry-after-timeout ownership, and release-without-kill semantics. Non-administrative Windows accounts keep the previous spawn path unchanged, and Unix privilege handling is untouched.
+
 ## [0.9.19-alpha.2] - 2026-09-08
 
 ### Added

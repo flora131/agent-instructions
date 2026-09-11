@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - Reduced durable `/workflow resume` latency for checkpoint-heavy workflows, especially on Windows, by reusing loaded checkpoint envelopes while preserving original checkpoint decoding errors and completed-output values.
+- Embedded Postgres startup now reports an early process exit with its actual log output instead of waiting out the full readiness timeout. When the retained postmaster exits before accepting connections (a corrupt cluster, a refused setting, or PostgreSQL's administrator refusal on an unrestricted Windows launch), the startup error includes the log tail from the exact retained process; attached servers, shutdown retry semantics, and non-Postgres platforms are unchanged.
 
 ## [0.9.19-alpha.3] - 2026-09-09
 

@@ -39,9 +39,11 @@ class FakeLease implements RetainedPostgres {
 		return this.interrupt(timeoutMs);
 	}
 
-	async wait(timeoutMs: number): Promise<{ exited: boolean; signaled: boolean }> {
-		this.waitCalls.push(timeoutMs);
-		return { exited: true, signaled: false };
+	// A live retained process: the native wait(0) rejects with its timeout
+	// while the exact child is still running.
+	wait(_timeoutMs: number): Promise<{ exited: boolean; signaled: boolean }> {
+		this.waitCalls.push(_timeoutMs);
+		return Promise.reject(new Error("Timed out waiting for the retained Postgres process to exit"));
 	}
 
 	release(): void {
@@ -263,6 +265,52 @@ test("pidfile replacement cannot retarget native retained-process shutdown", asy
 	}
 });
 
+test("an early-exited retained process fails readiness immediately with the log detail", async () => {
+	const lease = new FakeLease();
+	lease.wait = async () => ({ exited: true, signaled: false });
+	const root = mkdtempSync(join(tmpdir(), "atomic-postgres-early-exit-"));
+	const logFile = join(root, "postgres.log");
+	writeFileSync(logFile, "Execution of PostgreSQL by a user with administrative permissions is not permitted\n");
+	const cluster = embeddedPostgresTestHooks.setActiveCluster(lease);
+	let probes = 0;
+	try {
+		await assert.rejects(
+			embeddedPostgresTestHooks.waitForClusterReadiness(
+				logFile,
+				cluster,
+				async () => {
+					probes += 1;
+					return false;
+				},
+				120,
+				async () => {},
+			),
+			/exited early[\s\S]*administrative permissions/,
+		);
+		assert.ok(probes <= 2, `the exited lease must fail before burning the whole wait budget (${probes} probes)`);
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("a live retained process keeps waiting through the whole readiness budget", async () => {
+	const lease = new FakeLease();
+	lease.wait = async () => {
+		throw new Error("Timed out waiting for the retained Postgres process to exit");
+	};
+	const cluster = embeddedPostgresTestHooks.setActiveCluster(lease);
+
+	await assert.rejects(
+		embeddedPostgresTestHooks.waitForClusterReadiness(
+			"/postgres.log",
+			cluster,
+			async () => false,
+			2,
+			async () => {},
+		),
+		/never accepted connections/,
+	);
+});
 test("an already-exited retained process settles without a signal and is released", async () => {
 	const lease = new FakeLease();
 	lease.interrupt = async () => ({ exited: true, signaled: false });
