@@ -32,3 +32,28 @@ test("bundled feedback skill collects and prepares bug reports", async () => {
 	assert.match(instructions, /(?:Prepare the bug|When a bug is complete)[\s\S]*?`feedback_prepare_issue`/);
 	assert.match(instructions, /(?:Display|display) the (?:tool's )?exact prepared (?:title and body|Markdown)/);
 });
+
+// #2799: bug reports must state extension activity even when the model omits that fact.
+test("bug preparation defaults missing extension activity honestly at the tool boundary", async () => {
+	let prepare: ToolDefinition | undefined;
+	feedback({
+		registerCommand: () => {},
+		registerTool: (tool: ToolDefinition) => {
+			if (tool.name === "feedback_prepare_issue") prepare = tool;
+		},
+	} as Pick<ExtensionAPI, "registerCommand" | "registerTool"> as ExtensionAPI);
+	assert.ok(prepare);
+	for (const extensions of [undefined, "", " \t\n", "user-extension", "None reported by user"]) {
+		const result = await prepare.execute(
+			"prepare-bug",
+			{ kind: "bug", title: "Atomic crashes", description: "It crashed", repro: "Run atomic", extensions },
+			undefined,
+			undefined,
+			{} as Parameters<ToolDefinition["execute"]>[4],
+		);
+		const text = result.content.find((part) => part.type === "text");
+		assert.ok(text && text.type === "text");
+		assert.ok(text.text.includes(`**Extension activity:** ${extensions?.trim() ? extensions : "Not reported"}`));
+		assert.ok(text.text.includes("**Reproduction without extensions:** Not tested without extensions"));
+	}
+});
