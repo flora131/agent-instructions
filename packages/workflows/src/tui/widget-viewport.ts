@@ -7,8 +7,7 @@ export const WORKFLOW_WIDGET_MAX_ROWS = 10;
 export class WorkflowWidgetViewport implements ReactiveWidgetComponent {
 	private readonly viewport = new ScrollableComponentViewport();
 	private lines: string[] = [];
-	private pageRows = 1;
-	private overflowing = false;
+	private scrollable = false;
 
 	constructor(
 		private readonly content: ReactiveWidgetComponent,
@@ -20,22 +19,29 @@ export class WorkflowWidgetViewport implements ReactiveWidgetComponent {
 	}
 
 	scroll(direction: -1 | 1): void {
-		if (!this.overflowing) return;
-		this.viewport.scrollBy(direction * this.pageRows);
+		if (!this.scrollable) return;
+		this.viewport.scrollBy(direction);
 		this.requestRender();
 	}
 
 	render(width: number): string[] {
 		const cap = Math.max(1, Math.min(WORKFLOW_WIDGET_MAX_ROWS, Math.floor(this.terminalRows() / 3)));
+		const previousLineCount = this.lines.length;
 		this.lines = this.content.render(width);
-		this.overflowing = this.lines.length > cap;
-		this.pageRows = Math.max(1, cap - 1);
-		this.viewport.setVisibleRows(this.overflowing ? this.pageRows : Math.max(1, this.lines.length));
-		const visible = this.viewport.render(width);
-		if (!this.overflowing) return this.lines;
-		// At a one-row budget retain a scrollable content row, rather than only chrome.
-		if (cap === 1) return visible;
+		if (previousLineCount <= 1 || (this.lines.length < previousLineCount && this.lines.length <= cap)) {
+			this.viewport.scrollTo(0);
+		}
+		this.scrollable = this.lines.length > 1;
+		// #3015: the dock can paint only the first row of our nominal viewport.
+		// Advance one row and allow the final source row to become the first row,
+		// even when the whole list fits our cap. No clipped row can be skipped.
+		this.viewport.setVisibleRows(1);
+		this.viewport.render(width);
+		if (!this.scrollable) return this.lines;
 		const first = this.viewport.getMaxScroll() - this.viewport.getScrollFromBottom() + 1;
+		const visible = this.lines.slice(first - 1, first - 1 + Math.max(1, cap - 1));
+		// At a one-row budget retain content rather than only chrome.
+		if (cap === 1) return visible;
 		const hint = ` ${first}–${first + visible.length - 1}/${this.lines.length} · Alt+PgUp/PgDn scroll workflows`;
 		return [...visible, truncateToWidth(hint, width, "…")];
 	}

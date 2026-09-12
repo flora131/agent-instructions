@@ -102,13 +102,14 @@ test("mounted workflow list caps rows and keeps offscreen runs reachable without
 		assert.ok(component);
 		assert.ok(component.render(120).length <= 10);
 		const seen = new Set<string>();
-		for (let page = 0; page < 20; page++) {
+		// Row scrolling visits the full source list, not just twenty pages.
+		for (let row = 0; row < 100; row++) {
 			const lines = component.render(120);
 			for (const run of store.runs()) if (lines.some((line) => line.includes(run.id))) seen.add(run.id);
 			scrollStoreWidget(store, 1);
 		}
 		assert.equal(seen.size, 20);
-		for (let page = 0; page < 20; page++) {
+		for (let row = 0; row < 100; row++) {
 			scrollStoreWidget(store, -1);
 			component.render(120);
 		}
