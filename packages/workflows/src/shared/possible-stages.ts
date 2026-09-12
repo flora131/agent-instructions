@@ -1188,10 +1188,18 @@ class PossibleStagesScanner {
 		// Only direct parallel-option forwarding is proven safe; aliases, escapes and
 		// chained array operations can mutate the caller's literal metadata.
 		const forwarded = new Set<Token>();
+		const spreadOptions = new Set<Token>();
 		for (let index = 0; index < body.length; index += 1) {
 			const parallel = matchCtxCall(body, index, this.aliasPool);
 			if (parallel?.method !== "parallel") continue;
-			const field = discoveryField(splitTopLevelArguments(parallel, body)[1]);
+			const parallelOptions = splitTopLevelArguments(parallel, body)[1];
+			const field = discoveryField(parallelOptions);
+			if (parallelOptions?.[0]?.value === "{") {
+				for (const entry of arrayElements(parallelOptions)) {
+					if (entry.length === 4 && entry.slice(0, 3).every((token) => token.value === "."))
+						spreadOptions.add(entry[3]!);
+				}
+			}
 			if (
 				field?.length === 3 &&
 				field[0]?.value === value[0].value &&
@@ -1206,11 +1214,41 @@ class PossibleStagesScanner {
 			const destructured =
 				body[index - 2]?.value === "}" && body[index - 1]?.value === "=" && body[index + 1]?.value === ";";
 			if (destructured) {
+				let matched = false;
 				for (let open = 0; open < index - 2; open += 1) {
 					if (body[open]?.value !== "{" || matchBracket(body, open, "{", "}") !== index - 2) continue;
-					if (body.slice(open + 1, index - 2).some((token) => token.value === "possibleStageNames"))
-						return undefined;
+					if (body[open - 1]?.value !== "const") return undefined;
+					matched = true;
+					for (const entry of arrayElements(body.slice(open, index - 1))) {
+						if (entry.length === 1 && entry[0]?.kind === "ident" && entry[0].value !== "possibleStageNames")
+							continue;
+						// A rest copy still aliases the metadata array. Only inert concurrency
+						// extraction and direct parallel-option spreads are supported uses.
+						if (
+							entry.length !== 4 ||
+							!entry.slice(0, 3).every((token) => token.value === ".") ||
+							entry[3]?.kind !== "ident"
+						)
+							return undefined;
+						const rest = entry[3];
+						for (let use = 0; use < body.length; use += 1) {
+							const token = body[use];
+							if (token?.kind !== "ident" || token.value !== rest.value || token === rest) continue;
+							if (spreadOptions.has(token)) continue;
+							if (
+								body[use - 3]?.value === "const" &&
+								body[use - 2]?.kind === "ident" &&
+								body[use - 1]?.value === "=" &&
+								body[use + 1]?.value === "." &&
+								body[use + 2]?.value === "concurrency" &&
+								body[use + 3]?.value === ";"
+							)
+								continue;
+							return undefined;
+						}
+					}
 				}
+				if (!matched) return undefined;
 			}
 			// Support only the two authored shapes: direct metadata forwarding and
 			// destructuring plain caller fields. Other member uses may execute or escape.

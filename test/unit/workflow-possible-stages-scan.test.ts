@@ -283,6 +283,16 @@ for (const extension of ["ts", "js"]) {
 		["array-alias", "const names = options.possibleStageNames; names[0] = 'actual';"],
 		["array-escape", "mutate(options.possibleStageNames);"],
 		["destructured-array-alias", "const { possibleStageNames: names } = options; names[0] = 'actual';"],
+		["rest-array-alias", "const { concurrency, ...rest } = options; rest.possibleStageNames.splice(0, 1, 'actual');"],
+		[
+			"computed-array-alias",
+			"const key = 'possibleStageNames'; const { [key]: names } = options; names[0] = 'actual';",
+		],
+		["rest-alias-escape", "const { concurrency, ...rest } = options; mutate(rest);"],
+		[
+			"rest-alias-rebind",
+			"const { concurrency, ...rest } = options; const copy = rest; copy.possibleStageNames[0] = 'actual';",
+		],
 	]) {
 		test(`#3001 ${extension} ${variant} metadata write retains both warnings`, () => {
 			const result = scanFile(
