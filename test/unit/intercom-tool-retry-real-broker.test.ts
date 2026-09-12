@@ -311,6 +311,73 @@ for (const hidden of [false, true]) {
 	}
 }
 
+for (const namesakeTarget of ["ID", "name"]) {
+	test(`replyTo-only ordinary replies retain the exact recipient after sender departure beside a ${namesakeTarget} namesake`, async () => {
+		const sender = await createClient("ordinary-sender");
+		const recipient = await createClient("recipient");
+		const tracker = new ReplyTracker();
+		const incoming: Message[] = [];
+		recipient.on("message", (from: SessionInfo, message: Message) => {
+			incoming.push(message);
+			tracker.queueTurnContext(tracker.recordIncomingMessage(from, message));
+		});
+		const tool = registerTool(recipient, { replyTracker: tracker });
+		const replies: Message[] = [];
+		sender.on("message", (_from: SessionInfo, message: Message) => replies.push(message));
+		await sender.send(recipient.sessionId!, { text: "connected ordinary message" });
+		await waitUntil(() => incoming.length === 1, "connected ordinary context");
+		tracker.beginTurn();
+		const connected = await tool.execute(
+			"connected-reply",
+			{
+				action: "reply",
+				replyTo: incoming[0]!.id,
+				message: "connected answer",
+			},
+			undefined,
+			undefined,
+			context,
+		);
+		assert.equal(connected.isError, false);
+		await waitUntil(() => replies.length === 1, "connected ordinary reply");
+		assert.equal(replies[0]!.replyTo, incoming[0]!.id);
+		assert.throws(() => tracker.resolveReplyTarget({ replyTo: incoming[0]!.id }));
+
+		await sender.send(recipient.sessionId!, { text: "ordinary message before departure" });
+		await waitUntil(() => incoming.length === 2, "departing sender context");
+		tracker.beginTurn();
+		const replyTo = incoming[1]!.id;
+		const originalContext = tracker.resolveReplyTarget({ replyTo });
+		const senderId = sender.sessionId!;
+		sender.disconnect();
+		await waitForSessionDeparture(recipient, senderId);
+		const namesake = await createClient(namesakeTarget === "ID" ? senderId : "ordinary-sender");
+		const misdeliveries: Message[] = [];
+		namesake.on("message", (_from: SessionInfo, message: Message) => misdeliveries.push(message));
+		const attempts: string[] = [];
+		const send = recipient.send.bind(recipient);
+		recipient.send = async (...args: Parameters<Client["send"]>) => {
+			attempts.push(args[0]);
+			return send(...args);
+		};
+		const result = await tool.execute(
+			"departed-reply",
+			{
+				action: "reply",
+				replyTo,
+				message: "private answer",
+			},
+			undefined,
+			undefined,
+			context,
+		);
+		assert.equal(result.isError, true, JSON.stringify(result));
+		assert.deepEqual(misdeliveries, []);
+		assert.deepEqual(attempts, [senderId], "explicit thread selection never falls back to a sender name");
+		assert.equal(tracker.resolveReplyTarget({ replyTo }), originalContext);
+	});
+}
+
 test("one send invocation keeps its broker-accepted ID when reconnect transport reorders attachment members", async () => {
 	const received: Message[] = [];
 	const recipient = await createClient("recipient");
@@ -360,83 +427,90 @@ test("one send invocation keeps its broker-accepted ID when reconnect transport 
 	assert.deepEqual(Object.keys(retryAttachments[0] ?? {}), ["language", "content", "name", "type"]);
 });
 
-test("one reply invocation keeps its broker-accepted ID and correlation when transport reorders attachment members", async () => {
-	const replies: Message[] = [];
-	const asker = await createClient("asker");
-	asker.on("message", (_from: SessionInfo, message: Message) => replies.push(message));
-	const replyTracker = new ReplyTracker();
-	const questions: Array<{ from: SessionInfo; message: Message }> = [];
-	const replier = await createClient("recipient");
-	replier.on("message", (from: SessionInfo, message: Message) => {
-		questions.push({ from, message });
-		replyTracker.recordIncomingMessage(from, message);
-	});
-	const questionResult = await asker.send("recipient", {
-		text: "question awaiting one durable reply",
-		expectsReply: true,
-	});
-	assert.equal(questionResult.delivered, true, questionResult.reason);
-	await waitUntil(() => questions.length === 1, "the replier records the pending question");
-	const question = questions[0]?.message;
-	assert.ok(question);
+for (const explicitTo of [true, false]) {
+	test(`one ${explicitTo ? "to and replyTo" : "replyTo-only"} reply invocation keeps its broker-accepted ID and correlation when transport reorders attachment members`, async () => {
+		const replies: Message[] = [];
+		const asker = await createClient("asker");
+		asker.on("message", (_from: SessionInfo, message: Message) => replies.push(message));
+		const replyTracker = new ReplyTracker();
+		const questions: Array<{ from: SessionInfo; message: Message }> = [];
+		const replier = await createClient("recipient");
+		replier.on("message", (from: SessionInfo, message: Message) => {
+			questions.push({ from, message });
+			replyTracker.recordIncomingMessage(from, message);
+		});
+		const questionResult = await asker.send("recipient", {
+			text: "question awaiting one durable reply",
+			expectsReply: true,
+		});
+		assert.equal(questionResult.delivered, true, questionResult.reason);
+		await waitUntil(() => questions.length === 1, "the replier records the pending question");
+		const question = questions[0]?.message;
+		assert.ok(question);
 
-	const tool = registerTool(replier, { connectionName: "recipient", replyTracker });
-	const firstAttachments = attachmentsInDeclaredOrder();
-	const retryAttachments = attachmentsInReorderedMemberOrder();
-	const attempts: SendOptions[] = [];
-	const firstReplierId = replier.sessionId;
-	const socket = (replier as unknown as { socket: net.Socket }).socket;
-	const send = replier.send.bind(replier);
-	let loseFirstAcknowledgement = true;
-	replier.send = async (...args: Parameters<Client["send"]>) => {
-		attempts.push(args[1]);
-		if (attempts.length > 1) args[1] = { ...args[1], attachments: retryAttachments };
-		if (loseFirstAcknowledgement) {
-			loseFirstAcknowledgement = false;
-			socket.pause();
-		}
-		return send(...args);
-	};
-	const firstExecution = tool.execute(
-		"first-reply",
-		{
-			action: "reply",
-			to: asker.sessionId!,
-			message: "one correlated answer",
-			attachments: firstAttachments,
-			replyTo: question.id,
-		},
-		undefined,
-		undefined,
-		context,
-	);
-	await waitUntil(() => replies.length === 1, "the broker forwards the accepted reply");
-	socket.destroy();
-	assert.equal(
-		replyTracker.listPending().length,
-		1,
-		"acknowledgement loss keeps the question replyable during recovery",
-	);
-	const retry = await firstExecution;
-	assertNoRetryToken(retry);
+		const tool = registerTool(replier, { connectionName: "recipient", replyTracker });
+		const firstAttachments = attachmentsInDeclaredOrder();
+		const retryAttachments = attachmentsInReorderedMemberOrder();
+		const attempts: SendOptions[] = [];
+		const firstReplierId = replier.sessionId;
+		const socket = (replier as unknown as { socket: net.Socket }).socket;
+		const send = replier.send.bind(replier);
+		let loseFirstAcknowledgement = true;
+		replier.send = async (...args: Parameters<Client["send"]>) => {
+			attempts.push(args[1]);
+			if (attempts.length > 1) args[1] = { ...args[1], attachments: retryAttachments };
+			if (loseFirstAcknowledgement) {
+				loseFirstAcknowledgement = false;
+				socket.pause();
+			}
+			return send(...args);
+		};
+		const firstExecution = tool.execute(
+			"first-reply",
+			{
+				action: "reply",
+				...(explicitTo ? { to: asker.sessionId! } : {}),
+				message: "one correlated answer",
+				attachments: firstAttachments,
+				replyTo: question.id,
+			},
+			undefined,
+			undefined,
+			context,
+		);
+		await waitUntil(() => replies.length === 1, "the broker forwards the accepted reply");
+		socket.destroy();
+		assert.equal(
+			replyTracker.listPending().length,
+			1,
+			"acknowledgement loss keeps the question replyable during recovery",
+		);
+		const retry = await firstExecution;
+		assertNoRetryToken(retry);
 
-	assert.equal(retry.isError, false, retry.content[0]?.text);
-	assert.notEqual(replier.sessionId, firstReplierId);
-	assert.deepEqual(
-		attempts.map(({ messageId }) => messageId),
-		[replies[0]?.id, replies[0]?.id],
-		"the retried reply retains the broker-accepted identity",
-	);
-	assert.deepEqual(
-		attempts.map(({ expectedRecipientId }) => expectedRecipientId),
-		[asker.sessionId, asker.sessionId],
-	);
-	assert.equal(replies.length, 1, "the asker observes one correlated reply");
-	assert.equal(replies[0]?.replyTo, question.id);
-	assert.deepEqual(Object.keys(replies[0]?.content.attachments?.[0] ?? {}), ["type", "name", "content", "language"]);
-	assert.deepEqual(Object.keys(retryAttachments[0] ?? {}), ["language", "content", "name", "type"]);
-	assert.deepEqual(replyTracker.listPending(), [], "the retained acknowledgement settles the exact pending ask");
-});
+		assert.equal(retry.isError, false, retry.content[0]?.text);
+		assert.notEqual(replier.sessionId, firstReplierId);
+		assert.deepEqual(
+			attempts.map(({ messageId }) => messageId),
+			[replies[0]?.id, replies[0]?.id],
+			"the retried reply retains the broker-accepted identity",
+		);
+		assert.deepEqual(
+			attempts.map(({ expectedRecipientId }) => expectedRecipientId),
+			[asker.sessionId, asker.sessionId],
+		);
+		assert.equal(replies.length, 1, "the asker observes one correlated reply");
+		assert.equal(replies[0]?.replyTo, question.id);
+		assert.deepEqual(Object.keys(replies[0]?.content.attachments?.[0] ?? {}), [
+			"type",
+			"name",
+			"content",
+			"language",
+		]);
+		assert.deepEqual(Object.keys(retryAttachments[0] ?? {}), ["language", "content", "name", "type"]);
+		assert.deepEqual(replyTracker.listPending(), [], "the retained acknowledgement settles the exact pending ask");
+	});
+}
 
 test("a name-addressed tool retry keeps one identity and delivery after the recipient reconnects", async () => {
 	const received: Message[] = [];

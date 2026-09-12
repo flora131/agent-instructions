@@ -999,7 +999,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
               messageId: replyMessageId,
               logicalTarget: replyLogicalTarget,
               ...(route.expectsReply ? { requirePendingReply: true as const } : {}),
-              ...(to === undefined ? {} : { expectedRecipientId: route.senderId }),
+              ...(to === undefined && replyTo === undefined ? {} : { expectedRecipientId: route.senderId }),
               text: message,
               attachments,
               replyTo: route.messageId,
@@ -1007,6 +1007,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
             let result = await sendReply(replySendTo);
             if (
               to === undefined &&
+              replyTo === undefined &&
               result.delivered === false &&
               result.reasonCode === "session_not_found" &&
               route.senderName !== undefined
