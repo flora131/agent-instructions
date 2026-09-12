@@ -16,6 +16,7 @@ import {
 	READY_PROMPT,
 	REVIEW_HEADING,
 } from "./dialog-builder.ts";
+import { escapeDisplayText } from "./escape-display-text.js";
 import type { StatefulView } from "./stateful-view.ts";
 import type { TabComponents } from "./tab-components.ts";
 
@@ -72,11 +73,11 @@ export class QuestionTabStrategy implements TabContentStrategy {
 		const question = this.config.questions[state.currentTab];
 		// In multi-question mode the tab bar already shows the header; suppress the inline badge.
 		if (!this.config.isMulti && question?.header && question.header.length > 0) {
-			out.push(new Text(this.config.theme.bg("selectedBg", ` ${question.header} `), 1, 0));
+			out.push(new Text(this.config.theme.bg("selectedBg", ` ${escapeDisplayText(question.header)} `), 1, 0));
 			out.push(new Spacer(1));
 		}
 		if (question) {
-			out.push(new Text(this.config.theme.bold(question.question), 1, 0));
+			out.push(new Text(this.config.theme.bold(escapeDisplayText(question.question)), 1, 0));
 			out.push(new Spacer(1));
 		}
 		return out;
@@ -135,14 +136,14 @@ export class SubmitTabStrategy implements TabContentStrategy {
 			const q = this.config.questions[i];
 			const a = state.answers.get(i);
 			if (!a) continue;
-			const label = q.header && q.header.length > 0 ? q.header : `Q${i + 1}`;
-			const answerText = formatAnswerScalar(a, "summary");
+			const label = escapeDisplayText(q.header && q.header.length > 0 ? q.header : `Q${i + 1}`);
+			const answerText = escapeDisplayText(formatAnswerScalar(a, "summary"));
 			c.addChild(new Text(this.config.theme.fg("muted", ` ● ${label}`), 1, 0));
 			c.addChild(
 				new Text(`   ${this.config.theme.fg("muted", "→")} ${this.config.theme.fg("text", answerText)}`, 1, 0),
 			);
 			if (a.notes && a.notes.length > 0) {
-				c.addChild(new Text(this.config.theme.fg("dim", `     notes: ${a.notes}`), 1, 0));
+				c.addChild(new Text(this.config.theme.fg("dim", `     notes: ${escapeDisplayText(a.notes)}`), 1, 0));
 			}
 		}
 		return c;
@@ -161,7 +162,7 @@ export class SubmitTabStrategy implements TabContentStrategy {
 		for (let i = 0; i < this.config.questions.length; i++) {
 			const q = this.config.questions[i];
 			if (!state.answers.has(i)) {
-				missing.push(q.header && q.header.length > 0 ? q.header : `Q${i + 1}`);
+				missing.push(escapeDisplayText(q.header && q.header.length > 0 ? q.header : `Q${i + 1}`));
 			}
 		}
 		const promptText =
