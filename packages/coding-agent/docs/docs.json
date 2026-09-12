@@ -31,18 +31,41 @@
             ]
           },
           {
-            "group": "Guides",
+            "group": "Start here",
             "pages": [
-              "guides",
+              "guides"
+            ]
+          },
+          {
+            "group": "Everyday use",
+            "pages": [
               "usage",
-              "background-tasks",
-              "computer-use",
-              "herdr",
-              "guides/configuration",
+              "guides/non-interactive",
               "sessions",
               "compaction",
+              "guides/configuration"
+            ]
+          },
+          {
+            "group": "Running work for you",
+            "pages": [
+              "guides/workflows",
+              "guides/subagents",
+              "background-tasks",
+              "guides/intercom",
+              "computer-use"
+            ]
+          },
+          {
+            "group": "Models and providers",
+            "pages": [
               "providers",
-              "llama-cpp",
+              "llama-cpp"
+            ]
+          },
+          {
+            "group": "Safety and isolation",
+            "pages": [
               "security",
               "containerization"
             ]
@@ -59,13 +82,42 @@
             ]
           },
           {
-            "group": "Customization",
+            "group": "Extend a session",
             "pages": [
               {
                 "group": "Skills",
                 "pages": [
                   "skills",
                   "skills/authoring"
+                ]
+              },
+              "prompt-templates",
+              "themes",
+              {
+                "group": "Extensions",
+                "pages": [
+                  "extensions",
+                  "extensions/authoring",
+                  "extensions/events",
+                  "extensions/ui",
+                  "extensions/examples"
+                ]
+              }
+            ]
+          },
+          {
+            "group": "Orchestrate work",
+            "pages": [
+              {
+                "group": "Workflows",
+                "pages": [
+                  "workflows",
+                  "workflows/builtins",
+                  "workflows/authoring",
+                  "workflows/reliable-design",
+                  "workflows/verification",
+                  "workflows/operations",
+                  "workflows/api-reference"
                 ]
               },
               {
@@ -81,31 +133,12 @@
                   "intercom",
                   "intercom/operations"
                 ]
-              },
-              {
-                "group": "Workflows",
-                "pages": [
-                  "workflows",
-                  "workflows/builtins",
-                  "workflows/authoring",
-                  "workflows/reliable-design",
-                  "workflows/verification",
-                  "workflows/operations",
-                  "workflows/api-reference"
-                ]
-              },
-              {
-                "group": "Extensions",
-                "pages": [
-                  "extensions",
-                  "extensions/authoring",
-                  "extensions/events",
-                  "extensions/ui",
-                  "extensions/examples"
-                ]
-              },
-              "prompt-templates",
-              "themes",
+              }
+            ]
+          },
+          {
+            "group": "Distribute",
+            "pages": [
               "packages",
               "packages/authoring"
             ]
@@ -180,6 +213,7 @@
               "termux",
               "terminal-setup",
               "tmux",
+              "herdr",
               "shell-aliases"
             ]
           },

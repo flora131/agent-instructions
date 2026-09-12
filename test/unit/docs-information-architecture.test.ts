@@ -533,7 +533,7 @@ const issueNavigationLabels: Record<string, string> = {
 	"/extensions": "Extensions",
 	"/prompt-templates": "Prompt templates",
 	"/themes": "Themes",
-	"/packages": "Packages",
+	"/packages": "Atomic packages",
 	"/models": "Custom models",
 	"/custom-provider": "Custom providers",
 	"/programmatic": "Programmatic use",
@@ -586,17 +586,17 @@ const issueNavigationOrder: Record<string, readonly string[]> = {
 	Build: [
 		"/build",
 		"/skills",
-		"/subagents",
-		"/intercom",
+		"/prompt-templates",
+		"/themes",
+		"/extensions",
 		"/workflows",
 		"/workflows/builtins",
 		"/workflows/authoring",
 		"/workflows/reliable-design",
 		"/workflows/operations",
 		"/workflows/api-reference",
-		"/extensions",
-		"/prompt-templates",
-		"/themes",
+		"/subagents",
+		"/intercom",
 		"/packages",
 		"/models",
 		"/custom-provider",
@@ -635,10 +635,19 @@ const issueNavigationOrder: Record<string, readonly string[]> = {
 /**
  * Migration and captured-upstream pages not named in the issue's route tree.
  * Each stays immediately after the route whose topic it extends. The reference
- * cluster follows compaction internals because its parents live in Build.
+ * cluster follows compaction internals because its parents live in Build, and
+ * Herdr follows tmux because it is platform setup rather than a reader guide.
  */
 const generatedNavigationInsertions: Record<string, readonly string[]> = {
-	"/usage": ["/background-tasks", "/computer-use", "/herdr", "/guides/configuration"],
+	"/usage": ["/guides/non-interactive"],
+	"/compaction": [
+		"/guides/configuration",
+		"/guides/workflows",
+		"/guides/subagents",
+		"/background-tasks",
+		"/guides/intercom",
+		"/computer-use",
+	],
 	"/skills": ["/skills/authoring"],
 	"/subagents": ["/subagents/authoring"],
 	"/intercom": ["/intercom/operations"],
@@ -646,6 +655,7 @@ const generatedNavigationInsertions: Record<string, readonly string[]> = {
 	"/packages": ["/packages/authoring"],
 	"/models": ["/models/model-selection", "/models/pareto-efficiency", "/models/evals"],
 	"/workflows/reliable-design": ["/workflows/verification"],
+	"/tmux": ["/herdr"],
 	"/changelog": ["/models/artificial-analysis-index"],
 	"/custom-provider": [
 		"/custom-provider/override",
@@ -886,8 +896,8 @@ describe("docs information architecture (#2847)", () => {
 		const expectedGenerated = Object.values(generatedNavigationInsertions).flat().sort();
 		assert.equal(
 			expectedGenerated.length,
-			29,
-			"24 migration routes and all five upstream additions have insertion points",
+			33,
+			"24 migration routes, all five upstream additions, and the four reader-path orientation pages have insertion points",
 		);
 		assert.deepEqual(generated, expectedGenerated, "no generated page may fall outside the insertion contract");
 

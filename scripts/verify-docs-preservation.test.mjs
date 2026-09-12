@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { test } from "node:test";
 import {
+	assertReaderPathsKind,
 	BASELINE,
 	DOCS,
 	DRIFT_FOLLOWUP,
@@ -24,11 +25,15 @@ import {
 	LATEST_MAIN,
 	latestMainEvidence,
 	MAIN,
+	navigationPages,
 	normalize,
 	orderedContains,
 	PR,
 	PRE_REBASE,
 	PROVENANCE,
+	READER_PATHS_FOLLOWUP,
+	READER_PATHS_PREDECESSOR,
+	READER_PATHS_README,
 	REBASE_FOLLOWUP,
 	REBASE_MAIN,
 	REBASE_README,
@@ -809,16 +814,46 @@ test("fourth-main default inventories and observation repair cannot be reverted 
 });
 
 test("fourth-main anchors, navigation and compatibility pointers cannot disappear", () => {
+	const declaredNavigation = JSON.parse(read(READER_PATHS_FOLLOWUP)).edits.find(
+		(edit) => edit.kind === "navigation-restructure",
+	);
 	for (const repair of fourthDelta.reader_repairs.filter((row) => /anchor|pointer|navigation/u.test(row.kind))) {
-		let text = read(repair.target_path);
 		// The maintainer pointer precedes the desktop alias; remove only this repair's addition.
 		const publishedPointer = reconstructRebaseMainDelta(repoRoot).reader_repairs[0];
 		const after = repair.after
 			.replace(publishedPointer.before, () => publishedPointer.after)
 			.replace(REBASED_RECIPE, DRIFT_RECIPE);
+		if (repair.target_path === `${DOCS}docs.json`) {
+			// The reader-path pass regrouped navigation, so this addition is proved where the verifier
+			// proves it: in the reversed docs.json the declared edit restores. The entry itself is
+			// still reachable exactly once after the pass, and docs.json is frozen byte for byte, so
+			// dropping the entry is caught by the reader-path layer rather than the fourth-main one.
+			assert.ok(declaredNavigation.before.includes(after));
+			const slug = JSON.parse(
+				repair.after
+					.replace(repair.before, () => "")
+					.trim()
+					.replace(/,$/u, ""),
+			);
+			assert.deepEqual(
+				navigationPages(read(repair.target_path)).filter((page) => page === slug),
+				[slug],
+			);
+			assert.throws(
+				() =>
+					check(
+						new Map([[repair.target_path, read(repair.target_path).replace(`\n              "${slug}"`, "")]]),
+					),
+				/latest-main delta must occur exactly once: reader-paths .*docs\.json/u,
+			);
+			continue;
+		}
+		const text = read(repair.target_path);
 		assert.ok(text.includes(after));
-		text = text.replace(after, () => repair.before);
-		assert.throws(() => check(new Map([[repair.target_path, text]])), /latest-main delta/u);
+		assert.throws(
+			() => check(new Map([[repair.target_path, text.replace(after, () => repair.before)]])),
+			/latest-main delta/u,
+		);
 	}
 });
 
@@ -872,14 +907,15 @@ test("cold data-URL verification batches each immutable blob once and isolates w
 		assert.equal(committed.fourthMain.pages, 48);
 		const beforeRepeat = calls.length;
 		assert.deepEqual(verifier.verifyCommittedDocumentation({ repoRoot }), committed);
-		assert.deepEqual(calls.slice(beforeRepeat).map(call => call.args[0]), ['rev-parse']);
+		// A warm repeat resolves HEAD afresh and probes for this pass's provenance; nothing else.
+		assert.deepEqual(calls.slice(beforeRepeat).map(call => call.args.slice(0, 2).join(' ')), ['rev-parse --verify', 'cat-file -e']);
 		const path = verifier.DOCS + 'computer-use.md';
 		const text = fs.readFileSync(repoRoot + '/' + path, 'utf8');
 		const overrides = new Map([[path, text.replace('pyautogui', '')]]);
 		assert.throws(() => verifier.verifyWorkingTreeDocumentation({ repoRoot, overrides }), /fourth-main new page differs/u);
 		assert.equal(verifier.verifyWorkingTreeDocumentation({ repoRoot }).readerPages, 86);
 		assert.throws(() => verifier.verifyWorkingTreeDocumentation({ repoRoot, overrides }), /fourth-main new page differs/u);
-		const batches = calls.filter(call => call.args[0] === 'cat-file');
+		const batches = calls.filter(call => call.args[0] === 'cat-file' && call.args[1] === '--batch');
 		assert.ok(batches.length > 0);
 		const objects = batches.flatMap(call => {
 			assert.deepEqual(call.args, ['cat-file', '--batch']);
@@ -1287,4 +1323,105 @@ test("drift-main transport is independently required after warm success", () => 
 		assert.throws(() => check(new Map([[path, Buffer.alloc(0)]])), /drift history transport part size changed/u);
 	}
 	assert.equal(check().driftMain.revision, DRIFT_MAIN);
+});
+
+// #2847 / PR #2971: the reader-learning-paths pass. Its record is supplemental, so these controls
+// prove it cannot authorize an undisclosed change, not merely that it reports one.
+const readerPaths = JSON.parse(read(READER_PATHS_FOLLOWUP));
+
+test("reader-path provenance cannot be edited, retargeted, or emptied", () => {
+	assert.equal(check().readerPaths.predecessor, READER_PATHS_PREDECESSOR);
+	const widened = structuredClone(readerPaths);
+	widened.edits.push({
+		kind: "frontmatter-label",
+		target_path: `${DOCS}usage.md`,
+		previous_lines: [2, 2],
+		before: 'title: "Interactive use"\n',
+		after: 'title: "Everyday use"\n',
+	});
+	for (const altered of [
+		JSON.stringify(widened, null, 1),
+		JSON.stringify({ ...readerPaths, edits: [] }, null, 1),
+		JSON.stringify({ ...readerPaths, added_pages: [] }, null, 1),
+		JSON.stringify({ ...readerPaths, predecessor: DRIFT_PREDECESSOR }, null, 1),
+	])
+		assert.throws(() => check(new Map([[READER_PATHS_FOLLOWUP, altered]])), /reader-path provenance changed/u);
+	assert.throws(
+		() => check(new Map([[READER_PATHS_README, `${read(READER_PATHS_README)}\n`]])),
+		/reader-path explanation changed/u,
+	);
+});
+
+test("an undisclosed reader edit fails even when every declared edit is intact", () => {
+	// This layer reverses its declared edits and re-runs the whole prior stack against the reversed
+	// tree before checking its own bytes, so each undisclosed change is still named by the layer
+	// that owns it. The expectations below record which layer that is, case by case.
+	for (const [path, altered, expected] of [
+		[
+			`${DOCS}usage.md`,
+			read(`${DOCS}usage.md`).replace("# Using Atomic", "# Using Atomic\n\nExtra."),
+			/baseline:usage::\d+: source prose\/example\/table\/caveat differs/u,
+		],
+		[
+			`${DOCS}sessions.md`,
+			read(`${DOCS}sessions.md`).split("\n").slice(0, -5).join("\n"),
+			/baseline:sessions::\d+: source prose\/example\/table\/caveat differs/u,
+		],
+		[
+			`${DOCS}docs.json`,
+			read(`${DOCS}docs.json`).replace('"herdr",\n', ""),
+			/latest-main delta must occur exactly once: reader-paths .*docs\.json/u,
+		],
+		[
+			`${DOCS}background-tasks.md`,
+			read(`${DOCS}background-tasks.md`).replace("# Background tasks", "# Background and parallel work"),
+			/missing destination .*background-tasks\.md#background-tasks/u,
+		],
+	])
+		assert.throws(() => check(new Map([[path, altered]])), expected);
+});
+
+test("an added orientation page cannot be swapped for other content", () => {
+	for (const page of readerPaths.added_pages)
+		assert.throws(
+			() => check(new Map([[page.path, `${read(page.path)}\nMoved to somewhere else.\n`]])),
+			/added reader page changed/u,
+		);
+});
+
+test("the declared edit kinds cannot express a content-dropping change", () => {
+	const navigation = readerPaths.edits.find((edit) => edit.kind === "navigation-restructure");
+	const added = readerPaths.added_pages.map((page) => page.path.slice(DOCS.length).replace(/\.mdx?$/u, ""));
+	assertReaderPathsKind(navigation, added);
+	assert.throws(
+		() => assertReaderPathsKind({ ...navigation, after: navigation.after.replace('"herdr",\n', "") }, added),
+		/navigation restructure dropped or duplicated/u,
+	);
+	assert.throws(
+		() =>
+			assertReaderPathsKind(
+				{ ...navigation, after: navigation.after.replace('"tmux",', '"tmux",\n"settings",') },
+				added,
+			),
+		/dropped or duplicated|gained a page/u,
+	);
+	assert.throws(
+		() =>
+			assertReaderPathsKind(
+				{ ...navigation, after: navigation.after.replace('"destination": "/sessions"', '"destination": "/usage"') },
+				added,
+			),
+		/only navigation may change/u,
+	);
+	const label = readerPaths.edits.find((edit) => edit.kind === "frontmatter-label");
+	assert.throws(
+		() => assertReaderPathsKind({ ...label, after: `${label.after}A caveat readers need.\n` }, added),
+		/label edit carries prose/u,
+	);
+	const escaped = readerPaths.edits.find((edit) => edit.kind === "latex-escape");
+	assert.throws(
+		() => assertReaderPathsKind({ ...escaped, after: escaped.after.replace("74%", "75%") }, added),
+		/escape edit changes text/u,
+	);
+	assert.throws(() => assertReaderPathsKind({ ...escaped, kind: "prose-rewrite" }, added), /closed set/u);
 });

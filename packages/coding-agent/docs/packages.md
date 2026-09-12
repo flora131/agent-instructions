@@ -1,3 +1,8 @@
+---
+title: "Atomic packages"
+description: "Install, manage, and share Atomic packages that bundle extensions, skills, prompt templates, themes, and workflows."
+---
+
 > Atomic can help you create packages. Ask it to bundle your extensions, skills, prompt templates, or themes.
 
 # Atomic Packages

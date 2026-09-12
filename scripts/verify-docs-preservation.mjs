@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readdirSync,
+	readFileSync,
+	realpathSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join, posix, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -2029,8 +2038,8 @@ export function driftMainEvidence(delta) {
 }
 
 const priorReplayProofs = new Set();
-function verifyDrift({ repoRoot, revision, overrides }) {
-	const current = reader(repoRoot, revision, overrides);
+function verifyDrift({ repoRoot, revision, overrides, snapshot }) {
+	const current = snapshot ?? reader(repoRoot, revision, overrides);
 	driftHistoryBundle(historyContexts.get(realpathSync(repoRoot)));
 	const delta = reconstructDriftMainDelta(repoRoot);
 	assert.deepEqual(
@@ -2081,6 +2090,169 @@ function verifyDrift({ repoRoot, revision, overrides }) {
 	};
 }
 
+/**
+ * Seventh capture — reader learning paths. This pass changes navigation grouping, two page labels
+ * and five currency-escape lines, and adds orientation pages; it moves no existing reader content.
+ * The record is supplemental and append-only: it adds no allowance to any earlier layer, and every
+ * earlier proof still runs against the reversed predecessor tree.
+ *
+ * Unlike the upstream-capture layers, the "after" side of this pass has no second immutable source
+ * to reconstruct from — it is this branch's own edit. So the committed manifest *declares* each
+ * exact before/after, the script pins the manifest and its explanation by digest, and the tree must
+ * equal predecessor-plus-declared-edits byte for byte. A manifest edit alone cannot widen what is
+ * allowed, and an undisclosed byte anywhere under the documentation roots fails.
+ */
+export const READER_PATHS_PREDECESSOR = "dac1bf102cdee514badd82f48c587d6b2dbd06b8";
+export const READER_PATHS_FOLLOWUP = "docs/migrations/2847-reader-paths.json";
+export const READER_PATHS_README = "docs/migrations/2847-reader-paths.md";
+const READER_PATHS_MANIFEST_SHA256 = "418ce976cad297111afa6310a31ec6144d35858fce49051c4b99c14163c61ebb";
+const READER_PATHS_README_SHA256 = "258d3620fb9d26a0e8214dca09c0fd00dfe8b7c30332a939ade4d2c8cdb95804";
+const READER_PATHS_KINDS = new Set(["navigation-restructure", "frontmatter-label", "latex-escape"]);
+
+/** Every navigation page entry, in order, from a docs.json text. */
+export function navigationPages(text) {
+	const out = [];
+	const walk = (value) => {
+		if (typeof value === "string") out.push(value);
+		else if (Array.isArray(value)) for (const item of value) walk(item);
+		else if (value && typeof value === "object")
+			for (const key of ["tabs", "anchors", "groups", "pages"]) if (value[key] !== undefined) walk(value[key]);
+	};
+	walk(JSON.parse(text).navigation);
+	return out;
+}
+
+/** Each declared edit must be of a kind that provably cannot drop reader content. */
+export function assertReaderPathsKind(edit, addedSlugs) {
+	assert.ok(READER_PATHS_KINDS.has(edit.kind), `reader-path edit kind is not in the closed set: ${edit.kind}`);
+	if (edit.kind === "navigation-restructure") {
+		assert.equal(edit.target_path, `${DOCS}docs.json`, "only docs.json may be restructured by this pass");
+		const before = navigationPages(edit.before);
+		const after = navigationPages(edit.after);
+		const counts = new Map();
+		for (const page of after) counts.set(page, (counts.get(page) ?? 0) + 1);
+		for (const page of before)
+			assert.equal(counts.get(page), 1, `navigation restructure dropped or duplicated ${page}`);
+		assert.deepEqual(
+			after.filter((page) => !before.includes(page)).sort(),
+			[...addedSlugs].sort(),
+			"navigation gained a page this pass did not add",
+		);
+		const config = (text) => {
+			const { navigation, ...rest } = JSON.parse(text);
+			return rest;
+		};
+		assert.deepEqual(config(edit.after), config(edit.before), "only navigation may change in docs.json");
+		assert.deepEqual(
+			JSON.parse(edit.after).navigation.tabs.map((tab) => tab.tab),
+			JSON.parse(edit.before).navigation.tabs.map((tab) => tab.tab),
+			"the reader tabs are fixed",
+		);
+	} else if (edit.kind === "frontmatter-label") {
+		// A label change may only add or rewrite frontmatter scalars; prose cannot ride along.
+		const scalars = (text) =>
+			text
+				.split("\n")
+				.filter((line) => line.trim() && line.trim() !== "---")
+				.filter((line) => !/^(title|description|sidebarTitle):/u.test(line.trim()));
+		assert.deepEqual(scalars(edit.after), scalars(edit.before), `${edit.target_path}: label edit carries prose`);
+		assert.ok(/^(title|sidebarTitle):/mu.test(edit.after), `${edit.target_path}: label edit sets no label`);
+	} else {
+		// Escaping a currency sign for Mintlify's math parser: the only permitted difference is the
+		// backslash itself, so no word, number, table cell, or caveat can change under this kind.
+		assert.equal(edit.after.replaceAll("\\$", "$"), edit.before, `${edit.target_path}: escape edit changes text`);
+		assert.ok(edit.before.includes("%"), `${edit.target_path}: escape edit has no LaTeX-incompatible input`);
+		assert.ok(edit.after.includes("\\$"), `${edit.target_path}: escape edit escapes nothing`);
+	}
+}
+
+function verifyReaderPaths({ repoRoot, revision, overrides }) {
+	const current = reader(repoRoot, revision, overrides);
+	const manifestText = current.read(READER_PATHS_FOLLOWUP);
+	assert.equal(digest(manifestText), READER_PATHS_MANIFEST_SHA256, "reader-path provenance changed");
+	assert.equal(
+		digest(current.read(READER_PATHS_README)),
+		READER_PATHS_README_SHA256,
+		"reader-path explanation changed",
+	);
+	const manifest = JSON.parse(manifestText);
+	assert.equal(manifest.schema, "2847-reader-paths-v1");
+	assert.equal(manifest.baseline, BASELINE);
+	assert.equal(manifest.predecessor, READER_PATHS_PREDECESSOR);
+	const head = git(repoRoot, ["rev-parse", "--verify", `${revision ?? "HEAD"}^{commit}`]).trim();
+	assert.equal(
+		git(repoRoot, ["merge-base", head, READER_PATHS_PREDECESSOR]).trim(),
+		READER_PATHS_PREDECESSOR,
+		"reader-path provenance requires its exact predecessor in history",
+	);
+	const added = manifest.added_pages.map((page) => page.path);
+	assert.equal(new Set(added).size, added.length, "duplicate added reader page");
+	const provenance = [READER_PATHS_FOLLOWUP, READER_PATHS_README];
+	const paths = current.paths.filter((path) => !provenance.includes(path) && !added.includes(path));
+	assert.deepEqual(
+		paths.slice().sort(),
+		documentationPaths(repoRoot, READER_PATHS_PREDECESSOR).sort(),
+		"reader-path frozen file set changed",
+	);
+	for (const page of manifest.added_pages) {
+		assert.ok(
+			page.path.startsWith(DOCS) && /\.mdx?$/u.test(page.path),
+			`added page outside reader docs: ${page.path}`,
+		);
+		assert.equal(digest(current.read(page.path)), page.sha256, `added reader page changed: ${page.path}`);
+	}
+	const addedSlugs = added.map((path) => path.slice(DOCS.length).replace(/\.mdx?$/u, ""));
+	for (const edit of manifest.edits) {
+		assert.ok(paths.includes(edit.target_path), `reader-path edit targets an unfrozen file: ${edit.target_path}`);
+		assertReaderPathsKind(edit, addedSlugs);
+	}
+	const restored = new Map();
+	for (const edit of [...manifest.edits].reverse()) {
+		const text = restored.get(edit.target_path) ?? current.read(edit.target_path);
+		restored.set(edit.target_path, replaceDelta(text, edit.after, edit.before, `reader-paths ${edit.target_path}`));
+	}
+	const bytes = (path) => (restored.has(path) ? Buffer.from(restored.get(path)) : current.bytes(path));
+	// Prove the whole prior stack first, against the reversed tree, so an undisclosed change to any
+	// page still fails with the earlier layer's own diagnostic rather than being masked by this one.
+	const result = verifyDrift({
+		repoRoot,
+		snapshot: {
+			paths,
+			pages: paths.filter((path) => path.startsWith(DOCS) && /\.mdx?$/u.test(path)).sort(),
+			read: (path) => bytes(path).toString("utf8"),
+			bytes,
+		},
+	});
+	for (const path of paths) {
+		const original = git(repoRoot, ["show", `${READER_PATHS_PREDECESSOR}:${path}`], undefined, "buffer");
+		assert.ok(bytes(path).equals(original), `reader-path reversed predecessor differs: ${path}`);
+		let expected = original;
+		for (const edit of manifest.edits.filter((row) => row.target_path === path))
+			expected = Buffer.from(replaceDelta(expected.toString("utf8"), edit.before, edit.after, path));
+		assert.ok(current.bytes(path).equals(expected), `reader-path exact preservation differs: ${path}`);
+	}
+	return {
+		...result,
+		readerPaths: {
+			predecessor: READER_PATHS_PREDECESSOR,
+			edits: manifest.edits.length,
+			addedPages: manifest.added_pages.length,
+			navigationPages: navigationPages(current.read(`${DOCS}docs.json`)).length,
+		},
+	};
+}
+
+/** True when the tree or commit carries this pass's declared provenance. */
+function hasReaderPaths(repoRoot, revision) {
+	if (!revision) return existsSync(join(repoRoot, READER_PATHS_FOLLOWUP));
+	try {
+		git(repoRoot, ["cat-file", "-e", `${revision}:${READER_PATHS_FOLLOWUP}`]);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 /** Committed mode never consults working-tree docs, manifests, or ledger. Safe through a data URL. */
 export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
 	return withHistory({ repoRoot }, (context) => {
@@ -2090,6 +2262,12 @@ export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
 			revision === "HEAD"
 				? context.transportRevision
 				: git(repoRoot, ["rev-parse", "--verify", `${revision}^{commit}`]).trim();
+		if (hasReaderPaths(repoRoot, commit)) {
+			context.transportRevision = commit;
+			const result = verifyReaderPaths({ repoRoot, revision: commit });
+			console.log(JSON.stringify({ mode: "committed", revision: commit, ...result }));
+			return result;
+		}
 		if (git(repoRoot, ["merge-base", commit, DRIFT_MAIN]).trim() === DRIFT_MAIN) {
 			context.transportRevision = commit;
 			const result = verifyDrift({ repoRoot, revision: commit });
@@ -2124,6 +2302,8 @@ export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
 export function verifyWorkingTreeDocumentation({ repoRoot, overrides = new Map() }) {
 	return withHistory({ repoRoot, overrides }, () => {
 		const commit = git(repoRoot, ["rev-parse", "--verify", "HEAD^{commit}"]).trim();
+		if (hasReaderPaths(repoRoot) || overrides.has(READER_PATHS_FOLLOWUP))
+			return verifyReaderPaths({ repoRoot, overrides });
 		if (git(repoRoot, ["merge-base", commit, DRIFT_MAIN]).trim() === DRIFT_MAIN)
 			return verifyDrift({ repoRoot, overrides });
 		if (git(repoRoot, ["merge-base", commit, REBASE_MAIN]).trim() === REBASE_MAIN)

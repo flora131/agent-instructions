@@ -1,5 +1,5 @@
 ---
-title: "Background tasks"
+title: "Background and parallel work"
 description: "Run subagents and shell tasks while continuing your conversation"
 ---
 
