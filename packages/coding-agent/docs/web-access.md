@@ -35,4 +35,6 @@ If argument validation fails, check that:
 - The array contains at least one nonempty string.
 - The call has no unrecognized fields.
 
+If every URL in a batch fails, the error lists each URL and its cause. Check the URLs and retry transient failures individually with `fetch_content({ urls: ["<failed URL>"] })`. For blocked pages or repeated extraction failures, try an accessible alternate URL or use `web_search`. `get_search_content` cannot recover content from a failed fetch.
+
 When fetched content is truncated, follow the returned `get_search_content` call to retrieve the stored content.

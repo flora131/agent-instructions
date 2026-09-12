@@ -174,13 +174,20 @@ export function registerContentTools(pi: ExtensionAPI, deps: RegisterContentTool
 					output += `- ${title || url} (${content.length} chars)\n`;
 				}
 			}
-			output += `\n---\nUse get_search_content({ responseId: "${responseId}", urlIndex: 0 }) to retrieve full content.`;
-
 			const allFailed = successful === 0;
+			if (allFailed) {
+				output = `All ${urlList.length} URL fetch(es) failed. No content was retrieved.\n\n${output}` +
+					"\nCheck each URL and its error above. Retry transient failures individually with " +
+					'fetch_content({ urls: ["<failed URL>"] }). If access is blocked or extraction keeps failing, ' +
+					"try an accessible alternate URL or use web_search to find the information. " +
+					"get_search_content cannot recover content from these failed fetches.";
+			} else {
+				output += `\n---\nUse get_search_content({ responseId: "${responseId}", urlIndex: 0 }) to retrieve full content.`;
+			}
 			return {
 				content: [{ type: "text", text: output }],
 				details: {
-					...(allFailed ? { outcome: "all_failed", stage: "fetch", error: `All ${urlList.length} URL fetch(es) failed`, failedUrls: urlList.length } : {}),
+					...(allFailed ? { outcome: "all_failed", stage: "fetch", error: output, failedUrls: urlList.length } : {}),
 					urls: urlList, urlCount: urlList.length, successful, totalChars, responseId,
 				},
 			};

@@ -27,13 +27,14 @@ interface WebAccessModule {
 }
 
 const fetchAllContent = vi.hoisted(() =>
-	vi.fn(async (urls: string[]) =>
-		urls.map((url) => ({
-			url,
-			title: "Example",
-			content: "Example content",
-			error: null,
-		})),
+	vi.fn(
+		async (urls: string[]): Promise<ExtractedContent[]> =>
+			urls.map((url) => ({
+				url,
+				title: "Example",
+				content: "Example content",
+				error: null,
+			})),
 	),
 );
 vi.mock("../../packages/web-access/extract.js", () => ({ fetchAllContent }));
@@ -148,4 +149,44 @@ test("fetch_content passes single and multiple URLs to extraction unchanged", as
 		assert.ok(typeof result.details === "object" && result.details !== null && "successful" in result.details);
 		assert.equal(result.details.successful, urls.length);
 	}
+});
+
+test("fetch_content reports each failed URL and recovery steps when a batch fails", async () => {
+	const urls = ["https://example.com/blocked", "https://example.com/timeout"];
+	fetchAllContent.mockResolvedValueOnce([
+		{ url: urls[0], title: "", content: "", error: "HTTP 403 Forbidden" },
+		{ url: urls[1], title: "", content: "", error: "Request timed out" },
+	]);
+	const result = await registrations
+		.heavy()
+		.execute("test", { urls }, new AbortController().signal, undefined, {} as ExtensionContext);
+	assert.ok(typeof result.details === "object" && result.details !== null && "error" in result.details);
+	const error = result.details.error;
+	assert.equal(typeof error, "string");
+	assert.match(String(error), /All 2 URL fetch\(es\) failed\. No content was retrieved/);
+	assert.match(String(error), /https:\/\/example.com\/blocked: Error - HTTP 403 Forbidden/);
+	assert.match(String(error), /https:\/\/example.com\/timeout: Error - Request timed out/);
+	assert.match(String(error), /fetch_content\(\{ urls: \["<failed URL>"\] \}\)/);
+	assert.match(String(error), /web_search/);
+	assert.match(String(error), /get_search_content cannot recover content/);
+	assert.doesNotMatch(String(error), /to retrieve full content/);
+	assert.deepEqual(result.content, [{ type: "text", text: error }]);
+});
+
+test("fetch_content preserves successful content retrieval guidance for mixed batches", async () => {
+	const urls = ["https://example.com/good", "https://example.com/blocked"];
+	fetchAllContent.mockResolvedValueOnce([
+		{ url: urls[0], title: "Good page", content: "Readable content", error: null },
+		{ url: urls[1], title: "", content: "", error: "HTTP 403 Forbidden" },
+	]);
+	const result = await registrations
+		.heavy()
+		.execute("test", { urls }, new AbortController().signal, undefined, {} as ExtensionContext);
+	assert.ok(typeof result.details === "object" && result.details !== null);
+	assert.equal("error" in result.details, false);
+	const text = result.content.find((item) => item.type === "text");
+	assert.ok(text?.type === "text");
+	assert.match(text.text, /Good page/);
+	assert.match(text.text, /HTTP 403 Forbidden/);
+	assert.match(text.text, /get_search_content.*to retrieve full content/);
 });
