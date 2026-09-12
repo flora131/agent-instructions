@@ -143,12 +143,18 @@ export function createStageControlHandle(runtime: LiveStageRuntime): StageContro
 		async pause() {
 			runtime.throwIfStageMutationBlocked();
 			const statusBeforePause = runtime.stageSnapshot.status;
+			// Close readiness admission synchronously, even while SDK pause acknowledges.
+			if (runtime.state.readinessController !== undefined) {
+				runtime.scheduler.ensureReleaseBarrier(runtime.stageId);
+				runtime.state.readinessPauseVersion = (runtime.state.readinessPauseVersion ?? 0) + 1;
+			}
 			if (statusBeforePause === "pending" || statusBeforePause === "running" || runtime.innerCtx.isStreaming) {
 				await runtime.innerCtx.__requestPause();
 			}
 			const changed = runtime.activeStore.recordStagePaused(runtime.runId, runtime.stageId);
 			if (changed) {
 				runtime.scheduler.ensureReleaseBarrier(runtime.stageId);
+				runtime.state.readinessController?.abort(new Error("atomic-workflows: readiness paused"));
 				await runtime.scheduler.cascadePauseFrom(runtime.stageId);
 				const run = runtime.activeStore.runs().find((candidate) => candidate.id === runtime.runId);
 				const stillActive =
