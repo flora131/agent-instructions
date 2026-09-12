@@ -45,9 +45,8 @@ export interface NodeCardOpts {
 	/** Run stages, used to resolve blockedByStageId into a short upstream name. */
 	stages?: readonly StageSnapshot[];
 	/**
-	 * Pending steering/follow-up messages on this stage's live session. A
-	 * nonzero count claims the final body row so a queued message stays visible
-	 * while the user is detached from the stage chat.
+	 * Counts appear beside status, or replace the response/model row while
+	 * awaiting input, so queued messages stay visible outside the stage chat.
 	 */
 	queuedMessageCount?: number;
 }
@@ -295,8 +294,8 @@ export function renderNodeCard(stage: StageSnapshot, opts: NodeCardOpts): string
 
 	// A tool card is a fixed-size graph node, not a result preview: the read-only
 	// detail view owns args, result, error, and timing. The body is constant in
-	// every state so the card stops competing with it, while the status, meta,
-	// and dependency rows below keep their own content.
+	// every state so the card stops competing with it, while status and model
+	// information occupy the remaining rows.
 	const bodyText =
 		stage.nodeKind === "tool"
 			? "durable tool"
@@ -305,9 +304,14 @@ export function renderNodeCard(stage: StageSnapshot, opts: NodeCardOpts): string
 				: durationText(stage);
 	const bodyHex = durationColor(stage.status, theme);
 	const statusText = `${statusIcon(stage.status)} ${stage.toolStatus ?? statusLabel(stage.status)}`;
+	const queuedCount = queuedBadgeCount(opts.queuedMessageCount);
+	const compactStatus =
+		queuedCount > 0 && stage.status !== "awaiting_input"
+			? joinCompactStatusMeta(statusText, queuedBadgeText(queuedCount), innerWidth)
+			: statusText;
 	const statusLine =
 		`${bg}${bc}│${RESET}` +
-		centreColored(statusText, innerWidth, bodyHex, bg, {
+		centreColored(compactStatus, innerWidth, bodyHex, bg, {
 			bold: stage.status === "running" || stage.status === "awaiting_input",
 		}) +
 		`${bg}${bc}│${RESET}`;
@@ -320,11 +324,11 @@ export function renderNodeCard(stage: StageSnapshot, opts: NodeCardOpts): string
 
 	const contentRows = Math.max(0, height - 2);
 	const metaLine = `${bg}${bc}│${RESET}${centreColored(metaText(stage), innerWidth, theme.dim, bg)}${bg}${bc}│${RESET}`;
-	const modelLine = `${bg}${bc}│${RESET}${centreColored(modelText(stage, innerWidth), innerWidth, theme.textMuted, bg)}${bg}${bc}│${RESET}`;
+	const model = modelText(stage, innerWidth);
+	const modelLine = `${bg}${bc}│${RESET}${centreColored(model, innerWidth, theme.textMuted, bg)}${bg}${bc}│${RESET}`;
 	const childRunLines = workflowChildRunRows(stage, innerWidth).map(
 		(row) => `${bg}${bc}│${RESET}${centreColored(row, innerWidth, theme.dim, bg)}${bg}${bc}│${RESET}`,
 	);
-	const queuedCount = queuedBadgeCount(opts.queuedMessageCount);
 	const childMeta = workflowChildMetaText(stage);
 	const childSummary =
 		childMeta === undefined
@@ -343,24 +347,23 @@ export function renderNodeCard(stage: StageSnapshot, opts: NodeCardOpts): string
 		stage.status === "awaiting_input"
 			? [
 					statusLine,
-					`${bg}${bc}│${RESET}` +
-						centreColored("waiting for response", innerWidth, theme.info, bg) +
-						`${bg}${bc}│${RESET}`,
+					model !== "" && contentRows <= 3
+						? modelLine
+						: `${bg}${bc}│${RESET}` +
+							centreColored("waiting for response", innerWidth, theme.info, bg) +
+							`${bg}${bc}│${RESET}`,
 					`${bg}${bc}│${RESET}` +
 						centreColored("↵ enter to respond", innerWidth, theme.dim, bg) +
 						`${bg}${bc}│${RESET}`,
 					modelLine,
 				]
 			: childSummaryLine === undefined
-				? [durLine, statusLine, modelLine, metaLine]
+				? [durLine, statusLine, ...(metaText(stage) ? [metaLine] : [modelLine])]
 				: [...childRunLines, childSummaryLine];
 
-	// A queued steer/follow-up is invisible once the user leaves the stage chat,
-	// so it claims one existing body row rather than competing for space inside a
-	// line that would truncate. Child boundaries pack it beside status except when
-	// the awaiting-input interior leaves its redundant response row available.
-	const preferredBadgeRow =
-		stage.status === "awaiting_input" ? 1 : childSummaryLine === undefined ? interior.length - 1 : -1;
+	// Ordinary and child cards pack queued counts beside status. Awaiting-input
+	// cards use the response/model row so the action hint remains visible.
+	const preferredBadgeRow = stage.status === "awaiting_input" ? 1 : -1;
 
 	// Pad / clip to exactly `height` lines.
 	while (interior.length < contentRows) {

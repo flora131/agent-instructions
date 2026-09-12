@@ -58,6 +58,7 @@ function makeStage(opts: Partial<StageSnapshot> = {}): StageSnapshot {
 describe("renderNodeCard — geometry", () => {
 	test("emits exactly NODE_H lines at NODE_W cells wide", () => {
 		const lines = renderNodeCard(makeStage(), { theme });
+		assert.equal(lines.length, 5, "the removed dependency row must not leave an empty sixth line");
 		assert.equal(lines.length, NODE_H);
 		for (const line of lines) {
 			// Visible width is `NODE_W` for every row.
@@ -86,8 +87,8 @@ describe("renderNodeCard — geometry", () => {
 });
 
 describe("renderNodeCard — queued-message badge", () => {
-	test("claims the dim metadata row on an ordinary card, keeping status and duration", () => {
-		const stage = makeStage({ status: "running", startedAt: 1, parentIds: ["upstream"] });
+	test("packs queued metadata beside status, keeping duration and model", () => {
+		const stage = makeStage({ status: "running", durationMs: 1200, parentIds: ["upstream"], model: "gpt-5-mini" });
 		const plain = stripAnsi(renderNodeCard(stage, { theme }).join("\n"));
 		assert.doesNotMatch(plain, /\b\d+ deps?\b/);
 		const lines = renderNodeCard(stage, { theme, queuedMessageCount: 2 });
@@ -96,6 +97,8 @@ describe("renderNodeCard — queued-message badge", () => {
 		const badged = stripAnsi(lines.join("\n"));
 		assert.match(badged, /2 queued/);
 		assert.match(badged, /running/);
+		assert.match(badged, /gpt-5-mini/);
+		assert.match(badged, /1s/);
 		assert.doesNotMatch(badged, /1 dep/);
 	});
 
@@ -431,7 +434,7 @@ test("dependent cards retain metadata and geometry across statuses, tools and qu
 			"awaiting_input",
 		] as const) {
 			for (const nodeKind of [undefined, "tool"] as const) {
-				for (const height of [5, NODE_H]) {
+				for (const height of [NODE_H, 6]) {
 					for (const queuedMessageCount of [0, 2]) {
 						const stage = makeStage({ parentIds, status, nodeKind, model: "dep-deps", durationMs: 1200 });
 						const before = structuredClone(stage);
@@ -492,8 +495,10 @@ describe("renderNodeCard — metadata line", () => {
 					for (const queuedMessageCount of [0, 2]) {
 						const stage = makeStage({ model, nodeKind, status, thinkingLevel: "high" });
 						const lines = renderNodeCard(stage, { theme, queuedMessageCount });
-						const modelRow = status === "awaiting_input" ? 4 : 3;
-						assert.equal(stripAnsi(lines[modelRow]!).slice(1, -1).trim(), "");
+						if (status === "awaiting_input") {
+							assert.doesNotMatch(stripAnsi(lines.join("\n")), /—|high/);
+							assert.match(stripAnsi(lines[3]!), /enter to respond/);
+						} else assert.equal(stripAnsi(lines[3]!).slice(1, -1).trim(), "");
 						assert.equal(lines.length, NODE_H);
 						for (const line of lines) assert.equal(visibleWidth(line), NODE_W);
 						if (queuedMessageCount) assert.match(stripAnsi(lines.join("\n")), /2 queued/);
@@ -511,9 +516,9 @@ describe("renderNodeCard — metadata line", () => {
 			theme,
 		});
 
-		// Model sits on its own row; dependency metadata moves one row down.
+		// The model row sits immediately above the bottom border, with no padding row.
 		assert.match(stripAnsi(lines[3]!), /gpt-5-mini/);
-		assert.equal(stripAnsi(lines[4]!).slice(1, -1).trim(), "");
+		assert.match(stripAnsi(lines[4]!), /^╰─+╯$/);
 		assert.equal(lines.length, NODE_H);
 		for (const line of lines) {
 			assert.equal(stripAnsi(line).length, NODE_W);
@@ -524,11 +529,11 @@ describe("renderNodeCard — metadata line", () => {
 		const lines = renderNodeCard(makeStage({ status: "completed", topologyState: "unavailable" }), {
 			theme,
 		});
-		const metadata = stripAnsi(lines[4]!).slice(1, -1).trim();
+		const metadata = stripAnsi(lines[3]!).slice(1, -1).trim();
 		assert.equal(metadata, "topology unavailable");
 	});
 
-	test("running stages keep the model row and leave dependency metadata empty", () => {
+	test("running stages keep the model row without trailing dependency padding", () => {
 		const lines = renderNodeCard(
 			makeStage({
 				status: "running",
@@ -540,7 +545,7 @@ describe("renderNodeCard — metadata line", () => {
 		);
 
 		assert.match(stripAnsi(lines[3]!), /gpt-5-mini/);
-		assert.equal(stripAnsi(lines[4]!).slice(1, -1).trim(), "");
+		assert.match(stripAnsi(lines[4]!), /^╰─+╯$/);
 	});
 
 	test("child workflow boundaries show child workflow and run summary", () => {
@@ -641,7 +646,7 @@ describe("renderNodeCard — metadata line", () => {
 		const rendered = stripAnsi(lines.join("\n"));
 
 		assert.doesNotMatch(rendered, /openai\/gpt-5\.1-codex-fast fast/);
-		assert.equal(stripAnsi(lines[4]!).slice(1, -1).trim(), "");
+		assert.match(stripAnsi(lines[4]!), /^╰─+╯$/);
 	});
 
 	test("shows the fast tier on the model row, not the deps row", () => {
@@ -652,8 +657,8 @@ describe("renderNodeCard — metadata line", () => {
 		// #1859: canonical model identity stays on the model row, not the deps row.
 		assert.match(stripAnsi(lines[3]!), /gpt-5\.1-codex-fast/);
 		assert.doesNotMatch(stripAnsi(lines[3]!), /openai\//);
-		// The metadata row stays empty when topology is available.
-		assert.equal(stripAnsi(lines[4]!).slice(1, -1).trim(), "");
+		// The removed metadata row no longer adds padding below the model.
+		assert.match(stripAnsi(lines[4]!), /^╰─+╯$/);
 		assert.doesNotMatch(stripAnsi(lines[4]!), /fast/);
 	});
 
