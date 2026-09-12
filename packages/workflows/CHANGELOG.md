@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.9.19-alpha.8] - 2026-09-12
+
 ### Fixed
 
 - Workflow status detail now shows started and ended times in the system local timezone instead of UTC, preserving the compact `HH:mm:ss` display and elapsed durations ([#3008](https://github.com/bastani-inc/atomic/issues/3008)).
