@@ -59,7 +59,14 @@ export class ReplyTracker {
 	resolveReplyTarget(options: { to?: string; replyTo?: string }, now = Date.now()): IntercomContext {
 		this.pruneExpired(now);
 		if (options.replyTo) {
-			const exact = this.pendingAsks.get(options.replyTo);
+			const pendingResolution = resolveSessionTarget(
+        Array.from(this.pendingAsks.keys(), (id) => ({ id })), options.replyTo,
+      );
+      if (pendingResolution.kind === "ambiguous_id_prefix" || pendingResolution.kind === "ambiguous_name") {
+        throw new Error(sessionTargetFailureReason(options.replyTo, pendingResolution));
+      }
+			const exact = pendingResolution.kind === "resolved"
+        ? this.pendingAsks.get(pendingResolution.session.id) : undefined;
 			if (exact) {
 				if (options.to) {
 					const resolution = resolveSessionTarget([exact.from], options.to);

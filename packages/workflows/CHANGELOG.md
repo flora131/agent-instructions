@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Workflow UUID selectors accept unique 8-character hexadecimal prefixes across live and durable runs, with explicit collision errors ([#2603](https://github.com/bastani-inc/atomic/issues/2603)).
+
 ## [0.9.19-alpha.6] - 2026-09-11
 
 ### Fixed
