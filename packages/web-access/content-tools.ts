@@ -61,8 +61,10 @@ export function registerContentTools(pi: ExtensionAPI, deps: RegisterContentTool
 		promptSnippet:
 			"Use to extract readable content from URL(s), YouTube, GitHub repos, or local videos. For video questions, pass the user's exact question in prompt.",
 		parameters: Type.Object({
-			url: Type.Optional(Type.String({ description: "Single URL to fetch" })),
-			urls: Type.Optional(Type.Array(Type.String(), { description: "Multiple URLs (parallel)" })),
+			urls: Type.Array(Type.String({ minLength: 1 }), {
+				minItems: 1,
+				description: 'URLs or local video paths to fetch. Always use an array, even for one URL: {"urls":["https://example.com"]}. Multiple URLs are fetched in parallel.',
+			}),
 			forceClone: Type.Optional(Type.Boolean({
 				description: "Force cloning large GitHub repositories that exceed the size threshold",
 			})),
@@ -80,16 +82,10 @@ export function registerContentTools(pi: ExtensionAPI, deps: RegisterContentTool
 			model: Type.Optional(Type.String({
 				description: "Override the Gemini model for video/YouTube analysis (e.g. 'gemini-2.5-flash', 'gemini-3-flash-preview'). Defaults to config or gemini-3-flash-preview.",
 			})),
-		}),
+		}, { additionalProperties: false }),
 
 		async execute(_toolCallId, params, signal, onUpdate) {
-			const urlList = params.urls ?? (params.url ? [params.url] : []);
-			if (urlList.length === 0) {
-				return {
-					content: [{ type: "text", text: "Error: No URL provided." }],
-					details: { error: "No URL provided" },
-				};
-			}
+			const urlList = params.urls;
 
 			onUpdate?.({
 				content: [{ type: "text", text: `Fetching ${urlList.length} URL(s)...` }],
