@@ -28,6 +28,8 @@ test("graph omits single and multiple dependency counts while retaining edges an
 
 test("fan-in graph retains branching connectors without a plural dependency label", () => {
 	const stages = [makeStage("left"), makeStage("right"), makeStage("join", ["left", "right"])];
+	// Keep duration text present so a dash would identify an unwanted model placeholder.
+	for (const stage of stages) stage.durationMs = 1200;
 	const before = structuredClone(stages);
 	const view = new GraphView({
 		mode: "overlay",
@@ -38,6 +40,7 @@ test("fan-in graph retains branching connectors without a plural dependency labe
 	try {
 		const rendered = visibleText(view.render(160));
 		assert.doesNotMatch(rendered, /\b\d+ deps?\b/);
+		assert.doesNotMatch(rendered, /\broot\b|—/);
 		assert.match(rendered, /[┬┴┼├┤]/);
 		assert.match(rendered, /left/);
 		assert.match(rendered, /right/);

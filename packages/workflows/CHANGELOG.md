@@ -12,7 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- Removed generated dependency-count labels from workflow graph nodes while preserving dependency edges, other metadata, and card geometry.
+- Removed generated `root`, `dep`, and `deps` labels from workflow graph nodes and left model rows blank when no model is set. Dependency edges, other metadata, and card geometry are unchanged.
 
 ## [0.9.19-alpha.7] - 2026-09-12
 

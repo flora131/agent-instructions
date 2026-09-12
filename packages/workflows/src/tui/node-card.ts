@@ -127,8 +127,7 @@ function durationText(stage: StageSnapshot): string {
 }
 
 function metaText(stage: StageSnapshot): string {
-	if (stage.topologyState === "unavailable") return "topology unavailable";
-	return stage.parentIds.length === 0 ? "root" : "";
+	return stage.topologyState === "unavailable" ? "topology unavailable" : "";
 }
 
 /**
@@ -136,11 +135,11 @@ function metaText(stage: StageSnapshot): string {
  * provider prefix is dropped, the thinking level is appended when set (omitted
  * when off). On overflow the model name is truncated first, preserving the
  * canonical `-fast` identity suffix and the complete thinking level.
- * `—` when no model is resolved yet.
+ * Empty when no model is resolved yet.
  */
 function modelText(stage: StageSnapshot, innerWidth: number): string {
 	const model = stage.model;
-	if (model === undefined || model === "") return "—";
+	if (model === undefined || model === "") return "";
 	const slash = model.lastIndexOf("/");
 	const short = slash >= 0 ? model.slice(slash + 1) : model;
 	const level = stage.thinkingLevel;
