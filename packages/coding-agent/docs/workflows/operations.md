@@ -273,6 +273,10 @@ Use slash commands for graph connect and stage attach because those are interact
 
 ### Pausing, quitting, and resuming
 
+If a stage is waiting on `ask_user_question`, `/workflow quit <run-id>` or `workflow({ action: "quit", runId: "<run-id>" })` cancels and dismisses that question without requiring an answer. This includes the “Are you ready to move on to the next stage?” question and questions in nested stages. Quit leaves the run paused under the usual resume rules; it does not approve the question or advance downstream work. Questions belonging to other runs are unaffected. After resuming a cancelled readiness question, answer the new question; an old answer cannot restart the run.
+
+If pause or quit reports a stage cancellation error, do not assume that stage stopped: check `/workflow status <run-id>` before retrying. A readiness answer already accepted by a stage whose stop failed can continue normally; it does not require resume unless the stage actually paused.
+
 Graceful quit is idempotent for an already-paused resumable run. If a run is waiting on `ctx.ui`, quit preserves its current DBOS prompt reservation. Answers cannot advance paused workflow code until explicit resume; checkpointing the answer releases exactly that reservation generation. Concurrent and nested prompts use composed scopes and independent DBOS reservation tokens.
 
 When no stage or tool owns the pending await, whole-run `pause` holds the live executor until resume; `quit` retires it at a durability boundary. Neither forcibly stops arbitrary JavaScript outside `ctx.*`; already-started untracked code and non-cancellable I/O may finish later. Control results disclose this limit. An executor-only quit before any checkpoint progress is retained as paused/nonresumable; start a new run only after reconciling any external effects.

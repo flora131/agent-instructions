@@ -9,6 +9,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - Warm-first verifier and tournament judge groups now advertise conservative possible-stage names in source and bundled workflows without the builtin `warmSteps`/`restSteps` discovery warnings. Call-scoped `possibleStageNames` metadata leaves execution unchanged and retains diagnostics for unsupported dynamic calls ([#3001](https://github.com/bastani-inc/atomic/issues/3001)).
+- Fixed workflow quit hanging while a stage waits on `ask_user_question`. Cancelling the stage's active tool now dismisses its owned question without requiring an answer, including in nested workflows, while preserving paused/resumable state and unrelated questions. Related: [#2897](https://github.com/bastani-inc/atomic/issues/2897).
+- Fixed quit leaving a stage's readiness question answerable after stopping. Readiness questions now dismiss on pause or quit, ignore late answers, and ask again after explicit resume instead of advancing a paused workflow. Related: [#2897](https://github.com/bastani-inc/atomic/issues/2897).
+- Fixed a failed pause or quit leaving a running stage stuck after its readiness answer was accepted. Failed cancellation now releases that stage's temporary hold without releasing a successful pause. Related: [#2897](https://github.com/bastani-inc/atomic/issues/2897).
 
 ## [0.9.19-alpha.6] - 2026-09-11
 
