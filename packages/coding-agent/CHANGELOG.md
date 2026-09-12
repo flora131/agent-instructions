@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.19-alpha.9] - 2026-09-12
+
 ### Breaking Changes
 
 - Explicit Intercom `action: "reply"` selectors reject stale, unknown, empty, or sender-mismatched threads instead of falling back. Use `action: "pending"` and `replyTo: "<pending-ask-id>"` for unresolved questions.
