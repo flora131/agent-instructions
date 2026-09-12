@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.9.19-alpha.6] - 2026-09-11
+
 ### Breaking Changes
 
 - `fetch_content` now requires a nonempty `urls` array of nonempty strings for both single and batch requests. Replace `{ url: "..." }` with `{ urls: ["..."] }`. Invalid argument shapes and unrecognized fields are rejected before fetching; the `get_search_content` selectors are unchanged.
