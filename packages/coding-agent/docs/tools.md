@@ -114,6 +114,8 @@ A cancelled or unanswered question is not approval. If no usable question tool i
 
 Question text, option labels and descriptions, and the answer review display terminal control characters as printable escapes such as `\x1b`. Ordinary Unicode and line breaks remain readable; submitted answers retain their original text.
 
+Option previews apply the same escaping before Markdown rendering, including inside code fences. Preview tabs display as `\x09`; use spaces for visual indentation. Markdown line breaks and formatting remain supported, and submitted selections retain the original preview text.
+
 ## Persisted tool output
 
 Output that does not fit in a tool result is written to a file, and the result points at it — `Full output: <path>` for `bash`, `Full output saved to: <path>` for any tool result that crosses the persistence threshold. Those files are storage, so Atomic bounds where they go, how large they get, and how long they live.
