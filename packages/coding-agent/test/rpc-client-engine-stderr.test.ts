@@ -1,4 +1,5 @@
-import { spawnSync } from "node:child_process";
+import type * as childProcess from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,6 +8,10 @@ import { renderEngineDiagnostic } from "../src/modes/interactive-engine/engine-d
 import { RpcClient } from "../src/modes/rpc/rpc-client.js";
 import { appendBoundedStderr, createStderrReporter } from "../src/modes/rpc/rpc-client-process.js";
 
+vi.mock("node:child_process", async (importOriginal) => {
+	const actual = await importOriginal<typeof childProcess>();
+	return { ...actual, spawn: vi.fn(actual.spawn) };
+});
 const ZLIB_LINE = "zlib error: incorrect header check";
 const tempDirs: string[] = [];
 function writeChildScript(): string {
@@ -23,6 +28,7 @@ function writeChildScript(): string {
 
 afterEach(() => {
 	vi.restoreAllMocks();
+	vi.mocked(spawn).mockReset();
 	for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
@@ -115,6 +121,16 @@ describe("RpcClient engine stderr routing", () => {
 		"flushes truncated stderr at EOF and isolates generations with interactive=%s",
 		async (interactive) => {
 			const path = writeChildScript();
+			// libuv on Windows deliberately does not close fd 0-2 via fs.close.
+			// Use a real owned pipe (fd 3) for this live-EOF decoder test only.
+			// This adapter exercises RpcClient's actual pipe reader, not fd 2 routing;
+			// the other real-child tests above/below retain normal stderr wiring.
+			const actual = await vi.importActual<typeof childProcess>("node:child_process");
+			vi.mocked(spawn).mockImplementation((command, args, options) => {
+				const child = actual.spawn(command, args, { ...options, stdio: ["pipe", "pipe", "pipe", "pipe"] });
+				Object.defineProperty(child, "stderr", { value: child.stdio[3] });
+				return child;
+			});
 			let received = Promise.withResolvers<void>();
 			let completed = Promise.withResolvers<void>();
 			let messages: string[] = [];
@@ -138,13 +154,12 @@ describe("RpcClient engine stderr routing", () => {
 				received = Promise.withResolvers<void>();
 				completed = Promise.withResolvers<void>();
 				messages = [];
-				// Own fd 2 so end() actually closes it. process.stderr deliberately keeps
-				// its fd open, and Windows pipe shutdown alone does not deliver EOF.
+				// fd 3 is owned by the fixture and really closes while stdin remains live.
 				writeFileSync(
 					path,
 					`import { createInterface } from "node:readline";
 				import { createWriteStream } from "node:fs";
-				const stderr = createWriteStream(null, {fd:2, autoClose:true});
+				const stderr = createWriteStream(null, {fd:3, autoClose:true});
 				process.stdout.write(JSON.stringify({type:"engine_ready",protocolVersion:4,pid:process.pid})+"\\n");
 				stderr.write(Buffer.concat([Buffer.from("prefix "), Buffer.from([${bytes}])]));
 				createInterface({input:process.stdin}).on("line", line => {

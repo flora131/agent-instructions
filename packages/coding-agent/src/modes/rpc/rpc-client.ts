@@ -27,7 +27,7 @@ import {
 	restartCliArgs,
 	spawnRpcClientProcess,
 	terminateRpcClientProcess,
-} from "./rpc-client-process.ts";
+} from "./rpc-client-process.js";
 import { collectRpcEvents, runUserBashWithUpdates, waitForRpcIdle } from "./rpc-client-waits.ts";
 import { DEFAULT_REQUEST_TIMEOUT_MS, LONG_LIVED_COMMANDS, RESTART_CANCELLED_MESSAGE } from "./rpc-command-timeouts.ts";
 import { RpcEventBuffer } from "./rpc-event-buffer.ts";

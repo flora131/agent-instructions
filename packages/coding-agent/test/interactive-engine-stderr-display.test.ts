@@ -1,4 +1,4 @@
-import { Container } from "@earendil-works/pi-tui";
+import { Container, Text } from "@earendil-works/pi-tui";
 import { expect, test, vi } from "vitest";
 import { InteractiveMode } from "../src/modes/interactive/interactive-mode.js";
 import { initTheme } from "../src/modes/interactive/theme/theme.js";
@@ -67,4 +67,37 @@ test("renders child diagnostics as inert text without mutating the raw diagnosti
 	expect(rendered).not.toContain("\x1b[1;1H");
 	expect(stripAnsi(rendered)).toContain("transcript before diagnostic");
 	expect(stripAnsi(rendered)).toContain("CONTROL_BEFORECONTROL_AFTER");
+});
+
+// Regression #2995: sustained stderr must not retain an unlimited transcript.
+test("bounds diagnostic history while preserving ordinary chat, recent duplicates and order after clear", () => {
+	initTheme("dark");
+	const mode = Object.create(InteractiveMode.prototype) as InteractiveMode;
+	Object.assign(mode, { chatContainer: new Container(), ui: { requestRender: vi.fn() } });
+	const view = { showStatus: mode.showStatus.bind(mode), showError: vi.fn(), stopWorkingLoader: vi.fn() };
+	const report = (message: string) =>
+		renderEngineDiagnostic({ activity: undefined, elapsedMs: 0, level: "blocking", source: "stderr", message }, view);
+	for (const large of [false, true]) {
+		mode.chatContainer.clear();
+		mode.showStatus("ordinary status retained");
+		mode.chatContainer.addChild(new Text("user chat retained"));
+		const ordinaryChildren = [...mode.chatContainer.children];
+		for (let i = 0; i < 200; i++) report(`diagnostic-${i} ${large ? "😀".repeat(4096) : ""}`);
+		report("recent duplicate");
+		report("recent duplicate");
+		report("latest diagnostic");
+		mode.showStatus("old ordinary status");
+		mode.showStatus("current ordinary status");
+		const rendered = stripAnsi(mode.chatContainer.render(120).join("\n"));
+		expect(mode.chatContainer.children.length).toBeLessThanOrEqual(ordinaryChildren.length + 64 * 2 + 2);
+		expect(Buffer.byteLength(rendered)).toBeLessThan(280 * 1024);
+		for (const child of ordinaryChildren) expect(mode.chatContainer.children).toContain(child);
+		expect(rendered).not.toContain("diagnostic-0 ");
+		expect(rendered).toContain("diagnostic-199 ");
+		expect(rendered.match(/recent duplicate/g)).toHaveLength(2);
+		expect(rendered.indexOf("diagnostic-199 ")).toBeLessThan(rendered.indexOf("recent duplicate"));
+		expect(rendered.lastIndexOf("recent duplicate")).toBeLessThan(rendered.indexOf("latest diagnostic"));
+		expect(rendered).toContain("current ordinary status");
+		expect(rendered).not.toContain("old ordinary status");
+	}
 });
