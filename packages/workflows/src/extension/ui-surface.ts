@@ -107,6 +107,8 @@ export interface PiHostCustomUiState {
 export type PiHostCustomUiStateListener = (state: PiHostCustomUiState) => void;
 
 export interface PiCustomOverlayOptions {
+	/** AbortSignal to dismiss this request independently of its owning stage. */
+	signal?: AbortSignal;
 	/** Atomic lifecycle classification; navigation does not request approval. */
 	purpose?: "prompt" | "navigation";
 	/**
