@@ -87,6 +87,10 @@ Type `/` in the editor to open command completion. Extensions can register custo
 
 Use `/feedback <what happened or what you want to change>` to draft a bug report or enhancement request in the normal conversation. A bug needs a title, what happened, and reproduction steps; an enhancement needs a title, the requested change, and why it helps. Answer any clarification, then review the prepared title and body and request edits. Preparing a draft does not post it. Review the text for private information before sharing it.
 
+For bugs, Atomic collects a bounded, scrubbed diagnostic summary and asks the existing debugger to investigate without implementing a fix. It waits for that investigation before preparing the draft. Enhancements skip the debugger. If investigation fails or is unavailable, the draft records the failure and leaves the cause unknown.
+
+Bug drafts include non-builtin extension activity, supported evidence, unknowns, and newly observed worktree paths without file contents or automatic attachments. Tell Atomic whether you reproduced the bug with `atomic -ne`; otherwise the draft says `Not tested without extensions`. Worktree comparisons are best-effort: unavailable or oversized snapshots cannot establish which paths were created. Review the draft and your working tree before sharing anything.
+
 ## Message Queue
 
 You can submit messages while the agent is still working:
