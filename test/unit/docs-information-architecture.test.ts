@@ -821,14 +821,41 @@ describe("docs reader anchors (#2847)", () => {
 			if (written === "") return ownRoute;
 			// The published site is the same page under a different spelling; a
 			// docs.bastani.ai citation is a live reader citation like any other.
-			if (written.startsWith("https://docs.bastani.ai")) {
-				const route = written.slice("https://docs.bastani.ai".length).replace(/\/$/u, "");
+			if (URL.canParse(written)) {
+				const url = new URL(written);
+				if (url.origin !== "https://docs.bastani.ai") return undefined;
+				const route = url.pathname.replace(/\/$/u, "");
 				return route === "" ? "/" : route;
 			}
 			if (written.startsWith("/")) return written;
 			const [, tail] = written.split("docs/");
 			return tail === undefined ? undefined : `/${tail.replace(/\.mdx?$/u, "")}`;
 		};
+		// Regression coverage for code-scanning alert 199: compare parsed origins,
+		// not prefixes, and never reinterpret external URLs as relative docs paths.
+		for (const written of [
+			"https://docs.bastani.ai.evil.example/docs/workflows",
+			"https://docs.bastani.ai@evil.example/docs/workflows",
+			"https://evil.example/docs/workflows",
+			"http://docs.bastani.ai/workflows",
+			"https://docs.bastani.ai:444/workflows",
+		]) {
+			assert.equal(routeOf(written, undefined), undefined, written);
+		}
+		for (const [written, expected] of [
+			["https://docs.bastani.ai", "/"],
+			["https://docs.bastani.ai/", "/"],
+			["https://docs.bastani.ai/workflows/", "/workflows"],
+			["https://docs.bastani.ai/workflows?source=guide", "/workflows"],
+			["https://DOCS.BASTANI.AI:443/workflows", "/workflows"],
+			["/workflows", "/workflows"],
+			["../docs/workflows.md", "/workflows"],
+			["../docs/workflows.mdx", "/workflows"],
+		] as const) {
+			assert.equal(routeOf(written, undefined), expected, written);
+		}
+		assert.equal(routeOf("", "/workflows"), "/workflows");
+		assert.equal(routeOf("", undefined), undefined);
 		const citers = new Map<string, Set<string>>();
 		const collect = (file: string, ownRoute: string | undefined, text: string): void => {
 			for (const match of text.matchAll(pattern)) {
