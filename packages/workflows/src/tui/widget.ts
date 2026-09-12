@@ -40,7 +40,7 @@ import { deriveGraphTheme } from "./graph-theme.js";
 import { renderRunIdentityRows } from "./run-identity-rows.js";
 import { statusColor, statusIcon } from "./status-helpers.js";
 import type { PiTheme } from "./store-widget-installer.js";
-import { visibleWidth } from "./text-helpers.js";
+import { truncateToWidth, visibleWidth } from "./text-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Tunables
@@ -467,7 +467,13 @@ export function buildThemedWidgetLines(
 	// Collapsed single-line form for narrow terminals.
 	if (width < COLLAPSED_BREAKPOINT_COLS) {
 		return [
-			themed ? themedCollapsed(visibleCounts, activeTools, graphTheme) : plainCollapsed(visibleCounts, activeTools),
+			truncateToWidth(
+				themed
+					? themedCollapsed(visibleCounts, activeTools, graphTheme)
+					: plainCollapsed(visibleCounts, activeTools),
+				width,
+				"…",
+			),
 		];
 	}
 

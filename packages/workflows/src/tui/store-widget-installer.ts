@@ -49,6 +49,14 @@ import type { Store } from "../shared/store.js";
 import { readGraphStoreSnapshot, subscribeStoreInvalidation } from "../shared/store-observation.js";
 import type { StoreSnapshot } from "../shared/store-types.js";
 import { buildThemedWidgetLines, nextWidgetRefreshDelayMs } from "./widget.js";
+import { WorkflowWidgetViewport } from "./widget-viewport.js";
+
+const widgetViewports = new WeakMap<Store, WorkflowWidgetViewport>();
+
+/** Routed by extension shortcuts, including across the isolated-engine bridge. */
+export function scrollStoreWidget(storeInstance: Store, direction: -1 | 1): void {
+	widgetViewports.get(storeInstance)?.scroll(direction);
+}
 
 export interface PiTheme {
 	fg(color: string, text: string): string;
@@ -124,7 +132,26 @@ export function installStoreWidget(
 	const onWidgetRelease = ui.onWidgetRelease;
 	const controller = installReactiveWidget<StoreSnapshot, unknown>({
 		ui: {
-			setWidget: (key, factory, opts) => setWidget.call(ui, key, factory, opts),
+			setWidget: (key, factory, opts) => {
+				if (!factory) widgetViewports.delete(storeInstance);
+				setWidget.call(
+					ui,
+					key,
+					factory
+						? (tui, theme) => {
+								const host = tui as { terminal?: { rows: number }; requestRender?: () => void } | undefined;
+								const viewport = new WorkflowWidgetViewport(
+									factory(tui, theme),
+									() => host?.terminal?.rows ?? 30,
+									() => (requestRender ? requestRender.call(ui) : host?.requestRender?.()),
+								);
+								widgetViewports.set(storeInstance, viewport);
+								return viewport;
+							}
+						: undefined,
+					opts,
+				);
+			},
 			...(requestRender ? { requestRender: () => requestRender.call(ui) } : {}),
 			...(onWidgetRelease ? { onWidgetRelease: (key, listener) => onWidgetRelease.call(ui, key, listener) } : {}),
 		},
@@ -146,7 +173,10 @@ export function installStoreWidget(
 		},
 	});
 
-	return () => controller.dispose();
+	return () => {
+		widgetViewports.delete(storeInstance);
+		controller.dispose();
+	};
 }
 
 interface ToolExecutionStartPayload {
