@@ -803,9 +803,10 @@ function discoveryField(object: readonly Token[] | undefined): readonly Token[] 
 	if (object?.[0]?.value !== "{" || object.at(-1)?.value !== "}") return undefined;
 	let value: readonly Token[] | undefined;
 	for (const field of arrayElements(object)) {
-		// Computed fields/accessors may overwrite the metadata with an unproven value.
-		const key = ["get", "set", "async", "*"].includes(field[0]?.value ?? "") ? field.slice(1) : field;
-		if (key[0]?.value === "[" || (key[0]?.value === "*" && key[1]?.value === "[")) return undefined;
+		// Accessors and prefixed methods can replace a data property just like computed keys.
+		let key = field;
+		while (["get", "set", "async", "*"].includes(key[0]?.value ?? "")) key = key.slice(1);
+		if (key[0]?.value === "[" || (key !== field && key[0]?.value === "possibleStageNames")) return undefined;
 		if (field[0]?.value === ".") {
 			if (value !== undefined) return undefined;
 			continue;
@@ -1159,10 +1160,33 @@ class PossibleStagesScanner {
 		// A property read may be repeated, but rebinding/shadowing the options parameter is not supported.
 		const body = unit.tokens.slice(owner.bodyOpen, owner.bodyClose);
 		if (hasDiscoveryDestructuringWrite(body, value[0].value)) return undefined;
+		// Only direct parallel-option forwarding is proven safe; aliases, escapes and
+		// chained array operations can mutate the caller's literal metadata.
+		const forwarded = new Set<Token>();
+		for (let index = 0; index < body.length; index += 1) {
+			const parallel = matchCtxCall(body, index, this.aliasPool);
+			if (parallel?.method !== "parallel") continue;
+			const field = discoveryField(splitTopLevelArguments(parallel, body)[1]);
+			if (
+				field?.length === 3 &&
+				field[0]?.value === value[0].value &&
+				field[1]?.value === "." &&
+				field[2]?.value === "possibleStageNames"
+			)
+				forwarded.add(field[0]);
+		}
 		for (let index = 0; index < body.length; index += 1) {
 			if (body[index]?.value !== value[0]?.value) continue;
+			if (body[index + 2]?.value === "possibleStageNames" && !forwarded.has(body[index]!)) return undefined;
 			const destructured =
 				body[index - 2]?.value === "}" && body[index - 1]?.value === "=" && body[index + 1]?.value === ";";
+			if (destructured) {
+				for (let open = 0; open < index - 2; open += 1) {
+					if (body[open]?.value !== "{" || matchBracket(body, open, "{", "}") !== index - 2) continue;
+					if (body.slice(open + 1, index - 2).some((token) => token.value === "possibleStageNames"))
+						return undefined;
+				}
+			}
 			if (body[index + 1]?.value !== "." && !destructured) return undefined;
 			if (["delete", "+", "-"].includes(body[index - 1]?.value ?? "")) return undefined;
 			if (["=", "+", "-", "*", "/", "%", "&", "|", "^", "?", "<", ">"].includes(body[index + 3]?.value ?? ""))

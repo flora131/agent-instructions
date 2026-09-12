@@ -178,6 +178,16 @@ for (const extension of ["ts", "js"]) {
 		["logical", "options.possibleStageNames ||= unknownNames;"],
 		["delete", "delete options.possibleStageNames;"],
 		["prefix", "++options.possibleStageNames;"],
+		["element", "options.possibleStageNames[0] = 'actual';"],
+		["length", "options.possibleStageNames.length = 0;"],
+		["splice", "options.possibleStageNames.splice(0, 1, 'actual');"],
+		["push", "options.possibleStageNames.push('actual');"],
+		["fill", "options.possibleStageNames.fill('actual');"],
+		["computed-method", "options.possibleStageNames['splice'](0, 1, 'actual');"],
+		["optional-method", "options.possibleStageNames?.splice(0, 1, 'actual');"],
+		["array-alias", "const names = options.possibleStageNames; names[0] = 'actual';"],
+		["array-escape", "mutate(options.possibleStageNames);"],
+		["destructured-array-alias", "const { possibleStageNames: names } = options; names[0] = 'actual';"],
 	]) {
 		test(`#3001 ${extension} ${variant} metadata write retains both warnings`, () => {
 			const result = scanFile(
@@ -209,6 +219,11 @@ for (const extension of ["ts", "js"]) {
 		"['possibleStageNames']: unknownNames",
 		"[key]: unknownNames",
 		"get ['possibleStageNames']() { return unknownNames; }",
+		"get possibleStageNames() { return unknownNames; }",
+		"set possibleStageNames(value) {}",
+		"async possibleStageNames() {}",
+		"*possibleStageNames() {}",
+		"async *possibleStageNames() {}",
 	]) {
 		test(`#3001 ${extension} computed override retains both warnings: ${override}`, () => {
 			const result = scanFile(
