@@ -26,15 +26,16 @@ export function registerContentTools(pi: ExtensionAPI, deps: RegisterContentTool
 	pi.registerTool({
 		name: "code_search",
 		label: "Code Search",
-		description: "Search for code examples, documentation, and API references. Returns relevant code snippets and docs from GitHub, Stack Overflow, and official documentation. Use for any programming question — API usage, library examples, debugging help.",
+		description: "Ask DeepWiki about code, architecture, and APIs in a public GitHub repository. Requires repoName in owner/repo format. No API key required; no web-search fallback.",
 		promptSnippet:
-			"Use for programming/API/library questions to retrieve concrete examples and docs before implementing or debugging code.",
+			"Use for repository-specific programming questions. Supply repoName (owner/repo) and query; use web_search for broader discovery.",
 		parameters: Type.Object({
-			query: Type.String({ description: "Programming question, API, library, or debugging topic to search for" }),
+			repoName: Type.String({ pattern: "^[^\\s/]+/[^\\s/]+$", description: "Public GitHub repository in owner/repo format" }),
+			query: Type.String({ pattern: "\\S", description: "Question about the repository, sent verbatim to DeepWiki" }),
 			maxTokens: Type.Optional(Type.Integer({
 				minimum: 1000,
 				maximum: 50000,
-				description: "Maximum tokens of code/documentation context to return (default: 5000)",
+				description: "Best-effort output limit, approximately four characters per token (default: 5000)",
 			})),
 		}),
 

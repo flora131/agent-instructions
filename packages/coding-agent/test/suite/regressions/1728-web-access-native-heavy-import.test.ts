@@ -21,7 +21,7 @@ const pi = {
 webAccess(pi);
 const calls = [
   ["web_search", {}],
-  ["code_search", { query: "" }],
+  ["code_search", { repoName: "owner/repo", query: "" }],
   ["fetch_content", {}],
   ["get_search_content", { responseId: "missing-1728-regression" }],
 ];

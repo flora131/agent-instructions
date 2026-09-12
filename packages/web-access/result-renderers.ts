@@ -257,8 +257,8 @@ export const renderCodeSearchResult: ToolResultRenderer = (result, { expanded },
 		return new Text(theme.fg("error", `Error: ${details.error}`), 0, 0);
 	}
 
-	const summary = theme.fg("success", "code context returned") +
-		theme.fg("muted", ` (${details?.maxTokens ?? 5000} tokens max)`);
+	const summary = theme.fg("success", "DeepWiki answer returned") +
+		theme.fg("muted", ` (~${details?.maxTokens ?? 5000} tokens max)`);
 	if (!expanded) return new Text(summary, 0, 0);
 
 	const textContent = firstTextContent(result);

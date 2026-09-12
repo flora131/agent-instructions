@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Breaking Changes
 
 - `fetch_content` now requires a nonempty `urls` array of nonempty strings for both single and batch requests. Replace `{ url: "..." }` with `{ urls: ["..."] }`. Invalid argument shapes and unrecognized fields are rejected before fetching; the `get_search_content` selectors are unchanged.
+- `code_search` now requires a single `repoName` in `owner/repo` format alongside `query`. It asks DeepWiki about that public GitHub repository instead of searching Exa, with no Exa fallback. Update query-only calls to include the repository. No API key is required; `maxTokens` remains a best-effort local output bound. Unrelated `web_search` providers are unchanged.
 
 ## [0.9.14] - 2026-08-19
 

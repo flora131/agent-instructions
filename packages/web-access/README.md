@@ -18,7 +18,7 @@ https://github.com/user-attachments/assets/cac6a17a-1eeb-4dde-9818-cdf85d8ea98f
 
 **Video Understanding** — Point it at a YouTube video or local screen recording and ask questions about what's on screen. Full transcripts, visual descriptions, and frame extraction at exact timestamps.
 
-**Smart Fallbacks** — Every capability has a fallback chain. Search tries Exa, then Perplexity, then Gemini API, then Gemini Web when browser cookies are enabled. YouTube tries Gemini Web when enabled, then API, then Perplexity. Blocked pages retry through Jina Reader and Gemini extraction. Something always works.
+**Smart Fallbacks** — Web search tries Exa, then Perplexity, then Gemini API, then Gemini Web when browser cookies are enabled. YouTube tries Gemini Web when enabled, then API, then Perplexity. Blocked pages retry through Jina Reader and Gemini extraction. Repository-specific `code_search` uses DeepWiki only.
 
 **GitHub Cloning** — GitHub URLs are cloned locally instead of scraped. The agent gets real file contents and a local path to explore, not rendered HTML.
 
@@ -100,17 +100,20 @@ web_search({ query: "...", includeContent: true })
 
 ### code_search
 
-Search for code examples, documentation, and API references via Exa MCP. No API key required. Uses Exa's code-context MCP tool when available and falls back to code-focused web search when that tool is unavailable.
+Ask questions about code, architecture, and APIs in a public GitHub repository via DeepWiki MCP at `https://mcp.deepwiki.com/mcp`. No API key or local MCP configuration is required. DeepWiki availability and repository indexing determine which questions it can answer.
 
 ```typescript
-code_search({ query: "React useEffect cleanup pattern" })
-code_search({ query: "Express middleware error handling", maxTokens: 10000 })
+code_search({ repoName: "facebook/react", query: "How does useEffect cleanup work?" })
+code_search({ repoName: "expressjs/express", query: "How is middleware error handling implemented?", maxTokens: 10000 })
 ```
 
 | Parameter | Description |
 |-----------|-------------|
-| `query` | Programming question, API, library, or debugging topic |
-| `maxTokens` | Maximum tokens of context to return (default: 5000, max: 50000) |
+| `repoName` | Required single public GitHub repository in `owner/repo` format, not a URL or list |
+| `query` | Required nonempty question about that repository, sent verbatim |
+| `maxTokens` | Optional best-effort output bound, approximately four characters per token, plus a truncation notice (default: 5000, range: 1000–50000) |
+
+Migration: existing `code_search({ query: ... })` calls must now include `repoName`. The query is sent as DeepWiki's `ask_question` question. `maxTokens` limits the returned text locally, not DeepWiki's generation. Requests have a 60-second deadline and honor caller cancellation. Errors and empty responses are reported without falling back to Exa. Use `web_search` for broader discovery or when a repository is unavailable; its providers and settings are unchanged.
 
 ### fetch_content
 
@@ -328,7 +331,7 @@ Rate limits: Perplexity is capped at 10 requests/minute (client-side). Content f
 | `curator-server.ts` | Ephemeral HTTP server with SSE streaming and state machine |
 | `summary-review.ts` | Summary prompt construction, model-based draft generation, and deterministic fallback summary |
 | `exa.ts` | Exa.ai search provider — direct API and MCP proxy, budget tracking |
-| `code-search.ts` | Code/docs search via Exa MCP |
+| `code-search.ts` | Repository questions via DeepWiki MCP |
 | `extract.ts` | URL/file path routing, HTTP extraction, fallback orchestration |
 | `gemini-search.ts` | Search routing across Exa, Perplexity, Gemini API, Gemini Web |
 | `gemini-url-context.ts` | Gemini URL Context + Web extraction fallbacks |

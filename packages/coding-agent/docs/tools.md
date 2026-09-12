@@ -2,6 +2,20 @@
 
 Atomic enables these coding tools in normal sessions by default: `read`, `write`, `edit`, `bash`, `kill`, `find`, and `search`.
 
+## `code_search`
+
+The bundled web-access extension provides `code_search` for questions about code, architecture, and APIs in a public GitHub repository. It uses DeepWiki MCP at `https://mcp.deepwiki.com/mcp` without an API key or local MCP configuration.
+
+```typescript
+code_search({ repoName: "facebook/react", query: "How does useEffect cleanup work?" })
+```
+
+Both `repoName` and `query` are required. Supply one repository in `owner/repo` format, not a GitHub URL or list, and a nonempty question. Existing query-only calls must add `repoName`. Questions are sent verbatim to DeepWiki's `ask_question` tool.
+
+Optional `maxTokens` defaults to 5000 and accepts integers from 1000 to 50000. It is a best-effort output bound of roughly four characters per token, plus a truncation notice, not a limit on DeepWiki's generation. Requests have a 60-second deadline and honor cancellation.
+
+Answers depend on DeepWiki's repository indexing and availability. Check the repository name when a question fails. Errors and empty responses do not fall back to Exa; use `web_search` for broader discovery or unavailable repositories. `web_search` retains its existing Exa and other provider support.
+
 ## Hashline editing anchors
 
 `read`, `search`, `write`, and successful `edit` results for local text files emit an editable, session-scoped hashline header:
