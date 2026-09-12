@@ -798,6 +798,94 @@ function collectDefinitionName(
 	return undefined;
 }
 
+/** Explicit metadata is intentionally literal and call-scoped, not a warning override. */
+function discoveryField(object: readonly Token[] | undefined): readonly Token[] | undefined {
+	if (object?.[0]?.value !== "{" || object.at(-1)?.value !== "}") return undefined;
+	let value: readonly Token[] | undefined;
+	for (const field of arrayElements(object)) {
+		if (field[0]?.value === ".") {
+			if (value !== undefined) return undefined;
+			continue;
+		}
+		if (field[0]?.value !== "possibleStageNames") continue;
+		if (value !== undefined || field[1]?.value !== ":") return undefined;
+		value = field.slice(2);
+	}
+	return value;
+}
+
+function literalDiscoveryNames(value: readonly Token[] | undefined): readonly string[] | undefined {
+	if (value?.[0]?.value !== "[" || value.at(-1)?.value !== "]") return undefined;
+	const names: string[] = [];
+	for (const element of arrayElements(value)) {
+		if (element.length !== 1 || element[0]?.kind !== "string") return undefined;
+		names.push(element[0].value);
+	}
+	return names.length > 0 ? names : undefined;
+}
+
+interface DiscoveryHelper {
+	readonly name: string;
+	readonly nameIndex: number;
+	readonly params: readonly (readonly Token[])[];
+	readonly bodyOpen: number;
+	readonly bodyClose: number;
+}
+
+/** Named declarations only. Arrow helpers and further forwarding remain unsupported. */
+function discoveryHelpers(tokens: readonly Token[]): DiscoveryHelper[] {
+	const helpers: DiscoveryHelper[] = [];
+	for (let index = 0; index < tokens.length; index += 1) {
+		if (tokens[index]?.value !== "function" || tokens[index + 1]?.kind !== "ident") continue;
+		let open = index + 2;
+		if (tokens[open]?.value === "<") open = (matchBracket(tokens, open, "<", ">") ?? tokens.length) + 1;
+		if (tokens[open]?.value !== "(") continue;
+		const close = matchBracket(tokens, open, "(", ")");
+		if (close === undefined) continue;
+		let bodyOpen = close + 1;
+		while (bodyOpen < tokens.length && tokens[bodyOpen]?.value !== "{") bodyOpen += 1;
+		const bodyClose = matchBracket(tokens, bodyOpen, "{", "}");
+		if (bodyClose === undefined) continue;
+		helpers.push({
+			name: tokens[index + 1]!.value,
+			nameIndex: index + 1,
+			params: splitTopLevelArguments({ method: "parallel", argsOpen: open }, tokens),
+			bodyOpen,
+			bodyClose,
+		});
+	}
+	return helpers;
+}
+
+/** Fail closed on aliases, rebindings and shadowed names rather than borrowing another scope's metadata. */
+function discoveryCalls(tokens: readonly Token[], name: string, declaration?: number): number[] | undefined {
+	const calls: number[] = [];
+	for (let index = 0; index < tokens.length; index += 1) {
+		if (tokens[index]?.value === "import") {
+			while (index < tokens.length && tokens[index]?.kind !== "string") index += 1;
+			continue;
+		}
+		if (tokens[index]?.value === "export" && tokens[index + 1]?.value === "{") {
+			const close = matchBracket(tokens, index + 1, "{", "}") ?? tokens.length;
+			const exported = tokens.slice(index + 2, close);
+			if (
+				exported.some(
+					(token, offset) =>
+						token.value === name && (declaration === undefined || exported[offset + 1]?.value === "as"),
+				)
+			)
+				return undefined;
+			index = close;
+			continue;
+		}
+		if (tokens[index]?.kind !== "ident" || tokens[index]?.value !== name || index === declaration) continue;
+		if (tokens[index + 1]?.value !== "(" || [".", "?.", "function"].includes(tokens[index - 1]?.value ?? ""))
+			return undefined;
+		calls.push(index + 1);
+	}
+	return calls;
+}
+
 // ---------------------------------------------------------------------------
 // Scanner
 // ---------------------------------------------------------------------------
@@ -811,6 +899,7 @@ class PossibleStagesScanner {
 	/** Context-like aliases (e.g. `designContext`) seen anywhere in this scan, so helper
 	 * modules that receive the context under another name still resolve its stage calls. */
 	private readonly aliasPool = new Set<string>();
+	private closure: readonly string[] = [];
 
 	constructor(maxDepth: number) {
 		this.maxDepth = maxDepth;
@@ -861,10 +950,16 @@ class PossibleStagesScanner {
 				this.aliasPool.add(alias);
 			}
 		}
-		for (const path of ordered) {
-			const unit = this.units.get(path);
-			if (unit === undefined) continue;
-			this.scanUnit(unit, path, boundaryPrefix, depth, ancestorStack);
+		const previousClosure = this.closure;
+		this.closure = ordered;
+		try {
+			for (const path of ordered) {
+				const unit = this.units.get(path);
+				if (unit === undefined) continue;
+				this.scanUnit(unit, path, boundaryPrefix, depth, ancestorStack);
+			}
+		} finally {
+			this.closure = previousClosure;
 		}
 	}
 
@@ -1024,8 +1119,75 @@ class PossibleStagesScanner {
 		return resolveRelativeSpecifier(specifier, importingFile);
 	}
 
+	private discoveryNames(call: CtxCall, unit: FileUnit, path: string): readonly string[] | undefined {
+		if (call.method !== "parallel") return undefined;
+		const value = discoveryField(splitTopLevelArguments(call, unit.tokens)[1]);
+		const literal = literalDiscoveryNames(value);
+		if (literal !== undefined) return literal;
+		if (
+			value?.length !== 3 ||
+			value[0]?.kind !== "ident" ||
+			value[1]?.value !== "." ||
+			value[2]?.value !== "possibleStageNames"
+		)
+			return undefined;
+		const owner = discoveryHelpers(unit.tokens)
+			.filter((helper) => helper.bodyOpen < call.argsOpen && helper.bodyClose > call.argsOpen)
+			.at(-1);
+		if (owner === undefined) return undefined;
+		const parameter = owner.params.findIndex((param) => param[0]?.value === value[0]?.value);
+		if (parameter < 0) return undefined;
+		// A property read may be repeated, but rebinding/shadowing the options parameter is not supported.
+		const body = unit.tokens.slice(owner.bodyOpen, owner.bodyClose);
+		for (let index = 0; index < body.length; index += 1) {
+			if (body[index]?.value !== value[0]?.value) continue;
+			const destructured =
+				body[index - 2]?.value === "}" && body[index - 1]?.value === "=" && body[index + 1]?.value === ";";
+			if (body[index + 1]?.value !== "." && !destructured) return undefined;
+			if (["=", "+", "-"].includes(body[index + 3]?.value ?? "")) return undefined;
+		}
+		const names: string[] = [];
+		for (const callerPath of this.closure) {
+			const caller = this.units.get(callerPath);
+			if (caller === undefined) continue;
+			if (
+				[...caller.imports.values()].some(
+					(binding) =>
+						binding.importedName === undefined &&
+						resolveRelativeSpecifier(binding.specifier, callerPath) === path,
+				)
+			)
+				return undefined;
+			const references =
+				callerPath === path
+					? [owner.name]
+					: [...caller.imports]
+							.filter(
+								([, binding]) =>
+									binding.importedName === owner.name &&
+									resolveRelativeSpecifier(binding.specifier, callerPath) === path,
+							)
+							.map(([local]) => local);
+			for (const reference of references) {
+				const calls = discoveryCalls(caller.tokens, reference, callerPath === path ? owner.nameIndex : undefined);
+				if (calls === undefined) return undefined;
+				for (const argsOpen of calls) {
+					const argument = splitTopLevelArguments({ method: "parallel", argsOpen }, caller.tokens)[parameter];
+					const declared = literalDiscoveryNames(discoveryField(argument));
+					if (declared === undefined) return undefined;
+					names.push(...declared);
+				}
+			}
+		}
+		// Importing a module for another export does not invoke this annotated helper.
+		// Every reference above was checked; an opaque caller would already have bailed out.
+		return names.length > 0 || this.closure[0] !== path ? names : undefined;
+	}
+
 	/** Step `name:` patterns for a `chain`/`parallel` call's first argument. */
 	private stepNamesForStepsCall(call: CtxCall, unit: FileUnit, path: string): readonly string[] {
+		const declared = this.discoveryNames(call, unit, path);
+		if (declared !== undefined) return declared;
 		const first = firstArgumentTokens(call, unit.tokens);
 		if (first === undefined || first.length === 0) return [];
 		const head = first[0]!;
