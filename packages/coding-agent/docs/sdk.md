@@ -97,11 +97,11 @@ The SDK is included in the main package. No separate SDK package is needed.
 
 ## Experimental remote sessions
 
-The former `RemoteSession` contract is retained in the repository's [historical SDK documentation](https://github.com/bastani-inc/atomic/blob/main/docs/migrations/2847-history/sdk.md). Use [Pi client](#pi-client) for the current remote-session API.
+Use [Pi client](#pi-client) for the current remote-session API.
 
 ## Experimental Harness factory
 
-The former experimental Harness factory contract is retained in the repository's [historical SDK documentation](https://github.com/bastani-inc/atomic/blob/main/docs/migrations/2847-history/sdk.md). For the current supported integration, start with [createAgentSession()](#createagentsession) and the [SDK API reference](/sdk/reference).
+For the current supported integration, start with [createAgentSession()](#createagentsession) and the [SDK API reference](/sdk/reference).
 
 ## Core Concepts
 

@@ -32,13 +32,10 @@
 *.sql      text
 *.epub     diff=astextplain
 
-# #2847 reader and provenance checks compare working-tree bytes with Git blobs.
-# Keep their existing LF bytes on Windows too; do not normalize in the verifier.
+# Keep reader documentation and the active terminal recipe on LF across platforms.
 packages/coding-agent/docs/**/*.md text eol=lf
 packages/coding-agent/docs/**/*.mdx text eol=lf
 packages/coding-agent/docs/**/*.svg text eol=lf
-docs/migrations/2847-*.md text eol=lf
-docs/migrations/2847-*/**/*.md text eol=lf
 docs/2847-stage-skill-verification.md text eol=lf
 
 # Graphics

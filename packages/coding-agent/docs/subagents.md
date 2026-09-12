@@ -88,7 +88,7 @@ The handoff explicitly tells the parent to start a fresh child with a normal lau
 
 ## Foreground supervisor coordination
 
-See [Supervisor coordination](#supervisor-coordination) for parallel requests and [Single-child handoff](#single-child-handoff) for claimed single-child requests. The earlier policy is retained in the repository's [historical subagent documentation](https://github.com/bastani-inc/atomic/blob/main/docs/migrations/2847-history/subagents.md).
+See [Supervisor coordination](#supervisor-coordination) for parallel requests and [Single-child handoff](#single-child-handoff) for claimed single-child requests.
 
 ## Migration from acceptance gates
 

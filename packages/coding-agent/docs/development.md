@@ -72,7 +72,7 @@ displayed diagnostic and conversion error when reporting a PDF problem.
 
 ## Startup timing probes
 
-Use the [current startup benchmark instructions](https://github.com/bastani-inc/atomic/blob/main/scripts/perf/windows-startup/README.md). Earlier timing contracts are retained as [historical documentation](https://github.com/bastani-inc/atomic/blob/main/docs/migrations/2847-history/development.md).
+Use the [current startup benchmark instructions](https://github.com/bastani-inc/atomic/blob/main/scripts/perf/windows-startup/README.md).
 
 Use `scripts/perf/windows-startup/benchmark.ts` for Windows startup claims. It launches the ordinary bare `atomic` command through a real 120x40 ConPTY, feeds ordered output into `@xterm/headless`, and timestamps each receive with `process.hrtime.bigint()`. Complete first paint requires the final `Atomic v<version>` identity, the focused `❯ ` editor, and two identical settled frames at least one 80 ms animation interval apart. `dispatchMs` runs from the Enter write to the first byte observed by a raw TCP loopback provider. The headline `spawnToDispatchMs` is exactly `startupCompleteMs + dispatchMs`; `launchToProviderFirstByteMs` separately retains the contiguous launch-to-provider interval that also contains nonce typing and editor-echo wait. The provider request must contain the nonce and the normal tool schemas, and every accepted sample must pass `/workflow list` after the timed response. See [the benchmark README](https://github.com/bastani-inc/atomic/blob/main/scripts/perf/windows-startup/README.md) for artifact preparation, cache profiles, raw records, and summary commands.
 
@@ -101,7 +101,7 @@ For package-manager installs under Node 22, Atomic enables Node's persistent mod
 
 Set `ATOMIC_TIMING=1` only for the older human-readable phase diagnostics. Normal interactive launches print that initial timing group before `interactiveMode.run()` starts the TUI loop, so later marks are not printed during ordinary sessions.
 
-For the current Bun version, Windows-hosted bytecode requirement, and archive-validation caveats, see [Windows interactive startup](/windows#interactive-startup). The old cross-compilation paragraph remains historical because it predates that Windows-host requirement.
+For the current Bun version, Windows-hosted bytecode requirement, and archive-validation caveats, see [Windows interactive startup](/windows#interactive-startup).
 
 ## Testing
 
@@ -136,7 +136,7 @@ Atomic ships an npm shrinkwrap. After dependency changes, regenerate it with `np
 
 ## Deterministic installs
 
-See [Testing](#testing) for the current shrinkwrap commands. The earlier procedure is retained as [historical documentation](https://github.com/bastani-inc/atomic/blob/main/docs/migrations/2847-history/development.md).
+See [Testing](#testing) for the current shrinkwrap commands.
 
 `@bastani/atomic` ships `packages/coding-agent/npm-shrinkwrap.json` so package-manager installs resolve the same dependency tree every time. Contributors working from a source checkout can validate that the checked-in shrinkwrap is up to date with:
 
@@ -146,7 +146,7 @@ bun run scripts/generate-coding-agent-shrinkwrap.mjs --check
 
 ## Release security boundary
 
-Follow the [current release pipeline](https://github.com/bastani-inc/atomic/blob/main/docs/ci.md#release-pipeline). The former release design is retained as [historical documentation](https://github.com/bastani-inc/atomic/blob/main/docs/migrations/2847-history/development.md), not as instructions for publishing a release.
+Follow the [current release pipeline](https://github.com/bastani-inc/atomic/blob/main/docs/ci.md#release-pipeline).
 
 Atomic's release bases remain at the `0.0.0` placeholder. `scripts/cut-release.ts` stamps the real version only on a detached tagged release commit.
 
