@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Workflow status detail now shows started and ended times in the system local timezone instead of UTC, preserving the compact `HH:mm:ss` display and elapsed durations ([#3008](https://github.com/bastani-inc/atomic/issues/3008)).
 
+### Changed
+
+- Removed generated `root`, `dep`, and `deps` labels from workflow graph nodes and left model text blank when no model is set. Cards omit the extra padding row. Queued-message counts appear on a separate `✉ N queued` row, reusing empty space or expanding occupied cards without hiding status or model details. Dependency edges are unchanged.
+
 ## [0.9.19-alpha.7] - 2026-09-12
 
 ### Fixed
