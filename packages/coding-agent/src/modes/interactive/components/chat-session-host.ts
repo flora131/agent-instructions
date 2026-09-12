@@ -309,8 +309,9 @@ export class ChatSessionHost<TExtraEntry extends ChatTranscriptEntryLike = never
 		return handleChatSessionInput(this.state, data, this.editorCallbacks());
 	}
 
-	async interrupt(options?: { restoreQueuedMessages?: boolean }): Promise<void> {
-		await interruptChatSession(this.state, options);
+	interrupt(options?: { restoreQueuedMessages?: boolean }): Promise<void> {
+		// Keep the observed settlement: an async wrapper would orphan rejections from Escape callers.
+		return interruptChatSession(this.state, options);
 	}
 
 	async submit(mode: ChatSessionSubmitMode = "auto", submittedText?: string): Promise<void> {

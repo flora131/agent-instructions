@@ -20,7 +20,7 @@ describe("WorkflowParametersSchema", () => {
 			{ action: "answer", runId: "abc123", stageId: "review", response: true },
 			{ action: "pause", runId: "abc123" },
 			{ action: "resume", runId: "abc123" },
-			{ action: "interrupt", runId: "abc123" },
+			{ action: "pause", runId: "abc123", stageId: "review" },
 			{ action: "quit", runId: "abc123" },
 			{ action: "reload", reason: "new workflow" },
 		];
@@ -101,6 +101,7 @@ describe("WorkflowParametersSchema", () => {
 
 	test("rejects invalid action values and transcript counts", () => {
 		assert.equal(Value.Check(WorkflowParametersSchema, { action: "kill", runId: "abc123" }), false);
+		assert.equal(Value.Check(WorkflowParametersSchema, { action: "interrupt", runId: "abc123" }), false);
 		assert.equal(Value.Check(WorkflowParametersSchema, { action: "send", runId: "abc123" }), false);
 		assert.equal(Value.Check(WorkflowParametersSchema, { action: "transcript", limit: -1 }), false);
 		assert.equal(Value.Check(WorkflowParametersSchema, { action: "transcript", tail: 1.5 }), false);

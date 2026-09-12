@@ -2,6 +2,87 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Reduced CPU work in long `/tasks` live transcripts on Windows by reusing unchanged message rendering during streaming, without dropping history or delaying live updates.
+
+## [0.9.19-alpha.6] - 2026-09-11
+
+### Breaking Changes
+
+- `write` no longer silently overwrites a file this session has never seen. Replacing an existing file now requires the session to have already observed exactly the content being replaced, checked under the same per-file mutation queue as the write. A session with no version of its own is refused with `no_prior_observation`; one whose recorded version no longer matches the file on disk is refused with `changed_since_observation` and told which line diverged, what it assumed was there, and what the file holds instead. Both carry the same `FILE_MUTATION_CONFLICT` code and requester identity as an `edit` conflict. Creating a new file, and overwriting one this session read, wrote, or edited, are unaffected ([#2329](https://github.com/bastani-inc/atomic/issues/2329)).
+- `WriteOperations` now requires a `readFile` member, and `writeFile` receives an optional third `WriteFileOptions` argument. `write` reads before every write to refuse generated files, to check that the session has observed what it is replacing, and to decide between creating and overwriting; routing that read through `WriteOperations` is what makes those checks see the filesystem a custom or remote implementation actually writes to, rather than local disk. `readFile` must report absence as `undefined` and reject for anything else, since a path that exists but cannot be read is not a free path. Existing `writeFile` implementations continue to typecheck and may ignore the new options argument, losing only exclusive-create semantics ([#2329](https://github.com/bastani-inc/atomic/issues/2329)).
+- Bundled `code_search` now requires `repoName` in `owner/repo` format alongside `query` and uses DeepWiki MCP for public-repository questions instead of Exa. Add the repository to existing calls. There is no Exa fallback; `web_search` is unchanged, and `maxTokens` remains a best-effort local output bound.
+
+### Changed
+
+- Shell guidance now favors the owner's normal observation budget over routine one-second yields and repeated short polls. Bash and PowerShell share this guidance; explicit budgets, background execution, and execution timeouts are unchanged.
+- Bundled delegation guidance now favors keeping immediately blocking work local and overlapping independent tasks, while preserving specialist and explicitly requested delegation.
+
+### Fixed
+
+- Fixed continuously noisy engines growing interactive diagnostic history without limit. Recent diagnostics retain their order and duplicates without removing normal chat or status messages.
+- Fixed damaged-PDF reads corrupting the fullscreen terminal with MuPDF diagnostics. Bounded diagnostics now appear in the TUI when interactive and use `console.log` otherwise; conversion failures also retain their diagnostic suffix ([#2964](https://github.com/bastani-inc/atomic/issues/2964)).
+- Routed RPC engine stderr through bounded, deferred status messages instead of synchronous filesystem writes or raw terminal output, preserving Unicode characters split across output chunks. Interactive MuPDF and engine diagnostic display neutralizes terminal controls without changing stored diagnostic text. RPC stdout remains JSON-only, and child diagnostics reach the interactive host without changing engine health ([#2964](https://github.com/bastani-inc/atomic/issues/2964)).
+- A rejected `edit` no longer hands back a snapshot tag that authorizes the same edit on retry. Building the rejection recorded the file's current content in the session's snapshot store and reported that tag in the error, so re-sending the identical edit with the reported tag was accepted even though the model had never read the changed file, silently overwriting whatever the other writer had just put there. The rejection now reports the tag without recording it, so the retry is rejected again and the model must re-read first. Drift recovery for tags the session did record is unchanged ([#2329](https://github.com/bastani-inc/atomic/issues/2329)).
+- An `edit` rejected because the file changed after the patch was prepared now reports which line diverged, what the edit assumed was there, what the file holds instead, and how large the target is, instead of a bare "content changed before write". A file deleted in that same window is reported as a missing target rather than a raw filesystem error, and no longer tells the model to re-read a file that is gone. A path that survives but stops being readable, because it was replaced by a directory, locked, or made inaccessible, is now reported as an unreadable target carrying the filesystem error code, instead of escaping as an untyped error. Rejections carry a stable `FILE_MUTATION_CONFLICT` code and the identity of the session, workflow stage, or subagent whose call was refused, so parallel workers editing one file are distinguishable ([#2329](https://github.com/bastani-inc/atomic/issues/2329)).
+- A `write` or hashline `edit` cancelled after its bytes had already reached disk no longer left the change unrecorded, which made the session's own file look like another agent's work on the next overwrite ([#2329](https://github.com/bastani-inc/atomic/issues/2329)).
+- `write` creating a file now claims the path exclusively (`O_EXCL`). A file that appears between `write` observing an absent path and its own write landing is reported as `target_exists`, describing what is there now, instead of being silently truncated ([#2329](https://github.com/bastani-inc/atomic/issues/2329)).
+- Standalone write tools retain their implicit observation store across `local://` writes, so overwriting a file the same tool just created no longer incorrectly fails with `no_prior_observation`.
+- Preserved typed `edit` conflicts when parent-directory permissions change after patch preparation. The rejection retains the original target identity and filesystem error code instead of escaping as a raw permission error ([#2329](https://github.com/bastani-inc/atomic/issues/2329)).
+- Fixed the Gondolin example failing to load after removal of the legacy grep tool API. It now registers only its supported file and shell overrides; the search tool remains on the host, and guest-only content searches use the routed shell ([#2482](https://github.com/bastani-inc/atomic/pull/2482)).
+
+## [0.9.19-alpha.5] - 2026-09-11
+
+### Changed
+
+- Open Claude Design now starts with Claude Fable 5.1 at medium effort, followed by Copilot Fable 5.1 and Astra at medium effort, with the same Fable-first order on OpenRouter.
+- Tuned bundled debugger, Goal, and Ralph reasoning efforts: debugger uses Astra/Fable at medium and Sol at high; Goal and Ralph reviewers use Astra/Sol at high; orchestration, Ralph research, and design use Fable at medium and Sol at high in their fallbacks. Ralph prompt refinement and other bundled agents retain their existing configurations.
+
+## [0.9.19-alpha.4] - 2026-09-10
+
+### Breaking Changes
+
+- Workflow controls, completion, help, and status hints use `/workflow pause`, `/workflow quit`, and `/workflow resume`. The workflow tool supports run, stage, and individual durable-tool pause targets; `/workflow pause [run-id|--all]` controls runs. Workflow lifecycle control events report `action: "pause"` for pause requests.
+- Renamed the bundled subagent `interrupt` action to `kill`. Migrate `subagent({ action: "interrupt", id })` to `subagent({ action: "kill", id })`, including calls using `runId`. The old action is no longer accepted. Kill terminally stops the child and cannot be resumed; follow-up work requires a fresh launch. Workflow controls use `/workflow pause`; parent cancellation behavior is unchanged.
+
+### Added
+
+- Added a model row to the `/workflow connect` graph node cards showing each stage's effective model and thinking level, including canonical fast model identity, with model-name truncation preserving the suffixes. Cards retain duration, status and dependencies in a six-row layout, reflect live fallbacks, and restore identity through durable resume ([#1859](https://github.com/bastani-inc/atomic/pull/1859) by [@sina85](https://github.com/sina85)).
+- Added `{ action: "wait", id, budgetMs }` to Bash and PowerShell for observing existing asynchronous tasks without rerunning commands. The observation budget is optional. Waits retain output and terminal metadata, follow owner observation policy, and release on cancellation or incoming messages without stopping execution or extending task lifetime.
+- Added the agent-callable `kill({ id })` tool for owned background bash and PowerShell tasks in main and workflow-stage chat. It cancels by task ID, preserves retained output and original outcomes, reports current cleanup state, and rejects other owners' tasks and subagents.
+- Added exact per-model overrides through `compaction.modelOverrides` for `compaction.reserveTokens` and Atomic's `compaction.preserve_recent` message count. Each field falls back to ordinary settings and then built-in defaults, with non-negative safe-integer validation. Manual, automatic, and post-tool compaction use the active model's budgets while retaining verbatim line compaction.
+
+### Fixed
+
+- First-loaded TypeScript extensions share the live host's classes and singletons when native import falls back to transformation, avoiding duplicate host evaluation and slow startup.
+- Fixed repeated yielded shell waits replaying the first output page instead of progressing through retained output while the task is still running ([#2972](https://github.com/bastani-inc/atomic/pull/2972)).
+- Preserved an explicit subagent kill when parent cancellation arrives during execution-capacity waiting, and kept grouped Intercom cancellation status consistent when a killed child has parent-cancelled siblings.
+- Embedded Postgres now starts on Windows administrative accounts. PostgreSQL refuses to run for a member of the Administrators or Power Users groups, so Atomic launches the retained server process with the same restricted access token `pg_ctl` uses, keeping exact-process shutdown semantics; non-administrative Windows accounts are unchanged. Postgres processes that exit during startup (including that administrator refusal on older builds) now fail fast with the actual server log instead of a readiness timeout.
+- Preserved embedded Postgres startup logs on regular Windows accounts, honored Unicode environment overrides on administrative launches, and prevented Windows handle leaks across repeated launches.
+- Preserved `PATH` lookup and relative executable paths for administrative Windows Postgres launches. Invalid launch inputs containing embedded NUL characters now fail before starting a process rather than using truncated paths, arguments, or environment values.
+- Fixed custom Windows Postgres `.cmd` and `.bat` launchers failing with arguments on administrative accounts, including launcher paths containing spaces. Batch arguments retain their existing quoting and line-break rejection.
+- Fixed explicit `cmd.exe` Postgres launchers and safe verbatim working directories on Windows administrative accounts. Concurrent Postgres launches no longer keep one another's log files open or expose them to unrelated commands starting at the same time.
+- Incoming Intercom send and ask messages now act as a priority interrupt queue for working subagents and live workflow stages: the receiver's current model call or cancellable tool is cancelled immediately and the message is processed within the same task, session, and stage generation. Admission survives consumed preflight input and overlapping SDK interrupt turns. Completed tool side effects are never replayed, the original task prompt is not repeated, multiple arrivals stay in arrival order with duplicate suppression, and exact ask/reply correlation survives the cancelled turn. Explicit user abort, host stop, and terminal/closed receivers still win: late input never restarts finished work.
+- Fixed a deadlock where an extension event hook awaiting an ordinary context-only message could wait behind an inbound Intercom delivery that was itself waiting for that event hook.
+- Inbound delivery retries after a transient persistence failure keep their original arrival position and remain part of both child and workflow-stage settlement, and a card appended before a failed flush is completed on retry instead of being appended a second time.
+
+## [0.9.19-alpha.3] - 2026-09-09
+
+### Fixed
+
+- Fixed `Failed to initialize class constructor` when npm-installed Node sessions create multiple task supervisors, preventing shell commands and subagent launches from failing during task-host initialization.
+- Fixed foreground subagent launches and explicit waits blocking parent user steering and incoming Intercom asks/sends. Admitted messages now release the waiting parent's observations in main and workflow-stage chat without cancelling children or affecting other owners.
+- Fixed PowerShell internal-URL path quoting so apostrophes and smart single quotes in resolved paths remain literal instead of allowing injected commands. Bash quoting, deliberate shell commands, and balanced command prefixes are unchanged.
+- Capped agent retry backoff with `retry.maxAgentDelayMs` (60 seconds by default), preserving independent provider retry limits ([#8826](https://github.com/earendil-works/pi/issues/8826)).
+- Rejected extension tools with missing or non-object parameter schema containers during registration instead of breaking provider requests ([#9300](https://github.com/earendil-works/pi/issues/9300)).
+- Workflow-stage pause now blocks new task launches, cancels active and admitted queued agents and commands, and waits for in-flight command admission and resource cleanup. Main-chat and sibling tasks stay unaffected; queued user and Intercom messages survive, and resume permits fresh work without restarting cancelled executions.
+- Fixed npm-installed Node startup failing with a missing upstream AI package after the retry-policy update. Core retry imports now use Atomic's declared AI dependency.
+- Fixed an unhandled rejection when session cancellation interrupts an in-flight stage-chat pause, while preserving pause error reporting and rejection for callers awaiting completion.
+- Fixed Windows extension reloads re-evaluating Atomic's host modules, avoiding duplicate host classes and long reload delays while preserving edits to extension dependencies. The supported `@earendil-works/pi-coding-agent` import also shares host identity with `@bastani/atomic` after reload.
+
+## [0.9.19-alpha.2] - 2026-09-08
+
 ### Added
 
 - Added host-side workflow activity observation with ordered snapshots, publisher epochs, bounded observer queues and diagnostics, plus workflow_lifecycle, workflow_activity_changed, workflow_stage_completed, and workflow_heartbeat extension hooks typed as `WorkflowLifecycleEvent`, `WorkflowActivityChangedEvent`, `WorkflowStageCompletedEvent`, and `WorkflowHeartbeatEvent`. Initialization-time publications are retained until runner binding. Publisher and observer leases are fenced on reload, including pending hook handlers when an earlier handler is awaiting. Workflow runtime publication is a separate integration ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).

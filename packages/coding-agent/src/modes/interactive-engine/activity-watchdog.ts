@@ -14,9 +14,9 @@ export interface ActivityWatchdogDiagnostic {
 	/**
 	 * Set when the diagnostic is operational rather than a concrete engine
 	 * failure: `"watchdog"` for heartbeat-gap reports, `"recovery"` for calm
-	 * engine replacement status.
+	 * engine replacement status, or `"stderr"` for child diagnostics.
 	 */
-	source?: "watchdog" | "recovery";
+	source?: "watchdog" | "recovery" | "stderr";
 }
 
 /**

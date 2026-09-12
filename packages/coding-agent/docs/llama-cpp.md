@@ -1,3 +1,8 @@
+---
+title: "Local models"
+description: "Run models locally with a llama.cpp server: discovery, load management, and downloads."
+---
+
 # llama.cpp
 
 Atomic supports the [llama.cpp](https://github.com/ggml-org/llama.cpp) router server. The router discovers multiple GGUF models and loads or unloads them on demand.

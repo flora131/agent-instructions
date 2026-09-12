@@ -35,6 +35,28 @@ export async function tryExecuteSessionSlashCommand(
 }
 
 export async function prompt(this: AgentSession, text: string, options?: PromptOptions): Promise<void> {
+	this._activePromptCount += 1;
+	try {
+		await promptInternal.call(this, text, options);
+		const boundary = this._subagentMessageAdmission ?? this._workflowStageAdmission;
+		if (
+			this._activePromptCount === 1 &&
+			!this.isStreaming &&
+			!this._queuedMessagesPaused &&
+			(this._priorityInterruptPending || boundary?.hasMessageDeliveries())
+		) {
+			// A command/input hook may consume the original prompt during preflight.
+			// Its owner still owes independently admitted priority input a reply; drain
+			// that input without replaying preflight or starting another task prompt.
+			await this._continueQueuedAgentMessages();
+			if (this._subagentMessageAdmission) await settleSubagentMessages(this);
+		}
+	} finally {
+		this._activePromptCount -= 1;
+	}
+}
+
+async function promptInternal(this: AgentSession, text: string, options?: PromptOptions): Promise<void> {
 	const owner = resolveWorkflowStageDeliveryTarget(this);
 	if (owner !== this) return owner.prompt(text, options);
 	const expandPromptTemplates = options?.expandPromptTemplates ?? true;
@@ -235,7 +257,21 @@ export async function _runAgentPrompt(
 		}
 		return owner._runAgentPrompt(messages, promptStarted);
 	}
+	this._activePromptCount += 1;
 	try {
+		if (this._subagentMessageAdmission) {
+			await this._subagentMessageAdmission.waitForPendingDeliveries();
+			if (!this._subagentMessageAdmission.isOpen()) return;
+		}
+		const pendingPriority = preparePriorityContinuation(this);
+		if (pendingPriority) await pendingPriority;
+		// An explicit stop may win during input preflight or priority preparation.
+		// Preserve the prepared input without opening a native turn past that gate.
+		if (this._queuedMessagesPaused) {
+			const items = Array.isArray(messages) ? messages : [messages];
+			for (const message of items) this._queueAgentMessage(message, "steer");
+			return;
+		}
 		const turn = this.agent.prompt(messages);
 		if (this.isStreaming) promptStarted?.();
 		await turn;
@@ -250,7 +286,24 @@ export async function _runAgentPrompt(
 			await this._extensionRunner.emit({ type: "agent_settled" });
 		}
 		this._emit?.({ type: "agent_settled" });
+		if (this._subagentMessageAdmission) await settleSubagentMessages(this);
+		this._activePromptCount -= 1;
 	}
+}
+
+async function settleSubagentMessages(session: AgentSession): Promise<void> {
+	const admission = session._subagentMessageAdmission!;
+	// A host-requested stop is terminal for a child, like cancellation. Retain
+	// protected input for persistence without restarting work or spinning on it.
+	if (session._stopAfterTurnBlockedContinuation) session.pauseQueuedMessages();
+	// Keep receiving while admitted input is answered. Seal synchronously only
+	// after both producer commits and native continuations have drained.
+	do {
+		await admission.waitForPendingDeliveries();
+		await session._continueQueuedAgentMessages();
+		if (session._stopAfterTurnBlockedContinuation) session.pauseQueuedMessages();
+	} while (admission.hasPendingDeliveries() || (!session._queuedMessagesPaused && session.agent.hasQueuedMessages()));
+	admission.seal();
 }
 
 export async function _runAgentContinue(this: AgentSession): Promise<void> {
@@ -259,13 +312,39 @@ export async function _runAgentContinue(this: AgentSession): Promise<void> {
 	await this._continueQueuedAgentMessages();
 }
 
+/** Restore priority input the moment the native loop can poll it again. */
+function preparePriorityContinuation(session: AgentSession): Promise<void> | undefined {
+	const boundary = session._subagentMessageAdmission ?? session._workflowStageAdmission;
+	// Explicit SDK interrupts own a native turn and the shared hold. An admitted
+	// receiver's task must join that owner before checking its priority input;
+	// otherwise it can settle before the interrupt finalizer restores the queue.
+	if (boundary && session._pendingInterruptDeliveries > 0) {
+		return session._interruptDeliveryQueue.then(() => preparePriorityContinuation(session));
+	}
+	const restore = (): void => {
+		if (!session._priorityInterruptPending) return;
+		session._priorityInterruptPending = false;
+		session._restoreAndClearActiveInterruptQueueHold();
+	};
+	// Keep the idle prompt start synchronous unless a producer commit is still in flight.
+	if (!boundary?.hasMessageDeliveries()) {
+		restore();
+		return undefined;
+	}
+	// A producer can enqueue an explicit SDK interrupt while this await yields.
+	// Recheck its ownership before restoring the shared hold.
+	return boundary.waitForMessageDeliveries().then(() => preparePriorityContinuation(session));
+}
+
 export async function _continueQueuedAgentMessages(this: AgentSession): Promise<void> {
 	await this._agentEventQueue;
+	await preparePriorityContinuation(this);
 
 	while (!this._stopAfterTurnBlockedContinuation && !this._queuedMessagesPaused && this.agent.hasQueuedMessages()) {
 		await this.agent.continue();
 		await this.waitForRetry();
 		await this._agentEventQueue;
+		await preparePriorityContinuation(this);
 	}
 	if (this._stopAfterTurnBlockedContinuation) return;
 

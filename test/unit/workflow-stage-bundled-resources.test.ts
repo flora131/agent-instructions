@@ -32,9 +32,9 @@ import {
 } from "../../packages/workflows/src/extension/wiring.js";
 import type { StageSessionRuntime } from "../../packages/workflows/src/runs/foreground/stage-runner.js";
 import {
+	debuggerFallbacks,
 	locatorAgentFallbacks,
 	ordinaryAgentFallbacks,
-	reviewerFallbacks,
 } from "./latest-model-config-expectations.js";
 
 const REAL_WORKFLOW_STAGE_RESOURCE_TIMEOUT_MS = 120_000;
@@ -261,7 +261,7 @@ describe("workflow stage bundled resources", () => {
 				assert.equal(
 					agent.model,
 					name === "debugger"
-						? "openai-codex/gpt-6-astra:xhigh"
+						? "openai-codex/gpt-6-astra:medium"
 						: isLocator
 							? "openai-codex/gpt-5.6-luna:xhigh"
 							: "openai-codex/gpt-6-astra:low",
@@ -269,7 +269,7 @@ describe("workflow stage bundled resources", () => {
 				);
 				assert.deepEqual(
 					agent.fallbackModels,
-					name === "debugger" ? reviewerFallbacks : isLocator ? locatorAgentFallbacks : ordinaryAgentFallbacks,
+					name === "debugger" ? debuggerFallbacks : isLocator ? locatorAgentFallbacks : ordinaryAgentFallbacks,
 					name,
 				);
 			}

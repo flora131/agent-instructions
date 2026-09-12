@@ -141,11 +141,10 @@ export const SubagentParams = Type.Object(
 				description: "Management/control action. Omit for execution mode.",
 			}),
 		),
-		id: Type.Optional(Type.String({ description: "Run id or prefix for action='status' or action='interrupt'." })),
+		id: Type.Optional(Type.String({ description: "Run id or prefix for action='status' or action='kill'." })),
 		runId: Type.Optional(
 			Type.String({
-				description:
-					"Target run ID for action='interrupt'. Defaults to the most recently active controllable run. Prefer id for new calls.",
+				description: "Target run ID for action='kill'. Prefer id for new calls.",
 			}),
 		),
 		config: Type.Optional(
@@ -164,7 +163,7 @@ export const SubagentParams = Type.Object(
 			Type.Integer({
 				minimum: 1,
 				description:
-					"Top-level PARALLEL mode only: max concurrent tasks. Defaults to config.parallel.concurrency or 4.",
+					"Top-level PARALLEL mode only: max concurrent tasks. Defaults to config.parallel.concurrency or 3.",
 			}),
 		),
 		group: Type.Optional(GroupSchema),

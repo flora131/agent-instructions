@@ -124,7 +124,7 @@ export type ClientMessage =
 	| { type: "join_group"; requestId: string; group: string }
 	| { type: "leave_group"; requestId: string; group?: string }
   | { type: "authorize_supervisor"; requestId: string; childName: string; capability?: string }
-  | { type: "send" | "supervisor_send"; to: string; logicalTarget?: string; requirePendingReply?: true; message: Message; attemptId?: string }
+  | { type: "send" | "supervisor_send"; to: string; logicalTarget?: string; requirePendingReply?: true; resolveReplyTarget?: true; message: Message; attemptId?: string }
 	| {
 			type: "send_pending_stage_notification";
 			runId: string;
@@ -168,6 +168,7 @@ export type ClientMessage =
 export type BrokerMessage =
   | { type: "registered"; sessionId: string; supervisorSessionId?: string }
   | { type: "registration_failed"; reason: string }
+  | { type: "question_target"; messageId: string; attemptId: string; sessionId: string }
  | { type: "sessions"; requestId: string; sessions: SessionInfo[]; workflowStages?: WorkflowStageRosterEntry[]; workflowFutureStages?: WorkflowFutureStageRosterEntry[] }
 	| { type: "groups"; requestId: string; groups: GroupSummary[] }
 	| { type: "membership_ack"; requestId: string; groups: string[] }

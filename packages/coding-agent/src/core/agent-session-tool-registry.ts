@@ -6,6 +6,7 @@ import { isMandatoryRuntimeTool, isTrustedMandatoryRuntimeTool } from "./mandato
 import { ModelRegistry } from "./model-registry.ts";
 import { createSyntheticSourceInfo } from "./source-info.ts";
 import { createLocalBashOperations } from "./tools/bash.js";
+import { buildMutationRequester } from "./tools/file-mutation-coordinator.ts";
 import { createAllToolDefinitions, getDefaultToolNames } from "./tools/index.ts";
 import { createLocalPowerShellOperations } from "./tools/powershell.ts";
 import { resolveSessionTempDirPath } from "./tools/session-temp-dir.ts";
@@ -137,6 +138,10 @@ export function _buildRuntime(
 		return true;
 	};
 	const activeBuiltinTools = (options.activeToolNames ?? [...getDefaultToolNames()]).filter(isAllowedBuiltinTool);
+	// Resolve ownership per call, just like command execution. Each wait receives
+	// a stable binding so observation cleanup can finish after session disposal.
+	const getTaskOwner = () =>
+		this._subagentPolicy?.depth && this._subagentPolicy.depth >= 1 ? undefined : this.getAgentTaskHost().ownerBinding;
 	const baseToolDefinitions = this._baseToolsOverride
 		? Object.fromEntries(
 				Object.entries(this._baseToolsOverride).map(([name, tool]) => [
@@ -145,10 +150,23 @@ export function _buildRuntime(
 				]),
 			)
 		: createAllToolDefinitions(this._cwd, {
+				// Resolved per execution for the same reason as `sessionTempDir` below: a
+				// requester captured at construction would keep a stale session id across
+				// fork/branch/resume, which is exactly the relaunch this makes legible.
+				resolveMutationRequester: (toolCallId) =>
+					buildMutationRequester({
+						sessionId: this.sessionManager.getSessionId(),
+						...(this._orchestrationContext ? { orchestration: this._orchestrationContext } : {}),
+						...(this._subagentPolicy?.intercom ? { intercom: this._subagentPolicy.intercom } : {}),
+						toolCallId,
+					}),
 				read: { autoResizeImages },
 				bash: {
 					commandPrefix: shellCommandPrefix,
 					shellPath,
+					get taskOwner() {
+						return getTaskOwner();
+					},
 					...(!(this._subagentPolicy?.depth && this._subagentPolicy.depth >= 1)
 						? {
 								operations: {
@@ -176,6 +194,9 @@ export function _buildRuntime(
 					},
 				},
 				powershell: {
+					get taskOwner() {
+						return getTaskOwner();
+					},
 					...(!(this._subagentPolicy?.depth && this._subagentPolicy.depth >= 1)
 						? {
 								operations: {
@@ -186,6 +207,9 @@ export function _buildRuntime(
 								},
 							}
 						: {}),
+				},
+				kill: {
+					taskOwner: () => this.getAgentTaskHost().ownerBinding,
 				},
 				search: {
 					contextBefore: this.settingsManager.getSearchContextBefore(),

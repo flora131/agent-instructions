@@ -1,8 +1,8 @@
 use std::{
 	collections::HashMap,
-	fs::OpenOptions,
+	fs::{File, OpenOptions},
 	io,
-	process::{Child, Command, Stdio},
+	process::Command,
 	sync::{Arc, Mutex, MutexGuard},
 	thread,
 	time::{Duration, Instant},
@@ -14,6 +14,18 @@ use napi_derive::napi;
 use crate::task;
 
 const WAIT_POLL_INTERVAL: Duration = Duration::from_millis(10);
+
+#[cfg(windows)]
+mod windows_spawn;
+#[cfg(windows)]
+use windows_spawn::{self as platform_spawn, RetainedChild};
+
+#[cfg(unix)]
+mod unix_spawn;
+#[cfg(unix)]
+use std::process::Child as RetainedChild;
+#[cfg(unix)]
+use unix_spawn as platform_spawn;
 
 #[napi(object)]
 pub struct RetainedPostgresSpawnOptions {
@@ -34,12 +46,12 @@ pub struct RetainedPostgresWaitResult {
 }
 
 struct LeaseState {
-	child: Option<Child>,
+	child: Option<RetainedChild>,
 }
 
 impl LeaseState {
 	fn pid(&self) -> Option<u32> {
-		self.child.as_ref().map(Child::id)
+		self.child.as_ref().map(RetainedChild::id)
 	}
 }
 
@@ -92,71 +104,17 @@ pub fn spawn_retained_postgres(options: RetainedPostgresSpawnOptions) -> Result<
 	Ok(RetainedPostgres { state: Arc::new(Mutex::new(LeaseState { child: Some(child) })) })
 }
 
-fn spawn_child(options: RetainedPostgresSpawnOptions) -> io::Result<Child> {
-	let stdout = OpenOptions::new().create(true).append(true).open(&options.log_file)?;
+fn spawn_child(options: RetainedPostgresSpawnOptions) -> io::Result<RetainedChild> {
+	let stdout: File = OpenOptions::new().create(true).append(true).open(&options.log_file)?;
 	let stderr = stdout.try_clone()?;
 	let mut command = Command::new(&options.executable);
-	command
-		.args(&options.args)
-		.current_dir(&options.cwd)
-		.stdin(Stdio::null())
-		.stdout(Stdio::from(stdout))
-		.stderr(Stdio::from(stderr));
+	command.args(&options.args).current_dir(&options.cwd);
 	if let Some(env) = options.env {
 		command.envs(env);
 	}
-	configure_process(&mut command, options.uid, options.gid);
-	command.spawn()
+	platform_spawn::configure_process(&mut command, options.uid, options.gid);
+	platform_spawn::spawn(&mut command, &stdout, &stderr)
 }
-
-#[cfg(unix)]
-fn configure_process(command: &mut Command, uid: Option<u32>, gid: Option<u32>) {
-	use std::os::unix::process::CommandExt;
-
-	// Keep all identity syscalls in one pre-exec closure: CommandExt applies
-	// `gid` before its implicit supplementary-group cleanup, while clearing
-	// groups must happen before either setgid or setuid drops root privileges.
-	// An omitted uid/gid remains omitted, and an explicit zero remains an
-	// explicit root identity rather than being treated as a missing option.
-	unsafe {
-		command.pre_exec(move || {
-			if libc::setsid() == -1 {
-				return Err(io::Error::last_os_error());
-			}
-			#[cfg(not(target_os = "redox"))]
-			if libc::geteuid() == 0
-				&& uid.is_some_and(|target_uid| target_uid != 0)
-				&& libc::setgroups(0, std::ptr::null()) == -1
-			{
-				return Err(io::Error::last_os_error());
-			}
-			if let Some(gid) = gid
-				&& libc::setgid(gid as libc::gid_t) == -1
-			{
-				return Err(io::Error::last_os_error());
-			}
-			if let Some(uid) = uid
-				&& libc::setuid(uid as libc::uid_t) == -1
-			{
-				return Err(io::Error::last_os_error());
-			}
-			Ok(())
-		});
-	}
-}
-#[cfg(windows)]
-fn configure_process(command: &mut Command, _uid: Option<u32>, _gid: Option<u32>) {
-	use std::os::windows::process::CommandExt;
-	// CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP. The postmaster runs attached
-	// to an invisible console that its child processes inherit; DETACHED_PROCESS
-	// would leave it consoleless, making every console-subsystem descendant
-	// (checkpointer, walwriter, backends, ...) allocate its own visible console
-	// window. The retained Child keeps the process HANDLE open either way.
-	command.creation_flags(0x0800_0000 | 0x0000_0200);
-}
-
-#[cfg(not(any(unix, windows)))]
-fn configure_process(_command: &mut Command, _uid: Option<u32>, _gid: Option<u32>) {}
 
 fn interrupt_and_wait(
 	state: &Arc<Mutex<LeaseState>>,
@@ -212,6 +170,7 @@ fn reap_if_exited(state: &mut LeaseState) -> Result<bool> {
 	let Some(child) = state.child.as_mut() else {
 		return Ok(true);
 	};
+
 	match child.try_wait() {
 		Ok(Some(_status)) => {
 			state.child.take();
@@ -235,7 +194,7 @@ enum FastShutdown {
 }
 
 #[cfg(unix)]
-fn send_fast_shutdown(child: &mut Child, deadline: Instant) -> Result<FastShutdown> {
+fn send_fast_shutdown(child: &mut RetainedChild, deadline: Instant) -> Result<FastShutdown> {
 	let pid = child.id();
 	if Instant::now() >= deadline {
 		return Err(Error::from_reason(format!(
@@ -256,7 +215,7 @@ fn send_fast_shutdown(child: &mut Child, deadline: Instant) -> Result<FastShutdo
 }
 
 #[cfg(windows)]
-fn send_fast_shutdown(child: &mut Child, deadline: Instant) -> Result<FastShutdown> {
+fn send_fast_shutdown(child: &mut RetainedChild, deadline: Instant) -> Result<FastShutdown> {
 	use std::ffi::OsStr;
 	use std::os::windows::ffi::OsStrExt;
 	use windows_sys::Win32::Foundation::{ERROR_BAD_PIPE, ERROR_BROKEN_PIPE};
@@ -530,7 +489,7 @@ fn remaining_timeout_ms(deadline: Instant) -> io::Result<u32> {
 }
 
 #[cfg(not(any(unix, windows)))]
-fn send_fast_shutdown(_child: &mut Child, _deadline: Instant) -> Result<FastShutdown> {
+fn send_fast_shutdown(_child: &mut RetainedChild, _deadline: Instant) -> Result<FastShutdown> {
 	Err(Error::from_reason("Retained Postgres shutdown is unsupported on this platform"))
 }
 
@@ -1108,11 +1067,9 @@ mod windows_tests {
 		pids
 	}
 
-	/// Postgres refuses to run for an effective member of Administrators
-	/// (its `pgwin32_is_admin` check), so the end-to-end test only runs where
-	/// a real launch is possible (regular user or a restricted token, as on
-	/// any supported install).
-	fn token_is_admin() -> bool {
+	/// True when the current test process itself is an effective member of
+	/// Administrators; used only to decide which assertions apply, never to skip.
+	fn caller_token_is_admin() -> bool {
 		use windows_sys::Win32::Security::{
 			AllocateAndInitializeSid, CheckTokenMembership, FreeSid, SECURITY_NT_AUTHORITY,
 		};
@@ -1145,6 +1102,138 @@ mod windows_tests {
 		ok != 0 && is_member != 0
 	}
 
+	/// Assert the spawned postmaster runs under the pg_ctl-style restricted token:
+	/// Administrators and Power Users are deny-only, and no dangerous privileges
+	/// remain enabled or present beyond what PostgreSQL itself keeps.
+	fn assert_postmaster_token_restricted(pid: u32) {
+		unsafe {
+			use windows_sys::Win32::{
+				Foundation::CloseHandle,
+				Security::{
+					AllocateAndInitializeSid, EqualSid, FreeSid, GetTokenInformation, IsValidSid,
+					LookupPrivilegeValueW, SE_CHANGE_NOTIFY_NAME, SE_LOCK_MEMORY_NAME,
+					SECURITY_NT_AUTHORITY, TOKEN_GROUPS, TOKEN_PRIVILEGES, TOKEN_QUERY, TokenGroups,
+					TokenPrivileges,
+				},
+				System::Threading::{OpenProcess, OpenProcessToken, PROCESS_QUERY_LIMITED_INFORMATION},
+			};
+
+			const SECURITY_BUILTIN_DOMAIN_RID: u32 = 0x20;
+			const DOMAIN_ALIAS_RID_ADMINS: u32 = 0x220;
+			const DOMAIN_ALIAS_RID_POWER_USERS: u32 = 0x223;
+			const SE_GROUP_USE_FOR_DENY_ONLY: u32 = 0x10;
+
+			let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+			assert!(!process.is_null(), "could not open the postmaster process");
+			let mut token = ptr::null_mut();
+			assert!(
+				OpenProcessToken(process, TOKEN_QUERY, &mut token) != 0,
+				"could not open the postmaster token"
+			);
+			let authority = SECURITY_NT_AUTHORITY;
+			let mut admins = ptr::null_mut();
+			let mut power_users = ptr::null_mut();
+			assert!(
+				AllocateAndInitializeSid(
+					&authority,
+					2,
+					SECURITY_BUILTIN_DOMAIN_RID,
+					DOMAIN_ALIAS_RID_ADMINS,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					&mut admins
+				) != 0
+			);
+			assert!(
+				AllocateAndInitializeSid(
+					&authority,
+					2,
+					SECURITY_BUILTIN_DOMAIN_RID,
+					DOMAIN_ALIAS_RID_POWER_USERS,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					&mut power_users
+				) != 0
+			);
+
+			let mut length = 0_u32;
+			GetTokenInformation(token, TokenGroups, ptr::null_mut(), 0, &mut length);
+			let mut groups = vec![0_u8; length as usize];
+			assert!(
+				GetTokenInformation(
+					token,
+					TokenGroups,
+					groups.as_mut_ptr().cast(),
+					length,
+					&mut length
+				) != 0
+			);
+			let groups = &*(groups.as_ptr() as *const TOKEN_GROUPS);
+			let mut admins_deny_only = None;
+			let mut power_users_deny_only = None;
+			for index in 0..groups.GroupCount as usize {
+				let group = &*groups.Groups.as_ptr().add(index);
+				let sid = group.Sid;
+				if IsValidSid(sid) == 0 {
+					continue;
+				}
+				if EqualSid(sid.cast(), admins.cast()) != 0 {
+					admins_deny_only = Some(group.Attributes & SE_GROUP_USE_FOR_DENY_ONLY != 0);
+				}
+				if EqualSid(sid.cast(), power_users.cast()) != 0 {
+					power_users_deny_only = Some(group.Attributes & SE_GROUP_USE_FOR_DENY_ONLY != 0);
+				}
+			}
+			assert_eq!(
+				admins_deny_only,
+				Some(true),
+				"the Administrators SID must be deny-only in the postmaster token"
+			);
+			assert_ne!(
+				power_users_deny_only,
+				Some(false),
+				"the Power Users SID must be deny-only when present in the postmaster token"
+			);
+			let mut length = 0_u32;
+			GetTokenInformation(token, TokenPrivileges, ptr::null_mut(), 0, &mut length);
+			let mut privileges = vec![0_u8; length.max(4) as usize];
+			assert!(
+				GetTokenInformation(
+					token,
+					TokenPrivileges,
+					privileges.as_mut_ptr().cast(),
+					length,
+					&mut length
+				) != 0
+			);
+			let privileges = &*(privileges.as_ptr() as *const TOKEN_PRIVILEGES);
+			let mut kept = [windows_sys::Win32::Foundation::LUID::default(); 2];
+			assert!(LookupPrivilegeValueW(ptr::null(), SE_CHANGE_NOTIFY_NAME, &mut kept[0]) != 0);
+			assert!(LookupPrivilegeValueW(ptr::null(), SE_LOCK_MEMORY_NAME, &mut kept[1]) != 0);
+			for index in 0..privileges.PrivilegeCount as usize {
+				let entry = &*privileges.Privileges.as_ptr().add(index);
+				let luid = (entry.Luid.LowPart, entry.Luid.HighPart);
+				assert!(
+					kept.iter().any(|name| luid == (name.LowPart, name.HighPart)),
+					"the restricted token must keep only the privileges PostgreSQL keeps \
+				 (SeChangeNotifyPrivilege, SeLockMemoryPrivilege); found LUID {luid:?}"
+				);
+			}
+
+			FreeSid(admins.cast());
+			FreeSid(power_users.cast());
+			CloseHandle(token);
+			CloseHandle(process);
+		}
+	}
 	fn free_tcp_port() -> u16 {
 		std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port()
 	}
@@ -1181,10 +1270,14 @@ mod windows_tests {
 		}
 	}
 
-	/// End-to-end regression test for visible console windows (issue #2670):
-	/// initialize a real embedded Postgres cluster, start the postmaster through
-	/// `spawnRetainedPostgres`, wait for readiness, then assert that neither the
-	/// postmaster nor any descendant owns a visible top-level window.
+	/// End-to-end regression tests for the retained embedded Postgres launch:
+	/// initialize a real cluster, start the postmaster through
+	/// `spawnRetainedPostgres`, wait for readiness, then assert that the
+	/// postmaster runs under the pg_ctl-style restricted token on
+	/// administrative accounts (it must start there instead of exiting with
+	/// PostgreSQL's administrator refusal), that exact-handle fast shutdown
+	/// works, and that neither the postmaster nor any descendant owns a
+	/// visible top-level window (issue #2670).
 	#[test]
 	fn retained_postgres_tree_owns_no_visible_windows() {
 		let Some(bin_dir) = embedded_postgres_bin_dir() else {
@@ -1193,12 +1286,6 @@ mod windows_tests {
 			);
 			return;
 		};
-		if token_is_admin() {
-			eprintln!(
-				"skipping retained_postgres_tree_owns_no_visible_windows: Postgres does not run for an Administrators member"
-			);
-			return;
-		}
 		let root = env::temp_dir().join(format!(
 			"atomic-retained-postgres-windows-{}-{}",
 			std::process::id(),
@@ -1284,6 +1371,13 @@ mod windows_tests {
 		};
 		let postmaster_pid = guard.0.as_ref().unwrap().pid().unwrap();
 
+		if caller_token_is_admin() {
+			// The reproduced administrator failure: PostgreSQL refuses to run for
+			// an effective member of Administrators, so an administrative Atomic
+			// process must hand the postmaster a restricted token (as pg_ctl does)
+			// while keeping the exact retained process handle.
+			assert_postmaster_token_restricted(postmaster_pid);
+		}
 		// Sample repeatedly: postmaster children (checkpointer, walwriter, ...)
 		// keep spawning shortly after readiness, and each visible console would
 		// persist rather than flash.

@@ -33,6 +33,10 @@ export class WorkflowStageAdmissionBoundary {
 	private readonly stageAttemptId = randomUUID();
 	private taskScope: Extract<OwnerScope, { kind: "workflow-stage" }> | undefined;
 	private taskHost: AgentTaskHost | undefined;
+	private readonly messageDeliveryContext = new AsyncLocalStorage<boolean>();
+	private readonly messageAdmissionContext = new AsyncLocalStorage<{ active: boolean }>();
+	private readonly messageDeliveries = new Set<Promise<void>>();
+	private messageDeliveryTail: Promise<void> | undefined;
 	private taskClose: ReturnType<AgentTaskHost["close"]> | undefined;
 
 	/** Called by the actual stage session; replacement sessions retain the original identity. */
@@ -77,6 +81,59 @@ export class WorkflowStageAdmissionBoundary {
 		);
 	}
 
+	/** One FIFO position for an external operation, including its retry waits. */
+	runMessageDelivery(
+		deliver: () => void | Promise<void>,
+		routeLate?: () => void | Promise<void>,
+		preserveDestination = false,
+	): Promise<void> {
+		const late =
+			routeLate ??
+			(() => {
+				throw new Error("Message admission is closed");
+			});
+		const invoke = (): void | Promise<void> => {
+			if (!preserveDestination) return deliver();
+			// Stage close drains the destination reserved at arrival. SDK commits
+			// inside this operation must not be reclassified as late on retry or
+			// after waiting for an earlier FIFO slot. Revoke on settlement so detached
+			// descendants cannot admit new work into a closed generation.
+			const reservation = { active: true };
+			return this.messageAdmissionContext.run(reservation, async () => {
+				try {
+					await deliver();
+				} finally {
+					reservation.active = false;
+				}
+			});
+		};
+		return this.admit(undefined, () => this.serializeMessageDelivery(invoke), late).completion;
+	}
+
+	/** Reentrant SDK commits stay inside their producer's FIFO position. */
+	serializeMessageDelivery(deliver: () => void | Promise<void>): Promise<void> {
+		if (this.messageDeliveryContext.getStore()) return this.invoke(deliver);
+		const invoke = () => this.messageDeliveryContext.run(true, () => this.invoke(deliver));
+		const delivery = this.messageDeliveryTail ? this.messageDeliveryTail.then(invoke) : invoke();
+		const settled = delivery.catch(() => undefined);
+		this.messageDeliveryTail = settled;
+		this.messageDeliveries.add(settled);
+		void settled.then(() => {
+			this.messageDeliveries.delete(settled);
+			if (this.messageDeliveryTail === settled) this.messageDeliveryTail = undefined;
+		});
+		return delivery;
+	}
+
+	/** Excludes tracked model turns: joining those from a native poll would deadlock. */
+	async waitForMessageDeliveries(): Promise<void> {
+		while (this.messageDeliveries.size > 0) await Promise.all([...this.messageDeliveries]);
+	}
+
+	hasMessageDeliveries(): boolean {
+		return this.messageDeliveries.size > 0;
+	}
+
 	admit(
 		key: string | undefined,
 		deliver: () => void | Promise<void>,
@@ -92,10 +149,11 @@ export class WorkflowStageAdmissionBoundary {
 				};
 			}
 		}
-		const decision: WorkflowStageAdmissionDecision = this.open ? "admitted" : "late";
+		const admitted = this.open || this.messageAdmissionContext.getStore()?.active === true;
+		const decision: WorkflowStageAdmissionDecision = admitted ? "admitted" : "late";
 		let completion: Promise<void>;
 		if (key === undefined) {
-			completion = this.invoke(this.open ? deliver : routeLate);
+			completion = this.invoke(admitted ? deliver : routeLate);
 		} else {
 			let resolveCompletion!: () => void;
 			let rejectCompletion!: (reason?: unknown) => void;
@@ -105,7 +163,7 @@ export class WorkflowStageAdmissionBoundary {
 			});
 			void completion.catch(() => {});
 			this.inFlight.set(key, completion);
-			const delivery = this.invocationContext.run(key, () => this.invoke(this.open ? deliver : routeLate));
+			const delivery = this.invocationContext.run(key, () => this.invoke(admitted ? deliver : routeLate));
 			void delivery.then(resolveCompletion, rejectCompletion);
 			void completion.then(
 				() => {
@@ -128,6 +186,15 @@ export class WorkflowStageAdmissionBoundary {
 			() => this.pending.delete(completion),
 			() => this.pending.delete(completion),
 		);
+	}
+
+	/** Join already-reserved queue commits before a native turn polls its input. */
+	async waitForPendingDeliveries(): Promise<void> {
+		await Promise.allSettled([...this.pending]);
+	}
+
+	hasPendingDeliveries(): boolean {
+		return this.pending.size > 0;
 	}
 
 	registerOwnedSubagentRun(runId: string): void {

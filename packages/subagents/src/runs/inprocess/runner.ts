@@ -53,10 +53,10 @@ import {
 import { type ChildModePolicy, resolveChildModePolicy } from "./child-policy.js";
 import { createInProcessChildPromptBehavior, createInProcessChildSystemPromptTransform } from "./prompt-behavior.js";
 
-export type ChildStatus = NativeAgentStatus;
+export type ChildStatus = NativeAgentStatus | "killed";
 export type ContinuationReason = "intercom-coordination";
 export type TerminationCauseName = NativeTerminationCause;
-export type TerminalStatus = "ok" | "error" | "skipped" | "interrupted" | "continued";
+export type TerminalStatus = "ok" | "error" | "skipped" | "interrupted" | "killed" | "continued";
 
 export interface ParentContext {
 	readonly path: string;
@@ -209,7 +209,7 @@ export type AttemptOutcome = (
 			readonly attemptedModels?: readonly string[];
 	  }
 	| {
-			readonly status: "interrupted";
+			readonly status: "interrupted" | "killed";
 			readonly cause?: string;
 			readonly stats: AttemptStats;
 			readonly path: string;
@@ -287,9 +287,16 @@ const CAPACITY_RETRY_MAX_DELAY_MS = 100;
 
 type CapacityWaitResult = "retry" | "abort" | "interrupt";
 
-function waitForExecutionCapacity(delayMs: number, signals: AttemptSignals): Promise<CapacityWaitResult> {
-	if (signals.interrupt.aborted) return Promise.resolve("interrupt");
-	if (signals.abort.aborted) return Promise.resolve("abort");
+function waitForExecutionCapacity(
+	delayMs: number,
+	signals: AttemptSignals,
+	onSettled: (result: CapacityWaitResult) => void,
+): Promise<CapacityWaitResult> {
+	if (signals.interrupt.aborted || signals.abort.aborted) {
+		const result = signals.interrupt.aborted ? "interrupt" : "abort";
+		onSettled(result);
+		return Promise.resolve(result);
+	}
 	return new Promise((resolveWait) => {
 		let settled = false;
 		let timer: ReturnType<typeof setTimeout>;
@@ -299,6 +306,7 @@ function waitForExecutionCapacity(delayMs: number, signals: AttemptSignals): Pro
 			clearTimeout(timer);
 			signals.abort.removeEventListener("abort", onAbort);
 			signals.interrupt.removeEventListener("abort", onInterrupt);
+			onSettled(result);
 			resolveWait(result);
 		};
 		const onAbort = () => settle("abort");
@@ -517,7 +525,7 @@ function createTestSession(sessionManager: SessionManager, spec: ChildSpec): Age
 }
 
 function nativeStatus(value: ChildStatus): NativeAgentStatus {
-	return value;
+	return value === "killed" ? "interrupted" : value;
 }
 
 function nativeCause(value: TerminationCauseName): NativeTerminationCause {
@@ -745,6 +753,7 @@ export class SubagentControlRuntime {
 	private readonly attemptTerminators = new Map<string, (cause: TerminationCauseName) => Promise<void>>();
 	private readonly delivered = new Set<string>();
 	private readonly deliveredEnvelopes = new Map<string, ResultEnvelope>();
+	private readonly killedChildren = new Set<string>();
 	private nextAttemptId = 1;
 
 	constructor(parent: ParentContext, sessionRoot?: string) {
@@ -834,18 +843,27 @@ export class SubagentControlRuntime {
 		for (;;) {
 			guard = this.native.beginChildAttempt(admitted.identity.path);
 			if (guard.token || guard.refusal?.kind !== "capacityExhausted") break;
-			const waitResult = await waitForExecutionCapacity(retryDelayMs, signals);
+			let killed = false;
+			const waitResult = await waitForExecutionCapacity(retryDelayMs, signals, (result) => {
+				// Snapshot at signal delivery, before a later kill or parent abort can change classification.
+				killed =
+					this.killedChildren.has(admitted.identity.path) ||
+					(result === PARENT_CANCEL_CAUSE && !!taskHooks && signals.abort.reason === "user");
+			});
 			if (waitResult !== "retry") {
 				const stats = { ...EMPTY_STATS, sessionId: admitted.identity.path };
 				if (waitResult === "interrupt" || waitResult === PARENT_CANCEL_CAUSE) {
+					if (killed) this.killedChildren.add(admitted.identity.path);
+					else this.killedChildren.delete(admitted.identity.path);
 					this.native.publishChildStatus(admitted.identity.path, nativeStatus("interrupted"));
 					return {
-						status: "interrupted",
-						...(waitResult === PARENT_CANCEL_CAUSE ? { cause: PARENT_CANCEL_CAUSE } : {}),
+						status: killed ? "killed" : "interrupted",
+						...(waitResult === PARENT_CANCEL_CAUSE && !killed ? { cause: PARENT_CANCEL_CAUSE } : {}),
 						stats,
 						path: admitted.identity.path,
-						envelope:
-							waitResult === PARENT_CANCEL_CAUSE
+						envelope: killed
+							? "Killed. This child cannot be resumed."
+							: waitResult === PARENT_CANCEL_CAUSE
 								? cancelledEnvelope(undefined, admitted.spec, stats)
 								: INTERRUPTED_ENVELOPE,
 						...(effectiveModelId === undefined ? {} : { model: effectiveModelId }),
@@ -886,10 +904,18 @@ export class SubagentControlRuntime {
 		let activeSessionManager: SessionManager | undefined;
 		let termination: TerminationCauseName | undefined;
 		let terminating: Promise<void> | undefined;
+		let terminationWasKill = false;
 		let unsubscribe: (() => void) | undefined;
 		let skillReport: AttemptSkillReport = {};
 		const terminate = async (cause: TerminationCauseName): Promise<void> => {
-			if (terminating) return terminating;
+			if (terminating) {
+				if (!terminationWasKill) this.killedChildren.delete(admitted.identity.path);
+				return terminating;
+			}
+			if (taskHooks && cause === "abort" && signals.abort.reason === "user")
+				this.killedChildren.add(admitted.identity.path);
+			// Preserve the first termination's classification across late kill requests.
+			terminationWasKill = this.killedChildren.has(admitted.identity.path);
 			termination = cause;
 			terminating = (async () => {
 				try {
@@ -1132,11 +1158,15 @@ export class SubagentControlRuntime {
 				};
 			if (status === "interrupted")
 				return {
-					status,
-					...(termination === PARENT_CANCEL_CAUSE ? { cause: PARENT_CANCEL_CAUSE } : {}),
+					status: this.killedChildren.has(admitted.identity.path) ? "killed" : status,
+					...(termination === PARENT_CANCEL_CAUSE && !this.killedChildren.has(admitted.identity.path)
+						? { cause: PARENT_CANCEL_CAUSE }
+						: {}),
 					stats,
 					path: admitted.identity.path,
-					envelope,
+					envelope: this.killedChildren.has(admitted.identity.path)
+						? "Killed. This child cannot be resumed."
+						: envelope,
 					sessionFile,
 					...(effectiveModelId === undefined ? {} : { model: effectiveModelId }),
 					...(effectiveThinking === undefined ? {} : { thinking: effectiveThinking }),
@@ -1167,14 +1197,18 @@ export class SubagentControlRuntime {
 			}
 			if (status === "interrupted")
 				return {
-					status,
-					...(termination === PARENT_CANCEL_CAUSE ? { cause: PARENT_CANCEL_CAUSE } : {}),
+					status: this.killedChildren.has(admitted.identity.path) ? "killed" : status,
+					...(termination === PARENT_CANCEL_CAUSE && !this.killedChildren.has(admitted.identity.path)
+						? { cause: PARENT_CANCEL_CAUSE }
+						: {}),
 					stats,
 					path: admitted.identity.path,
 					envelope:
-						termination === PARENT_CANCEL_CAUSE
+						termination === PARENT_CANCEL_CAUSE && !this.killedChildren.has(admitted.identity.path)
 							? cancelledEnvelope(session, admitted.spec, stats)
-							: INTERRUPTED_ENVELOPE,
+							: this.killedChildren.has(admitted.identity.path)
+								? "Killed. This child cannot be resumed."
+								: INTERRUPTED_ENVELOPE,
 					sessionFile: session?.sessionFile,
 					...(effectiveModelId === undefined ? {} : { model: effectiveModelId }),
 					...(effectiveThinking === undefined ? {} : { thinking: effectiveThinking }),
@@ -1356,27 +1390,34 @@ export class SubagentControlRuntime {
 	getDeliveredResult(pathValue: string): ResultEnvelope | undefined {
 		return this.deliveredEnvelopes.get(pathValue);
 	}
-	findChild(pathValue: string): ChildIdentity | undefined {
-		return this.native.listChildren().find((child) => child.path === pathValue);
+	findChild(pathValue: string): (Omit<ChildIdentity, "status"> & { status: ChildStatus }) | undefined {
+		return this.listChildren().find((child) => child.path === pathValue);
 	}
 
-	listChildren(): readonly ChildIdentity[] {
-		return this.native.listChildren();
+	listChildren(): readonly (Omit<ChildIdentity, "status"> & { status: ChildStatus })[] {
+		return this.native.listChildren().map((child) => ({
+			...child,
+			status: child.status === "interrupted" && this.killedChildren.has(child.path) ? "killed" : child.status,
+		}));
 	}
 
-	async interruptChild(pathValue: string): Promise<boolean> {
+	async killChild(pathValue: string): Promise<boolean> {
 		const running = [...this.runningAttempts.values()].find(
 			(attempt) =>
 				attempt.child.identity.path === pathValue &&
 				(attempt.status === "running" || attempt.status === "continued"),
 		);
 		if (!running) return false;
+		// Native interruption can be final before the JS attempt is retired. Do not relabel it.
+		if (this.findChild(pathValue)?.status !== "interrupted") this.killedChildren.add(pathValue);
 		await this.terminateChildAttempt(running, "interrupt");
 		return true;
 	}
 
 	subscribe(pathValue: string, callback: (status: ChildStatus) => void): void {
-		this.native.subscribeChildStatus(pathValue, callback);
+		this.native.subscribeChildStatus(pathValue, (status) =>
+			callback(status === "interrupted" && this.killedChildren.has(pathValue) ? "killed" : status),
+		);
 	}
 
 	private async terminateRunningAttempt(running: RunningAttempt, cause: TerminationCauseName): Promise<void> {

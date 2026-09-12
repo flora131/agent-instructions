@@ -15,7 +15,7 @@ import type { MarkdownTransformer } from "../../core/extensions/types.ts";
 import type { FullscreenExitOutput, MermaidRenderingMode } from "../../core/settings-manager.ts";
 import type { EarlyInputSnapshot } from "../../main-early-input.ts";
 import { readClipboardText } from "../../utils/clipboard.ts";
-import { renderEngineDiagnostic } from "../interactive-engine/engine-diagnostic-view.ts";
+import { renderEngineDiagnostic } from "../interactive-engine/engine-diagnostic-view.js";
 import { attachInteractiveEngineHost } from "../interactive-engine/extension-ui-bridge.ts";
 import type { RemoteToolExecutionComponent } from "../interactive-engine/remote-renderer.ts";
 import { KeybindingsReloadCoordinator } from "../rpc/rpc-keybindings-reload.ts";
@@ -289,6 +289,7 @@ export class InteractiveModeBase {
 	interactiveEngineShortcutHandler: ((data: string) => boolean) | undefined;
 
 	disposeInteractiveEngineHost: () => void = () => {};
+	disposeMarkitDiagnosticSink: () => void = () => {};
 
 	version: string;
 
@@ -582,6 +583,7 @@ export class InteractiveModeBase {
 		// `resume-hint` keeps whatever the alternate screen held: the prior
 		// shell contents reappear and shutdown prints only the resume line.
 		this.ui.stop({ preserveScreen: isFullscreen && fullscreenExitOutput === "resume-hint" });
+		this.disposeMarkitDiagnosticSink();
 	}
 
 	declare options: InteractiveModeOptions;
@@ -684,7 +686,7 @@ export class InteractiveModeBase {
 			(diagnostic) =>
 				renderEngineDiagnostic(diagnostic, {
 					stopWorkingLoader: () => this.stopWorkingLoader(),
-					showStatus: (message) => this.showStatus(message),
+					showStatus: (message, persist) => this.showStatus(message, persist),
 					showError: (message) => this.showError(message),
 				}),
 			{

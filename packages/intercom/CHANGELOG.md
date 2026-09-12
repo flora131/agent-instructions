@@ -4,6 +4,29 @@ All notable changes to the `pi-intercom` extension will be documented in this fi
 
 ## [Unreleased]
 
+## [0.9.19-alpha.6] - 2026-09-11
+
+### Fixed
+
+- A broker refusal received by an already-registered client now rejects that client's outstanding requests with the broker's own reason instead of being discarded. Previously the refusal was delivered to a listener that `connect()` removes after registration, so pipelined work — notably the session-directory barrier behind workflow route updates — waited out its five-second timer and surfaced `List sessions timeout` or a generic disconnect. Reasons such as `Pending-stage route is not authorized` now reach callers as non-recoverable errors, and the `disconnected` event carries the same cause. Pre-registration rejection, transport-disconnect classification, and explicit shutdown are unchanged.
+
+## [0.9.19-alpha.4] - 2026-09-10
+
+### Fixed
+
+- Route lazy initialization, event-relay, and rejected-candidate cleanup diagnostics through the owning interactive session's notifications, including during shutdown, instead of leaking console output and stacks. Retryable initialization uses warning color; non-interactive console diagnostics (including RPC), original failures, acknowledgements, and retry behavior are preserved even when an error cannot be rendered.
+- `send` and `ask` to a working subagent or live workflow stage are delivered as a priority interrupt: the recipient's active model call or cancellable tool is cancelled immediately and the message is processed in the same task instead of waiting for the next natural turn or being refused as busy. Completed side effects are not undone or replayed. Arrival order holds across persistence retries for both receiver kinds; duplicate suppression, exact reply correlation, terminal-child and closed-stage rejection, unrelated headless protection, and group restrictions are unchanged.
+- A cancelled turn that produced no reply no longer consumes the pending ask's reply context, so replies to consecutive asks stay correlated with the right sender and message.
+
+## [0.9.19-alpha.3] - 2026-09-09
+
+### Fixed
+
+- Session listings display host-provided live/terminal reply capability separately from idle activity. Closed workflow generations publish `closed` with post-mortem-only or unavailable reply routing rather than remaining misleadingly idle; group isolation and ask rejection rules are unchanged.
+- Canonical workflow-path asks correlate replies from connected retained stages even after their active roster rows disappear. Closed stages without post-mortem routing reject asks with lifecycle guidance rather than attempting a model turn.
+
+## [0.9.19-alpha.2] - 2026-09-08
+
 ### Breaking Changes
 
 - Removed the model-facing `retryToken` parameter and result field. Callers must stop carrying tokens between calls; Intercom now owns bounded reconnect retries. Each new call remains a distinct operation, including identical messages.

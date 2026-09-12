@@ -9,6 +9,7 @@ import type { PendingStageMessageRequest } from "../../packages/intercom/broker/
 import { createMessageReader, writeMessage } from "../../packages/intercom/broker/framing.js";
 import { getBrokerSocketPath } from "../../packages/intercom/broker/paths.js";
 import { getJitiCliPath } from "../../packages/intercom/broker/spawn.js";
+import { isRecoverableIntercomDisconnect } from "../../packages/intercom/recoverable-disconnect.js";
 import type { BrokerMessage, ClientMessage, Message } from "../../packages/intercom/types.js";
 
 const repoRoot = resolve(import.meta.dirname, "../..");
@@ -1441,6 +1442,69 @@ test("broker rejects same-group replacement of an active pending route owner", a
 		false,
 	);
 	assert.equal(brokerOutput.includes(canary), false);
+});
+
+// Regression for #2990.
+test("a refused production route settles its pipelined list barrier with the broker's authorization reason", async () => {
+	// Regression: the broker refuses an unauthorized route update with the same
+	// `registration_failed` frame it uses before registration, then ends the socket
+	// and drops everything pipelined behind it. An established client must surface
+	// that reason to the barrier instead of letting it expire on the five-second
+	// list timer or reporting a recoverable transport disconnect.
+	const runId = "0c8f4d21-6b3a-4d9e-8f41-72d5a1c0b9e3";
+	const group = `workflow:${runId}`;
+	const stages = [
+		{
+			stageId: "reviewer-id",
+			stageName: "reviewer",
+			target: `workflow:${runId}/reviewer-id`,
+			lifecycle: "pending" as const,
+			routeEligible: true,
+			group,
+		},
+	];
+	const owner = new IntercomClient();
+	const intruder = new IntercomClient();
+	for (const client of [owner, intruder]) {
+		realClients.add(client);
+		client.on("error", () => {});
+	}
+	await owner.connect(productionRegistration("capability-conflict-owner", group));
+	await intruder.connect(productionRegistration("capability-conflict-intruder", group));
+
+	owner.registerPendingStageRoute(runId, group, "owner-capability", stages);
+	await owner.listSessions();
+
+	const intruderDisconnect = Promise.withResolvers<unknown>();
+	intruder.once("disconnected", (error: unknown) => intruderDisconnect.resolve(error));
+	intruder.registerPendingStageRoute(runId, group, "different-capability", stages);
+	const refusal = await intruder.listSessions().then(
+		() => undefined,
+		(error: unknown) => error,
+	);
+	assert.ok(refusal instanceof Error);
+	assert.equal(refusal.message, "Pending-stage route is not authorized");
+	assert.equal(isRecoverableIntercomDisconnect(refusal), false);
+	assert.equal(intruder.isConnected(), false);
+	const disconnectCause = await intruderDisconnect.promise;
+	assert.ok(disconnectCause instanceof Error);
+	assert.equal(disconnectCause.message, "Pending-stage route is not authorized");
+	assert.equal(isRecoverableIntercomDisconnect(disconnectCause), false);
+
+	owner.registerPendingStageRoute(runId, group, "owner-capability", stages);
+	await owner.listSessions();
+	assert.equal(owner.isConnected(), true);
+	assert.deepEqual((await owner.listDirectory()).workflowStages, [
+		{
+			kind: "workflow-stage",
+			runId,
+			stageId: "reviewer-id",
+			stageName: "reviewer",
+			target: `workflow:${runId}/reviewer-id`,
+			lifecycle: "pending",
+			group,
+		},
+	]);
 });
 
 test("broker rejects an attacker-first live route without the workflow capability", async () => {

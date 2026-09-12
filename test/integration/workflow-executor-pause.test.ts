@@ -7,7 +7,6 @@ import { isDurableWorkflowResumable } from "../../packages/workflows/src/durable
 import { toolControlRegistry } from "../../packages/workflows/src/engine/run-tool-control-registry.js";
 import { createExtensionRuntime } from "../../packages/workflows/src/extension/runtime.js";
 import {
-	workflowInterruptAction,
 	workflowPauseAction,
 	workflowResumeAction,
 } from "../../packages/workflows/src/extension/workflow-tool-control.js";
@@ -25,7 +24,7 @@ afterEach(() => {
 });
 
 // PR #2885: the public resume surface must adopt a paused live owner, even before registration.
-for (const action of ["pause", "interrupt"] as const) {
+for (const action of ["pause"] as const) {
 	for (const phase of ["before-turn", "admission", "completion"] as const) {
 		test(`${action}/${phase}: public resume preserves the owner and DBOS pause durability`, async () => {
 			const sdk = createMockSdk();
@@ -68,11 +67,11 @@ for (const action of ["pause", "interrupt"] as const) {
 			const owner = toolControlRegistry.runControl(runId);
 			try {
 				if (phase !== "before-turn") await entered.promise;
-				const paused = await (action === "pause" ? workflowPauseAction : workflowInterruptAction)({
+				const paused = await workflowPauseAction({
 					action,
 					runId,
 				});
-				assert.ok(paused.action === "pause" || paused.action === "interrupt");
+				assert.ok(paused.action === "pause");
 				assert.equal(paused.status, "paused");
 				assert.doesNotMatch(paused.message, /quit|cannot be resumed/);
 				release.resolve();

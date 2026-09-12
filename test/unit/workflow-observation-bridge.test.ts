@@ -10,7 +10,7 @@ import {
 } from "../../packages/workflows/src/extension/lifecycle-notifications.js";
 import { createWorkflowObservation } from "../../packages/workflows/src/extension/workflow-observation.js";
 import { quitRun } from "../../packages/workflows/src/runs/background/quit.js";
-import { interruptRun, pauseRun, resumeRun } from "../../packages/workflows/src/runs/background/status.js";
+import { pauseRun, resumeRun } from "../../packages/workflows/src/runs/background/status.js";
 import { createStore } from "../../packages/workflows/src/shared/store.js";
 
 // #2891: activity observes execution rather than notification delivery.
@@ -162,13 +162,13 @@ test("pause is idle and quit remains working until its tool drains", async () =>
 	await admitted.promise;
 	const id = store.runs()[0]!.id;
 	try {
-		assert.equal((await pauseRun(id, { store, actor: "user" })).ok, true);
+		assert.equal((await pauseRun(id, { store })).ok, true);
 		const paused = hub.getSnapshotFrame();
 		assert.ok(paused.availability === "ready");
 		assert.equal(paused.roots[0]?.state, "idle");
 		assert.equal(paused.roots[0]?.reason, "paused");
 		await resumeRun(id, { store, actor: "user" });
-		await interruptRun(id, { store });
+		await pauseRun(id, { store });
 		await resumeRun(id, { store });
 		body.resolve();
 		await toolEntered.promise;
@@ -184,7 +184,7 @@ test("pause is idle and quit remains working until its tool drains", async () =>
 		assert.ok(done.availability === "ready");
 		assert.equal(done.roots[0]?.state, "idle");
 		await new Promise<void>((resolve) => setImmediate(resolve));
-		assert.deepEqual(actions, ["pause", "resume", "interrupt", "resume", "quit"]);
+		assert.deepEqual(actions, ["pause", "resume", "pause", "resume", "quit"]);
 	} finally {
 		body.resolve();
 		release.resolve();
@@ -289,8 +289,8 @@ for (const shape of ["repeated quit after drain", "hydrated run without an execu
 				store.recordRunStart({ id, name: "hydrated", inputs: {}, stages: [], status: "running", startedAt: 1 });
 				const quit = await quitRun(id, { store, actor: "user" });
 				assert.equal(quit.ok, false);
-				const interrupt = await interruptRun(id, { store });
-				assert.equal(interrupt.ok, false);
+				const pause = await pauseRun(id, { store });
+				assert.equal(pause.ok, false);
 			}
 			const settled = hub.getSnapshotFrame();
 			assert.ok(settled.availability === "ready");

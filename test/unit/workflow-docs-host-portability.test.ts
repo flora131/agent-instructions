@@ -17,6 +17,10 @@ const publishedWorkflowDocs = [
 	"packages/coding-agent/docs/workflows/operations.md",
 	"packages/coding-agent/docs/workflows/api-reference.md",
 	"packages/coding-agent/docs/quickstart.md",
+	"packages/coding-agent/docs/getting-started/installation.md",
+	"packages/coding-agent/docs/getting-started/authentication.md",
+	"packages/coding-agent/docs/getting-started/first-session.md",
+	"packages/coding-agent/docs/getting-started/project-instructions.md",
 	"packages/workflows/README.md",
 	"docs/workflow-playbook.md",
 ] as const;
@@ -106,7 +110,7 @@ describe("published workflow examples stay host-portable", () => {
 
 	test("states the both-hosts rule where workflows are authored", async () => {
 		const workflows = await readRepositoryFile("packages/coding-agent/docs/workflows/authoring.md");
-		const quickstart = await readRepositoryFile("packages/coding-agent/docs/quickstart.md");
+		const quickstart = await readRepositoryFile("packages/coding-agent/docs/getting-started/installation.md");
 
 		for (const phrase of [
 			"executes inside whichever host is running Atomic",
@@ -117,7 +121,7 @@ describe("published workflow examples stay host-portable", () => {
 		}
 
 		for (const phrase of ["a package-manager install runs under Node", "Bun is not defined"]) {
-			expect(quickstart, "quickstart.md").toContain(phrase);
+			expect(quickstart, "getting-started/installation.md").toContain(phrase);
 		}
 	});
 });

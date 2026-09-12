@@ -8,17 +8,19 @@ See [AGENTS.md](https://github.com/bastani-inc/atomic/blob/main/AGENTS.md) for a
 git clone https://github.com/bastani-inc/atomic
 cd atomic
 npm ci --ignore-scripts
-npm run typecheck
+npm run build
 ```
 
-This monorepo runs a hybrid toolchain matching upstream pi: npm installs, builds, checks, and runs the vitest suites, while Bun compiles the release binaries and runs `scripts/*.ts`. Avoid yarn and pnpm. Run package scripts from the monorepo root or a package directory, for example:
+Use npm for installs, builds, checks, and Vitest suites. Bun compiles standalone binaries and runs repository TypeScript scripts. Do not use yarn, pnpm, or `bun install`.
+
+Atomic keeps the caller's current working directory when launched from development wrappers.
+
+Run package scripts from the monorepo root or a package directory, for example:
 
 ```bash
 npm run test:unit
 npm run build --workspace=@bastani/atomic
 ```
-
-Atomic keeps the caller's current working directory when launched from development wrappers.
 
 ## Forking / Rebranding
 
@@ -33,7 +35,9 @@ Configure via `package.json`:
 }
 ```
 
-Change `name`, `configDir`, and the `bin` field for your fork. The app-specific `<appName>Config` key is preferred; legacy `piConfig` remains a backwards-compatible shim. Atomic sets these to `atomic`, `.atomic`, and the `atomic` executable. Affects CLI banner, config paths, and environment variable names.
+Change `name`, `configDir`, and the `bin` field for your fork. These control the CLI banner, config paths, and environment variable names. Legacy `piConfig` remains a compatibility fallback.
+
+The app-specific `<appName>Config` key is preferred. Atomic sets these to `atomic`, `.atomic`, and the `atomic` executable.
 
 ## Path Resolution
 
@@ -53,7 +57,22 @@ Never use `__dirname` directly for package assets.
 - Rendered TUI lines with ANSI codes
 - Last messages sent to the LLM
 
+For startup measurements, see the [Windows startup benchmark](https://github.com/bastani-inc/atomic/blob/main/scripts/perf/windows-startup/README.md). Internal timing marks do not prove terminal first paint.
+
+## PDF and engine diagnostics
+
+PDF conversion and engine diagnostics appear as status messages in interactive sessions
+and console output otherwise. Conversion failures also include diagnostic details in
+their error result. Long or noisy diagnostics may be truncated. Interactive sessions keep
+only recent diagnostics; older diagnostics are discarded without removing normal chat.
+
+Diagnostics are displayed as text, not terminal commands. RPC clients receive diagnostics
+separately from JSON responses. No `atomic-engine-stderr.log` file is written; include the
+displayed diagnostic and conversion error when reporting a PDF problem.
+
 ## Startup timing probes
+
+Use the [current startup benchmark instructions](https://github.com/bastani-inc/atomic/blob/main/scripts/perf/windows-startup/README.md).
 
 Use `scripts/perf/windows-startup/benchmark.ts` for Windows startup claims. It launches the ordinary bare `atomic` command through a real 120x40 ConPTY, feeds ordered output into `@xterm/headless`, and timestamps each receive with `process.hrtime.bigint()`. Complete first paint requires the final `Atomic v<version>` identity, the focused `❯ ` editor, and two identical settled frames at least one 80 ms animation interval apart. `dispatchMs` runs from the Enter write to the first byte observed by a raw TCP loopback provider. The headline `spawnToDispatchMs` is exactly `startupCompleteMs + dispatchMs`; `launchToProviderFirstByteMs` separately retains the contiguous launch-to-provider interval that also contains nonce typing and editor-echo wait. The provider request must contain the nonce and the normal tool schemas, and every accepted sample must pass `/workflow list` after the timed response. See [the benchmark README](https://github.com/bastani-inc/atomic/blob/main/scripts/perf/windows-startup/README.md) for artifact preparation, cache profiles, raw records, and summary commands.
 
@@ -80,40 +99,44 @@ The header and editor are mounted before the host waits for `engine-bound`; the 
 
 For package-manager installs under Node 22, Atomic enables Node's persistent module compile cache in both the host and isolated child and flushes the host cache before spawning the child. Explicit `NODE_COMPILE_CACHE` and `NODE_DISABLE_COMPILE_CACHE` settings pass through unchanged. This preserves Node's coverage opt-out and avoids forcing a new cache directory or a first-run-only precompile step. SEA, V8 snapshots, and package-install precompilation were not adopted because Atomic's dynamic ESM, native modules, workers, and first-run requirements do not provide a safe portable boundary.
 
-Compiled releases syntax-minify the shared CJS `app.js` sidecar without identifier minification and compile launchers with bytecode on all eight supported targets, including Windows x64 and ARM64. `bun run scripts/probe-windows-bytecode.ts` pins Bun 1.4.2, cross-compiles `bun-windows-x64-baseline` and `bun-windows-arm64` launchers, and verifies their PE machine types. Atomic observed a Bun 1.3.14 Windows startup crash in `llint_entry`, but Bun 1.4.0 already contains the embedded-bytecode alignment fix ([#26299](https://github.com/oven-sh/bun/pull/26299)) and integrity fallback ([#31961](https://github.com/oven-sh/bun/pull/31961)); the separate Bun 1.4.0 Windows report ([#40302](https://github.com/oven-sh/bun/issues/40302)) concerns a general standalone/JIT segfault and has not been shown to be bytecode-specific. Cross-compilation is not runtime validation: release candidates still require full-archive target-machine coverage of the TUI, workflows, tools, extensions, workers, and native add-ons, with Windows ARM64 validated on ARM64 hardware.
-
 Set `ATOMIC_TIMING=1` only for the older human-readable phase diagnostics. Normal interactive launches print that initial timing group before `interactiveMode.run()` starts the TUI loop, so later marks are not printed during ordinary sessions.
+
+For the current Bun version, Windows-hosted bytecode requirement, and archive-validation caveats, see [Windows interactive startup](/windows#interactive-startup).
 
 ## Testing
 
 ```bash
-npm run typecheck                 # Type-check the monorepo
-npm run test:unit                 # Run unit tests
-npm run test:integration          # Run integration tests
-npm run test:all                  # Run all tests
-npm run test:scripts              # Run the repository script tests under node --test
-# Run the package Vitest suite (Node-hosted)
+npm run check                    # Typechecks and published-shrinkwrap validation
+npm run test:unit                # Root unit tests
+npm run test:integration         # Root integration tests
+npm run test:all                 # All root test projects
+npm run test:scripts             # Repository script tests under Node
 npm run test --workspace=@bastani/atomic -- test/specific.test.ts
 ```
 
-Root Vitest projects install a fresh in-memory durable backend before every test.
-Durability initialization imports the backend and its process owner rather than
-preloading the DBOS factory or the Atomic host. A test that needs host prototype
-installers must import those real modules explicitly rather than depend on a
-side effect of shared setup. Test-local backend overrides still use the factory's
-injection seam, and the next test receives a fresh backend without resetting
-unrelated initialization or warning state. Keep the global artifact/native setups,
-default isolation, worker sizing and timeout budgets unchanged when measuring
-test cost. See the [CI measurements](https://github.com/bastani-inc/atomic/blob/main/docs/ci.md#current-critical-path-measured-september-5-2026)
-for local gains and the remaining hosted Linux/Windows validation.
+CI runs root unit and integration suites on Linux and Windows. See [CI documentation](https://github.com/bastani-inc/atomic/blob/main/docs/ci.md) for job details and release procedures.
 
-CI runs the complete root unit and integration suites in independent Linux and
-Windows jobs. Each builds its own native and package prerequisites; both required
-result gates wait for every work job and reject failures, cancellations and skips.
-This trades duplicated setup for earlier integration feedback without changing
-test isolation, coverage or retries.
+To run only the typechecks:
+
+```bash
+npm run typecheck                 # Type-check the monorepo
+```
+
+### Installed package smoke test
+
+After building, run:
+
+```bash
+ATOMIC_REQUIRE_INSTALLED_NODE_SMOKE=1 npx vitest --run --project integration test/integration/installed-package-node-extensions.test.ts
+```
+
+This checks Node startup and builtin extension loading outside the checkout.
+
+Atomic ships an npm shrinkwrap. After dependency changes, regenerate it with `npm run shrinkwrap:coding-agent` and validate with `npm run check`.
 
 ## Deterministic installs
+
+See [Testing](#testing) for the current shrinkwrap commands.
 
 `@bastani/atomic` ships `packages/coding-agent/npm-shrinkwrap.json` so package-manager installs resolve the same dependency tree every time. Contributors working from a source checkout can validate that the checked-in shrinkwrap is up to date with:
 
@@ -121,13 +144,26 @@ test isolation, coverage or retries.
 bun run scripts/generate-coding-agent-shrinkwrap.mjs --check
 ```
 
-After updating dependencies, run `npm ci --ignore-scripts` and `npm audit`, regenerate the published tree with `npm run shrinkwrap:coding-agent`, and run `npm run check`. Audit the development tree as well as production dependencies. Keep the Vitest packages on the same patched 4.x release; updating only its mocker to 5.x does not preserve the runner contract. Compare shared provider SDK pins with upstream Pi, but retain exact versions required by the installed Pi packages rather than assuming Pi's current source manifests match its published packages.
-
 ## Release security boundary
 
-Atomic's release bases remain at the `0.0.0` placeholder. `scripts/cut-release.ts` stamps the real version only on a detached tagged release commit. Tag creation runs an inert signal workflow; a separate `workflow_run` publisher loaded from protected `main` validates the exact upstream repository, source workflow/event/run, tag/SHA, immutable release-base trailers, and deterministic release tree. The privileged trigger checks out only protected workflow code: it treats the tag tree as data, exports it only after deterministic verification, and makes every read-only build verify the protected job's source checksum instead of checking out tag-selected code. Same-run artifact transport failures receive at most one retry after partial-download cleanup and still fail explicitly on the second error; verified source archives are streamed to tar over stdin for portable Windows drive-letter handling. Preparation restores the digest-verified source after documentation validation before producing artifacts. Release-source jobs configure no dependency cache, npm publication has OIDC without repository write, and GitHub Release creation has repository write without OIDC. Never move or recreate a failed release tag or dispatch the privileged publisher. See the repository's [CI/CD pipeline](https://github.com/bastani-inc/atomic/blob/main/docs/ci.md#release-pipeline) for trusted-publisher configuration.
+Follow the [current release pipeline](https://github.com/bastani-inc/atomic/blob/main/docs/ci.md#release-pipeline).
+
+Atomic's release bases remain at the `0.0.0` placeholder. `scripts/cut-release.ts` stamps the real version only on a detached tagged release commit.
 
 ## Project Structure
+
+```text
+packages/
+  ai/           # Atomic's LLM provider fork
+  coding-agent/ # CLI, interactive mode, and core runtime
+  workflows/    # Workflow execution
+  subagents/    # Subagent orchestration
+  mcp/          # MCP adapter
+  web-access/   # Web search and content extraction
+  intercom/     # Cross-session coordination
+```
+
+The bundled companion-package roles are:
 
 ```
 packages/

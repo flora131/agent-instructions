@@ -483,7 +483,10 @@ async function importExtensionModule(
 			: isWindows
 				? { fsCache: getTranspileCacheDir() }
 				: {}),
-		...(isSingleFileBuild ? { virtualModules: await getVirtualModules() } : { alias: getAliases() }),
+		// A first native import can fall back to transformation too. Always share
+		// the live host instead of re-evaluating its graph through source aliases.
+		virtualModules: await getVirtualModules(),
+		...(!isSingleFileBuild ? { alias: getAliases() } : {}),
 	});
 	const specifier = extensionImportSpecifier(extensionPath, cacheToken);
 	// Transformed evaluations are the loads whose repeat cost is the Windows

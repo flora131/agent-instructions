@@ -1,12 +1,18 @@
 import type { Transport } from "@bastani/pi-ai/compat";
 import type { ScrollViewScrollbar } from "@earendil-works/pi-tui";
 
+export interface CompactionModelOverride {
+	reserveTokens?: number;
+	preserve_recent?: number;
+}
+
 export interface CompactionSettings {
 	enabled?: boolean; // default: true
 	reserveTokens?: number; // default: 16384
 	compression_ratio?: number; // default: 0.5 (fraction of compactable context to keep)
 	preserve_recent?: number; // default: 2 (recent context-eligible messages to keep)
 	query?: string; // default: auto-detected from session context
+	modelOverrides?: Record<string, CompactionModelOverride>; // exact "provider/modelId" keys
 }
 
 export interface BranchSummarySettings {
@@ -28,6 +34,7 @@ export interface RetrySettings {
 	enabled?: boolean; // default: true
 	maxRetries?: number; // default: 3
 	baseDelayMs?: number; // default: 2000 (exponential backoff: 2s, 4s, 8s)
+	maxAgentDelayMs?: number; // default: 60000
 	provider?: ProviderRetrySettings;
 }
 

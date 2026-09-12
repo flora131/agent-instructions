@@ -8,7 +8,7 @@ import { DbosDurableBackend } from "../../packages/workflows/src/durable/dbos-ba
 import { setDurableBackend } from "../../packages/workflows/src/durable/factory.js";
 import { createExtensionRuntime } from "../../packages/workflows/src/extension/runtime.js";
 import {
-	workflowInterruptAction,
+	workflowPauseAction,
 	workflowResumeAction,
 } from "../../packages/workflows/src/extension/workflow-tool-control.js";
 import { restoreOnSessionStart, type SessionEntry } from "../../packages/workflows/src/shared/persistence-restore.js";
@@ -105,9 +105,9 @@ test.each([
 		assert.ok("runId" in started);
 		const runId = started.runId;
 		await waitFor(() => waitCalls === 1);
-		const interrupted = await workflowInterruptAction({ action: "interrupt", runId, stageId: "wait-required-ci" });
-		assert.ok(interrupted.action === "interrupt");
-		assert.equal(interrupted.status, "cancelled");
+		const aborted = await workflowPauseAction({ action: "pause", runId, stageId: "wait-required-ci" });
+		assert.ok(aborted.action === "pause");
+		assert.equal(aborted.status, "cancelled");
 		await waitFor(() => store.runs().some((run) => run.id === runId && run.endedAt !== undefined));
 		const source = store.runs().find((run) => run.id === runId)!;
 		assert.equal(source.status, "failed");
@@ -382,7 +382,7 @@ test("tool-only return-mode resume preserves repeated-call ordinals and never re
 	const source = store.runs().find((run) => run.id === started.runId)!;
 	const target = source.toolNodes?.[1];
 	assert.ok(target);
-	await workflowInterruptAction({ action: "interrupt", runId: source.id, stageId: target.id });
+	await workflowPauseAction({ action: "pause", runId: source.id, stageId: target.id });
 	await waitFor(() => source.endedAt !== undefined);
 	assert.deepEqual(source.stages, []);
 	assert.equal(backend.getToolCheckpoint(source.id, target.argsHash), undefined);
@@ -505,7 +505,7 @@ test.each(
 	await waitFor(() => targetCalls === 1);
 	const source = store.runs().find((run) => run.id === started.runId)!;
 	const target = source.toolNodes![1]!;
-	await workflowInterruptAction({ action: "interrupt", runId: source.id, stageId: target.id });
+	await workflowPauseAction({ action: "pause", runId: source.id, stageId: target.id });
 	await waitFor(() => source.endedAt !== undefined);
 	await original.flush(source.id);
 	const legacySdk = createMockSdk();

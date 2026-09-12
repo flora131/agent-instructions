@@ -21,7 +21,7 @@ export async function _preflightPostToolContext(
 	signal?: AbortSignal,
 ): Promise<AgentMessage[]> {
 	const model = this.model;
-	const settings = this.settingsManager.getCompactionSettings();
+	const settings = this.settingsManager.getCompactionSettings(model);
 	if (!model || !settings.enabled) return messages;
 
 	const hardInputLimit = model.contextWindow;

@@ -143,8 +143,8 @@ describe("pi 0.84.2 docs contract — every shipped door is documented", () => {
 		assert.match(settingsTypes, /defaultTools\?:/u);
 	});
 
-	test("themes.md documents leftover search colors and --use-theme", () => {
-		const themes = doc("themes.md");
+	test("themes docs document leftover search colors and --use-theme", () => {
+		const themes = doc("themes.md") + doc("themes/reference.md");
 		assert.match(themes, /### Initial Theme/u);
 		assert.match(themes, /--use-theme light\/dark/u);
 		assert.match(themes, /`searchMatchBg`/u);
@@ -155,8 +155,8 @@ describe("pi 0.84.2 docs contract — every shipped door is documented", () => {
 		assert.match(themes, /falls back to `text`/u);
 	});
 
-	test("usage.md documents --use-theme and the exit output setting", () => {
-		const usage = doc("usage.md");
+	test("usage and CLI reference docs document --use-theme and the exit output setting", () => {
+		const usage = doc("usage.md") + doc("reference/cli.md");
 		assert.match(usage, /\| `--use-theme <name\[\/name\]>` \|/u);
 		assert.match(usage, /`fullscreenExitOutput`/u);
 		assert.match(usage, /"resume-hint"/u);
@@ -187,21 +187,21 @@ describe("pi 0.84.2 docs contract — every shipped door is documented", () => {
 		assert.match(env, /already prefer strict sampling by default/u);
 	});
 
-	test("json.md and rpc.md document usage and endTurn on message_update", () => {
+	test("json.md and the RPC protocol document usage and endTurn on message_update", () => {
 		const json = doc("json.md");
 		assert.match(json, /\{"type":"message_update","usage":\{\.\.\.\}/u);
 		assert.match(json, /`endTurn`/u);
 		assert.match(json, /cumulative provider-reported `usage`/u);
 
-		const rpc = doc("rpc.md");
+		const rpc = doc("rpc/protocol.md");
 		const streaming = rpc.slice(rpc.indexOf("### message_update"), rpc.indexOf("### tool_execution_start"));
 		assert.ok(streaming.includes('"usage"'), "rpc message_update must show the usage field");
 		assert.match(streaming, /"usage":\{\.\.\.\}/u);
 		assert.match(streaming, /`endTurn`/u);
 	});
 
-	test("extensions.md documents expandPromptTemplates on sendUserMessage", () => {
-		const extensions = doc("extensions.md");
+	test("the extension API reference documents expandPromptTemplates on sendUserMessage", () => {
+		const extensions = doc("extensions/api-reference.md");
 		const send = extensions.slice(
 			extensions.indexOf("### pi.sendUserMessage(content, options?)"),
 			extensions.indexOf("### pi.appendEntry"),
@@ -236,6 +236,40 @@ describe("pi 0.84.2 docs contract — every shipped door is documented", () => {
 
 		const readme = packageFile("workflows", "README.md");
 		assert.doesNotMatch(readme, /Ctrl\+Shift\+F searches the attached stage chat/u);
+	});
+
+	test("sessions.md describes branch summarization as optional and prompt-driven", () => {
+		const sessions = doc("sessions.md");
+		// The summary is offered when `/tree` switches away from a branch, and the
+		// default is no summary. Saying Atomic "writes one when a branch is closed"
+		// is wrong about both the trigger and the default.
+		assert.doesNotMatch(sessions, /writes one when a branch is closed/u);
+		assert.match(sessions, /`\/tree`/u);
+		assert.match(sessions, /optionally summarize/u);
+		assert.match(sessions, /no summary/u);
+		assert.match(sessions, /`branchSummary\.skipPrompt`/u);
+
+		// The three documented choices are the three the selector offers, and the
+		// skip-prompt default is the one the settings type declares.
+		const routing = packageFile("coding-agent", "src/modes/interactive/interactive-session-routing.ts");
+		for (const choice of ["No summary", "Summarize", "Summarize with custom prompt"]) {
+			assert.ok(routing.includes(`"${choice}"`), `the branch summary selector must still offer ${choice}`);
+		}
+		const settingsTypes = packageFile("coding-agent", "src/core/settings-types.ts");
+		assert.match(settingsTypes, /skipPrompt\?: boolean; \/\/ default: false/u);
+	});
+
+	test("programmatic.md names mode flags the CLI parser accepts", () => {
+		const programmatic = doc("programmatic.md");
+		assert.match(programmatic, /`atomic --mode json`/u);
+		assert.match(programmatic, /`atomic --mode rpc`/u);
+		// `--json` and `--rpc` are not flags; the parser takes `--mode <value>`.
+		assert.doesNotMatch(programmatic, /`atomic --json`/u);
+		assert.doesNotMatch(programmatic, /`atomic --rpc`/u);
+
+		const args = packageFile("coding-agent", "src/cli/args.ts");
+		assert.match(args, /arg === "--mode" && i \+ 1 < args\.length/u);
+		assert.match(args, /mode === "text" \|\| mode === "json" \|\| mode === "rpc"/u);
 	});
 });
 

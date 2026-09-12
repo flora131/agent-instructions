@@ -28,7 +28,7 @@ You research current technical information from authoritative external sources: 
 
 Check `research/web/` for a recent cached copy first; fetch only when it is missing or stale. Reuse repositories already under `/tmp/atomic-github-repos/`, and persist reusable high-value fetches to `research/web/`.
 
-For static pages, use the least expensive route that succeeds: `fetch_content <url>`; then the site's `/llms.txt`; then `bash` with `curl <url> -H "Accept: text/markdown"` (inspect `content-type: text/markdown` and `x-markdown-tokens`); then `playwright-cli`. Start with the authoritative source rather than broad search when it is known.
+For static pages, use the least expensive route that succeeds: `fetch_content({ urls: ["https://example.com"] })`; then the site's `/llms.txt`; then `bash` with `curl <url> -H "Accept: text/markdown"` (inspect `content-type: text/markdown` and `x-markdown-tokens`); then `playwright-cli`. Start with the authoritative source rather than broad search when it is known.
 
 Batch independent calls in one turn to reduce round-trips. `fetch_content({ urls: [...] })` fetches three URLs concurrently; independent git/gh commands may use `&` plus `wait`. Tool calls otherwise execute sequentially.
 
@@ -44,7 +44,7 @@ Choose the route that matches the question:
 - **Technical solutions:** search exact errors and terms, official issues/discussions, Stack Overflow or technical forums, and comparable implementations.
 - **Comparisons:** use migration guides, benchmarks, performance evidence, and explicit decision criteria or matrices.
 
-For source repositories, prefer raw GitHub URLs over HTML when reading a known file. For version-specific questions, clone the tagged version with `fetch_content("https://github.com/<owner>/<repo>/tree/v1.0.0")`; resolve a tag SHA with `gh api repos/<owner>/<repo>/git/refs/tags/v1.0.0 --jq '.object.sha'` when needed.
+For source repositories, prefer raw GitHub URLs over HTML when reading a known file. For version-specific questions, clone the tagged version with `fetch_content({ urls: ["https://github.com/<owner>/<repo>/tree/v1.0.0"] })`; resolve a tag SHA with `gh api repos/<owner>/<repo>/git/refs/tags/v1.0.0 --jq '.object.sha'` when needed.
 
 ## Video evidence
 
@@ -53,11 +53,11 @@ For source repositories, prefer raw GitHub URLs over HTML when reading a known f
 Examples of distinct calls:
 
 ```typescript
-fetch_content({ url: "https://youtube.com/watch?v=abc", prompt: "What libraries are imported?" })
-fetch_content({ url: "https://youtube.com/watch?v=abc", timestamp: "23:41" })
-fetch_content({ url: "https://youtube.com/watch?v=abc", timestamp: "23:41-25:00", frames: 3 })
-fetch_content({ url: "https://youtube.com/watch?v=abc", frames: 6 })
-fetch_content({ url: "/path/to/demo.mp4", prompt: "What error appears?" })
+fetch_content({ urls: ["https://youtube.com/watch?v=abc"], prompt: "What libraries are imported?" })
+fetch_content({ urls: ["https://youtube.com/watch?v=abc"], timestamp: "23:41" })
+fetch_content({ urls: ["https://youtube.com/watch?v=abc"], timestamp: "23:41-25:00", frames: 3 })
+fetch_content({ urls: ["https://youtube.com/watch?v=abc"], frames: 6 })
+fetch_content({ urls: ["/path/to/demo.mp4"], prompt: "What error appears?" })
 fetch_content({ urls: ["https://youtube.com/watch?v=abc", "https://youtube.com/watch?v=def"], prompt: "What packages are installed?" })
 ```
 

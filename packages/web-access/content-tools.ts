@@ -26,15 +26,16 @@ export function registerContentTools(pi: ExtensionAPI, deps: RegisterContentTool
 	pi.registerTool({
 		name: "code_search",
 		label: "Code Search",
-		description: "Search for code examples, documentation, and API references. Returns relevant code snippets and docs from GitHub, Stack Overflow, and official documentation. Use for any programming question — API usage, library examples, debugging help.",
+		description: "Ask DeepWiki about code, architecture, and APIs in a public GitHub repository. Requires repoName in owner/repo format. No API key required; no web-search fallback.",
 		promptSnippet:
-			"Use for programming/API/library questions to retrieve concrete examples and docs before implementing or debugging code.",
+			"Use for repository-specific programming questions. Supply repoName (owner/repo) and query; use web_search for broader discovery.",
 		parameters: Type.Object({
-			query: Type.String({ description: "Programming question, API, library, or debugging topic to search for" }),
+			repoName: Type.String({ pattern: "^[^\\s/]+/[^\\s/]+$", description: "Public GitHub repository in owner/repo format" }),
+			query: Type.String({ pattern: "\\S", description: "Question about the repository, sent verbatim to DeepWiki" }),
 			maxTokens: Type.Optional(Type.Integer({
 				minimum: 1000,
 				maximum: 50000,
-				description: "Maximum tokens of code/documentation context to return (default: 5000)",
+				description: "Best-effort output limit, approximately four characters per token (default: 5000)",
 			})),
 		}),
 
@@ -61,8 +62,10 @@ export function registerContentTools(pi: ExtensionAPI, deps: RegisterContentTool
 		promptSnippet:
 			"Use to extract readable content from URL(s), YouTube, GitHub repos, or local videos. For video questions, pass the user's exact question in prompt.",
 		parameters: Type.Object({
-			url: Type.Optional(Type.String({ description: "Single URL to fetch" })),
-			urls: Type.Optional(Type.Array(Type.String(), { description: "Multiple URLs (parallel)" })),
+			urls: Type.Array(Type.String({ minLength: 1 }), {
+				minItems: 1,
+				description: 'URLs or local video paths to fetch. Always use an array, even for one URL: {"urls":["https://example.com"]}. Multiple URLs are fetched in parallel.',
+			}),
 			forceClone: Type.Optional(Type.Boolean({
 				description: "Force cloning large GitHub repositories that exceed the size threshold",
 			})),
@@ -80,16 +83,10 @@ export function registerContentTools(pi: ExtensionAPI, deps: RegisterContentTool
 			model: Type.Optional(Type.String({
 				description: "Override the Gemini model for video/YouTube analysis (e.g. 'gemini-2.5-flash', 'gemini-3-flash-preview'). Defaults to config or gemini-3-flash-preview.",
 			})),
-		}),
+		}, { additionalProperties: false }),
 
 		async execute(_toolCallId, params, signal, onUpdate) {
-			const urlList = params.urls ?? (params.url ? [params.url] : []);
-			if (urlList.length === 0) {
-				return {
-					content: [{ type: "text", text: "Error: No URL provided." }],
-					details: { error: "No URL provided" },
-				};
-			}
+			const urlList = params.urls;
 
 			onUpdate?.({
 				content: [{ type: "text", text: `Fetching ${urlList.length} URL(s)...` }],
@@ -173,17 +170,34 @@ export function registerContentTools(pi: ExtensionAPI, deps: RegisterContentTool
 			for (const { url, title, content, error } of fetchResults) {
 				if (error) {
 					output += `- ${url}: Error - ${error}\n`;
+					if (content.length > 0) {
+						output += `\nPartial content (incomplete):\n${content.slice(0, deps.maxInlineContent)}\n`;
+						if (content.length > deps.maxInlineContent) output += "[Partial content truncated...]\n";
+						output += "\n";
+					}
 				} else {
 					output += `- ${title || url} (${content.length} chars)\n`;
 				}
 			}
-			output += `\n---\nUse get_search_content({ responseId: "${responseId}", urlIndex: 0 }) to retrieve full content.`;
-
 			const allFailed = successful === 0;
+			if (allFailed) {
+				const contentStatus = totalChars > 0
+					? "Partial content was retained; extraction is incomplete."
+					: "No content was retrieved.";
+				output = `All ${urlList.length} URL fetch(es) failed. ${contentStatus}\n\n${output}` +
+					"\nCheck each URL and its error above. Retry transient failures individually with " +
+					'fetch_content({ urls: ["<failed URL>"] }). If access is blocked or extraction keeps failing, ' +
+					"try an accessible alternate URL or use web_search to find the information. " +
+					(totalChars > 0
+						? "get_search_content cannot recover the missing content; use the incomplete excerpts above with caution."
+						: "get_search_content cannot recover content from these failed fetches.");
+			} else {
+				output += `\n---\nUse get_search_content({ responseId: "${responseId}", urlIndex: 0 }) to retrieve full content.`;
+			}
 			return {
 				content: [{ type: "text", text: output }],
 				details: {
-					...(allFailed ? { outcome: "all_failed", stage: "fetch", error: `All ${urlList.length} URL fetch(es) failed`, failedUrls: urlList.length } : {}),
+					...(allFailed ? { outcome: "all_failed", stage: "fetch", error: output, failedUrls: urlList.length } : {}),
 					urls: urlList, urlCount: urlList.length, successful, totalChars, responseId,
 				},
 			};

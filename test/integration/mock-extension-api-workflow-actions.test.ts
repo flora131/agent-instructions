@@ -190,10 +190,11 @@ describe("MockExtensionAPI — completions include admin subcommands and workflo
 		const labels = completions.map((c) => c.label);
 
 		// Admin subcommands
-		for (const sub of ["list", "status", "connect", "interrupt", "resume", "inputs"]) {
+		for (const sub of ["list", "status", "connect", "pause", "resume", "inputs"]) {
 			assert.ok(labels.includes(sub));
 		}
 		assert.equal(labels.includes("session"), false);
+		assert.equal(labels.includes("interrupt"), false);
 
 		for (const name of BUILTIN_WORKFLOW_NAMES) assert.ok(labels.includes(name));
 	});

@@ -6,6 +6,54 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.9.19-alpha.6] - 2026-09-11
+
+### Fixed
+
+- Workflow stage routes are no longer republished to the broker when nothing about the route changed. Every store invalidation — including tool events, attachment changes, and notices that leave the route projection identical — previously re-announced every run, so a burst of unrelated activity could produce a thousand redundant broker round trips and surface as `Intercom event relay failed (atomic:workflow-pending-stage-route): List sessions timeout`. Genuine changes still publish immediately and are never debounced, and an announcement that is rejected or that no consumer acknowledges is retried on the next invalidation.
+
+## [0.9.19-alpha.5] - 2026-09-11
+
+### Changed
+
+- Open Claude Design now starts with Anthropic Claude Fable 5.1 at `medium`, then Copilot Fable 5.1 and Codex/Copilot/OpenAI Astra at `medium`; its OpenRouter fallbacks also put Fable 5.1 before Astra.
+- Goal and Ralph orchestration, Ralph research, and design now use Fable 5.1/Fable 5 fallbacks at `medium` and Sol at `high`. Goal reviewers and Ralph reviewers use Astra/Sol at `high`, preserving their role-specific fallback order. Ralph prompt refinement remains unchanged.
+
+## [0.9.19-alpha.4] - 2026-09-10
+
+### Breaking Changes
+
+- Workflow run control uses `pause` across slash commands, tool actions, runtime APIs, and lifecycle control events. Run-level pause preserves resumable work, including nested task-result checkpoint tails and executor-only waits; targeted stage pause retains queued messages, and targeted `ctx.tool` pause cancels only that call. Use `resume` to continue eligible work.
+
+### Added
+
+- Added effective model and thinking identity to graph node cards, preserving thinking and canonical fast model suffixes in narrow rows and restoring identity through durable resume. Live fallback replacements update the model row; the `BACKGROUND` widget is unchanged ([#1859](https://github.com/bastani-inc/atomic/pull/1859) by [@sina85](https://github.com/sina85)).
+
+### Fixed
+
+- Reduced durable `/workflow resume` latency for checkpoint-heavy workflows, especially on Windows, by reusing loaded checkpoint envelopes while preserving original checkpoint decoding errors and completed-output values.
+- Embedded Postgres startup now reports an early process exit with its actual log output instead of waiting out the full readiness timeout. When the retained postmaster exits before accepting connections (a corrupt cluster, a refused setting, or PostgreSQL's administrator refusal on an unrestricted Windows launch), the startup error includes the log tail from the exact retained process; attached servers, shutdown retry semantics, and non-Postgres platforms are unchanged.
+- Embedded Postgres startup no longer treats a competing listener as ready after the owned server exits, and reports process-status query failures without replacing them with a generic timeout.
+
+### Changed
+
+- Incoming Intercom `send` and `ask` messages to a live workflow stage now cancel the stage's current model call or cancellable tool and are processed immediately within the same stage generation, instead of waiting for the next natural model turn. Admitted input survives consumed preflight and overlapping SDK interrupt turns, and persistence retries retain their FIFO position. The stage task is not restarted, completed tool results are kept, and the exact-child foreground detach handshake still runs before cancellation so a child asking its parent stage is not cancelled by its own message.
+
+## [0.9.19-alpha.3] - 2026-09-09
+
+### Fixed
+
+- Local `workflow stages` now uses the same expanded nested graph as exact stage/transcript lookup, matching retained durable inspection instead of listing hidden import boundaries.
+- Runner-created workflow sessions retain their pending-delivery context while receiving the host late-message route, so completed-stage Intercom asks can reopen the exact retained conversation without re-running the workflow.
+- Stage pause now cancels owned active and admitted queued agents and commands before acknowledging completion, including shells admitted during already-in-flight setup. It waits for cleanup without permanently closing message admission; resume releases queued user and Intercom messages and permits fresh work, without reviving cancelled executions or affecting sibling stages.
+- Fixed the `BACKGROUND` workflow list's stage count and `single`/`chain` label to include recursively nested stages as they appear, without double-counting expanded workflow boundaries. Completed, failed, and skipped stages retain their existing progress semantics. Recursive counts share run lookup preparation across cards within each refresh.
+
+### Changed
+
+- Reduced default workflow stage and authored parallel concurrency from 4 to 3, preserving explicit configuration and per-call overrides.
+
+## [0.9.19-alpha.2] - 2026-09-08
+
 ### Added
 
 - Connected workflow activity to the host extension observer stream, independently of lifecycle-notification settings and attribution filters. Root activity is projected from workflow snapshots plus run-qualified runtime execution ownership: nested runs fold into full root replacements; independent execution is distinguished from human waits; runnable handoffs, retries, stop draining, pauses, and acknowledged failures are accounted for without treating historical running stages as execution. Tool-only execution, parallel human-input waits, pause, cancellation drain, and unresolved failures publish root activity replacements; late attachment receives current state, and durable hydration announces recovering before ready. Typed lifecycle hooks cover run, stage, tool, prompt, and control transitions with canonical nested identities; successful-stage completion hooks exclude failed/skipped outcomes, explicit execution replay is tagged, and restored history creates no synthetic completions. Heartbeat hooks follow the existing configured cadence without adding timers or graph nodes. Because the workflows extension publishes root activity to the host, Atomic's built-in Herdr reporter reflects workflow execution and human-input waits in the owning pane; the end-to-end path is covered by an integration test against a fake Herdr CLI ([#2891](https://github.com/bastani-inc/atomic/issues/2891)).

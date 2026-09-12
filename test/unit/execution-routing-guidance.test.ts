@@ -169,8 +169,10 @@ describe("workflow-first execution routing", () => {
 		for (const phrase of [
 			"measurement configuration used for that benchmark result",
 			"not a universal workflow default",
-			"| Security, identity, adversarial challenge, final approval | `max`",
-			"| Codebase mapping, lifecycle analysis, compatibility, planning, synthesis, triage, repair | `high`",
+			"`max` is usually overkill and is not preferred in practice.",
+			"| Coding, implementation, routine fixes | `low` or `medium` |",
+			"| Code review, test design, failure analysis, security, identity, adversarial challenge, final approval | `high` or `xhigh` |",
+			"| Codebase mapping, lifecycle analysis, compatibility, planning, synthesis, triage | `high` |",
 			"| User-impact review and final reporting | `medium`",
 			"| Deterministic checks | No model call",
 		]) {
@@ -199,9 +201,11 @@ describe("workflow-first execution routing", () => {
 		}
 
 		for (const phrase of [
-			"Reserve `max` for a high-cost-of-error role or an explicit user request",
-			"For each primary and fallback, choose a level for the same stage role independently",
-			"A fallback is not a reason to inherit `max` mechanically",
+			"`max` is an exception, not a role default.",
+			"Consider it only when task-specific evidence justifies the extra effort or the user explicitly requests it.",
+			"An explicit request wins over these defaults, but the requested level still must appear in the configured catalog; do not invent an unsupported suffix.",
+			"For each primary and fallback, choose a supported level for the same stage role independently.",
+			"If `xhigh` is unavailable, use `high` rather than automatically promoting to `max`; choose another catalog model or leave the stage unpinned if neither is supported.",
 		]) {
 			expect(modelSelection).toContain(phrase);
 		}
@@ -231,13 +235,25 @@ describe("workflow-first execution routing", () => {
 				"thinking level",
 				"fallback policy",
 				"Stage | Model | Thinking | Role",
-				"high-cost-of-error roles",
+				path.endsWith("reliable-design.md")
+					? "`max` is an exception justified by task-specific evidence or an explicit user request, not a role default"
+					: "high-cost-of-error roles",
 				"deterministic checks as tool nodes with no model call",
 				"fallback",
 				"availableThinkingLevels",
 				"leave the stage unpinned rather than inventing",
 			]) {
 				expect(documentation, path).toContain(phrase);
+			}
+			if (path.endsWith("reliable-design.md")) {
+				// #2847 reconciliation: current upstream model selection supersedes the older role default.
+				for (const phrase of [
+					"Use `low` or `medium` for implementation and routine fixes",
+					"`high` or `xhigh` for code review, test design, failure analysis, and approval decisions when supported",
+					"approve | <catalog fullId> | high | final approval",
+				])
+					expect(documentation, path).toContain(phrase);
+				expect(documentation, path).not.toContain("approve | <catalog fullId> | max | final approval");
 			}
 		}
 	});
@@ -674,7 +690,7 @@ describe("workflow-first execution routing", () => {
 			"see agents working",
 			"chat with and steer each stage",
 			"Inspection and control calls",
-			"`status`, `stages`, `stage`, `transcript`, `answer`, `pause`, `resume`, `interrupt`, `quit`",
+			"`status`, `stages`, `stage`, `transcript`, `answer`, `pause`, `resume`, `quit`",
 			"A heartbeat is a periodic alignment check",
 			"continue a progressing run when no intervention is needed",
 			"Send free-form updates through Intercom",
@@ -859,7 +875,7 @@ describe("workflow-first execution routing", () => {
 		expect(registered?.description).toContain("`notInKnownSet` warning");
 		expect(registered?.description).toContain("settles undeliverable at terminal only if never delivered");
 		expect(registered?.description).toContain("answer pending prompts");
-		expect(registered?.description).toContain("pause/resume/interrupt/quit runs");
+		expect(registered?.description).toContain("pause/resume/quit runs");
 		expect(registered?.description).not.toMatch(/workflow send|action ['"]send['"]/i);
 
 		const readme = await readRepositoryFile("packages/workflows/README.md");
@@ -892,7 +908,7 @@ describe("workflow-first execution routing", () => {
 		const exactGuidance: Record<string, string> = {
 			"packages/intercom/skills/intercom/SKILL.md":
 				"The invocation context can control owned isolated subgroups by exact target, while sibling subgroups and other runs remain isolated.",
-			"packages/coding-agent/docs/intercom.md":
+			"packages/coding-agent/docs/intercom/reference.md":
 				"The invocation group has asymmetric exact-target control over its owned subgroups; ownership does not grant reverse or lateral access.",
 		};
 		for (const [path, sentence] of Object.entries(exactGuidance)) {

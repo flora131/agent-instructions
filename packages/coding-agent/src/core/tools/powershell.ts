@@ -14,6 +14,7 @@ import {
 	type BashToolDetails,
 	type BashToolInput,
 	type BashToolOptions,
+	bashToolSystemPromptContribution,
 	createBashToolDefinition,
 	type ShellToolPresentation,
 	validateExplicitTimeoutSeconds,
@@ -34,9 +35,7 @@ const POWERSHELL_PRESENTATION: ShellToolPresentation = {
 const UTF8_OUTPUT_PREFIX = "try { [Console]::OutputEncoding=[System.Text.Encoding]::UTF8 } catch {}\n";
 export const powershellToolSystemPromptContribution = Object.freeze({
 	snippet: "Execute PowerShell commands.",
-	guidelines: Object.freeze([
-		"You can inspect ATOMIC_* or PI_* environment variables for current model and session details.",
-	] as const),
+	guidelines: bashToolSystemPromptContribution.guidelines,
 } as const);
 export type PowerShellOperations = BashOperations;
 export type PowerShellToolDetails = BashToolDetails;
@@ -110,7 +109,13 @@ export function createPowerShellToolDefinition(cwd: string, options: PowerShellT
 	const definition = createBashToolDefinition(
 		cwd,
 		{
-			...options,
+			exposeSessionEnvironment: options.exposeSessionEnvironment,
+			spawnHook: options.spawnHook,
+			// Preserve lazy session ownership instead of reading an accessor at registration.
+			get taskOwner() {
+				return options.taskOwner;
+			},
+			shellDialect: "powershell",
 			operations: options.operations ?? createLocalPowerShellOperations({ taskOwner: options.taskOwner }),
 		},
 		POWERSHELL_PRESENTATION,
@@ -121,11 +126,11 @@ export function createPowerShellToolDefinition(cwd: string, options: PowerShellT
 		label: "powershell",
 		async execute(...args: Parameters<typeof definition.execute>) {
 			// The internal local adapter is not evidence of a supported owner.
-			validateBashWait(args[1].wait, !!options.operations || !!options.taskOwner);
+			if (args[1].action === undefined) validateBashWait(args[1].wait, !!options.operations || !!options.taskOwner);
 			return definition.execute(...args);
 		},
 		description:
-			"Execute a PowerShell command with optional PTY and foreground/background observation. Owner-bound calls automatically yield after 10s by default without stopping execution. Unbound calls wait for completion; background requires a task owner.",
+			'Execute a PowerShell command or observe an existing task with action: "wait", id, and optional budgetMs. Owner-bound commands automatically yield after 10s by default without stopping execution. Unbound commands wait for completion; background and existing-task waits require a task owner.',
 		promptSnippet: powershellToolSystemPromptContribution.snippet,
 		promptGuidelines:
 			options.exposeSessionEnvironment === false

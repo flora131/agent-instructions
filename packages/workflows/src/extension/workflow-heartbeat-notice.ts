@@ -39,7 +39,7 @@ export function formatWorkflowHeartbeatNoticeText(details: WorkflowHeartbeatEven
 		"first model turn, so workers and reviewers begin with one consistent contract. A valid target outside the known set " +
 		"queues with a `notInKnownSet` warning and settles undeliverable at terminal only if never delivered. " +
 		"Use `ask` once the target has a live session that can reply. " +
-		"Use workflow pause, resume, interrupt, or quit for run control. " +
+		"Use workflow pause, resume, or quit for run control. " +
 		"Continue the progressing run when no intervention is needed, or ask the user when a decision is needed. " +
 		`Inspect: /workflow status ${details.runId}`
 	);

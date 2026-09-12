@@ -8,9 +8,9 @@ import assert from "node:assert/strict";
 import { describe, test } from "vitest";
 import {
 	inspectRun,
-	interruptRun,
 	killAllRuns,
 	killRun,
+	pauseRun,
 	resumeRun,
 	statusRuns,
 } from "../../packages/workflows/src/runs/background/status.js";
@@ -56,7 +56,7 @@ function makeRun(overrides: Partial<RunSnapshot> = {}): RunSnapshot {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// interruptRun
+// pauseRun
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
@@ -280,12 +280,12 @@ describe("killAllRuns", () => {
 		assert.equal(results.length, 0);
 	});
 });
-describe("interruptRun", () => {
+describe("pauseRun", () => {
 	test("returns no_active_stages honestly when no stage handle exists", async () => {
 		const st = createStore();
 		st.recordRunStart(makeRun({ id: "r1" }));
 
-		const result = await interruptRun("r1", { store: st });
+		const result = await pauseRun("r1", { store: st });
 
 		assert.equal(result.ok, false);
 		if (!result.ok) assert.equal(result.reason, "no_active_stages");

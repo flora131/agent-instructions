@@ -92,7 +92,7 @@ export interface ControlEvent {
 	recentFailureSummary?: string;
 }
 
-export type SubagentResultStatus = "completed" | "failed" | "interrupted" | "detached";
+export type SubagentResultStatus = "completed" | "failed" | "interrupted" | "killed" | "detached";
 export type SubagentRunMode = "single" | "parallel";
 
 export interface SubagentResultIntercomChild {
@@ -128,7 +128,7 @@ export interface SubagentResultIntercomPayload {
 export interface AgentProgress {
 	index: number;
 	agent: string;
-	status: "pending" | "running" | "completed" | "failed" | "detached" | "interrupted";
+	status: "pending" | "running" | "completed" | "failed" | "detached" | "interrupted" | "killed";
 	activityState?: ActivityState;
 	task: string;
 	/** Effective model for this live attempt, including fallback changes. */
@@ -176,7 +176,7 @@ export interface ModelAttempt {
 	usage?: Usage;
 }
 
-export type SubagentAttemptStatus = "ok" | "error" | "skipped" | "interrupted" | "continued";
+export type SubagentAttemptStatus = "ok" | "error" | "skipped" | "interrupted" | "killed" | "continued";
 
 export interface SingleResult {
 	taskResponse?: import("../../../coding-agent/src/core/tasks/contracts.js").ModelSingleResponse;
@@ -217,7 +217,14 @@ export interface SingleResult {
 /** Read-only control-plane snapshot for status cards; text output stays unchanged. */
 export interface SubagentStatusGroup {
 	parentPath: string;
-	children: Array<ChildIdentity & { sessionFile?: string; model?: string; thinking?: string }>;
+	children: Array<
+		Omit<ChildIdentity, "status"> & {
+			status: ChildIdentity["status"] | "killed";
+			sessionFile?: string;
+			model?: string;
+			thinking?: string;
+		}
+	>;
 }
 
 export interface Details {

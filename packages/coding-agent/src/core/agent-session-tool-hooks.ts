@@ -107,6 +107,7 @@ export function _installAgentNextTurnRefresh(this: AgentSession): void {
 		const shouldStop = (await previousShouldStopAfterTurn?.(turn, signal)) ?? false;
 		this._stopAfterTurnBlockedContinuation = shouldStop;
 		await settleFallbackAfterTurn(this, turn, terminatingBatch);
+		if (this._subagentMessageAdmission) await this._subagentMessageAdmission.waitForPendingDeliveries();
 		return shouldStop;
 	};
 

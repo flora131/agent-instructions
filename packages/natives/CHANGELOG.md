@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [0.9.19-alpha.4] - 2026-09-10
+
+### Fixed
+
+- The retained embedded Postgres process now starts on Windows administrative accounts with the same restricted access token `pg_ctl` applies: the Administrators and Power Users SIDs become deny-only, every privilege except the ones PostgreSQL keeps is deleted, and the current user is re-added to the token's default DACL so the postmaster's own child processes remain creatable. The exact process handle from `CreateProcessAsUserW` stays the retained lease, preserving exact-handle fast shutdown, retry-after-timeout ownership, and release-without-kill semantics. Non-administrative Windows accounts keep the previous spawn path unchanged, and Unix privilege handling is untouched.
+- Preserved log-file stdout/stderr and closed stdin on regular Windows launches, released the child thread handle after each retained spawn, and honored Unicode case-insensitive environment overrides. Restricted launches now clean up partially acquired standard handles and propagate failed process observations instead of reporting the process as still running.
+- Preserved executable lookup through `PATH` and relative paths for administrative Windows Postgres launches, including child environment overrides. Embedded NUL characters in launch paths, arguments, or environment entries are rejected before a process starts instead of truncating inputs or injecting environment variables.
+- Fixed `.cmd` and `.bat` launchers with arguments on administrative Windows accounts, including paths with spaces. Restored batch-specific argument quoting and unsafe-input rejection without changing reduced privileges or direct `postgres.exe` launches.
+- Preserved ordinary argument quoting for explicit Windows command interpreters and safe `\\?\` working-directory handling on administrative launches. Concurrent restricted retained children inherit only their selected standard streams, and unrelated concurrent commands cannot keep those log files open after their owners finish.
+
+## [0.9.19-alpha.2] - 2026-09-08
+
 ### Added
 
 - Added replay-safe model and reasoning activity reports and retained model and thinking fields on task snapshots, including settled tasks.

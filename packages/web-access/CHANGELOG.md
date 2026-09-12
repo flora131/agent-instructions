@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- `fetch_content` now shows each URL's error and recovery steps when an entire batch fails, instead of hiding the causes behind a generic failure count. Retained partial content is shown as incomplete excerpts rather than incorrectly reported as absent.
+
+## [0.9.19-alpha.6] - 2026-09-11
+
+### Breaking Changes
+
+- `fetch_content` now requires a nonempty `urls` array of nonempty strings for both single and batch requests. Replace `{ url: "..." }` with `{ urls: ["..."] }`. Invalid argument shapes and unrecognized fields are rejected before fetching; the `get_search_content` selectors are unchanged.
+- `code_search` now requires a single `repoName` in `owner/repo` format alongside `query`. It asks DeepWiki about that public GitHub repository instead of searching Exa, with no Exa fallback. Update query-only calls to include the repository. No API key is required; `maxTokens` remains a best-effort local output bound. Unrelated `web_search` providers are unchanged.
+
 ## [0.9.14] - 2026-08-19
 
 Cumulative release of the `0.9.14-alpha.3` – `0.9.14-alpha.4` prereleases. The summary below covers the user-visible outcome of that work; the per-change detail remains in the prerelease sections below.

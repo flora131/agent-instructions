@@ -283,14 +283,14 @@ describe("tool run-control actions", () => {
 		assert.equal(store.runs().find((run) => run.id === runId)?.status, "running");
 	});
 
-	test.sequential("makeExecuteWorkflowTool interrupt without runId defaults to the active run", async () => {
-		const runId = testRunId(`interrupt-tool-active-${Date.now()}`);
+	test.sequential("makeExecuteWorkflowTool pause without runId defaults to the active run", async () => {
+		const runId = testRunId(`pause-tool-active-${Date.now()}`);
 		store.recordRunStart(makeInflightRun(runId));
 		const handler = makeToolHandler();
 
-		const result = await handler({ action: "interrupt" }, {} as never);
+		const result = await handler({ action: "pause" }, {} as never);
 
-		assert.equal(result.action, "interrupt");
+		assert.equal(result.action, "pause");
 		const r = result as {
 			action: string;
 			status: string;
@@ -299,7 +299,7 @@ describe("tool run-control actions", () => {
 		};
 		assert.equal(r.status, "noop");
 		assert.equal(r.runId, runId);
-		assert.match(r.message, /No active stages to interrupt/);
+		assert.match(r.message, /No active stages to pause/);
 		assert.equal(store.runs().find((run) => run.id === runId)?.status, "running");
 	});
 

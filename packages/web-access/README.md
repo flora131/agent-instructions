@@ -18,7 +18,7 @@ https://github.com/user-attachments/assets/cac6a17a-1eeb-4dde-9818-cdf85d8ea98f
 
 **Video Understanding** — Point it at a YouTube video or local screen recording and ask questions about what's on screen. Full transcripts, visual descriptions, and frame extraction at exact timestamps.
 
-**Smart Fallbacks** — Every capability has a fallback chain. Search tries Exa, then Perplexity, then You.com, then Gemini API, then Gemini Web when browser cookies are enabled. YouTube tries Gemini Web when enabled, then API, then Perplexity. Blocked pages retry through Jina Reader and Gemini extraction. Something always works.
+**Smart Fallbacks** — Every capability has a fallback chain. Search tries Exa, then Perplexity, then You.com (with key), then Gemini API, then Gemini Web when browser cookies are enabled. YouTube tries Gemini Web when enabled, then API, then Perplexity. Blocked pages retry through Jina Reader and Gemini extraction. Repository-specific `code_search` uses DeepWiki only. Something always works.
 
 **GitHub Cloning** — GitHub URLs are cloned locally instead of scraped. The agent gets real file contents and a local path to explore, not rendered HTML.
 
@@ -59,16 +59,16 @@ Requires Pi v0.37.3+.
 web_search({ query: "TypeScript best practices 2025" })
 
 // Fetch a page
-fetch_content({ url: "https://docs.example.com/guide" })
+fetch_content({ urls: ["https://docs.example.com/guide"] })
 
 // Clone a GitHub repo
-fetch_content({ url: "https://github.com/owner/repo" })
+fetch_content({ urls: ["https://github.com/owner/repo"] })
 
 // Understand a YouTube video
-fetch_content({ url: "https://youtube.com/watch?v=abc", prompt: "What libraries are shown?" })
+fetch_content({ urls: ["https://youtube.com/watch?v=abc"], prompt: "What libraries are shown?" })
 
 // Analyze a screen recording
-fetch_content({ url: "/path/to/recording.mp4", prompt: "What error appears on screen?" })
+fetch_content({ urls: ["/path/to/recording.mp4"], prompt: "What error appears on screen?" })
 ```
 
 ## Tools
@@ -101,34 +101,41 @@ web_search({ query: "...", includeContent: true })
 
 ### code_search
 
-Search for code examples, documentation, and API references via Exa MCP. No API key required. Uses Exa's code-context MCP tool when available and falls back to code-focused web search when that tool is unavailable.
+Ask questions about code, architecture, and APIs in a public GitHub repository via DeepWiki MCP at `https://mcp.deepwiki.com/mcp`. No API key or local MCP configuration is required. DeepWiki availability and repository indexing determine which questions it can answer.
 
 ```typescript
-code_search({ query: "React useEffect cleanup pattern" })
-code_search({ query: "Express middleware error handling", maxTokens: 10000 })
+code_search({ repoName: "facebook/react", query: "How does useEffect cleanup work?" })
+code_search({ repoName: "expressjs/express", query: "How is middleware error handling implemented?", maxTokens: 10000 })
 ```
 
 | Parameter | Description |
 |-----------|-------------|
-| `query` | Programming question, API, library, or debugging topic |
-| `maxTokens` | Maximum tokens of context to return (default: 5000, max: 50000) |
+| `repoName` | Required single public GitHub repository in `owner/repo` format, not a URL or list |
+| `query` | Required nonempty question about that repository, sent verbatim |
+| `maxTokens` | Optional best-effort output bound, approximately four characters per token, plus a truncation notice (default: 5000, range: 1000–50000) |
+
+Migration: existing `code_search({ query: ... })` calls must now include `repoName`. The query is sent as DeepWiki's `ask_question` question. `maxTokens` limits the returned text locally, not DeepWiki's generation. Requests have a 60-second deadline and honor caller cancellation. Errors and empty responses are reported without falling back to Exa. Use `web_search` for broader discovery or when a repository is unavailable; its providers and settings are unchanged.
 
 ### fetch_content
 
 Fetch URL(s) and extract readable content as markdown. Automatically detects and handles GitHub repos, YouTube videos, PDFs, local video files, and regular web pages.
 
+Use the lowercase `urls` field with a nonempty array of strings, even for one URL. Replace legacy `{ url: "..." }` calls with `{ urls: ["..."] }`. Missing targets, empty arrays, empty strings, object entries, and unrecognized fields are rejected before fetching. Atomic's standard argument normalization can convert a scalar `urls` string into a one-item array, but prompts and integrations should always send the documented array form.
+
+See [Atomic's fetch argument guide](../coding-agent/docs/web-access.md) for examples and validation troubleshooting.
+
 ```typescript
-fetch_content({ url: "https://example.com/article" })
-fetch_content({ urls: ["url1", "url2", "url3"] })
-fetch_content({ url: "https://github.com/owner/repo" })
-fetch_content({ url: "https://youtube.com/watch?v=abc", prompt: "What libraries are shown?" })
-fetch_content({ url: "/path/to/recording.mp4", prompt: "What error appears on screen?" })
-fetch_content({ url: "https://youtube.com/watch?v=abc", timestamp: "23:41-25:00", frames: 4 })
+fetch_content({ urls: ["https://example.com/article"] })
+fetch_content({ urls: ["https://example.com/one", "https://example.com/two"] })
+fetch_content({ urls: ["https://github.com/owner/repo"] })
+fetch_content({ urls: ["https://youtube.com/watch?v=abc"], prompt: "What libraries are shown?" })
+fetch_content({ urls: ["/path/to/recording.mp4"], prompt: "What error appears on screen?" })
+fetch_content({ urls: ["https://youtube.com/watch?v=abc"], timestamp: "23:41-25:00", frames: 4 })
 ```
 
 | Parameter | Description |
 |-----------|-------------|
-| `url` / `urls` | Single URL/path or multiple URLs |
+| `urls` | Required nonempty array of URL/path strings, including for a single target |
 | `prompt` | Question to ask about a YouTube video or local video file |
 | `timestamp` | Extract frame(s) — single (`"23:41"`), range (`"23:41-25:00"`), or seconds (`"85"`) |
 | `frames` | Number of frames to extract (max 12) |
@@ -169,11 +176,11 @@ Fallback: Gemini API (Files API upload) → Gemini Web when browser cookies are 
 Use `timestamp` and/or `frames` on any YouTube URL or local video file to extract visual frames as images.
 
 ```typescript
-fetch_content({ url: "...", timestamp: "23:41" })                       // single frame
-fetch_content({ url: "...", timestamp: "23:41-25:00" })                 // range, 6 frames
-fetch_content({ url: "...", timestamp: "23:41-25:00", frames: 3 })      // range, custom count
-fetch_content({ url: "...", timestamp: "23:41", frames: 5 })            // 5 frames at 5s intervals
-fetch_content({ url: "...", frames: 6 })                                // sample whole video
+fetch_content({ urls: ["..."], timestamp: "23:41" })                   // single frame
+fetch_content({ urls: ["..."], timestamp: "23:41-25:00" })             // range, 6 frames
+fetch_content({ urls: ["..."], timestamp: "23:41-25:00", frames: 3 })  // range, custom count
+fetch_content({ urls: ["..."], timestamp: "23:41", frames: 5 })        // 5 frames at 5s intervals
+fetch_content({ urls: ["..."], frames: 6 })                            // sample whole video
 ```
 
 Requires `ffmpeg` (and `yt-dlp` for YouTube). Timestamps accept `H:MM:SS`, `MM:SS`, or bare seconds.
@@ -192,7 +199,7 @@ When Readability fails or returns only a cookie notice, the extension retries vi
 web_search(query)
   → Exa (direct API with key, MCP without) → Perplexity → You.com (with key) → Gemini API → Gemini Web (if browser cookies enabled)
 
-fetch_content(url)
+fetch_content({ urls: [url] })
   → Video file?  Gemini API (Files API) → Gemini Web (if browser cookies enabled)
   → GitHub URL?  Clone repo, return file contents + local path
   → YouTube URL? Gemini Web (if browser cookies enabled) → Gemini API → Perplexity
@@ -326,7 +333,7 @@ Rate limits: Perplexity is capped at 10 requests/minute (client-side). Content f
 | `curator-server.ts` | Ephemeral HTTP server with SSE streaming and state machine |
 | `summary-review.ts` | Summary prompt construction, model-based draft generation, and deterministic fallback summary |
 | `exa.ts` | Exa.ai search provider — direct API and MCP proxy, budget tracking |
-| `code-search.ts` | Code/docs search via Exa MCP |
+| `code-search.ts` | Repository questions via DeepWiki MCP |
 | `extract.ts` | URL/file path routing, HTTP extraction, fallback orchestration |
 | `gemini-search.ts` | Search routing across Exa, Perplexity, Gemini API, Gemini Web |
 | `gemini-url-context.ts` | Gemini URL Context + Web extraction fallbacks |

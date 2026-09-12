@@ -1,5 +1,5 @@
 ---
-title: "Background tasks"
+title: "Background and parallel work"
 description: "Run subagents and shell tasks while continuing your conversation"
 ---
 
@@ -25,6 +25,10 @@ Opening `/tasks` is navigation, not an approval request. It does not mark the ag
 
 The agent can choose foreground-first or background observation for each authorized shell or subagent call. Choosing a mode does not require a separate user confirmation and does not relax tool permissions or task ownership.
 
+For ordinary shell commands, leave `wait` out rather than routinely requesting one-second waits. Short waits can background otherwise brief commands and add follow-up calls without speeding up execution. Use explicit background observation when you have independent work to do, and a short budget only when you need control back sooner. Explicit budgets remain supported on every platform.
+
+Keep immediately blocking work local unless a specialist, isolated context, or your explicit delegation request makes a subagent worthwhile. After spawning, continue independent work without duplicating the child's task. Wait when its result becomes a dependency; otherwise rely on completion notices rather than repeated short waits or status polls.
+
 | Call | Observation behavior |
 | --- | --- |
 | `bash` or `powershell` without `wait` | Waits for the owner's command observation budget, normally 10 seconds, then automatically returns if still running. |
@@ -35,7 +39,7 @@ The agent can choose foreground-first or background observation for each authori
 
 If the task finishes during observation, the call returns its terminal result instead. Automatic backgrounding is **observation expiry**, not a slow-task failure, a restart, or a second execution. Use foreground-first observation for a dependency and background observation for independent work. If a dependency yields, wait for its actual completion before using the result.
 
-Shell `budgetMs` accepts finite non-negative milliseconds; zero means no observation delay. It is only valid for foreground observation. A trusted SDK host can override the usual budgets or select `tasks.wait.kind: "until-settled"`; omitted foreground budgets then wait until settlement. Explicit per-call budgets still take precedence.
+Shell `budgetMs` accepts finite non-negative milliseconds; zero means no observation delay. On command launches it belongs inside a foreground `wait`; existing-task `action: "wait"` calls take it at the top level. A trusted SDK host can override the usual budgets or select `tasks.wait.kind: "until-settled"`; omitted foreground budgets then wait until settlement. Explicit per-call budgets still take precedence.
 
 Native observation timers run independently of JavaScript. A zero-budget wait can already be backgrounded by the time a caller reads the next task snapshot, even before JavaScript awaits the result. Synchronous wait registration does not guarantee a visible foreground interval. The elapsed result still identifies the same wait and task; execution continues.
 
@@ -75,7 +79,7 @@ A launch result says **Launched in background**. This records what happened at l
 
 ### Waiting is not restarting
 
-To wait briefly before continuing:
+When specialist delegation is useful and its result is needed next, use foreground observation:
 
 ```ts
 subagent({
@@ -88,11 +92,13 @@ subagent({
 If that observation budget expires, the same child continues in the background. It is not an execution timeout. Observe the task ID returned by the original call:
 
 ```ts
-subagent({ action: "wait", id: taskId, budgetMs: 1000 })
+subagent({ action: "wait", id: taskId })
 subagent({ action: "status", id: taskId })
 ```
 
 Do not launch a duplicate just to retrieve its result. Use the task ID returned at launch. IDs are scoped to the session or workflow stage that owns them.
+
+Foreground subagent launches and explicit `action: "wait"` calls also yield when user steering or an Intercom ask/send is admitted to the waiting parent, in main chat or a live workflow stage. The message stays in the normal delivery queue so the parent can handle it and reply. This releases only observation: children keep running under the same task IDs, and other owners' waits are unaffected.
 
 ### Completion messages
 
@@ -154,17 +160,40 @@ Completed, failed, and stopped tasks retain inspection but do not offer executio
 Top-level model `bash` calls on POSIX and native Windows, and `powershell` calls on native Windows, use the session's task owner. A long command can outlive its foreground observation budget and return a task ID while continuing to run. Its status then appears below the prompt and under **Shells** in `/tasks`. An explicit execution timeout still ends the command; it is separate from observation yielding.
 
 ```ts
-// Background immediately, keeping the command owned and its output retained.
+// Ordinary commands use the owner's observation budget, normally 10 seconds.
+bash({ command: "npm run check" })
+
+// Background a build when you can do independent work while it runs.
 bash({ command: "npm run build", wait: { kind: "background" }, timeout: 600 })
 
-// Foreground-first, automatically yielding after one second if still running.
-bash({ command: "npm test", wait: { kind: "foreground", budgetMs: 1000 }, timeout: 600 })
-
-// Keep the default automatic observation budget.
-bash({ command: "npm run check" })
+// Wait longer when the test result is needed next; execution timeout is separate.
+bash({ command: "npm test", wait: { kind: "foreground", budgetMs: 30000 }, timeout: 600 })
 ```
 
 The shell execution timeout is separate: `timeout` is seconds and defaults to 300, with a maximum of 3600. It continues counting after backgrounding. Choose a timeout appropriate for the command; reducing `budgetMs` does not shorten or extend it. Use the returned task ID to inspect or stop the existing task through `/tasks`. Background completion notifies the parent automatically, so there is no need to launch the command again to collect its result.
+
+Observe an existing task without running its command again:
+
+```ts
+bash({ action: "wait", id: taskId })
+powershell({ action: "wait", id: taskId })
+```
+
+Use the original task ID from the same owning session or workflow stage. Omit `budgetMs` to use the owner's command observation policy, or pass `0` to poll. A wait returns retained output and a yielded or settled observation; settled results include available exit and failure details. While running, successive yielded waits advance through retained output in bounded pages, including after a session reload. A caught-up wait returns no output until more arrives. Settled waits return all retained output again, subject to labelled gaps and truncation, so they may repeat output you have already seen.
+
+Do not combine `action: "wait"` with `command`, `timeout`, `wait`, `env`, `cwd`, or `pty`. Existing-task waits require a supported task owner, even with custom execution adapters. Unknown or foreign IDs are rejected. Cancelling a wait or admitting user/Intercom messages releases observation only, not the command. Waiting never extends the original execution timeout or the owner's lifetime.
+
+### Stop a shell task from a tool call
+
+Use the `kill` tool with the exact task ID returned by `bash` or `powershell`, whether it launched explicitly in the background or automatically yielded:
+
+```ts
+kill({ id: taskId })
+```
+
+The same command works in main and workflow-stage chat. It selects the existing owned shell task; do not supply a process ID, shell name, or another owner's task ID. Unknown, malformed, foreign-owner, and subagent IDs are rejected. `/tasks` stop controls remain available.
+
+The response includes `taskId`, `decision`, `execution`, and `cleanup`. `cancellation-requested` means cancellation was requested, not that termination or cleanup has finished. A repeated call preserves that decision while reporting current state. `already-settled` means the task finished before cancellation and keeps its original outcome. Confirm `execution.kind: "settled"` and `cleanup.kind: "reaped"` before treating termination and cleanup as complete. Cleanup failures remain errors, not successful stops. Output and completion notifications remain available; killing a task does not erase its history.
 
 Shell completions use the same shaded card as subagents, with a retained output preview and available exit code. Nonzero shell exits are shown as failures even though the process itself reached a terminal state. Cancellation shows Stopped. The card and below-prompt count update in the owning main or workflow-stage chat.
 
@@ -174,7 +203,11 @@ Bash calls inside subagent sessions retain their existing execution paths. Witho
 
 ## Lifetime and scope
 
-Background means independent of the current observation, not independent of its owner. Pausing main chat or a workflow-node chat aborts the foreground turn only; already-running background agents and shells keep their identities, output, and later completion. Closing a session cancels its session-owned work. Workflow-stage tasks belong to the stage generation: detaching a pane, pausing, or ending a single model turn does not cancel them. Closing that generation does, without cancelling sibling stages. Closing `/tasks` only disposes the view. Explicit `/tasks` stop and declared execution timeouts remain separate controls.
+Background means independent of the current observation, not independent of its owner. **Pausing main chat** aborts the foreground turn only; its background agents and shells keep running. Detaching a workflow pane, ending a model turn, or closing `/tasks` also leaves owned background work alone.
+
+**Pausing a workflow stage** blocks new task launches immediately and cancels that stage generation's active and admitted queued agents and commands. Queued agents are cancelled before active cancellations free execution slots. Command setup already in flight may briefly start a shell during the pause transition; pause waits for those admissions, cancels the resulting shells, and confirms resource cleanup before completing. A successful pause leaves no owned active or queued executions. Cancellation or cleanup failures are reported instead of confirming pause. Main-chat tasks, sibling stages, and future stage generations are unaffected by a stage-scoped pause.
+
+Pause does not close the stage's message generation: queued user and Intercom messages remain held for resume. Resume permits fresh launches but never resurrects cancelled executions; retained task results remain inspectable. Closing a session or stage generation still cancels its remaining owned work. Explicit `/tasks` stop and declared execution timeouts remain separate controls.
 
 On native Windows, Suspend opens a PowerShell subshell rather than freezing Atomic. Exit the subshell to restore the same session; owned background tasks continue while it is open.
 

@@ -3,13 +3,15 @@ import { Key } from "@earendil-works/pi-tui";
 import { afterEach, beforeEach, describe, test } from "vitest";
 import { InMemoryDurableBackend } from "../../packages/workflows/src/durable/backend.js";
 import { setDurableBackend } from "../../packages/workflows/src/durable/factory.js";
+import { createExtensionRuntime } from "../../packages/workflows/src/extension/runtime.js";
 import {
 	resolveControlNodeTarget,
 	resolveStageTarget,
 	topLevelExpandedSnapshots,
 } from "../../packages/workflows/src/extension/workflow-targets.js";
+import { makeExecuteWorkflowTool } from "../../packages/workflows/src/extension/workflow-tool.js";
+import { renderWorkflowToolContent } from "../../packages/workflows/src/extension/workflow-tool-content.js";
 import {
-	workflowInterruptAction,
 	workflowPauseAction,
 	workflowResumeAction,
 } from "../../packages/workflows/src/extension/workflow-tool-control.js";
@@ -138,6 +140,102 @@ afterEach(() => {
 	store.clear();
 });
 describe("nested workflow stage target routing", () => {
+	test("listed nested canonical IDs round-trip through the public inspection actions", async () => {
+		const previousGuard = process.env.ATOMIC_WORKFLOW_STAGE_SUBAGENT_GUARD;
+		delete process.env.ATOMIC_WORKFLOW_STAGE_SUBAGENT_GUARD;
+		try {
+			const execute = makeExecuteWorkflowTool(createExtensionRuntime({ store }), () => undefined);
+			const listed = await execute({ action: "stages", runId: fixtureRunId("root-run") }, {} as never);
+			assert.equal(listed.action, "stages");
+			if (listed.action !== "stages") assert.fail("expected stage listing");
+			for (const summary of listed.stages) {
+				const detail = await execute({ action: "stage", runId: listed.runId, stageId: summary.id }, {} as never);
+				assert.ok(detail.action === "stage" && detail.stage !== undefined, JSON.stringify(detail));
+				assert.equal(detail.stage.name, summary.name);
+				assert.equal(`${detail.runId}:${detail.stage.id}`, summary.id);
+				const transcript = await execute(
+					{ action: "transcript", runId: listed.runId, stageId: summary.id },
+					{} as never,
+				);
+				assert.ok(transcript.action === "transcript" && transcript.source !== "error");
+				assert.equal(`${transcript.runId}:${transcript.stageId}`, summary.id);
+			}
+			assert.deepEqual(
+				listed.stages.map((item) => item.id),
+				[
+					`${fixtureRunId("child-left")}:shared`,
+					`${fixtureRunId("child-left")}:left-only`,
+					`${fixtureRunId("child-right")}:shared`,
+					`${fixtureRunId("child-right")}:right-only`,
+				],
+			);
+			const text = renderWorkflowToolContent(listed, { action: "stages" });
+			for (const item of listed.stages) assert.ok(text.includes(`(${item.id})`));
+			assert.equal(
+				renderWorkflowToolContent(listed, { action: "stages", format: "json" }),
+				JSON.stringify(listed, null, 2),
+			);
+			const ambiguous = await execute(
+				{ action: "stage", runId: listed.runId, stageId: "duplicate name" },
+				{} as never,
+			);
+			assert.ok(ambiguous.action === "stage");
+			assert.match(ambiguous.error ?? "", /Ambiguous stage identifier/);
+		} finally {
+			if (previousGuard === undefined) delete process.env.ATOMIC_WORKFLOW_STAGE_SUBAGENT_GUARD;
+			else process.env.ATOMIC_WORKFLOW_STAGE_SUBAGENT_GUARD = previousGuard;
+		}
+	});
+
+	test("public inspection preserves fallback boundary identity before materialization and after failed children", async () => {
+		const previousGuard = process.env.ATOMIC_WORKFLOW_STAGE_SUBAGENT_GUARD;
+		delete process.env.ATOMIC_WORKFLOW_STAGE_SUBAGENT_GUARD;
+		try {
+			const rootId = fixtureRunId("fallback-root");
+			const childId = fixtureRunId("fallback-child");
+			const boundary = {
+				...stage("boundary", "  child boundary  "),
+				workflowChildRun: { alias: "child", workflow: "child", runId: childId },
+			};
+			store.recordRunStart(run({ id: rootId, name: "root", stages: [boundary] }));
+			const execute = makeExecuteWorkflowTool(createExtensionRuntime({ store }), () => undefined);
+			const check = async (ids: string[]) => {
+				const listed = await execute({ action: "stages", runId: rootId }, {} as never);
+				assert.ok(listed.action === "stages");
+				assert.deepEqual(
+					listed.stages.map((item) => item.id),
+					ids,
+				);
+				for (const item of listed.stages) {
+					const detail = await execute({ action: "stage", runId: rootId, stageId: item.id }, {} as never);
+					assert.ok(detail.action === "stage" && detail.stage);
+					assert.equal(detail.stage.name, item.name);
+				}
+			};
+			await check(["boundary"]);
+			store.recordRunStart(
+				run({
+					id: childId,
+					name: "child",
+					parentRunId: rootId,
+					parentStageId: boundary.id,
+					rootRunId: rootId,
+					stages: [],
+				}),
+			);
+			await check(["boundary"]);
+			store.recordStageStart(childId, stage("work"));
+			await check([`${childId}:work`]);
+			for (const status of ["completed", "failed", "skipped"] as const) {
+				store.recordStageEnd(rootId, { ...boundary, status });
+				await check(status === "completed" ? [`${childId}:work`] : ["boundary"]);
+			}
+		} finally {
+			if (previousGuard === undefined) delete process.env.ATOMIC_WORKFLOW_STAGE_SUBAGENT_GUARD;
+			else process.env.ATOMIC_WORKFLOW_STAGE_SUBAGENT_GUARD = previousGuard;
+		}
+	});
+
 	test("duplicate child-local stage IDs are ambiguous instead of first-matched", () => {
 		const result = resolveStageTarget(fixtureRunId("root-run"), "shared");
 
@@ -543,9 +641,9 @@ describe("nested workflow stage target routing", () => {
 		assert.equal("runId" in resumed ? resumed.runId : undefined, fixtureRunId("child-right"));
 		assert.deepEqual(rightCalls.resumes, ["continue right"]);
 
-		const interrupted = await workflowInterruptAction({ action: "interrupt", ...target });
-		assert.equal(interrupted.action, "interrupt");
-		assert.equal("runId" in interrupted ? interrupted.runId : undefined, fixtureRunId("child-right"));
+		const pausedAgain = await workflowPauseAction({ action: "pause", ...target });
+		assert.equal(pausedAgain.action, "pause");
+		assert.equal("runId" in pausedAgain ? pausedAgain.runId : undefined, fixtureRunId("child-right"));
 		assert.equal(leftCalls.pauses, 0);
 		assert.equal(rightCalls.pauses, 2);
 	});
@@ -554,7 +652,6 @@ describe("nested workflow stage target routing", () => {
 		const target = { runId: fixtureRunId("root-run"), stageId: "shared" };
 		const expected = `Ambiguous stage identifier "shared" matches: worker:duplicate name (${fixtureRunId("child-left")}/shared), worker:duplicate name (${fixtureRunId("child-right")}/shared)`;
 		const pause = await workflowPauseAction({ action: "pause", ...target });
-		const interrupt = await workflowInterruptAction({ action: "interrupt", ...target });
 		const resume = await workflowResumeAction(
 			{ action: "resume", ...target },
 			{
@@ -569,7 +666,6 @@ describe("nested workflow stage target routing", () => {
 		const transcript = workflowTranscriptResult({ action: "transcript", ...target });
 
 		assert.equal("message" in pause ? pause.message : undefined, expected);
-		assert.equal("message" in interrupt ? interrupt.message : undefined, expected);
 		assert.equal("message" in resume ? resume.message : undefined, expected);
 		assert.equal(inspected.action === "stage" ? inspected.error : undefined, expected);
 		assert.equal(transcript.action === "transcript" ? transcript.entries[0]?.text : undefined, expected);

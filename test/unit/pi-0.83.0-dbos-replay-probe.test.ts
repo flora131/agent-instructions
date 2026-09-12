@@ -29,9 +29,9 @@
  *
  * It is transcribed rather than imported because the SDK does not list
  * `./dist/src/serialization` in its `exports` map, so a deep import of
- * `DBOSJSON` fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`. `superjson` itself is
- * imported rather than reached through hoisting: the root workspace declares it
- * at the 1.13.3 the SDK resolves. Two guards keep the transcription from going
+ * `DBOSJSON` fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`. Resolve `superjson`
+ * from the SDK's dependency context, not the workspace's independently upgraded
+ * development dependency. Two guards keep the transcription from going
  * stale — the SDK version is pinned at the one it was taken against, and the
  * marker constants are read back out of the installed serializer — so a bump
  * that moves either fails here instead of leaving a stale copy running.
@@ -54,9 +54,9 @@
  */
 
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import { join } from "node:path";
-import superjson from "superjson";
-import type { SuperJSONResult } from "superjson/dist/types.js";
+import superjson, { type SuperJSONResult } from "superjson";
 import { Type } from "typebox";
 import { test } from "vitest";
 import { workflow } from "../../packages/workflows/src/authoring/workflow.js";
@@ -79,6 +79,8 @@ type MockSdk = ReturnType<typeof createMockSdk>;
 const MEASURED_DBOS_SDK_VERSION = "4.25.14";
 
 const dbosSdkDir = join(moduleDir(import.meta.url), "../../node_modules/@dbos-inc/dbos-sdk");
+const dbosRequire = createRequire(join(dbosSdkDir, "package.json"));
+const dbosSuperjson: Pick<typeof superjson, "serialize" | "deserialize"> = dbosRequire("superjson");
 
 /**
  * The envelope `DBOSJSON` brands its SuperJSON writes with, so a reader can tell
@@ -101,7 +103,7 @@ function isDbosBrandedSuperjsonRecord(value: unknown): value is SuperJSONResult 
 /** `DBOSJSON.stringify`, transcribed: SuperJSON, branded, then plain JSON. */
 function dbosStringify(value: WorkflowSerializableValue): string {
 	return JSON.stringify({
-		...superjson.serialize(value),
+		...dbosSuperjson.serialize(value),
 		[DBOS_SERIALIZER_MARKER_KEY]: DBOS_SERIALIZER_MARKER_VALUE,
 	});
 }
@@ -110,7 +112,7 @@ function dbosStringify(value: WorkflowSerializableValue): string {
 function dbosParse(text: string): WorkflowSerializableValue {
 	const parsed: unknown = JSON.parse(text);
 	assert.ok(isDbosBrandedSuperjsonRecord(parsed), "a DBOSJSON write must carry the SuperJSON marker");
-	return superjson.deserialize<WorkflowSerializableValue>(parsed);
+	return dbosSuperjson.deserialize<WorkflowSerializableValue>(parsed);
 }
 
 /** One `DBOSJSON` write, and the read the next process performs against it. */
@@ -131,6 +133,16 @@ function committedState(sdk: MockSdk): MockSdk {
 	for (const [key, value] of sdk.state.steps) persisted.state.steps.set(key, dbosPersistedCopy(value));
 	return persisted;
 }
+
+test("workspace SuperJSON round-trips values without replacing the SDK serializer", () => {
+	const value = { created: new Date("2026-09-09T00:00:00Z"), pending: undefined, count: 2n };
+	assert.deepEqual(superjson.deserialize(superjson.serialize(value)), value);
+	assert.notEqual(
+		createRequire(import.meta.url).resolve("superjson"),
+		dbosRequire.resolve("superjson"),
+		"DBOS must retain its own compatible serializer dependency",
+	);
+});
 
 test("the modelled kill boundary is the DBOS serializer, and it keeps an explicitly-undefined property", async () => {
 	// The transcription's two anchors. Pin the SDK version it was taken against,

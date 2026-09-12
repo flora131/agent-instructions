@@ -24,9 +24,10 @@ import {
 	readdirSync as nodeReaddirSync,
 	readFileSync as nodeReadFileSync,
 	rmSync as nodeRmSync,
+	symlinkSync as nodeSymlinkSync,
 	writeFileSync as nodeWriteFileSync,
 } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { Readable } from "node:stream";
@@ -50,7 +51,11 @@ export const makeDirectorySync = nodeMkdirSync;
 export const readDirectorySync = nodeReaddirSync;
 export const readTextSync = nodeReadFileSync;
 export const removePathSync = nodeRmSync;
+export const symlinkSync = nodeSymlinkSync;
 export const writeTextSync = nodeWriteFileSync;
+
+/** Asynchronous removal re-enumerates directories during recursive retries. */
+export const removePath = rm;
 
 /** `Bun.sleep(ms)`. */
 export function sleep(milliseconds: number): Promise<void> {
@@ -93,6 +98,17 @@ export function bunExecutable(): string {
 			"release binaries and runs scripts/*.ts and the Bun-hosted test fixtures. " +
 			"Install Bun >=1.4.2 or set ATOMIC_BUN_EXECUTABLE.",
 	);
+}
+
+/**
+ * Argv prefix for npm: Windows' extensionless script fails with ENOENT, and
+ * npm.cmd requires a shell since CVE-2024-27980. Invoke its CLI with the current
+ * Node binary instead; preserve the ordinary npm command on POSIX.
+ */
+export function npmSpawnPrefix(): string[] {
+	return process.platform === "win32"
+		? [process.execPath, join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")]
+		: ["npm"];
 }
 
 /**

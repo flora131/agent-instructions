@@ -143,6 +143,17 @@ const context = {
 	hasUI: false,
 };
 
+test("list distinguishes a retained terminal child's reply capability from idle activity", async () => {
+	const current = fixture();
+	current.current.replyCapability = "terminal";
+	const result = await current.tool.execute("list", { action: "list" }, undefined, undefined, context);
+	assert.equal(result.isError, false);
+	assert.match(result.content[0]?.text ?? "", /idle, replyCapability: terminal/);
+	current.current.replyCapability = "live";
+	const live = await current.tool.execute("list", { action: "list" }, undefined, undefined, context);
+	assert.match(live.content[0]?.text ?? "", /idle, replyCapability: live/);
+});
+
 test("heavy tool guidance teaches exact known workflow-stage targets without replacing live sessions", () => {
 	const { tool } = fixture();
 	const guidance = `${tool.description}\n${tool.parameters.properties?.to?.description ?? ""}`;

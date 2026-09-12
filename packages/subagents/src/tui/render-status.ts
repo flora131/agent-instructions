@@ -11,6 +11,7 @@ const statusStyles = {
 	ok: { glyph: "✓", label: "Completed", color: "success" },
 	error: { glyph: "✗", label: "Failed", color: "error" },
 	interrupted: { glyph: "■", label: "Interrupted", color: "warning" },
+	killed: { glyph: "■", label: "Killed (non-resumable)", color: "warning" },
 	continued: { glyph: "■", label: "Continued", color: "warning" },
 } as const;
 

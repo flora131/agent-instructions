@@ -81,7 +81,7 @@ export async function _applyVerbatimCompaction(
 	if (!this.model) throw new Error(formatNoModelSelectedMessage());
 	const model = this.model;
 	const pathEntries = this.sessionManager.getBranch();
-	const settings = this.settingsManager.getCompactionSettings();
+	const settings = this.settingsManager.getCompactionSettings(model);
 	// A sub-minimum region is admitted only when the caller already knows the
 	// context does not fit: overflow recovery, or a post-tool preflight over the
 	// provider hard input limit. A threshold crossing that still fits must not

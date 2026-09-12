@@ -1,6 +1,19 @@
 # Quickstart
 
+**Outcome:** Atomic is installed, authenticated, and has completed one useful task in your repository.
+
 This page gets you from install to a useful first Atomic session. Atomic is the loop engine for all engineering work: it runs reliable coding-agent loops with stages, tools, artifacts, verification, subagents, review gates, checkpoints, and human approvals.
+
+It is the ordered onboarding hub: each step below links to a focused page that carries the full detail. Work through them in order.
+
+## Onboarding path
+
+1. **[Install Atomic](/getting-started/installation)** — package manager or self-contained release archive.
+2. **[Authenticate](/getting-started/authentication)** — subscription login or API key.
+3. **[Run your first session](/getting-started/first-session)** — start Atomic, run a task, invoke a built-in workflow, and steer the run.
+4. **[Add project instructions](/getting-started/project-instructions)** — teach Atomic your repository's conventions with `AGENTS.md`.
+
+Then come back here for [common things to try](#common-things-to-try) and [next steps](#next-steps).
 
 ## Prerequisites
 
@@ -10,306 +23,97 @@ This page gets you from install to a useful first Atomic session. Atomic is the 
 
 ## Install
 
+The install commands and every installer knob, default path, and platform note now live on the installation page.
+
+Moved to [Installation](/getting-started/installation#install).
+
 ### Package managers
 
-Install with npm:
+Moved to [Installation](/getting-started/installation#package-managers).
 
-```bash
-npm install -g @bastani/atomic
-```
-
-With pnpm:
-
-```bash
-pnpm add -g @bastani/atomic
-```
-
-With Bun:
-
-```bash
-bun add -g @bastani/atomic
-```
-
-Atomic does not require package install scripts. Add `--ignore-scripts` if you want to disable dependency lifecycle scripts during a package install.
-
-Embedded PostgreSQL is available without install scripts or a first-run download on Linux x64/ARM64 (glibc and musl), macOS x64/ARM64, and Windows x64/ARM64. npm-compatible package managers select the matching `@bastani/atomic-natives` leaf containing the runtime; standalone archives carry a target-selected runtime and resolve its binaries directly from the extracted installation. Keep the complete archive directory, including `node_modules`, libraries and licenses. Older upstream optional packages may also remain in npm installations for compatibility, but the native leaf takes precedence. Windows ARM64 uses Windows x64 PostgreSQL under Windows 11's x64 emulation, not native PostgreSQL ARM64, and requires the Microsoft Visual C++ x64 v14 Redistributable. Windows 10 on ARM cannot run this x64 runtime; Windows ARM64 execution still needs hardware validation.
+Full detail: package manager commands and the `--ignore-scripts` note.
 
 ### Release archive
 
-Alternatively, install the self-contained release archive, which needs no Node.js or package manager.
+Moved to [Installation](/getting-started/installation#release-archive).
 
-On macOS or Linux:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/bastani-inc/atomic/main/install.sh | sh
-```
-
-On Windows PowerShell:
-
-```powershell
-irm https://raw.githubusercontent.com/bastani-inc/atomic/main/install.ps1 | iex
-```
-
-The installer downloads only the matching GitHub Release archive and `SHA256SUMS`, verifies the checksum, and keeps the complete payload in a versioned directory.
-
-On macOS or Linux, the default paths are `~/.local/share/atomic` for versioned payloads and `~/.local/bin/atomic` for the launcher. The installer prints a paste-safe `export PATH=...` command if needed.
-
-On Windows, the defaults are `%LOCALAPPDATA%\atomic` for payloads and `%LOCALAPPDATA%\atomic\bin\atomic.cmd` for the launcher. The installer updates the User PATH and current process, then asks you to restart the terminal.
-
-The installer accepts these environment variables:
+Full detail: version pinning, `ATOMIC_VERSION`, `ATOMIC_INSTALL_DIR`, `ATOMIC_BIN_DIR`, `GITHUB_TOKEN`/`GH_TOKEN`, default paths, and PATH guidance.
 
 #### ATOMIC_VERSION
 
-Pin an exact release tag instead of the latest release, or pass a flag that overrides it. On macOS or Linux:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/bastani-inc/atomic/main/install.sh | sh -s -- --ref 0.9.11
-```
-
-On Windows PowerShell:
-
-```powershell
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/bastani-inc/atomic/main/install.ps1))) -Ref 0.9.11
-```
-
-Pins use Atomic's `MAJOR.MINOR.PATCH` or `MAJOR.MINOR.PATCH-alpha.REVISION` release tag form and are honored literally: if GitHub answers with a different release tag, the installer stops before downloading anything rather than installing a version you did not ask for.
+Moved to [Installation](/getting-started/installation#atomic_version).
 
 #### ATOMIC_INSTALL_DIR
 
-Override the install root that holds the versioned payloads (default `~/.local/share/atomic` on macOS/Linux, `%LOCALAPPDATA%\atomic` on Windows). On macOS/Linux, a relative value resolves against the physical directory where the installer starts and is used exactly as given, including any trailing whitespace or newline. The install root cannot equal or sit inside the launcher path (`ATOMIC_BIN_DIR/atomic`); impossible layouts fail before any download or filesystem change.
+Moved to [Installation](/getting-started/installation#atomic_install_dir).
 
 #### ATOMIC_BIN_DIR
 
-Override the launcher directory (default `~/.local/bin` on macOS/Linux, `%LOCALAPPDATA%\atomic\bin` on Windows). Relative values resolve the same way as `ATOMIC_INSTALL_DIR`. It cannot sit inside the install root's `current` or `versions` directories, which the installer replaces on every install. A Unix value containing `:` cannot be one PATH entry, so the installer prints direct-run guidance instead of editing PATH.
+Moved to [Installation](/getting-started/installation#atomic_bin_dir).
 
 #### GITHUB_TOKEN / GH_TOKEN
 
-Optional; raises GitHub API limits on shared networks. Curl and GNU Wget keep the token in a protected temporary file instead of process arguments. BusyBox Wget remains supported without a token, and with a token when the latest-release redirect avoids the API; if an authenticated API fallback is needed, install curl or GNU Wget rather than exposing the token.
+Moved to [Installation](/getting-started/installation#github_token-/-gh_token).
 
 ### Which runtime runs your workflows
 
-How you install Atomic decides which runtime hosts it: a package-manager install runs under Node, while the standalone binaries are Bun-compiled and run under Bun. Authored workflows execute inside whichever host is active, so a workflow that reaches for a `Bun.*` global runs only under the standalone binary and fails with `Bun is not defined` under an npm install. Installing Bun separately does not change that — the npm install still runs on Node. Write workflow code against APIs both hosts provide, such as `node:child_process` and `node:fs`; see [Custom Workflow Authoring](/workflows/authoring) for the rule and worked examples.
+Moved to [Installation](/getting-started/installation#which-runtime-runs-your-workflows).
 
 ### Alpine and musl Linux archives
 
-The shell installer detects Alpine and selects `atomic-linux-x64-musl.tar.gz` or `atomic-linux-arm64-musl.tar.gz`. Each archive includes its matching native search and PTY bindings plus payload-local `libgcc` and `libstdc++` runtimes, so stock Alpine needs no runtime package install.
-
-Two features work differently on musl:
-
-- **Clipboard:** the musl archives omit a clipboard native binding because `@mariozechner/clipboard` 0.3.9 publishes metadata-only musl stubs without a `.node` payload; Atomic uses Linux clipboard commands and OSC52 fallback instead.
-- **Durable workflows:** the archives omit the glibc-linked `@embedded-postgres/*` binary packages and instead carry a checksum-pinned Alpine/musl PostgreSQL 18.6 runtime, so durable workflows provision offline without external Postgres or Docker. If no durable backend can be provisioned at all, Atomic still uses a loud non-durable in-memory fallback.
-
-Then start Atomic in the project directory you want it to work on:
-
-```bash
-cd /path/to/project
-atomic
-```
+Moved to [Installation](/getting-started/installation#alpine-and-musl-linux-archives).
 
 ## Uninstall
 
-On macOS or Linux, for a default archive install, remove `~/.local/share/atomic` and the `~/.local/bin/atomic` link.
+Moved to [Installation](/getting-started/installation#uninstall).
 
-On Windows, remove `%LOCALAPPDATA%\atomic`. If you set `ATOMIC_BIN_DIR`, also remove `atomic.cmd` and the `atomic-current` junction from that directory, then remove the directory from your User PATH.
-
-For a package install, remove the global package with the same package manager. With npm:
-
-```bash
-npm uninstall -g @bastani/atomic
-```
-
-With pnpm:
-
-```bash
-pnpm remove -g @bastani/atomic
-```
-
-With Bun:
-
-```bash
-bun remove -g @bastani/atomic
-```
-
-These commands remove the CLI only. User configuration, auth, sessions, and packages remain under `~/.atomic/agent/` unless you delete that directory yourself.
+Full detail: removing the install root, the launcher, and the PATH entry on every platform.
 
 ## Authenticate
 
-Atomic can use subscription providers through `/login`, or API-key providers through environment variables or the auth file.
+Moved to [Authentication](/getting-started/authentication#authenticate).
+
+Full detail: `/login` subscription providers and API-key environment variables.
 
 ### Option 1: subscription login
 
-Start Atomic and run:
-
-```text
-/login
-```
-
-Then select a provider. Built-in subscription logins include Claude Pro/Max, ChatGPT Plus/Pro (Codex), and GitHub Copilot.
+Moved to [Authentication](/getting-started/authentication#option-1-subscription-login).
 
 ### Option 2: API key
 
-Set an API key before launching Atomic:
-
-```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-atomic
-```
-
-You can also run `/login` and select an API-key provider to store the key in `~/.atomic/agent/auth.json`.
-
-See [Providers](/providers) for all supported providers, environment variables, and cloud-provider setup.
+Moved to [Authentication](/getting-started/authentication#option-2-api-key).
 
 ## First session
 
-On a fresh install with no prior Atomic startup state, Atomic shows a one-time first-run explanation after any What's New notes and directly above the input box describing Atomic as a verifiable coding agent runtime for building and running agent workflows you can feel confident in. Returning users with prior startup state are marked onboarded automatically and continue directly into the normal chat UI; stored credentials by themselves do not skip the first-run explanation. The composer is the normal Atomic input from the start: type a message, run `/login` first if no provider is connected, or launch a workflow command without a special onboarding transition.
+Moved to [First session](/getting-started/first-session#first-session-2).
 
-Once Atomic starts, default to a workflow for non-trivial work and for requests with inherent structure plus a verifiable objective. Implementation, build, debugging, bug fixes, migrations, features, scoped multi-file edits, validation/review work, and loop-shaped requests are workflow candidates; reserve direct chat for tiny deterministic low-risk answers or edits where tracking clearly adds more overhead than value.
-
-Workflow-first is not builtin-only or monolithic. Atomic can discover and run named builtin, project, user, and package workflows; author a rich custom TypeScript `workflow({...})` inline; and compositionally import reusable workflow definitions—including builtins from `@bastani/atomic/workflows/builtin`—into parent workflows with `ctx.workflow(...)`. Nested children can nest again within `maxDepth`, so custom graphs can combine proven research, implementation, design, verification, and approval workflows instead of copying them. They can also classify and branch, dynamically fan out and synthesize artifacts, run adversarial repair cycles, tournament-rank candidates, and loop until checks pass with explicit bounds.
-
-Atomic turns repeatable engineering loops into executable stages with inspectable evidence instead of relying on a markdown checklist the model may or may not follow.
+Full detail: starting Atomic, the built-in workflows, monitoring and steering a run, top skills, creating a workflow in natural language, and the default tools and prompts.
 
 ### Try the built-in workflows
 
-Atomic ships with nine workflows you can run immediately. Use `/workflow list` to see them and `/workflow inputs <name>` to inspect their inputs in your environment.
-
-| Workflow | When to use | Example |
-|---|---|---|
-| `classify-and-act` | Route requests through structured classification and low-confidence human fallback. | `/workflow classify-and-act prompt="Triage and handle this request"` |
-| `fan-out-and-synthesize` | Partition independent slices, including repository-focused research, and synthesize their artifact evidence. | `/workflow fan-out-and-synthesize prompt="Map payment retries by subsystem and synthesize cited findings"` |
-| `adversarial-verification` | Challenge a candidate with fresh verifiers and bounded repair. | `/workflow adversarial-verification task="Verify the migration patch"` |
-| `generate-and-filter` | Generate, dedupe, filter, optionally judge, and shortlist candidates. | `/workflow generate-and-filter prompt="Propose names for the new command"` |
-| `tournament` | Compare whole solutions through balanced pairwise judging. | `/workflow tournament prompt="Design the retry strategy"` |
-| `loop-until-done` | Iterate with a durable ledger until completion or bound exhaustion. | `/workflow loop-until-done prompt="Repair failures until the test suite passes"` |
-| `goal` | Autonomous work that needs a durable ledger, bounded sub-agent orchestration, receipts, and reviewer-gated completion. | `/workflow goal objective="Update the CLI docs, add one example, and validate the docs build"` |
-| `ralph` | Research-first autonomous work with prompt refinement, delegated implementation, and iterative multi-model review. | `/workflow ralph prompt="Implement specs/rate-limit.md and validate burst traffic"` |
-| `open-claude-design` | UI and design-system work with one generated preview, one live review session, and export. | `/workflow open-claude-design prompt="Refresh the settings page hierarchy as a page"` |
-
-<p align="center"><img src="images/workflow-list.png" alt="Workflow List" width="600" /></p>
-
-Inputs are bare `key=value` tokens. Values are JSON-parsed when possible, so `count=5`, `flag=true`, and `prompt="multi word value"` preserve useful types. If you call `/workflow <name>` without required inputs, the TUI opens an inline picker; pass `--no-picker` to skip it. Goal and Ralph support `git_worktree_dir` only when you explicitly want a reusable worktree, and skip PR creation unless you set `create_pr=true` for the post-approval final stage.
-
-You can also launch workflows with **natural language** — describe the task in chat and ask Atomic to run a matching installed workflow or author a task-specific one:
-
-```text
-Fan out repository research by subsystem, save cited findings as artifacts, and synthesize the evidence.
-```
-
-```text
-Create a worker → fresh verifier → reducer workflow that updates the CLI docs, runs the docs build, and repairs evidence-backed findings until it passes or reaches a bounded stop.
-```
-
-```text
-Use goal to update the CLI docs, include one example, run the docs build, and finish only when reviewers approve the evidence.
-```
-
-```text
-Use ralph to research and implement specs/rate-limit.md, then review and repair it within three loops.
-```
-
-Atomic chooses a complete execution shape, fills inputs from the request, and confirms before launch. Use Goal when a durable ledger and receipt-backed reviewer gate fit the task. Use Ralph when the job benefits from a research-first implementation/review loop. For exact domain contracts that either builtin does not cover, author a custom graph with deterministic checks and bounded repairs.
+Moved to [First session](/getting-started/first-session#try-the-built-in-workflows).
 
 ### Monitor and steer a run
 
-Named workflow runs execute in the background. After launch you get the full run id; user-facing workflow surfaces show that complete UUID. You can still type the full id or a unique short prefix to inspect, connect, pause, quit, or resume a run. Ambiguous prefixes are reported rather than selecting a run arbitrarily.
-
-```text
-/workflow status <run-id>         # inspect one run's progress
-/workflow status                  # list this session's active and terminal runs
-/workflow connect <run-id>        # see agents working; chat with or steer each stage (F2 also opens latest)
-/workflow attach <run-id> <stage> # chat with one stage
-/workflow interrupt <run-id>      # pause resumably
-/workflow resume <run-id> "go"    # send a steer message and resume
-/workflow quit <run-id>           # pause gracefully and keep the run resumable
-```
-
-The below-editor `BACKGROUND` panel uses two lines per card at 80 columns and wider: the status glyph and full id are on the first line, and the workflow name plus mode/progress/elapsed metadata are on the second. Below 80 columns it collapses to a count-only line. In chat surfaces, a full id wraps onto continuation lines at narrow widths instead of being cut, and the surrounding border remains intact.
-
-Human-in-the-loop prompts (`ctx.ui.input`, `confirm`, `select`, `editor`) surface in the graph viewer, not as chat modals — connect to the run to answer them.
-
-Atomic also posts main-chat lifecycle notices when a run completes, fails, or awaits input. If you answer a workflow prompt in the graph or attached stage chat, the main chat receives a display-only answer summary for audit; it does not wake the model, enter LLM context, or answer later prompts. See [Workflow Operations](/workflows/operations) for the full run-control reference.
+Moved to [First session](/getting-started/first-session#monitor-and-steer-a-run).
 
 ### Top skills to invoke directly
 
-Skills are reusable expert instructions. Trigger one with `/skill:<name>` followed by a request:
-
-| Skill | When to use | Example |
-|---|---|---|
-| `research-codebase` | Scoped research that writes a grounded artifact for one subsystem or question. | `/skill:research-codebase how the rate limiter works in src/middleware/` |
-| `create-spec` | Turn research into an implementation-ready plan. | `/skill:create-spec from research/docs/2026-03-rate-limit.md` |
-| `prompt-engineer` | Write, evaluate, migrate, or troubleshoot GPT and Claude prompts using separate model guides. | `/skill:prompt-engineer Draft a sharper repo-research prompt for payment retries end to end.` |
-| `tdd` | Test-first feature or bug work. | `/skill:tdd` |
-| `impeccable` | Critique or refine web/native frontend and product UI; includes detector hooks, framework-aware live review, and mount-failure recovery. | `/skill:impeccable` |
-| `playwright-cli` | Drive a real browser for end-to-end UI checks, screenshots, and reviewable proof videos. | `/skill:playwright-cli` |
-| `qlty` | Lint, auto-format, and measure code quality — complexity, duplication, and code smells — through one CLI across the repository's languages. | `/skill:qlty check this branch before I hand it off` |
-| `liteparse` | Pull text, tables, or values out of PDF, DOCX, PPTX, XLSX, and image files locally. | `/skill:liteparse` |
-| `show-me` | Explain a topic visually with concise diagrams, code-shape sketches, or focused HTML artifacts. HumanLayer, MIT licensed. | `/skill:show-me` |
-
-Impeccable 4.1.1 resolves Live sessions to the selected app root, supports SvelteKit, Nuxt, TanStack Start, Astro, Next.js, Vite, and static HTML injection, and rejects absolute, traversing, or symlinked configured write targets. Its concept roll may contact `impeccable.style`; set `IMPECCABLE_NO_TELEMETRY=1` or `DO_NOT_TRACK=1` to disable the anonymous choice ping. The image fallback runs only with `OPENAI_API_KEY`, sends prompts and optional reference images to OpenAI, and spends that account's API credit. Generated image prompts are embedded in the image or a sidecar, so do not include secrets.
-
-Use `/skill:research-codebase` for a focused subsystem or question. For repository-wide research, use `fan-out-and-synthesize` with distinct repository partitions and an artifact synthesis barrier. Use Goal for ledger-backed bounded orchestration and Ralph for research-first delegated implementation with iterative review; task size alone does not select either workflow.
+Moved to [First session](/getting-started/first-session#top-skills-to-invoke-directly).
 
 ### Create your own workflow in natural language
 
-Named workflows may be builtin, project, user, or package supplied. You do not have to hand-write TypeScript to add a new workflow. Describe what you want in plain chat and Atomic will design and write it for you using [Builtins and Dynamic Workflows](/workflows/builtins) and the [Custom Workflow Authoring](/workflows/authoring) reference as its source of truth:
-
-```text
-Create a reusable Atomic workflow called review-changes. It takes one
-required text input `target` (a diff, PR, or review focus). Run two reviewers
-in parallel with fresh context — one for correctness and missing tests, one
-for edge cases and maintainability — then a synthesis stage that
-consolidates findings into blockers vs. suggestions and returns
-{ consolidated_review, decision }.
-```
-
-Atomic will:
-
-- ask clarifying questions if stage purpose, inputs, models, or handoffs are ambiguous,
-- write a `.atomic/workflows/<name>.ts` definition that uses `workflow({ ... })` and imports `Type` from `typebox`,
-- run `/workflow reload` so the generated workflow is rediscovered and can be launched with `/workflow <name>`,
-- then report the generated workflow folder so you can inspect the code it wrote, using `Custom workflow created. You can inspect its code at: <workflow-folder-path>` (for example, `.atomic/workflows/`); Atomic does this only for newly created custom workflows, never builtin or pre-existing workflows.
-
-The same plain-chat approach works for editing or hardening an existing workflow. For the full authoring reference, see [Custom Workflow Authoring](/workflows/authoring), including composition with user-defined workflows and all nine builtins from `@bastani/atomic/workflows/builtin`.
+Moved to [First session](/getting-started/first-session#create-your-own-workflow-in-natural-language).
 
 ### Default tools and prompts
 
-If you'd rather start with a plain prompt, just type a request and press Enter:
-
-```text
-Summarize this repository and tell me how to run its checks.
-```
-
-By default, Atomic gives the model these tools:
-
-- `read` - read files
-- `bash` - run shell commands
-- `edit` - patch files
-- `write` - create or overwrite files
-- `find` - discover files by glob pattern
-- `search` - search file contents
-- `ask_user_question` - ask structured questions in the TUI
-- `todo` - manage file-based todos
-
-Normal coding sessions include file discovery and content search through `find` and `search` in addition to `read`, `bash`, `edit`, and `write`. Atomic runs in your current working directory and can modify files there. Use git or another checkpointing workflow if you want easy rollback.
+Moved to [First session](/getting-started/first-session#default-tools-and-prompts).
 
 ## Give Atomic project instructions
 
-Atomic loads context files at startup. Add an `AGENTS.md` file to tell it how to work in a project:
+Moved to [Project instructions](/getting-started/project-instructions#give-atomic-project-instructions).
 
-```markdown
-# Project Instructions
-
-- Run `bun run typecheck` after code changes.
-- Do not run production migrations locally.
-- Keep responses concise.
-```
-
-Atomic loads:
-
-- `~/.atomic/agent/AGENTS.override.md`, `AGENTS.md`, or `CLAUDE.md` for global instructions (legacy `~/.pi/agent/` also works)
-- `AGENTS.override.md`, `AGENTS.md`, or `CLAUDE.md` from parent directories and the current directory
-
-An `AGENTS.override.md` file replaces the other context files in its directory. Restart Atomic, or run `/reload`, after changing context files.
+Full detail: `AGENTS.md` discovery, precedence, and what to put in it.
 
 ## Common things to try
 
@@ -372,5 +176,7 @@ Use `--mode json` for JSON event output or `--mode rpc` for process integration.
 - [Settings](/settings) - global and project configuration.
 - [Keybindings](/keybindings) - shortcuts and customization.
 - [Atomic Packages](/packages) - install shared extensions, skills, prompts, and themes.
+- [Security](/security) - project trust, what Atomic is allowed to touch, and how to report a vulnerability. Read this before you trust a project or install someone else's skills, extensions, or packages.
+- [Containerization](/containerization) - run Atomic or its tools inside an isolated environment.
 
 Platform notes: [Windows](/windows), [Termux](/termux), [tmux](/tmux), [Terminal setup](/terminal-setup), [Shell aliases](/shell-aliases).

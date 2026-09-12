@@ -158,6 +158,9 @@ export interface AgentSessionMethodSurface extends AgentSessionQueuePauseControl
 	dispose(): void;
 	getAgentTaskHost(): import("./tasks/agent-adapter.js").AgentTaskHost;
 	closeSessionTasks(): Promise<void>;
+	/** Internal workflow pause: cancel owned execution without closing message admission. */
+	pauseTasks(): Promise<void>;
+	resumeTasks(): void;
 
 	getActiveToolNames(): string[];
 	getAllTools(): ToolInfo[];
@@ -201,7 +204,7 @@ export interface AgentSessionMethodSurface extends AgentSessionQueuePauseControl
 	_sendInterruptCustomMessageNow<T>(message: CustomMessage<T>, options?: SendMessageOptions): Promise<void>;
 	_ensureActiveInterruptQueueHold(): InterruptQueueHold;
 	_restoreAndClearActiveInterruptQueueHold(): void;
-	_queueAgentMessage(message: AgentMessage, delivery: "steer" | "followUp"): void;
+	_queueAgentMessage(message: AgentMessage, delivery: "steer" | "followUp" | "interrupt"): void;
 	_drainQueuedAgentMessages(): DrainedAgentQueues;
 	_restoreQueuedAgentMessages(queues: DrainedAgentQueues): void;
 	clearQueue(options?: ClearQueueOptions): { steering: string[]; followUp: string[] };
@@ -450,6 +453,8 @@ export interface AgentSessionInternalSurface extends AgentSessionMethodSurface, 
 	_terminatingToolCallIds: Set<string>;
 	_stopAfterTurnBlockedContinuation: boolean;
 	_pendingInterruptDeliveries: number;
+	_priorityInterruptPending: boolean;
+	_activePromptCount: number;
 	_activeInterruptQueueHold: InterruptQueueHold | undefined;
 	_queuedMessagesPaused: boolean;
 	_queuedMessagesPauseAbortBoundary: Promise<void> | undefined;
@@ -494,6 +499,7 @@ export interface AgentSessionInternalSurface extends AgentSessionMethodSurface, 
 	_sessionStartEvent: SessionStartEvent;
 	_orchestrationContext?: OrchestrationContext;
 	_subagentPolicy?: import("./extensions/index.js").SubagentChildPolicy;
+	_subagentMessageAdmission?: import("./workflow-stage-admission.ts").WorkflowStageAdmissionBoundary;
 	_extensionUIContext?: ExtensionUIContext;
 	_extensionMode: ExtensionMode;
 	_disposed: boolean;

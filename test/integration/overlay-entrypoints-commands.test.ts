@@ -101,17 +101,19 @@ describe("/workflow resume — overlay integration", () => {
 		setDurableBackend(new InMemoryDurableBackend());
 	});
 	afterEach(() => setDurableBackend(undefined));
-	test("resume with unknown runId prints not-found, does NOT call custom", () => {
+	test("resume with unknown runId prints not-found, does NOT call custom", async () => {
 		const { pi, commands, customCalls } = buildMockPi();
 		factory(pi);
 
 		const wfCmd = commands.workflow!;
-		const { ctx } = buildPrintCtx();
+		const { ctx, messages } = buildPrintCtx();
 		const unknownRunId = testRunId("no-such-run");
 
-		void wfCmd.options.handler(`resume ${unknownRunId}`, ctx);
+		await wfCmd.options.handler(`resume ${unknownRunId}`, ctx);
 
 		assert.equal(customCalls.length, 0);
+		// PR #2968: finish the command before teardown releases its test backend.
+		assert.ok(messages.includes(`No resumable workflow found for id: ${unknownRunId}`), messages.join("\n"));
 	});
 
 	test("resume with no runId prints usage", async () => {
@@ -376,10 +378,7 @@ describe("/workflow pause — top-level command", () => {
 		const { ctx, messages } = buildPrintCtx();
 		await wfCmd.options.handler("pause", ctx);
 		const joined = messages.join("\n");
-		assert.ok(
-			joined.toLowerCase().includes("no active runs") || joined.toLowerCase().includes("picker requires"),
-			`unexpected output: ${joined}`,
-		);
+		assert.equal(joined, "No in-flight runs to pause.");
 	});
 
 	test("pause <unknown> prints not-found", async () => {

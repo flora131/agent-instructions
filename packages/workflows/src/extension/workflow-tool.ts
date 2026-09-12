@@ -16,7 +16,6 @@ import { isWorkflowStageToolContext, resolveRunId, topLevelExpandedSnapshots } f
 import { workflowAnswerAction } from "./workflow-tool-answer.js";
 import { workflowGetResult } from "./workflow-tool-content.js";
 import {
-	workflowInterruptAction,
 	workflowPauseAction,
 	workflowQuitAction,
 	workflowReloadAction,
@@ -198,8 +197,6 @@ export function makeExecuteWorkflowTool(
 				return awaitRequest(workflowReloadAction(args, { reloadWorkflowResources }));
 			case "quit":
 				return awaitRequest(workflowQuitAction(args));
-			case "interrupt":
-				return awaitRequest(workflowInterruptAction(args));
 			case "resume":
 				return awaitRequest(
 					workflowResumeAction(args, { getRuntime, policy, ensureWorkflowResourcesLoaded, signal, onRunAccepted }),

@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { runSmokeCommand, startOnAvailablePort } from "./smoke-postgres-process.mjs";
 
-test("a successful launcher returns while its server still inherits stdout and stderr", () => {
+test("a successful launcher returns while its server still inherits stdout and stderr", async () => {
 	const cwd = mkdtempSync(join(tmpdir(), "atomic-pg-inherited-pipes-"));
 	const pidFile = join(cwd, "server.pid");
 	try {
@@ -29,13 +31,69 @@ test("a successful launcher returns while its server still inherits stdout and s
 		// Returning must not require terminating the successfully launched server.
 		process.kill(Number(readFileSync(pidFile, "utf8")), 0);
 	} finally {
-		try {
-			process.kill(Number(readFileSync(pidFile, "utf8")));
-		} finally {
-			rmSync(cwd, { recursive: true, force: true });
-		}
+		await cleanupFixtureServer(cwd, pidFile);
 	}
 });
+
+async function cleanupFixtureServer(cwd, pidFile) {
+	try {
+		let pid;
+		try {
+			pid = Number(readFileSync(pidFile, "utf8"));
+		} catch (error) {
+			if (error.code !== "ENOENT") throw error;
+		}
+		if (Number.isInteger(pid) && pid > 0) await stopFixtureServer(pid);
+	} finally {
+		// Windows may briefly retain directory handles even after the PID reports exited.
+		await rm(cwd, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
+	}
+}
+
+test("fixture cleanup preserves launcher failure before PID publication", async () => {
+	const cwd = mkdtempSync(join(tmpdir(), "atomic-pg-no-pid-"));
+	await assert.rejects(
+		async () => {
+			try {
+				runSmokeCommand(process.execPath, ["-e", "console.error('launcher failed'); process.exit(7)"], {
+					cwd,
+					env: process.env,
+				});
+			} finally {
+				await cleanupFixtureServer(cwd, join(cwd, "server.pid"));
+			}
+		},
+		(error) => {
+			assert.equal(error.status, 7);
+			assert.match(error.stderr, /launcher failed/u);
+			return true;
+		},
+	);
+	assert.equal(existsSync(cwd), false);
+});
+
+const SERVER_EXIT_TIMEOUT_MS = 5_000;
+
+async function stopFixtureServer(pid) {
+	try {
+		process.kill(pid);
+	} catch (error) {
+		if (error.code === "ESRCH") return;
+		throw error;
+	}
+	const deadline = performance.now() + SERVER_EXIT_TIMEOUT_MS;
+	for (;;) {
+		try {
+			process.kill(pid, 0);
+		} catch (error) {
+			if (error.code === "ESRCH") return;
+			throw error;
+		}
+		// TerminateProcess is asynchronous: the server can still hold its cwd open.
+		assert.ok(performance.now() < deadline, "fixture server must exit before removing its working directory");
+		await delay(10);
+	}
+}
 
 function listen(server, port) {
 	return new Promise((done, reject) => {
@@ -181,10 +239,15 @@ for (const message of [
 	});
 }
 
+// PR #2973: exercise a real deadline without spending the production 30s on every CI run.
+const COMMAND_TIMEOUT_MS = 1_000;
+const COMMAND_EXIT_HEADROOM_MS = 5_000;
+
 test("an actual command deadline still fails and is not retried", async () => {
 	const cwd = mkdtempSync(join(tmpdir(), "atomic-pg-command-timeout-"));
 	let attempts = 0;
 	let cleanups = 0;
+	const startedAt = performance.now();
 	try {
 		await assert.rejects(
 			startOnAvailablePort(
@@ -193,6 +256,7 @@ test("an actual command deadline still fails and is not retried", async () => {
 					runSmokeCommand(process.execPath, ["-e", "console.log('still starting'); setInterval(() => {}, 1000)"], {
 						cwd,
 						env: process.env,
+						timeout: COMMAND_TIMEOUT_MS,
 					});
 				},
 				() => {
@@ -207,6 +271,12 @@ test("an actual command deadline still fails and is not retried", async () => {
 		);
 		assert.equal(attempts, 1);
 		assert.equal(cleanups, 1);
+		const elapsedMs = performance.now() - startedAt;
+		assert.ok(elapsedMs >= COMMAND_TIMEOUT_MS, `command exited before its deadline: ${elapsedMs}ms`);
+		assert.ok(
+			elapsedMs < COMMAND_TIMEOUT_MS + COMMAND_EXIT_HEADROOM_MS,
+			`command did not honor its ${COMMAND_TIMEOUT_MS}ms deadline: ${elapsedMs}ms`,
+		);
 	} finally {
 		rmSync(cwd, { recursive: true, force: true });
 	}

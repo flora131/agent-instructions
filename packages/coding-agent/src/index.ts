@@ -285,6 +285,7 @@ export {
 } from "./core/session-manager-classification.ts";
 export type { DefaultProjectTrust } from "./core/settings-manager.ts";
 export {
+	type CompactionModelOverride,
 	type CompactionSettings,
 	type ImageSettings,
 	type PackageSource,
@@ -320,6 +321,8 @@ export {
 	createBashToolDefinition,
 	createEditToolDefinition,
 	createFindToolDefinition,
+	createKillTool,
+	createKillToolDefinition,
 	createLocalBashOperations,
 	createLocalPowerShellOperations,
 	createLsToolDefinition,
@@ -340,6 +343,7 @@ export {
 	type FindToolOptions,
 	findToolSystemPromptContribution,
 	formatSize,
+	type KillToolOptions,
 	type LsOperations,
 	type LsToolDetails,
 	type LsToolInput,
@@ -367,6 +371,7 @@ export {
 	truncateHead,
 	truncateLine,
 	truncateTail,
+	type WriteFileOptions,
 	type WriteOperations,
 	type WriteToolInput,
 	type WriteToolOptions,

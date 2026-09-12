@@ -11,6 +11,10 @@ Edit directly or use `/settings` for common options. Choosing a model or thinkin
 
 Saving an Atomic setting applies only the changed fields to the corresponding `.atomic` file; it does not copy untouched fallback fields out of `.pi`. To intentionally override an inherited array such as `packages`, set it in `.atomic`, including an explicit empty array (`"packages": []`) when the inherited list should be disabled.
 
+## On this page and its guide
+
+This page is the exhaustive settings reference: every field, its default, and its constraints. If you are writing your first settings file or setting up a project-scoped override, start with the [Configure Atomic](/guides/configuration) guide.
+
 ## Project Trust
 
 On interactive startup, Atomic asks before trusting a project folder that contains trust-gated project inputs and has no saved decision for the folder or a parent folder in `~/.atomic/agent/trust.json`. Trusting a project allows Atomic to load project-local `.atomic/settings.json` and `.atomic` resources, legacy `.pi/settings.json` and `.pi` resources, project-local context files, install missing project packages, and execute project extensions.
@@ -188,6 +192,7 @@ On a genuine first run, Atomic previews available themes and asks whether to opt
 | `compaction.compression_ratio` | number | `0.5` | Fraction of compactable transcript **lines to keep** (`0 < value < 1`) |
 | `compaction.preserve_recent` | number | `2` | Exact number of newest context-visible messages kept outside the compactable region; `0` keeps none |
 | `compaction.query` | string | last user message | Optional relevance focus for selecting older lines to retain |
+| `compaction.modelOverrides` | object | `{}` | Exact `"provider/modelId"` keys with optional `reserveTokens` and `preserve_recent` overrides |
 
 ```json
 {
@@ -202,6 +207,25 @@ On a genuine first run, Atomic previews available themes and asks whether to opt
 ```
 
 The model emits numbered line ranges only; Atomic reconstructs retained text mechanically. `preserve_recent` is enforced client-side and is not a provider parameter. Atomic does not widen this exact message count to a user-turn boundary or force a final logical turn to remain outside compaction.
+
+Per-model budgets use exact, case-sensitive provider/model IDs (including any slashes in the model ID), not patterns or reasoning suffixes:
+
+```json
+{
+  "compaction": {
+    "reserveTokens": 16384,
+    "preserve_recent": 2,
+    "modelOverrides": {
+      "anthropic/claude-sonnet-4-5": { "reserveTokens": 32768, "preserve_recent": 4 },
+      "openai/gpt-5": { "preserve_recent": 0 }
+    }
+  }
+}
+```
+
+Each field resolves independently: the active model's override, then the ordinary compaction setting, then the built-in default. Global and trusted-project settings merge overrides per model and per field. Model switches take effect on the next compaction check or manual call; borrowing a fallback planner does not change the selected budgets. Explicit manual `preserve_recent` parameters still take precedence.
+
+Both fields must be non-negative safe integers, including ordinary settings. Invalid ordinary values are reported even if a model override exists; malformed matching entries and invalid override values are reported when that model is used. `enabled`, `compression_ratio`, and `query` remain ordinary settings, not per-model overrides. Unlike upstream pi's token-based recent-history budget, Atomic uses the exact-message `preserve_recent` setting, not `keepRecentTokens`, and retains its verbatim line compactor.
 
 ### Branch Summary
 
@@ -223,9 +247,12 @@ The model emits numbered line ranges only; Atomic reconstructs retained text mec
 | `retry.enabled` | boolean | `true` | Enable automatic agent-level retry on transient errors |
 | `retry.maxRetries` | number | `3` | Maximum agent-level retry attempts |
 | `retry.baseDelayMs` | number | `2000` | Base delay for agent-level exponential backoff (2s, 4s, 8s) |
+| `retry.maxAgentDelayMs` | number | `60000` | Maximum agent-level backoff delay (60s); `0` retries immediately |
 | `retry.provider.timeoutMs` | number | SDK default | Provider/SDK request timeout in milliseconds |
 | `retry.provider.maxRetries` | number | `0` | Provider/SDK retry attempts. Leave unset/`0` to let Atomic's agent-level retry handle transient failures |
 | `retry.provider.maxRetryDelayMs` | number | `60000` | Max server-requested delay before failing (60s) |
+
+Agent-level retries use exponential backoff capped by `retry.maxAgentDelayMs`, including the shared main-chat and workflow retry policy and summary calls. This is independent of provider retry limits. Legacy `retry.maxDelayMs` still migrates to `retry.provider.maxRetryDelayMs`, not the agent cap.
 
 When a provider requests a retry delay longer than `retry.provider.maxRetryDelayMs` (e.g., Google's "quota will reset after 5h"), the request fails immediately with an informative error instead of waiting silently. Set to `0` to disable the cap.
 
@@ -237,6 +264,7 @@ When a provider requests a retry delay longer than `retry.provider.maxRetryDelay
     "enabled": true,
     "maxRetries": 3,
     "baseDelayMs": 2000,
+    "maxAgentDelayMs": 60000,
     "provider": {
       "timeoutMs": 3600000,
       "maxRetries": 0,
@@ -451,51 +479,8 @@ See [Atomic packages](/packages) for package management details.
 
 ## Example
 
-```json
-{
-  "defaultProvider": "anthropic",
-  "defaultModel": "claude-sonnet-4-20250514",
-  "defaultThinkingLevel": "medium",
-  "theme": "dark",
-  "compaction": {
-    "enabled": true,
-    "reserveTokens": 16384,
-    "compression_ratio": 0.5,
-    "preserve_recent": 2
-  },
-  "retry": {
-    "enabled": true,
-    "maxRetries": 3
-  },
-  "httpIdleTimeoutMs": 300000,
-  "enabledModels": ["claude-*", "gpt-4o"],
-  "warnings": {
-    "anthropicExtraUsage": true
-  },
-  "packages": ["pi-skills"],
-  "workflows": ["./workflows/*.ts"]
-}
-```
+Moved to [Configure Atomic](/guides/configuration#example).
 
 ## Project Overrides
 
-Project settings (`.atomic/settings.json`) override global settings. Nested objects merge recursively; arrays and scalar values replace global values:
-
-```json
-// ~/.atomic/agent/settings.json (global)
-{
-  "theme": "dark",
-  "compaction": { "enabled": true, "reserveTokens": 16384 }
-}
-
-// .atomic/settings.json (project)
-{
-  "compaction": { "reserveTokens": 8192 }
-}
-
-// Result
-{
-  "theme": "dark",
-  "compaction": { "enabled": true, "reserveTokens": 8192 }
-}
-```
+Moved to [Configure Atomic](/guides/configuration#project-overrides).

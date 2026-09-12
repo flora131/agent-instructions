@@ -333,10 +333,7 @@ function toolNode(run: RunDetailView, name: string): ToolNodeView {
 	return node;
 }
 
-async function runScenario(
-	control: "quit" | "interrupt" = "quit",
-	omission?: "return" | "completed",
-): Promise<Evidence> {
+async function runScenario(control: "quit" | "pause" = "quit", omission?: "return" | "completed"): Promise<Evidence> {
 	const root = mkdtempSync(join(tmpdir(), "atomic-issue-2078-"));
 	const projectDir = join(root, "project");
 	const stateDir = join(root, "state");
@@ -345,7 +342,7 @@ async function runScenario(
 	mkdirSync(stateDir, { recursive: true });
 	mkdirSync(agentDir, { recursive: true });
 	copyFileSync(fixturePath, join(projectDir, ".atomic/workflows", FIXTURE));
-	if (control === "interrupt") {
+	if (control === "pause") {
 		mkdirSync(join(projectDir, ".atomic/extensions"), { recursive: true });
 		copyFileSync(
 			join(moduleDir(import.meta.url), "fixtures/tool-abort-provider.ts"),
@@ -361,7 +358,7 @@ async function runScenario(
 		return JSON.parse(readFileSync(path, "utf8")) as FixtureState;
 	};
 
-	const cli = new RpcCli(projectDir, agentDir, stateDir, control === "interrupt");
+	const cli = new RpcCli(projectDir, agentDir, stateDir, control === "pause");
 	try {
 		// 1. Launch. The launch returns at startup admission, so the callback is
 		//    only proven in flight once it says so itself. A run that ends first
@@ -393,10 +390,10 @@ async function runScenario(
 		// 3. Quit. The state is read the instant the CLI answers, which is what
 		//    makes the durability-boundary ordering observable from outside.
 		const notificationsBeforeQuit = cli.notifications().length;
-		await cli.prompt("quit", control === "interrupt" ? `interrupt-tool ${runId}` : `/workflow quit ${runId}`);
+		await cli.prompt("quit", control === "pause" ? `pause-tool ${runId}` : `/workflow quit ${runId}`);
 		const stateWhenQuitReturned = readState();
 		const quitNotifications = cli.notifications().slice(notificationsBeforeQuit);
-		if (control === "interrupt")
+		if (control === "pause")
 			await cli.waitUntil(
 				() => cli.runEndings().some((ending) => ending.runId === runId && ending.status === "failed"),
 				"targeted tool abort to fail the run",
@@ -431,13 +428,13 @@ async function runScenario(
 		const reexecuted =
 			omission === undefined && (await cli.settle(() => readState().hangExecutions > 1, RESUME_SETTLE_TIMEOUT_MS));
 		if (reexecuted) await cli.waitUntil(() => !readState().hangRunning, "the re-executed callback to settle");
-		if (control === "interrupt")
+		if (control === "pause")
 			await cli.waitUntil(
 				() => cli.runEndings().some((ending) => ending.runId !== runId),
 				"resumed continuation to settle",
 			);
 		const resumedRunId =
-			control === "interrupt" ? cli.runEndings().findLast((ending) => ending.runId !== runId)!.runId : runId;
+			control === "pause" ? cli.runEndings().findLast((ending) => ending.runId !== runId)!.runId : runId;
 		const afterResume = runDetail(await statusSurface(cli, "status-resumed", resumedRunId));
 
 		return {
@@ -453,7 +450,7 @@ async function runScenario(
 		};
 	} finally {
 		await cli.stop();
-		removeTempRootReleasingBroker(root);
+		await removeTempRootReleasingBroker(root);
 	}
 }
 
@@ -546,9 +543,9 @@ describe("issue #2078 — quitting an in-flight ctx.tool through the real CLI", 
 });
 
 test(
-	"built Node runtime resumes an uncaught targeted tool interrupt without repeating completed callbacks",
+	"built Node runtime resumes an uncaught targeted tool pause without repeating completed callbacks",
 	async () => {
-		const observed = await runScenario("interrupt");
+		const observed = await runScenario("pause");
 		assert.equal(observed.afterQuit.status, "failed");
 		assert.equal(observed.afterQuit.failedStageId, undefined);
 		assert.equal(observed.afterQuit.failedToolNodeId, toolNode(observed.afterQuit, "hang-tool").id);
@@ -567,7 +564,7 @@ test(
 
 // PR #2864 discussion_r3939119993: use the built CLI and reload an actually edited definition.
 async function assertOmittedInterruptedTool(omission: "return" | "completed"): Promise<void> {
-	const observed = await runScenario("interrupt", omission);
+	const observed = await runScenario("pause", omission);
 	assert.equal(observed.afterResume.status, "failed", observed.afterResume.error ?? "omitted frontier cannot succeed");
 	assert.match(observed.afterResume.error ?? "", /pending frontier was not consumed/);
 	assert.ok(observed.afterResume.error?.includes(toolNode(observed.afterQuit, "hang-tool").id));

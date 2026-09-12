@@ -13,7 +13,9 @@ export class TaskLiveTranscript implements Component {
 	private readonly entries: ChatMessageEntry[];
 	private readonly live: LiveChatEntriesController;
 	private readonly unsubscribe?: () => void;
-	private components?: Component[];
+	// LiveChatEntriesController replaces changed entries, including in-place message deltas.
+	// Weak keys release superseded generations without retaining a cache of the stream.
+	private components = new WeakMap<ChatMessageEntry, Component>();
 	readonly source: TaskTranscriptSource;
 	private readonly requestRender: () => void;
 	constructor(source: TaskTranscriptSource, messages: AgentMessage[], requestRender: () => void) {
@@ -23,24 +25,28 @@ export class TaskLiveTranscript implements Component {
 		this.live = new LiveChatEntriesController(this.entries);
 		this.live.hydrateStreamingAssistantMessage(source.getStreamingMessage?.());
 		this.unsubscribe = source.subscribe?.((event) => {
-			if (this.live.applyEvent(event)) this.components = undefined;
+			this.live.applyEvent(event);
 			this.requestRender();
 		});
 	}
 	invalidate(): void {
-		this.components = undefined;
+		this.components = new WeakMap();
 	}
 	render(width: number): string[] {
-		this.components ??= this.entries.map((entry) =>
-			renderChatMessageEntry(entry, {
-				ui: { requestRender: this.requestRender },
-				cwd: process.cwd(),
-				hideThinkingBlock: true,
-				toolOutputExpanded: true,
-				showImages: false,
-			}),
-		);
-		return this.components.flatMap((component) => component.render(width));
+		return this.entries.flatMap((entry) => {
+			let component = this.components.get(entry);
+			if (!component) {
+				component = renderChatMessageEntry(entry, {
+					ui: { requestRender: this.requestRender },
+					cwd: process.cwd(),
+					hideThinkingBlock: true,
+					toolOutputExpanded: true,
+					showImages: false,
+				});
+				this.components.set(entry, component);
+			}
+			return component.render(width);
+		});
 	}
 	dispose(): void {
 		this.unsubscribe?.();

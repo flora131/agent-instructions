@@ -38,6 +38,8 @@ export interface SendOptions {
   logicalTarget?: string;
   /** Public reply must use the broker's exact pending reverse question route. */
   requirePendingReply?: true;
+  /** Broker-authorized identity for a canonical-path ask, delivered before its recipient can reply. */
+  onReplyTarget?: (sessionId: string) => void;
 }
 
 export interface SendResult {
@@ -153,6 +155,7 @@ export class IntercomClient extends EventEmitter {
   /** Source identity is captured once at connect, never read from env per message. */
   private _messageSource: Message["source"] | undefined;
   private pendingSends = new PendingSendRegistry();
+  private pendingReplyTargets = new Map<string, { messageId: string; bind(sessionId: string): void }>();
   private pendingGroupLists = new Map<string, { resolve: (groups: GroupSummary[]) => void; reject: (error: Error) => void }>();
   private pendingLists = new Map<string, { resolve: (directory: SessionDirectory) => void; reject: (e: Error) => void }>();
   private pendingPresence = new Map<string, {
@@ -412,7 +415,34 @@ export class IntercomClient extends EventEmitter {
       }
       case "registration_failed": {
         if (typeof brokerMessage.reason !== "string") throw new Error("Invalid registration_failed message");
-        this.emit("_registration_failed", new Error(brokerMessage.reason));
+        const refusal = new Error(brokerMessage.reason);
+        if (this._sessionId === null) {
+          // Still registering: `connect()` owns the failure and its own cleanup.
+          this.emit("_registration_failed", refusal);
+          break;
+        }
+        // The broker reuses this frame to refuse an *established* client's request
+        // (for example a rejected pending-stage route update) and then ends the
+        // socket, deliberately dropping anything already pipelined behind it. By
+        // this point `connect()` has removed its `_registration_failed` listener,
+        // so emitting there would discard the refusal and leave every pipelined
+        // request — notably the `listSessions()` barrier — to expire on its own
+        // five-second timer with an unusable diagnostic. Record the refusal as the
+        // disconnect cause, settle outstanding work with it, and destroy the socket
+        // so no new work is accepted while we wait for the peer FIN. `onClose`
+        // still owns session/socket teardown and the `disconnected` emission.
+        this.disconnectError ??= refusal;
+        this.failPending(this.disconnectError);
+        this.socket?.destroy();
+        break;
+      }
+      case "question_target": {
+        const { messageId, attemptId, sessionId } = brokerMessage;
+        if (typeof messageId !== "string" || typeof attemptId !== "string" || typeof sessionId !== "string") {
+          throw new Error("Invalid question_target message");
+        }
+        const pending = this.pendingReplyTargets.get(attemptId);
+        if (pending?.messageId === messageId) pending.bind(sessionId);
         break;
       }
       case "sessions": {
@@ -989,12 +1019,16 @@ export class IntercomClient extends EventEmitter {
       source: this._messageSource,
       content: { text: options.text, attachments: options.attachments },
     };
+    if (options.onReplyTarget !== undefined) {
+      this.pendingReplyTargets.set(acquired.attempt.attemptId, { messageId, bind: options.onReplyTarget });
+    }
     try {
 		writeMessage(socket, {
 			type,
 			to,
 			...(options.logicalTarget === undefined ? {} : { logicalTarget: options.logicalTarget }),
 			...(options.requirePendingReply === undefined ? {} : { requirePendingReply: options.requirePendingReply }),
+      ...(options.onReplyTarget === undefined ? {} : { resolveReplyTarget: true as const }),
 			message,
 			attemptId: acquired.attempt.attemptId,
 			...extra,
@@ -1002,6 +1036,8 @@ export class IntercomClient extends EventEmitter {
     } catch (error) {
       this.pendingSends.reject(acquired.attempt, toError(error));
     }
+    const clearReplyTarget = () => { this.pendingReplyTargets.delete(acquired.attempt.attemptId); };
+    void acquired.attempt.promise.then(clearReplyTarget, clearReplyTarget);
     return acquired.attempt.promise;
   }
   updatePresence(updates: PresenceUpdates): boolean {

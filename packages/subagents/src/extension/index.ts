@@ -157,7 +157,7 @@ export function renderSubagentNotification(
 	const icon =
 		details.status === "completed"
 			? theme.fg("success", "✓")
-			: details.status === "interrupted"
+			: details.status === "interrupted" || details.status === "killed"
 				? theme.fg("warning", "■")
 				: theme.fg("error", "✗");
 	const parts: string[] = [];

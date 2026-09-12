@@ -2,6 +2,10 @@
 
 Atomic saves conversations as sessions so you can continue work, branch from earlier turns, and revisit previous paths.
 
+## On this page
+
+This page covers working with sessions: storage, commands, resuming, naming, and branching. Branch summarization behavior is documented with the rest of context management in [Compaction](/compaction#branch-summarization).
+
 ## Session Storage
 
 Sessions auto-save to `~/.atomic/agent/sessions/`, organized by working directory. Each session is a JSONL file with a tree structure.
@@ -152,17 +156,9 @@ Use `/tree` when you want to keep alternatives together. Use `/fork` or `/clone`
 
 ## Branch Summaries
 
-When `/tree` switches away from one branch to another, Atomic can summarize the abandoned branch and attach that summary at the new position. This preserves important context from the path you left without replaying the whole branch.
+Branch summaries are compact records of what happened on a session branch. When `/tree` switches away from one branch to another, Atomic can optionally summarize the abandoned branch. The prompt lets you choose no summary, the default summary prompt, or custom focus instructions; when `branchSummary.skipPrompt` is enabled, Atomic skips the prompt and defaults to no summary.
 
-When prompted, choose one of:
-
-1. no summary
-2. summarize with the default prompt
-3. summarize with custom focus instructions
-
-Branch summaries are separate from `/compact`: branch navigation can generate summary prose (optionally with focus instructions), while Verbatim Compaction lets a model select numbered line ranges and reconstructs retained text mechanically.
-
-See [Compaction](/compaction) for Verbatim Compaction, branch summarization internals, and extension hooks.
+Moved to [Compaction & Branch Summarization](/compaction#branch-summaries).
 
 ## Session Format
 

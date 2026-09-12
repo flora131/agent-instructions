@@ -43,7 +43,7 @@ Atomic will:
 - ask clarifying questions when stage purpose, inputs, models, or handoffs are ambiguous,
 - write a `.atomic/workflows/<name>.ts` file using `workflow({...})`,
 - pick `ctx.task` / `ctx.chain` / `ctx.parallel` / `ctx.ui` per the [WorkflowContext primitives](/workflows/api-reference#workflowcontext) and [task options](/workflows/api-reference#task-and-stage-options) reference,
-- use `ctx.tool(name, args, fn)` for workflow-owned side effects so completed operations are durably checkpointed and do not run again after resume (see [`ctx.tool`](/workflows/operations#ctxtool--durable-cached-tool-execution)),
+- use `ctx.tool(name, args, fn)` for workflow-owned side effects so completed operations are durably checkpointed and do not run again after resume (see [`ctx.tool`](/workflows/operations#ctx-tool-—-durable-cached-tool-execution)),
 - run `/workflow reload` so Atomic rediscovers the workflow resource and you can launch it immediately,
 - then report the generated workflow folder so you can inspect the code it wrote, using `Custom workflow created. You can inspect its code at: <workflow-folder-path>` (for example, `.atomic/workflows/`); Atomic does this only for newly created custom workflows, never builtin or pre-existing workflows.
 
@@ -102,14 +102,17 @@ The current `goal`, `ralph`, and `open-claude-design` defaults are:
 
 | Role | Primary model |
 |---|---|
-| Goal and Ralph orchestrators | `openai-codex/gpt-6-astra:high` |
-| Goal reviewers | `openai-codex/gpt-6-astra:xhigh` |
-| Ralph prompt engineer and research | `openai-codex/gpt-6-astra:high` |
+| Goal and Ralph orchestrators | `openai-codex/gpt-6-astra:medium` |
+| Goal reviewers | `openai-codex/gpt-6-astra:high` |
+| Ralph prompt engineer | `openai-codex/gpt-6-astra:high` |
+| Ralph research | `openai-codex/gpt-6-astra:medium` |
 | Ralph reviewer A | `anthropic/claude-fable-5-1:high` |
-| Ralph reviewer B | `openai-codex/gpt-6-astra:xhigh` |
-| Open Claude Design model stages | `openai-codex/gpt-6-astra:high` |
+| Ralph reviewer B | `openai-codex/gpt-6-astra:high` |
+| Open Claude Design model stages | `anthropic/claude-fable-5-1:medium` |
 
-Astra-led chains try GitHub Copilot Astra, OpenAI Astra, Anthropic Fable 5.1, then GitHub Copilot Fable 5.1 before older models. Ralph reviewer A starts with GitHub Copilot Fable 5.1, then Codex, Copilot, and OpenAI Astra at `xhigh`. Later fallback order is role-specific: Ralph research puts Fable 5 before Sol, while the orchestrators put Sol before Fable 5. Reviewer A puts Kimi before Sol; Goal reviewers and Ralph reviewer B put Sol before Kimi. OpenRouter mirrors follow direct-provider candidates. These are configured preferences, not guarantees of provider or account availability.
+Astra-led chains try GitHub Copilot Astra, OpenAI Astra, Anthropic Fable 5.1, then GitHub Copilot Fable 5.1 before older models. Ralph reviewer A starts with GitHub Copilot Fable 5.1, then Codex, Copilot, and OpenAI Astra at `high`. Open Claude Design starts with Anthropic and Copilot Fable 5.1, then Codex, Copilot, and OpenAI Astra, all at `medium`; its OpenRouter group also puts Fable 5.1 before Astra.
+
+Goal and Ralph orchestration, Ralph research, and design use Fable 5.1/Fable 5 at `medium` and Sol at `high` in their fallbacks. Goal and Ralph reviewers use Astra/Sol at `high`. Ralph prompt refinement keeps its Fable `high` and Sol `xhigh` fallbacks. Later fallback order remains role-specific: Ralph research puts Fable 5 before Sol, while the orchestrators put Sol before Fable 5. Reviewer A puts Kimi before Sol; Goal reviewers and Ralph reviewer B put Sol before Kimi. OpenRouter mirrors follow direct-provider candidates. These are configured preferences, not guarantees of provider or account availability.
 
 ### Six composable pattern builtins
 
@@ -154,7 +157,7 @@ Goal persists the literal objective and immutable acceptance criteria in a run l
 Goal reviewers derive checks from the literal objective before consulting implementation receipts, inspect the actual checkout delta, and report commands, observed output, and file:line evidence rather than internal reasoning. Shared contracts cover acceptance-matrix traceability, contract-fidelity risks, end-to-end and QA-video evidence, and independent verification. `stop_review_loop` is the authoritative convergence signal: it remains `false` for P0–P2 findings, any `required_by_objective` finding, or unproven implementation/validation requirements; it becomes `true` only when independent evidence proves the objective and only non-blocking or authorized post-approval work remains. The deterministic reducer consumes that signal without reinterpreting free-form prose.
 Goal and Ralph worker, reviewer and final handoff prompts share [verification and evidence guidance](/workflows/verification): browser, terminal and desktop/simulator routing; environment-aware setup and truthful fallback; qlty initialization or manual offline configuration selected from user/repository priorities; and authorized native GitHub media attachment with hosted-link confirmation. Existing config, read-only tasks and authoritative project checks remain protected. Explicit task-scoped inline/no-workflow steering overrides workflow-first defaults and requires safe reconciliation of active work before continuing without duplicate execution.
 Both workflows also share repository-intent mining guidance: implementers and reviewers infer maintainer and requesting-user conventions from repository behavior — git history (including `git log --show-signature`), merged PRs, issues and their comments, review comments, commit subjects and trailers, and CI/branch-protection config — covering norms written docs rarely state, such as commit signing, message style and issue linking, changelog discipline, and review etiquette. The dominant, recent, intentional pattern wins over accidental drift, the requesting user's own activity weighs highest, implementers match the inferred conventions (an unsigned commit in a signed history is a miss, not a preference), and reviewers report deviations as convention findings. Behavioral evidence fills contract gaps; it never overrides the literal objective, acceptance criteria, or explicit `AGENTS.md`/`CLAUDE.md` guidance.
-Goal and Ralph share the same low-confidence finding re-verification and per-round convergence evidence, documented under [`ralph`](#ralph).
+Goal and Ralph share the same low-confidence finding re-verification and per-round convergence evidence, documented under [`ralph`](/workflows/builtins#ralph).
 
 | Input | Type | Required | Default | Description |
 |---|---|---|---|---|

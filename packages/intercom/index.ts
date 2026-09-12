@@ -1,6 +1,7 @@
 import { APP_NAME, getEnvValue, type ExtensionAPI, type ExtensionContext, type SessionStartEvent, type ToolDefinition } from "@bastani/atomic";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
+import { getExtensionContextOwner } from "./context-owner.js";
 import { renderIntercomToolResult } from "./result-renderers.js";
 import { executeHeavyTool, runHeavyCommand, type HeavyHandle } from "./lazy-tool-execution.js";
 import { assertCurrentLifecycleLease, createLifecycleLease, retainSettledLifecycleCleanup, retireLifecycleLease, SerializedLifecycleForwarder, type LifecycleLease } from "./lifecycle-lease.js";
@@ -22,7 +23,7 @@ type LifecycleSnapshot<K extends keyof ForwardedEventMap> = {
 	event: ForwardedEventMap[K];
 	ctx: ExtensionContext;
 };
-type ShutdownSnapshot = LifecycleSnapshot<"session_shutdown"> & { generation: number };
+type ShutdownSnapshot = LifecycleSnapshot<"session_shutdown"> & { generation: number; diagnosticRoute: DiagnosticRoute };
 type IntercomLease = LifecycleLease<ShutdownSnapshot>;
 type SessionSnapshot = LifecycleSnapshot<"session_start"> & { generation: number; lease: IntercomLease };
 type IntercomHeavyHandle = HeavyHandle<CapturedHeavy>;
@@ -133,6 +134,49 @@ function renderHeavyToolResult(loadedHeavy: CapturedHeavy | null, name: string, 
 	if (renderer) return renderer(...args);
 	return renderIntercomToolResult(name, args);
 }
+
+/** Formatting a diagnostic must never replace the failure or its acknowledgement. */
+function diagnosticDetail(error: unknown): string {
+	try {
+		return String(error instanceof Error ? error.message : error);
+	} catch {
+		return "Unprintable error";
+	}
+}
+
+type DiagnosticRoute = ExtensionContext | "console" | "silent";
+
+/** Snapshot routing before awaits can invalidate the owner's guarded getters. */
+function captureDiagnosticRoute(ctx: ExtensionContext | undefined): DiagnosticRoute {
+	try {
+		// RPC has UI too, but only a terminal owns pane diagnostics. Keep the
+		// context, not its raw UI: late TUI notifications must still be guarded.
+		return ctx?.hasUI && ctx.mode === "tui" ? ctx : "console";
+	} catch {
+		return "silent";
+	}
+}
+
+/** Report against the captured owner, not whichever session is current after an await. */
+function reportDiagnostic(
+	route: DiagnosticRoute,
+	message: string,
+	error: unknown,
+	level: "warning" | "error",
+	consoleMessage = message,
+): void {
+	if (route === "console") {
+		console.error(consoleMessage, error);
+		return;
+	}
+	if (route === "silent") return;
+	try {
+		route.ui.notify(message, level);
+	} catch {
+		// A retired TUI context or unavailable UI never authorizes console fallback.
+	}
+}
+
 /**
  * Diagnostics for a background Intercom event relay.
  *
@@ -145,9 +189,11 @@ function renderHeavyToolResult(loadedHeavy: CapturedHeavy | null, name: string, 
  * reported. The caller-facing acknowledgement is emitted either way, so a
  * waiting relay never hangs on this decision.
  */
-function reportRelayFailure(eventName: string, error: unknown): void {
+function reportRelayFailure(route: DiagnosticRoute, eventName: string, error: unknown): void {
 	if (isRecoverableIntercomDisconnect(error)) return;
-	console.error(`Intercom event relay failed (${eventName}):`, error);
+	const prefix = `Intercom event relay failed (${eventName}):`;
+	const detail = diagnosticDetail(error);
+	reportDiagnostic(route, `${prefix} ${detail}`, error, "error", prefix);
 }
 
 /**
@@ -166,6 +212,8 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
   let heavyAttempt: HeavyAttempt | null = null;
   let loadedHeavy: IntercomHeavyHandle | null = null;
   let sessionSnapshot: SessionSnapshot | null = null;
+	// Event subscriptions outlive shutdown replay state; never use this owner to load heavy state.
+	let shutdownDiagnosticRoute: DiagnosticRoute | undefined;
 	let lifecycleGeneration = 0;
 	let nextLeaseId = 1;
 	let activeLease = createLifecycleLease<ShutdownSnapshot>(nextLeaseId++);
@@ -236,6 +284,8 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 		await promise;
 	}
 	async function loadHeavy(ctx?: ExtensionContext): Promise<IntercomHeavyHandle> {
+		let diagnosticRoute = captureDiagnosticRoute(ctx);
+		let diagnosticOwner = ctx && getExtensionContextOwner(ctx);
 		const lease = activeLease;
 		if (lease.retired) throw new Error("Intercom initialization unavailable: no active session");
 		await waitForPriorCleanup(lease);
@@ -251,12 +301,12 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 			return handle;
 		}
 		let promise: Promise<IntercomHeavyHandle>;
+		let replayCtx: ExtensionContext | null = null;
 		promise = (async (): Promise<IntercomHeavyHandle> => {
 			const captured: CapturedHeavy = {
 				tools: new Map(), commands: new Map(), handlers: createForwardedHandlerMap(),
 				shortcuts: new Map(), eventHandlers: new Map(),
 			};
-			let replayCtx: ExtensionContext | null = null;
 			let cleaned = false;
 			const cleanupCandidate = async (): Promise<void> => {
 				const shutdown = lease.shutdown;
@@ -267,7 +317,9 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 				try {
 					await dispatchHandlers(captured, "session_shutdown", event, cleanupCtx);
 				} catch (cleanupError) {
-					console.error("Intercom failed to clean rejected lazy candidate:", cleanupError);
+					const prefix = "Intercom failed to clean rejected lazy candidate:";
+					const detail = diagnosticDetail(cleanupError);
+					reportDiagnostic(shutdown?.diagnosticRoute ?? diagnosticRoute, `${prefix} ${detail}`, cleanupError, "error", prefix);
 				}
 			};
 			try {
@@ -278,7 +330,15 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 				if (!sessionSnapshot && ctx) {
 					sessionSnapshot = { event: createSyntheticSessionStartEvent(), ctx, generation: ++lifecycleGeneration, lease };
 				}
-				await ensureSessionStartReplayed(captured, lease, (replayContext) => { replayCtx = replayContext; });
+				await ensureSessionStartReplayed(captured, lease, (replayContext) => {
+					// Dispatch wrappers differ even for the same (possibly already stale) owner.
+					const owner = getExtensionContextOwner(replayContext);
+					if (owner !== diagnosticOwner) {
+						diagnosticRoute = captureDiagnosticRoute(replayContext);
+						diagnosticOwner = owner;
+					}
+					replayCtx = replayContext;
+				});
 				assertLease(lease);
 				const handle = createHandle(captured, lease);
 				loadedHeavy = handle;
@@ -294,8 +354,13 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 			(error: unknown) => {
 				if (heavyAttempt?.promise === promise) heavyAttempt = null;
 				if (!isRecoverableIntercomDisconnect(error)) {
-					const message = error instanceof Error ? error.message : String(error);
-					console.error(`Intercom heavy initialization failed; a later call will retry: ${message}`, error);
+					const message = diagnosticDetail(error);
+					reportDiagnostic(
+						diagnosticRoute,
+						`Intercom heavy initialization failed; a later call will retry: ${message}`,
+						error,
+						"warning",
+					);
 				}
 			},
 		);
@@ -433,6 +498,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
     }
     const generation = ++lifecycleGeneration;
     sessionSnapshot = { event, ctx, generation, lease };
+		shutdownDiagnosticRoute = undefined;
     cancelWarmUpRetry();
     if (ctx.orchestrationContext?.kind === "workflow-stage" && ctx.orchestrationContext.pendingStageDelivery !== undefined) {
       const pendingStageDelivery = ctx.orchestrationContext.pendingStageDelivery;
@@ -458,7 +524,9 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 	pi.on("session_shutdown", async (event, ctx) => {
 		const lease = activeLease;
 		const generation = ++lifecycleGeneration;
-		retireLifecycleLease(lease, { event, ctx, generation });
+		const diagnosticRoute = captureDiagnosticRoute(ctx);
+		retireLifecycleLease(lease, { event, ctx, generation, diagnosticRoute });
+		shutdownDiagnosticRoute = diagnosticRoute;
 		cancelWarmUpRetry();
 		const retiredHeavy = loadedHeavy?.heavy ?? null;
 		const retiredAttempt = heavyAttempt?.lease === lease ? heavyAttempt.promise : null;
@@ -581,7 +649,9 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 		if (!isPendingStageUndeliverableRelay(payload) || payload.handled === true) return;
 		payload.handled = true;
 		const forwarded = { ...payload, handled: false, completion: undefined };
-		payload.completion = loadHeavy(latestLifecycleContext())
+		const ctx = latestLifecycleContext();
+		const diagnosticRoute = ctx ? captureDiagnosticRoute(ctx) : shutdownDiagnosticRoute ?? "console";
+		payload.completion = loadHeavy(ctx)
 			.then(async (handle) => {
 				handle.assertCurrent();
 				await dispatchEventHandlers(handle.heavy, PENDING_STAGE_UNDELIVERABLE_EVENT, forwarded);
@@ -591,7 +661,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 					: false;
 			})
 			.catch((error) => {
-				reportRelayFailure(PENDING_STAGE_UNDELIVERABLE_EVENT, error);
+				reportRelayFailure(diagnosticRoute, PENDING_STAGE_UNDELIVERABLE_EVENT, error);
 				return false;
 			});
 	});
@@ -601,7 +671,9 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 		PENDING_STAGE_ROUTE_EVENT,
 	] as const) {
 		pi.events.on(eventName, (payload) => {
-			const completion = loadHeavy(latestLifecycleContext()).then(async (handle) => {
+			const ctx = latestLifecycleContext();
+			const diagnosticRoute = ctx ? captureDiagnosticRoute(ctx) : shutdownDiagnosticRoute ?? "console";
+			const completion = loadHeavy(ctx).then(async (handle) => {
 				handle.assertCurrent();
 				await dispatchEventHandlers(handle.heavy, eventName, payload);
 				handle.assertCurrent();
@@ -615,7 +687,7 @@ export default function intercom(pi: ExtensionAPI, options: LightweightIntercomO
 			}
 			void completion.catch((error) => {
 				rejectLazyResultRelay(pi, eventName, payload, error);
-				reportRelayFailure(eventName, error);
+				reportRelayFailure(diagnosticRoute, eventName, error);
 			});
 		});
 	}

@@ -343,11 +343,12 @@ export default function webAccess(pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "code_search",
 		label: "Code Search",
-		description: "Search for code examples, documentation, and API references. Returns relevant code snippets and docs from GitHub, Stack Overflow, and official documentation. Use for any programming question — API usage, library examples, debugging help.",
-		promptSnippet: "Use for programming/API/library questions to retrieve concrete examples and docs before implementing or debugging code.",
+		description: "Ask DeepWiki about code, architecture, and APIs in a public GitHub repository. Requires repoName in owner/repo format. No API key required; no web-search fallback.",
+		promptSnippet: "Use for repository-specific programming questions. Supply repoName (owner/repo) and query; use web_search for broader discovery.",
 		parameters: Type.Object({
-			query: Type.String({ description: "Programming question, API, library, or debugging topic to search for" }),
-			maxTokens: Type.Optional(Type.Integer({ minimum: 1000, maximum: 50000, description: "Maximum tokens of code/documentation context to return (default: 5000)" })),
+			repoName: Type.String({ pattern: "^[^\\s/]+/[^\\s/]+$", description: "Public GitHub repository in owner/repo format" }),
+			query: Type.String({ pattern: "\\S", description: "Question about the repository, sent verbatim to DeepWiki" }),
+			maxTokens: Type.Optional(Type.Integer({ minimum: 1000, maximum: 50000, description: "Best-effort output limit, approximately four characters per token (default: 5000)" })),
 		}),
 		execute: (...args) => executeHeavyTool(loadHeavy, "code_search", args),
 		renderResult: (...args) => renderHeavyToolResult(loadedHeavy?.heavy ?? null, "code_search", args),
@@ -359,14 +360,16 @@ export default function webAccess(pi: ExtensionAPI) {
 		description: "Fetch URL(s) and extract readable content as markdown. Supports YouTube video transcripts (with thumbnail), GitHub repository contents, and local video files (with frame thumbnail). Video frames can be extracted via timestamp/range or sampled across the entire video with frames alone. Falls back to Gemini for pages that block bots or fail Readability extraction. For YouTube and video files: ALWAYS pass the user's specific question via the prompt parameter — this directs the AI to focus on that aspect of the video, producing much better results than a generic extraction. Content is always stored and can be retrieved with get_search_content.",
 		promptSnippet: "Use to extract readable content from URL(s), YouTube, GitHub repos, or local videos. For video questions, pass the user's exact question in prompt.",
 		parameters: Type.Object({
-			url: Type.Optional(Type.String({ description: "Single URL to fetch" })),
-			urls: Type.Optional(Type.Array(Type.String(), { description: "Multiple URLs (parallel)" })),
+			urls: Type.Array(Type.String({ minLength: 1 }), {
+				minItems: 1,
+				description: 'URLs or local video paths to fetch. Always use an array, even for one URL: {"urls":["https://example.com"]}. Multiple URLs are fetched in parallel.',
+			}),
 			forceClone: Type.Optional(Type.Boolean({ description: "Force cloning large GitHub repositories that exceed the size threshold" })),
 			prompt: Type.Optional(Type.String({ description: "Question or instruction for video analysis (YouTube and video files)." })),
 			timestamp: Type.Optional(Type.String({ description: "Extract video frame(s) at a timestamp or time range." })),
 			frames: Type.Optional(Type.Integer({ minimum: 1, maximum: 12, description: "Number of frames to extract." })),
 			model: Type.Optional(Type.String({ description: "Override the Gemini model for video/YouTube analysis." })),
-		}),
+		}, { additionalProperties: false }),
 		execute: (...args) => executeHeavyTool(loadHeavy, "fetch_content", args),
 		renderResult: (...args) => renderHeavyToolResult(loadedHeavy?.heavy ?? null, "fetch_content", args),
 	});

@@ -58,10 +58,10 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "bun run test:unit",
-    "test:unit": "bun test ../../test/unit",
-    "test:integration": "bun test ../../test/integration",
-    "test:all": "bun run test:unit && bun run test:integration",
+    "test": "npm --prefix ../.. run test:unit --",
+    "test:unit": "npm --prefix ../.. run test:unit --",
+    "test:integration": "npm --prefix ../.. run test:integration --",
+    "test:all": "npm --prefix ../.. run test:all --",
     "typecheck": "tsc --noEmit -p ../../tsconfig.json",
     "lint": "tsc --noEmit -p ../../tsconfig.json"
   },

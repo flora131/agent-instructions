@@ -72,7 +72,7 @@ export function resolveTempScopeId(options?: {
 }
 
 export const MAX_PARALLEL_TASKS = 50;
-export const MAX_CONCURRENCY = 4;
+export const MAX_CONCURRENCY = 3;
 export const TEMP_ROOT_DIR = path.join(os.tmpdir(), `${APP_NAME}-subagents-${resolveTempScopeId()}`);
 export const TEMP_ARTIFACTS_DIR = path.join(TEMP_ROOT_DIR, "artifacts");
 export const SLASH_RESULT_TYPE = "subagent-slash-result";
@@ -81,7 +81,7 @@ export const SLASH_SUBAGENT_STARTED_EVENT = "subagent:slash:started";
 export const SLASH_SUBAGENT_RESPONSE_EVENT = "subagent:slash:response";
 export const SLASH_SUBAGENT_UPDATE_EVENT = "subagent:slash:update";
 export const SLASH_SUBAGENT_CANCEL_EVENT = "subagent:slash:cancel";
-export const SUBAGENT_ACTIONS = ["list", "get", "create", "update", "delete", "status", "interrupt", "wait"] as const;
+export const SUBAGENT_ACTIONS = ["list", "get", "create", "update", "delete", "status", "kill", "wait"] as const;
 
 export const DEFAULT_FORK_PREAMBLE =
 	"You are a delegated subagent running from a fork of the parent session. " +

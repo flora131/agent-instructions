@@ -6,7 +6,7 @@ import { DbosDurableBackend } from "../../packages/workflows/src/durable/dbos-ba
 import { setDurableBackend } from "../../packages/workflows/src/durable/factory.js";
 import { createExtensionRuntime } from "../../packages/workflows/src/extension/runtime.js";
 import {
-	workflowInterruptAction,
+	workflowPauseAction,
 	workflowQuitAction,
 	workflowResumeAction,
 } from "../../packages/workflows/src/extension/workflow-tool-control.js";
@@ -208,7 +208,7 @@ test.each(
 		await waitFor(() => targetCalls === 1);
 		const source = store.runs().find((run) => run.id === started.runId)!;
 		const target = source.toolNodes!.find((node) => node.name === "unfinished\ntarget")!;
-		await workflowInterruptAction({ action: "interrupt", runId: source.id, stageId: target.id });
+		await workflowPauseAction({ action: "pause", runId: source.id, stageId: target.id });
 		await waitFor(() => source.endedAt !== undefined);
 		assert.equal(source.status, "failed");
 		assert.equal(source.failedToolNodeId, target.id);
@@ -249,7 +249,7 @@ test.each(
 				assert.deepEqual([completedCalls, modelCalls, targetCalls], [2, mixed ? 1 : 0, 2]);
 				return;
 			}
-			await workflowInterruptAction({ action: "interrupt", runId: pending.id, stageId: target.id });
+			await workflowPauseAction({ action: "pause", runId: pending.id, stageId: target.id });
 		}
 		const isContinuation = (run: { id: string; resumedFromRunId?: string }): boolean =>
 			durableOnly ? run.id === source.id : run.resumedFromRunId === source.id;

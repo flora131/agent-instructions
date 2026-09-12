@@ -59,7 +59,7 @@ export function registerWorkflowSlashCommand(
 		"workflow",
 		{
 			description:
-				"Run or inspect Atomic workflows. Usage: /workflow <name> [key=value…] | /workflow [list|status|connect|attach|interrupt|quit|pause|resume|inputs|reload] [args]",
+				"Run or inspect Atomic workflows. Usage: /workflow <name> [key=value…] | /workflow [list|status|connect|attach|quit|pause|resume|inputs|reload] [args]",
 			handler: (args, ctx) => workflowSlashHandler(args, ctx, pi, deps),
 			getArgumentCompletions: (
 				partial: string,
@@ -126,9 +126,9 @@ async function workflowSlashHandler(
 
 	const parts = tokenizeWorkflowArgs(args);
 	const subcommand = parts[0] ?? "";
-	if (["connect", "attach", "pause", "resume"].includes(subcommand)) {
+	if (["connect", "attach", "resume"].includes(subcommand)) {
 		await handleRunControlCommand(
-			subcommand as "connect" | "attach" | "pause" | "resume",
+			subcommand as "connect" | "attach" | "resume",
 			parts.slice(1),
 			ctx,
 			reporter,
@@ -189,7 +189,7 @@ async function workflowSlashHandler(
 		}
 		return;
 	}
-	if (subcommand === "interrupt") {
+	if (subcommand === "pause") {
 		await handleRunControlCommand(subcommand, withImplicitYesFlag(parts.slice(1)), ctx, reporter, deps.runControl);
 		return;
 	}

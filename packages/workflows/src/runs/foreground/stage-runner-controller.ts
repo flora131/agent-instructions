@@ -238,7 +238,7 @@ export class StageSessionController {
 	private pendingThinkingLevel: Parameters<StageContext["setThinkingLevel"]>[0] | undefined;
 	private readonly pendingListeners = new Set<(event: StageSessionEvent) => void>();
 	private readonly listenerUnsubscribes = new Map<(event: StageSessionEvent) => void, () => void>();
-	private readonly pauseControl = new StageSessionPause(() => this.session);
+	private readonly pauseControl = new StageSessionPause(() => this.session ?? this.replacement.retiringSession);
 	private readonly hasExplicitModelFallbackConfig: boolean;
 	private candidatesPromise: Promise<WorkflowResolvedModelCandidate[]> | undefined;
 	private activeCandidateIndex: number | undefined;
@@ -612,8 +612,10 @@ export class StageSessionController {
 	currentModelFallbackMeta(): StageModelFallbackMeta {
 		const attemptedModels = this.modelAttempts.map((attempt) => attempt.model);
 		const model = this.selectedModel ?? workflowModelId(this.session?.model);
+		const thinkingLevel = this.session?.thinkingLevel ?? this.pendingThinkingLevel;
 		return {
 			...(model !== undefined ? { model } : {}),
+			...(thinkingLevel !== undefined ? { thinkingLevel } : {}),
 			...(attemptedModels.length > 0 ? { attemptedModels } : {}),
 			...(this.modelAttempts.length > 0 ? { modelAttempts: [...this.modelAttempts] } : {}),
 			...(this.modelWarnings.length > 0 ? { warnings: [...this.modelWarnings] } : {}),

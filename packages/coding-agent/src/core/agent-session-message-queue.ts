@@ -17,6 +17,7 @@ import {
 	drainAgentMessageQueue,
 	type InterruptQueueHold,
 	normalizeInterruptAbortMessage,
+	priorityHoldCounts,
 } from "./agent-session-types.ts";
 import type { SendMessageOptions, SendMessagesOptions } from "./extensions/index.js";
 import type { CustomMessage, StageAdmittedCustomMessage } from "./messages.ts";
@@ -125,13 +126,18 @@ export async function sendCustomMessage<T = unknown>(
 		...(options?.excludeFromContext === true ? { excludeFromContext: true } : {}),
 		...(options?.stageAdmissionKey === undefined ? {} : { stageAdmissionKey: options.stageAdmissionKey }),
 	} satisfies CustomMessage<T> & { stageAdmissionKey?: string };
-	const boundary = this._workflowStageAdmission;
-	const deliver = async (): Promise<void> => {
+	const boundary = this._subagentMessageAdmission ?? this._workflowStageAdmission;
+	const commit = async (): Promise<void> => {
 		if (boundary && options?.stageAdmissionBarrier) await options.stageAdmissionBarrier();
 		await commitAdmittedCustomMessage(this, appMessage, options);
 	};
+	// Event hooks may await non-triggering writes while protected input awaits the
+	// event writer. Those local writes must not queue behind that external input.
+	const deliver = () =>
+		boundary && options?.triggerTurn === true ? boundary.serializeMessageDelivery(commit) : commit();
 	if (boundary === undefined) return deliver();
 	await boundary.admit(options?.stageAdmissionKey, deliver, () => {
+		if (this._subagentMessageAdmission) throw new Error("Subagent execution is terminal and cannot accept messages");
 		const router = this._orchestrationContext?.lateMessageRouter;
 		if (router === undefined) throw new Error("Workflow stage closed without a late-message router");
 		return router.routeMessage(message, options);
@@ -161,13 +167,16 @@ export async function sendCustomMessages<T = unknown>(
 			}) satisfies CustomMessage<T> & { stageAdmissionKey?: string },
 	);
 	if (appMessages.length === 0) return;
-	const boundary = this._workflowStageAdmission;
-	const deliver = async (): Promise<void> => {
+	const boundary = this._subagentMessageAdmission ?? this._workflowStageAdmission;
+	const commit = async (): Promise<void> => {
 		if (boundary && options?.stageAdmissionBarrier) await options.stageAdmissionBarrier();
 		await commitAdmittedCustomMessages(this, appMessages, options);
 	};
+	const deliver = () =>
+		boundary && options?.triggerTurn === true ? boundary.serializeMessageDelivery(commit) : commit();
 	if (boundary === undefined) return deliver();
 	await boundary.admit(options?.stageAdmissionKey, deliver, () => {
+		if (this._subagentMessageAdmission) throw new Error("Subagent execution is terminal and cannot accept messages");
 		const router = this._orchestrationContext?.lateMessageRouter;
 		if (router === undefined) throw new Error("Workflow stage closed without a late-message router");
 		return router.routeMessages(messages, options);
@@ -311,26 +320,33 @@ export function _restoreAndClearActiveInterruptQueueHold(this: AgentSession): vo
 	this._activeInterruptQueueHold = undefined;
 }
 
-export function _queueAgentMessage(this: AgentSession, message: AgentMessage, delivery: "steer" | "followUp"): void {
+export function _queueAgentMessage(
+	this: AgentSession,
+	message: AgentMessage,
+	delivery: "steer" | "followUp" | "interrupt",
+): void {
 	const owner = resolveWorkflowStageDeliveryTarget(this);
 	if (owner !== this) {
 		owner._queueAgentMessage(message, delivery);
 		return;
 	}
-	const hold = this._activeInterruptQueueHold;
+	const hold = delivery === "interrupt" ? this._ensureActiveInterruptQueueHold() : this._activeInterruptQueueHold;
 	if (hold !== undefined) {
 		if (delivery === "followUp") {
 			hold.followUp.push(message);
+		} else if (delivery === "interrupt") {
+			const index = priorityHoldCounts.get(hold) ?? 0;
+			hold.steering.splice(index, 0, message);
+			priorityHoldCounts.set(hold, index + 1);
 		} else {
 			hold.steering.push(message);
 		}
-		return;
-	}
-	if (delivery === "followUp") {
+	} else if (delivery === "followUp") {
 		this.agent.followUp(message);
 	} else {
 		this.agent.steer(message);
 	}
+	this._agentTaskHost?.yieldTaskWaits(message.role === "user" ? "input-needed" : "intercom-coordination");
 }
 
 export function _drainQueuedAgentMessages(this: AgentSession): DrainedAgentQueues {
@@ -370,6 +386,7 @@ export function clearQueue(
 	if (hold !== undefined) {
 		removed.steering.push(...hold.steering.splice(0));
 		removed.followUp.push(...hold.followUp.splice(0));
+		priorityHoldCounts.delete(hold);
 	}
 	restoreProtectedStreamingCustomMessages(this, removed);
 	if (options?.preserveUnprotectedCustomMessages && hold !== undefined) {

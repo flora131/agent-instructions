@@ -8,7 +8,7 @@ import {
 	scrubInteractiveEngineEnv,
 } from "../../packages/coding-agent/src/utils/interactive-engine-env.ts";
 import { moduleDir, sleep } from "../helpers/runtime.js";
-import { DefaultMainDriver } from "./fixtures/default-main-driver.ts";
+import { DefaultMainDriver, isAlive, waitForExit } from "./fixtures/default-main-driver.ts";
 
 const serialTest = process.platform === "win32" ? test.sequential.skip : test.sequential;
 
@@ -125,6 +125,14 @@ serialTest(
 			);
 		} finally {
 			await driver.stop();
+			// stop() joins only the host; its detached engine can still write into
+			// the temporary home until the parent guardian observes the host's exit.
+			const enginePids = new Set(driver.reports.map((report) => report.enginePid));
+			for (const pid of enginePids) {
+				if (typeof pid !== "number") continue;
+				await waitForExit(pid);
+				assert.ok(!isAlive(pid), `engine ${pid} is still alive before temp cleanup`);
+			}
 			rmSync(temp, { recursive: true, force: true });
 		}
 	},

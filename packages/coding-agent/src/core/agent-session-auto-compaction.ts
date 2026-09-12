@@ -73,7 +73,7 @@ export async function _checkCompaction(
 	// false. Only the live turn-completion path may auto-continue a truncated
 	// response — before a fresh user prompt we must not resume the old turn.
 	const isLiveTurnCompletion = skipAbortedCheck;
-	const settings = this.settingsManager.getCompactionSettings();
+	const settings = this.settingsManager.getCompactionSettings(this.model);
 	const contextWindow = this.model?.contextWindow ?? 0;
 	// Skip overflow handling if the message came from a different model.
 	// This handles the case where user switched from a smaller-context model (e.g. opus)

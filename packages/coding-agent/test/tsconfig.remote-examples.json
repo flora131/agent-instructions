@@ -1,0 +1,14 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "paths": {
+      "@bastani/atomic": ["../src/index.ts"]
+    }
+  },
+  "files": [
+    "../examples/extensions/gondolin/index.ts",
+    "../examples/extensions/ssh.ts",
+    "fixtures/remote-tool-api.ts"
+  ]
+}

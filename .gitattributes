@@ -32,6 +32,11 @@
 *.sql      text
 *.epub     diff=astextplain
 
+# Keep reader documentation and the active terminal recipe on LF across platforms.
+packages/coding-agent/docs/**/*.md text eol=lf
+packages/coding-agent/docs/**/*.mdx text eol=lf
+packages/coding-agent/docs/**/*.svg text eol=lf
+
 # Graphics
 *.png      binary
 *.jpg      binary

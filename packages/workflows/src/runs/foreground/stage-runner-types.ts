@@ -18,7 +18,10 @@ type WorkflowPendingStageDelivery = NonNullable<
 type AgentStageSessionEvent = Parameters<AgentSession["subscribe"]>[0] extends (event: infer T) => void ? T : never;
 export type StageSessionEvent = AgentStageSessionEvent & { readonly turnId?: string | number };
 
-export type WorkflowRetrySettings = ReturnType<SettingsManager["getRetrySettings"]>;
+// External Pi hosts may predate the optional agent retry cap.
+export type WorkflowRetrySettings = Omit<ReturnType<SettingsManager["getRetrySettings"]>, "maxAgentDelayMs"> & {
+	readonly maxAgentDelayMs?: number;
+};
 
 export type WorkflowSettingsManager = {
 	getRetrySettings?(): WorkflowRetrySettings;
@@ -54,6 +57,10 @@ export interface StageSessionRuntime {
 	pauseQueuedMessages?(): void;
 	/** Optional native release; calls `beforeRelease` at the final synchronous boundary. */
 	resumeQueuedMessages?(beforeRelease?: () => void): boolean | Promise<boolean>;
+	/** Optional owned-execution hold: block launches synchronously, cancel and drain before resolving. */
+	pauseTasks?(): Promise<void>;
+	/** Reopen launches only; cancelled executions must never restart. */
+	resumeTasks?(): void;
 	steer(text: string): Promise<void>;
 	followUp(text: string): Promise<void>;
 	subscribe(listener: (event: StageSessionEvent) => void): () => void;
@@ -106,6 +113,7 @@ export interface AgentSessionAdapter {
 
 export interface StageModelFallbackMeta {
 	readonly model?: string;
+	readonly thinkingLevel?: string;
 	readonly attemptedModels?: readonly string[];
 	readonly modelAttempts?: readonly WorkflowModelAttempt[];
 	readonly warnings?: readonly string[];

@@ -1,6 +1,13 @@
+---
+title: "tmux"
+description: "Run Atomic inside tmux, including image paste and key forwarding."
+---
+
 # tmux Setup
 
 Atomic works inside tmux, but tmux strips modifier information from certain keys by default. Without configuration, `SHIFT+Enter` and `CTRL+Enter` are usually indistinguishable from plain `Enter`.
+
+For terminal automation, prefer Herdr when eligible, with tmux or native Windows psmux as fallbacks. See [Computer use](/computer-use#terminal-automation-with-herdr) for tool selection and safe session control. This page covers Atomic's keyboard setup inside tmux.
 
 ## Recommended Configuration
 

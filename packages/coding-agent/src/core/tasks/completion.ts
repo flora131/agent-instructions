@@ -57,7 +57,12 @@ export function formatTaskCompletion(
 				: "Background task";
 	const result = envelope.result;
 	const outcome = taskOutcomeStatus(result, task?.kind);
-	const status = outcome === "cancelled" ? "stopped" : outcome;
+	const status =
+		task?.kind === "agent" && result.kind === "cancelled" && result.cause === "user"
+			? "killed (non-resumable)"
+			: outcome === "cancelled"
+				? "stopped"
+				: outcome;
 	const lines = [
 		`${label} ${status}${task?.title ? `: ${singleLine(task.title).slice(0, 240)}` : "."}`,
 		`Task: ${envelope.taskId} · Owner: ${envelope.ownerId}`,

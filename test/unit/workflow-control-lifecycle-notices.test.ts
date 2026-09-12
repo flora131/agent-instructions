@@ -14,7 +14,7 @@ import {
 } from "../../packages/workflows/src/extension/lifecycle-notifications.js";
 import { reconcileDurableResumeShadow } from "../../packages/workflows/src/extension/workflow-resume-shadow.js";
 import { quitRun } from "../../packages/workflows/src/runs/background/quit.js";
-import { interruptRun, pauseRun, resumeRun } from "../../packages/workflows/src/runs/background/status.js";
+import { pauseRun, resumeRun } from "../../packages/workflows/src/runs/background/status.js";
 import {
 	createStageControlRegistry,
 	type StageControlHandle,
@@ -319,7 +319,7 @@ describe("workflow control lifecycle notices", () => {
 		}
 	});
 
-	test("the real pause and quit control paths emit one user-attributed notice each", async () => {
+	test("the real resume and quit paths emit one user-attributed notice each", async () => {
 		const backend = new InMemoryDurableBackend();
 		setDurableBackend(backend);
 		const store = createStore();
@@ -334,39 +334,25 @@ describe("workflow control lifecycle notices", () => {
 		});
 		const { sent, unsubscribe } = installOn(store);
 		try {
-			assert.equal(
-				(await pauseRun("run-control", { store, stageControlRegistry: registry, actor: "user" })).ok,
-				true,
-			);
-			assert.deepEqual(kinds(sent), ["paused"]);
-			assert.deepEqual(scopes(sent), ["run"]);
-			assert.match(
-				sent[0]?.content ?? "",
-				/^⏸ The user paused the workflow "goal" \(run run-control\), which you started, at stage review\./,
-			);
-			assert.match(sent[0]?.content ?? "", /do not resume it or take over the work unless asked/);
+			assert.equal((await pauseRun("run-control", { store, stageControlRegistry: registry })).ok, true);
+			assert.equal(sent.length, 0);
 
 			assert.equal(
 				(await resumeRun("run-control", { store, stageControlRegistry: registry, actor: "user" })).ok,
 				true,
 			);
-			assert.deepEqual(kinds(sent), ["paused", "resumed"]);
+			assert.deepEqual(kinds(sent), ["resumed"]);
 			assert.match(
-				sent[1]?.content ?? "",
+				sent[0]?.content ?? "",
 				/^▶ The user resumed the workflow "goal" \(run run-control\), which you started, at stage review\. It is running again in the background\./,
 			);
-			assert.doesNotMatch(sent[1]?.content ?? "", /do not resume/);
-
+			assert.doesNotMatch(sent[0]?.content ?? "", /do not resume/);
 			assert.equal(
 				(await quitRun("run-control", { store, stageControlRegistry: registry, actor: "user" })).ok,
 				true,
 			);
-			assert.deepEqual(
-				kinds(sent),
-				["paused", "resumed", "quit"],
-				"a quit never also reports the pause it publishes",
-			);
-			assert.equal(sent[2]?.details?.resumable, true);
+			assert.deepEqual(kinds(sent), ["resumed", "quit"], "a quit never also reports its pause");
+			assert.equal(sent[1]?.details?.resumable, true);
 		} finally {
 			unsubscribe();
 		}
@@ -381,7 +367,7 @@ describe("workflow control lifecycle notices", () => {
 		backend.registerWorkflow({ workflowId: "run-tool", name: "goal", inputs: {}, createdAt: 1, status: "running" });
 		const { sent, unsubscribe } = installOn(store);
 		try {
-			assert.equal((await pauseRun("run-tool", { store, stageControlRegistry: registry, actor: "agent" })).ok, true);
+			assert.equal((await pauseRun("run-tool", { store, stageControlRegistry: registry })).ok, true);
 			assert.equal(
 				(await resumeRun("run-tool", { store, stageControlRegistry: registry, actor: "agent" })).ok,
 				true,
@@ -392,15 +378,15 @@ describe("workflow control lifecycle notices", () => {
 			unsubscribe();
 		}
 	});
-	test("interrupting a run emits nothing; interrupt is deliberately out of scope", async () => {
+	test("pausing a run without actor attribution emits no control notice", async () => {
 		const store = createStore();
 		const registry = createStageControlRegistry();
-		liveRun(store, registry, "run-interrupt", { origin: "user" });
+		liveRun(store, registry, "run-pause", { origin: "user" });
 		const { sent, unsubscribe } = installOn(store, { notifyOn: ["paused", "quit", "resumed"] });
 		try {
-			assert.equal((await interruptRun("run-interrupt", { store, stageControlRegistry: registry })).ok, true);
-			assert.equal(store.runs().find((run) => run.id === "run-interrupt")?.status, "paused");
-			assert.deepEqual(sent, [], "an interrupt stops the run but is never reported as a control notice");
+			assert.equal((await pauseRun("run-pause", { store, stageControlRegistry: registry })).ok, true);
+			assert.equal(store.runs().find((run) => run.id === "run-pause")?.status, "paused");
+			assert.deepEqual(sent, []);
 		} finally {
 			unsubscribe();
 		}
@@ -473,7 +459,7 @@ describe("workflow control lifecycle notices", () => {
 		}
 	});
 
-	test("a stage-scoped pause and resume that leave siblings paused report at stage scope", async () => {
+	test("a stage-scoped pause retains siblings and emits no attributed notice", async () => {
 		const store = createStore();
 		const registry = createStageControlRegistry();
 		startRun(store, "run-stage-scope", { name: "goal", origin: "user" });
@@ -489,15 +475,12 @@ describe("workflow control lifecycle notices", () => {
 						store,
 						stageControlRegistry: registry,
 						stageId: "stage-1",
-						actor: "user",
 					})
 				).ok,
 				true,
 			);
-			assert.deepEqual(kinds(sent), ["paused"]);
-			assert.deepEqual(scopes(sent), ["stage"], "stage-2 is still running, so the run did not stop");
-			assert.equal(sent[0]?.details?.stageName, "review");
-			assert.match(sent[0]?.content ?? "", /The user paused the stage of workflow "goal"/);
+			assert.deepEqual(sent, []);
+			assert.equal(store.runs()[0]?.status, "running");
 
 			assert.equal(
 				(
@@ -505,13 +488,12 @@ describe("workflow control lifecycle notices", () => {
 						store,
 						stageControlRegistry: registry,
 						stageId: "stage-2",
-						actor: "user",
 					})
 				).ok,
 				true,
 			);
-			assert.deepEqual(kinds(sent), ["paused", "paused"]);
-			assert.deepEqual(scopes(sent), ["stage", "run"], "pausing the last active stage stops the run itself");
+			assert.deepEqual(sent, []);
+			assert.equal(store.runs()[0]?.status, "paused");
 		} finally {
 			unsubscribe();
 		}
@@ -560,7 +542,7 @@ describe("workflow control lifecycle notices", () => {
 		}
 	});
 
-	test("pause, resume, pause, resume emits four notices in order", async () => {
+	test("two pause-resume cycles emit two resume notices in order", async () => {
 		const store = createStore();
 		const registry = createStageControlRegistry();
 		liveRun(store, registry, "run-cycle", { origin: "user" });
@@ -569,16 +551,13 @@ describe("workflow control lifecycle notices", () => {
 		Date.now = () => 100;
 		try {
 			for (let cycle = 0; cycle < 2; cycle += 1) {
-				assert.equal(
-					(await pauseRun("run-cycle", { store, stageControlRegistry: registry, actor: "user" })).ok,
-					true,
-				);
+				assert.equal((await pauseRun("run-cycle", { store, stageControlRegistry: registry })).ok, true);
 				assert.equal(
 					(await resumeRun("run-cycle", { store, stageControlRegistry: registry, actor: "user" })).ok,
 					true,
 				);
 			}
-			assert.deepEqual(kinds(sent), ["paused", "resumed", "paused", "resumed"]);
+			assert.deepEqual(kinds(sent), ["resumed", "resumed"]);
 		} finally {
 			Date.now = originalNow;
 			unsubscribe();
@@ -604,7 +583,6 @@ describe("workflow control lifecycle notices", () => {
 							store,
 							stageControlRegistry: registry,
 							stageId: "stage-1",
-							actor: "user",
 						})
 					).ok,
 					true,
@@ -621,8 +599,8 @@ describe("workflow control lifecycle notices", () => {
 					true,
 				);
 			}
-			assert.deepEqual(kinds(sent), ["paused", "resumed", "paused", "resumed"]);
-			assert.deepEqual(scopes(sent), ["stage", "stage", "stage", "stage"]);
+			assert.deepEqual(kinds(sent), ["resumed", "resumed"]);
+			assert.deepEqual(scopes(sent), ["stage", "stage"]);
 		} finally {
 			Date.now = originalNow;
 			unsubscribe();

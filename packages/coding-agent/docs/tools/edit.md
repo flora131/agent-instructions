@@ -1,3 +1,8 @@
+---
+title: "edit"
+description: "The edit tool's hashline patch format, operations, and failure modes."
+---
+
 # `edit`
 
 > Applies source edits to existing files with Atomic's hashline patch language, supplied as one `input` string.
