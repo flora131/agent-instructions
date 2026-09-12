@@ -60,6 +60,26 @@ const DRIFT_HISTORY_HASHES = [
 ];
 const DRIFT_HISTORY_SHA256 = "b5b44c8c9994d603e4823c3d4107843921954031191538346be938d6c355992c";
 const DRIFT_README_SHA256 = "821229b64a699f804f1ee24668dd184fc3ecb8bfb46aa48615fbca7eb6a7cf13";
+// #2847 / PR #2971 eighth capture: upstream main ff55b14, and this branch replayed onto it.
+// Sixteen pushed branch commits plus the stub retirement were rebased off 3cd994f; the pre-rebase
+// head is reachable only through the committed bundle parts named here.
+export const REPLAY_MAIN = "ff55b141109e3f9f5980c1f0c718dea39f6b2fd9";
+export const REPLAY_PREDECESSOR = "a523c8ebfa1e929871c67b70fb685b9558240cee";
+export const REPLAY_RECIPE = "2519e592488f30dc4a1bd3c24423c2353add22c2";
+export const REPLAY_FOLLOWUP = "docs/migrations/2847-replay-main.json";
+export const REPLAY_README = "docs/migrations/2847-replay-main.md";
+export const REPLAY_HISTORY_PARTS = [1, 2, 3, 4, 5].map((part) => `${HISTORY}rebased-replay.bundle.part-${part}`);
+const REPLAY_HISTORY_SIZES = [500000, 500000, 500000, 500000, 434229];
+const REPLAY_HISTORY_HASHES = [
+	"5f083a215f60932fe8cb85f5e19b6f939ba1636c57a49bab87921d8aa2b5fc05",
+	"347f1d4cd0e2efba38159068f424f51112ffe50df5512f6e8b00b17c68ebb4b7",
+	"7a7270c8a0e86ac9f111f3ff44a8f93a84cae9392392b0e686c485e5d82c5e15",
+	"83e6f391582b286edb0ffbfd88ffaf679faaf09c6c04dfa070462c2d0e34768a",
+	"d5b53f515901acacf2e928b61e182d94f965e0b52e4575599c4255f31e16fc5a",
+];
+const REPLAY_HISTORY_BYTES = 2434229;
+const REPLAY_HISTORY_SHA256 = "3ea8bcff9433c88547dd2c784c374c9ae73a58a9da629b713aab85a760dc9b42";
+const REPLAY_README_SHA256 = "c97a04efc5ccf4072be58c4c4166000f7cb9920d4dfcfbb6d55f4d659fbbeb51";
 // #2847 / PR #2971 review 3: exact append-only reader handoffs, not upstream changes.
 export const AUTHORING_PREDECESSOR = "8da40cc4ddb88b16baf8b4291722c6dabee8cfbb";
 const authoringReferenceAdditions = new Map(
@@ -169,7 +189,43 @@ function driftHistoryBundle(context) {
 	}
 }
 
-function hydrateHistory(context, replay = false) {
+function rebasedHistoryBundle(context) {
+	if (context.rebasedBundle) return context.rebasedBundle;
+	context.readingTransport = true;
+	try {
+		const parts = REPLAY_HISTORY_PARTS.map((path) =>
+			context.transportRevision
+				? git(context.repoRoot, ["show", `${context.transportRevision}:${path}`], undefined, "buffer")
+				: context.overrides?.has(path)
+					? Buffer.from(context.overrides.get(path))
+					: readFileSync(join(context.repoRoot, path)),
+		);
+		assert.deepEqual(
+			parts.map((part) => part.length),
+			REPLAY_HISTORY_SIZES,
+			"rebased history transport part size changed",
+		);
+		assert.deepEqual(
+			parts.map((part) => digest(part)),
+			REPLAY_HISTORY_HASHES,
+			"rebased history transport checksum changed",
+		);
+		const bundle = Buffer.concat(parts);
+		assert.equal(bundle.length, REPLAY_HISTORY_BYTES, "rebased history transport size changed");
+		assert.equal(digest(bundle), REPLAY_HISTORY_SHA256, "rebased history transport checksum changed");
+		assert.equal(
+			bundle.subarray(0, bundle.indexOf("\n\n") + 2).toString(),
+			`# v2 git bundle\n-${DRIFT_MAIN} Merge pull request #2989 from bastani-inc/fix/baseten-catalog-ci\n${REPLAY_PREDECESSOR} refs/heads/rebased-replay\n\n`,
+			"rebased history transport prerequisites changed",
+		);
+		context.rebasedBundle = bundle;
+		return bundle;
+	} finally {
+		context.readingTransport = false;
+	}
+}
+
+function hydrateHistory(context, replay = false, rebased = false) {
 	if (!context.env) {
 		const bundle = historyBundle(context);
 		context.directory = mkdtempSync(join(tmpdir(), "atomic-docs-history-"));
@@ -193,6 +249,12 @@ function hydrateHistory(context, replay = false) {
 		writeFileSync(path, driftHistoryBundle(context));
 		git(context.repoRoot, ["bundle", "unbundle", path]);
 		context.replayHydrated = true;
+	}
+	if (rebased && !context.rebasedHydrated) {
+		const path = join(context.directory, "rebased-replay.bundle");
+		writeFileSync(path, rebasedHistoryBundle(context));
+		git(context.repoRoot, ["bundle", "unbundle", path]);
+		context.rebasedHydrated = true;
 	}
 }
 
@@ -288,14 +350,25 @@ function git(repoRoot, args, input, encoding = "utf8") {
 			PRE_REBASE,
 			DRIFT_PREDECESSOR,
 			REBASED_RECIPE,
+			READER_PATHS_PREDECESSOR,
+			REPLAY_PREDECESSOR,
+			DRIFT_RECIPE,
 		];
 		const replay = args.some((arg) =>
 			[DRIFT_PREDECESSOR, REBASED_RECIPE].some(
 				(revision) => arg === revision || arg.startsWith(`${revision}^{`) || arg.startsWith(`${revision}:`),
 			),
 		);
+		// The rebase made the whole pre-rebase branch line unreachable: the reader-path predecessor
+		// that every earlier layer still verifies against, and the recipe commit the previous
+		// capture's reader pointer cites, both moved into this capture's bundle.
+		const rebased = args.some((arg) =>
+			[READER_PATHS_PREDECESSOR, REPLAY_PREDECESSOR, DRIFT_RECIPE].some(
+				(revision) => arg === revision || arg.startsWith(`${revision}^{`) || arg.startsWith(`${revision}:`),
+			),
+		);
 		if (
-			(context?.env && (!replay || context.replayHydrated)) ||
+			(context?.env && (!replay || context.replayHydrated) && (!rebased || context.rebasedHydrated)) ||
 			context?.readingTransport ||
 			!args.some((arg) =>
 				checkpoints.some(
@@ -305,7 +378,7 @@ function git(repoRoot, args, input, encoding = "utf8") {
 		)
 			throw error;
 		return withHistory({ repoRoot }, (active) => {
-			hydrateHistory(active, replay);
+			hydrateHistory(active, replay, rebased);
 			return git(repoRoot, args, input, encoding);
 		});
 	}
@@ -2181,8 +2254,8 @@ export function assertReaderPathsKind(edit, addedSlugs) {
 	}
 }
 
-function verifyReaderPaths({ repoRoot, revision, overrides, commit }) {
-	const current = reader(repoRoot, revision, overrides);
+function verifyReaderPaths({ repoRoot, revision, overrides, commit, snapshot }) {
+	const current = snapshot ?? reader(repoRoot, revision, overrides);
 	const manifestText = current.read(READER_PATHS_FOLLOWUP);
 	assert.equal(digest(manifestText), READER_PATHS_MANIFEST_SHA256, "reader-path provenance changed");
 	assert.equal(
@@ -2258,6 +2331,331 @@ function verifyReaderPaths({ repoRoot, revision, overrides, commit }) {
 	};
 }
 
+/**
+ * Eighth capture — upstream main ff55b14, and this branch replayed onto it.
+ *
+ * Two things happened at once and the record separates them. Upstream changed five reader pages by
+ * the enumerated spans below, added `web-access.md` whole, and listed that one page in navigation.
+ * Independently, the sixteen pushed branch commits and the stub retirement were rebased off
+ * 3cd994f onto ff55b14, which made the pre-rebase head `a523c8e` unreachable from any ref; it is
+ * carried in `rebased-replay.bundle.part-*`, pinned below by part size and digest.
+ *
+ * The upstream side reconstructs from two immutable commits, so an omitted hunk cannot hide: the
+ * spans must rebuild ff55b14's bytes from 3cd994f exactly. The reader side is then required to be
+ * the pre-rebase tree plus those same spans, byte for byte, which is what proves the rebase
+ * carried every earlier #2847 layer across intact rather than resolving a conflict by dropping a
+ * side. Every earlier proof still runs, unchanged, against the reversed pre-rebase tree.
+ */
+export function reconstructReplayMainDelta(repoRoot) {
+	return withHistory({ repoRoot }, () => {
+		const specs = [
+			["background-tasks.md", 28, 1, 28, 5],
+			["background-tasks.md", 78, 1, 82, 1],
+			["background-tasks.md", 91, 1, 95, 1],
+			["background-tasks.md", 159, 2, 163, 2],
+			["background-tasks.md", 162, 2, 166, 2],
+			["background-tasks.md", 165, 2, 169, 2],
+			["background-tasks.md", 174, 2, 178, 2],
+			["containerization.md", 13, 1, 13, 1],
+			["containerization.md", 22, 1, 22, 1],
+			["containerization.md", 29, 1, 29, 1],
+			["containerization.md", 39, 1, 39, 1],
+			["containerization.md", 43, 1, 43, 3],
+			["development.md", 51, 2, 51, 13],
+			["subagents.md", 10, 1, 10, 3],
+			["subagents.md", 70, 1, 72, 1],
+			["tools.md", 5, 1, 5, 15],
+			["tools.md", 27, 1, 41, 13],
+		];
+		const changed = [...new Set(specs.map(([path]) => DOCS + path))];
+		const navigationPath = `${DOCS}docs.json`;
+		const added = [`${DOCS}web-access.md`];
+		const touched = [...changed, navigationPath, ...added];
+		const previous = git(repoRoot, ["ls-tree", "-r", DRIFT_MAIN, "--", DOCS]);
+		const latest = git(repoRoot, ["ls-tree", "-r", REPLAY_MAIN, "--", DOCS]);
+		const paths = (tree) =>
+			tree
+				.trim()
+				.split("\n")
+				.map((line) => line.split("\t")[1]);
+		const unchanged = (tree) =>
+			tree
+				.split("\n")
+				.filter((line) => !touched.includes(line.split("\t")[1]))
+				.join("\n");
+		assert.deepEqual(
+			paths(latest).filter((path) => !added.includes(path)),
+			paths(previous),
+			"replay-main source file set changed beyond the declared additions",
+		);
+		assert.deepEqual(
+			paths(latest).filter((path) => added.includes(path)),
+			added,
+			"a declared upstream addition is absent from upstream",
+		);
+		assert.equal(unchanged(latest), unchanged(previous), "unmapped replay-main source/asset change");
+		const source = (revision, path) => git(repoRoot, ["show", `${revision}:${path}`]);
+		const slice = (revision, path, start, count) =>
+			`${source(revision, path)
+				.split("\n")
+				.slice(start - 1, start - 1 + count)
+				.join("\n")}\n`;
+		const edits = specs.map(([path, oldStart, oldCount, newStart, newCount]) => ({
+			source_path: DOCS + path,
+			target_path: DOCS + path,
+			previous_lines: [oldStart, oldStart + oldCount - 1],
+			latest_lines: [newStart, newStart + newCount - 1],
+			before: slice(DRIFT_MAIN, DOCS + path, oldStart, oldCount),
+			after: slice(REPLAY_MAIN, DOCS + path, newStart, newCount),
+		}));
+		for (const path of changed) {
+			let expected = source(DRIFT_MAIN, path);
+			for (const edit of edits.filter((row) => row.source_path === path))
+				expected = replaceDelta(expected, edit.before, edit.after, path);
+			assert.equal(expected, source(REPLAY_MAIN, path), `unmapped replay-main source change: ${path}`);
+		}
+		const addedPages = added.map((path) => ({
+			path,
+			sha256: digest(git(repoRoot, ["show", `${REPLAY_MAIN}:${path}`], undefined, "buffer")),
+		}));
+		// Upstream's own navigation change, recorded as position rather than as text: the reader
+		// tree nests its navigation more deeply, so the two files share no anchor line to splice.
+		const navBefore = source(DRIFT_MAIN, navigationPath);
+		const navAfter = source(REPLAY_MAIN, navigationPath);
+		const beforePages = navigationPages(navBefore);
+		const afterPages = navigationPages(navAfter);
+		const addedSlugs = added.map((path) => path.slice(DOCS.length).replace(/\.mdx?$/u, ""));
+		assert.deepEqual(
+			afterPages.filter((page) => !beforePages.includes(page)),
+			addedSlugs,
+			"upstream navigation gained a page this capture does not declare",
+		);
+		assert.deepEqual(
+			beforePages.filter((page) => !afterPages.includes(page)),
+			[],
+			"upstream navigation dropped a page",
+		);
+		const config = (text) => {
+			const { navigation, ...rest } = JSON.parse(text);
+			return rest;
+		};
+		assert.deepEqual(config(navAfter), config(navBefore), "upstream changed docs.json beyond navigation");
+		const adoption = addedSlugs.map((page) => {
+			const at = afterPages.indexOf(page);
+			assert.equal(afterPages.indexOf(page, at + 1), -1, `upstream navigation lists ${page} twice`);
+			return { page, follows: afterPages[at - 1], precedes: afterPages[at + 1] };
+		});
+		// The rebase orphaned the commit the reader's maintainer-recipe link cites, exactly as the
+		// previous replay did. Repoint it at this line's counterpart, whose recipe bytes are equal.
+		const recipePath = "docs/2847-stage-skill-verification.md";
+		assert.equal(
+			source(REPLAY_RECIPE, recipePath),
+			source(REPLAY_PREDECESSOR, recipePath),
+			"replay-main rebased recipe differs",
+		);
+		const readerRepairs = [
+			{
+				kind: "reachable-maintainer-recipe-pointer",
+				target_path: `${DOCS}workflows/verification.md`,
+				before: `https://github.com/bastani-inc/atomic/blob/${DRIFT_RECIPE}/${recipePath}#reproduce-stage-skill-terminal-evidence`,
+				after: `https://github.com/bastani-inc/atomic/blob/${REPLAY_RECIPE}/${recipePath}#reproduce-stage-skill-terminal-evidence`,
+			},
+		];
+		for (const repair of readerRepairs)
+			assert.equal(
+				repair.after.replace(REPLAY_RECIPE, DRIFT_RECIPE),
+				repair.before,
+				"the recipe pointer repair may change only its commit",
+			);
+		return {
+			schema: "2847-replay-main-v1",
+			baseline: BASELINE,
+			predecessor: REPLAY_PREDECESSOR,
+			previous_main: DRIFT_MAIN,
+			latest_main: REPLAY_MAIN,
+			source_trees: {
+				previous_sha256: digest(previous),
+				latest_sha256: digest(latest),
+				unchanged_sha256: digest(unchanged(previous)),
+			},
+			changed_source_paths: changed,
+			unchanged_source_paths: paths(latest).filter((path) => !touched.includes(path)),
+			edits,
+			added_pages: addedPages,
+			navigation_adoption: adoption,
+			reader_repairs: readerRepairs,
+		};
+	});
+}
+
+export function replayMainEvidence(delta) {
+	const { edits, ...rest } = delta;
+	return {
+		...rest,
+		edits: edits.map(({ before, after, ...location }) => ({
+			...location,
+			before_sha256: digest(before),
+			after_sha256: digest(after),
+		})),
+		history_transport: {
+			parts: REPLAY_HISTORY_PARTS,
+			part_bytes: REPLAY_HISTORY_SIZES,
+			part_sha256: REPLAY_HISTORY_HASHES,
+			bytes: REPLAY_HISTORY_BYTES,
+			sha256: REPLAY_HISTORY_SHA256,
+			prerequisites: [DRIFT_MAIN],
+			head: REPLAY_PREDECESSOR,
+		},
+	};
+}
+
+/** The one navigation line a page occupies, located by its own slug rather than by line number. */
+function navigationEntryLine(text, slug, path) {
+	const matches = text.split("\n").filter((line) => line.trim().replace(/,$/u, "") === JSON.stringify(slug));
+	assert.equal(matches.length, 1, `${path}: navigation entry ${slug} must appear exactly once`);
+	return matches[0];
+}
+
+/**
+ * Splice the upstream-added navigation entries back out. Each edit keeps the entry it follows and
+ * drops only the added line, so `replaceDelta` fails unless the two are adjacent in the reader
+ * file: the reversal itself is the positional proof, and the assertions in `verifyReplay` state it.
+ */
+function replayNavigationEdits(text, adoption, path) {
+	return adoption.map((row) => {
+		const anchor = navigationEntryLine(text, row.follows, path);
+		const entry = navigationEntryLine(text, row.page, path);
+		return {
+			kind: "upstream-navigation-page",
+			target_path: path,
+			before: `${anchor}\n`,
+			after: `${anchor}\n${entry}\n`,
+		};
+	});
+}
+
+const rebasedReplayProofs = new Set();
+function verifyReplay({ repoRoot, revision, overrides, commit }) {
+	const current = reader(repoRoot, revision, overrides);
+	rebasedHistoryBundle(historyContexts.get(realpathSync(repoRoot)));
+	const delta = reconstructReplayMainDelta(repoRoot);
+	assert.deepEqual(
+		JSON.parse(current.read(REPLAY_FOLLOWUP)),
+		replayMainEvidence(delta),
+		"replay-main evidence does not reconstruct",
+	);
+	assert.equal(digest(current.read(REPLAY_README)), REPLAY_README_SHA256, "replay-main explanation changed");
+	assert.match(commit, /^[a-f0-9]{40}$/u, "replay verification needs a resolved commit");
+	assert.equal(
+		git(repoRoot, ["merge-base", commit, REPLAY_MAIN]).trim(),
+		REPLAY_MAIN,
+		"replay provenance requires the captured upstream main in history",
+	);
+	const added = delta.added_pages.map((page) => page.path);
+	for (const page of delta.added_pages) {
+		assert.ok(current.paths.includes(page.path), `upstream page was not carried in: ${page.path}`);
+		assert.equal(digest(current.bytes(page.path)), page.sha256, `carried upstream page changed: ${page.path}`);
+		assert.ok(
+			current.bytes(page.path).equals(git(repoRoot, ["show", `${REPLAY_MAIN}:${page.path}`], undefined, "buffer")),
+			`carried upstream page differs from upstream: ${page.path}`,
+		);
+	}
+	const navigationPath = `${DOCS}docs.json`;
+	const navigationEdits = replayNavigationEdits(
+		current.read(navigationPath),
+		delta.navigation_adoption,
+		navigationPath,
+	);
+	const all = [...delta.edits, ...navigationEdits, ...delta.reader_repairs];
+	const restored = new Map();
+	for (const edit of [...all].reverse()) {
+		const text = restored.get(edit.target_path) ?? current.read(edit.target_path);
+		restored.set(edit.target_path, replaceDelta(text, edit.after, edit.before, `replay-main ${edit.target_path}`));
+	}
+	const provenance = [REPLAY_FOLLOWUP, REPLAY_README];
+	const paths = current.paths.filter((path) => !provenance.includes(path) && !added.includes(path));
+	const bytes = (path) => (restored.has(path) ? Buffer.from(restored.get(path)) : current.bytes(path));
+	// Do not infer the pre-rebase reader stack from the reversal alone: prove the unreachable
+	// pre-rebase head itself, from its own objects, exactly as it verified before the rebase.
+	const root = realpathSync(repoRoot);
+	if (!rebasedReplayProofs.has(root)) {
+		verifyReaderPaths({ repoRoot, revision: REPLAY_PREDECESSOR, commit: REPLAY_PREDECESSOR });
+		rebasedReplayProofs.add(root);
+	}
+	const result = verifyReaderPaths({
+		repoRoot,
+		commit: REPLAY_PREDECESSOR,
+		snapshot: {
+			paths,
+			pages: paths.filter((path) => path.startsWith(DOCS) && /\.mdx?$/u.test(path)).sort(),
+			read: (path) => bytes(path).toString("utf8"),
+			bytes,
+		},
+	});
+	// Position is asserted only once the byte-level reversal and every earlier layer have passed.
+	// A malformed or regrouped docs.json is an earlier layer's finding, and parsing it here first
+	// would replace that layer's exact diagnostic with a JSON syntax error.
+	const readerPages = navigationPages(current.read(navigationPath));
+	for (const row of delta.navigation_adoption) {
+		const at = readerPages.indexOf(row.page);
+		assert.ok(at >= 0, `upstream page is not reachable from reader navigation: ${row.page}`);
+		assert.equal(readerPages.indexOf(row.page, at + 1), -1, `reader navigation lists ${row.page} twice`);
+		assert.equal(readerPages[at - 1], row.follows, `${row.page} must stay immediately after ${row.follows}`);
+		assert.equal(readerPages[at + 1], row.precedes, `${row.page} must stay immediately before ${row.precedes}`);
+	}
+	assert.deepEqual(
+		paths.slice().sort(),
+		documentationPaths(repoRoot, REPLAY_PREDECESSOR).sort(),
+		"replay-main frozen file set changed",
+	);
+	// The earlier transports and the maintainer recipe must have survived the rebase untouched too,
+	// so compare them against the pre-rebase head as well, not only the reader pages.
+	for (const path of [...paths, "docs/2847-stage-skill-verification.md", ...HISTORY_PARTS, ...DRIFT_HISTORY_PARTS]) {
+		const original = git(repoRoot, ["show", `${REPLAY_PREDECESSOR}:${path}`], undefined, "buffer");
+		assert.ok(bytes(path).equals(original), `replay-main reversed predecessor differs: ${path}`);
+		let expected = original;
+		for (const edit of all.filter((row) => row.target_path === path))
+			expected = Buffer.from(replaceDelta(expected.toString("utf8"), edit.before, edit.after, path));
+		assert.ok(current.bytes(path).equals(expected), `replay-main exact preservation differs: ${path}`);
+	}
+	return {
+		...result,
+		replayMain: {
+			revision: REPLAY_MAIN,
+			predecessor: REPLAY_PREDECESSOR,
+			changedPages: delta.changed_source_paths.length,
+			edits: delta.edits.length,
+			readerRepairs: delta.reader_repairs.length,
+			addedPages: delta.added_pages.length,
+			navigationAdoptions: delta.navigation_adoption.length,
+		},
+	};
+}
+
+/** True when a commit carries this capture's declared provenance. */
+function hasReplay(repoRoot, revision) {
+	if (!revision) return existsSync(join(repoRoot, REPLAY_FOLLOWUP));
+	try {
+		git(repoRoot, ["cat-file", "-e", `${revision}:${REPLAY_FOLLOWUP}`]);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * This capture applies only to its own line of history. A revision on the pre-rebase line never
+ * reaches it — that line does not descend from the captured upstream main — so every pre-rebase
+ * and historical revision keeps routing to the layer that verified it before this pass existed.
+ */
+function onReplayBase(repoRoot, commit) {
+	try {
+		return git(repoRoot, ["merge-base", commit, REPLAY_MAIN]).trim() === REPLAY_MAIN;
+	} catch {
+		return false;
+	}
+}
+
 /** True when a commit carries this pass's declared provenance. */
 function hasReaderPaths(repoRoot, revision) {
 	if (!revision) return existsSync(join(repoRoot, READER_PATHS_FOLLOWUP));
@@ -2291,6 +2689,12 @@ export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
 			revision === "HEAD"
 				? context.transportRevision
 				: git(repoRoot, ["rev-parse", "--verify", `${revision}^{commit}`]).trim();
+		if (onReplayBase(repoRoot, commit) && hasReplay(repoRoot, commit)) {
+			context.transportRevision = commit;
+			const result = verifyReplay({ repoRoot, revision: commit, commit });
+			console.log(JSON.stringify({ mode: "committed", revision: commit, ...result }));
+			return result;
+		}
 		if (onReaderPathsBase(repoRoot, commit) && hasReaderPaths(repoRoot, commit)) {
 			context.transportRevision = commit;
 			const result = verifyReaderPaths({ repoRoot, revision: commit, commit });
@@ -2331,6 +2735,8 @@ export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
 export function verifyWorkingTreeDocumentation({ repoRoot, overrides = new Map() }) {
 	return withHistory({ repoRoot, overrides }, () => {
 		const commit = git(repoRoot, ["rev-parse", "--verify", "HEAD^{commit}"]).trim();
+		if (onReplayBase(repoRoot, commit) && (hasReplay(repoRoot) || overrides.has(REPLAY_FOLLOWUP)))
+			return verifyReplay({ repoRoot, overrides, commit });
 		if (onReaderPathsBase(repoRoot, commit) && (hasReaderPaths(repoRoot) || overrides.has(READER_PATHS_FOLLOWUP)))
 			return verifyReaderPaths({ repoRoot, overrides, commit });
 		if (git(repoRoot, ["merge-base", commit, DRIFT_MAIN]).trim() === DRIFT_MAIN)

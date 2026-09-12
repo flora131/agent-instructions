@@ -656,6 +656,9 @@ const generatedNavigationInsertions: Record<string, readonly string[]> = {
 	"/models": ["/models/model-selection", "/models/pareto-efficiency", "/models/evals"],
 	"/workflows/reliable-design": ["/workflows/verification"],
 	"/tmux": ["/herdr"],
+	// Upstream shipped /web-access after /tools/edit in the Reference group; the reader tree keeps
+	// it in the same position, which docs/migrations/2847-replay-main.json proves against upstream.
+	"/tools/edit": ["/web-access"],
 	"/changelog": ["/models/artificial-analysis-index"],
 	"/custom-provider": [
 		"/custom-provider/override",
@@ -896,8 +899,8 @@ describe("docs information architecture (#2847)", () => {
 		const expectedGenerated = Object.values(generatedNavigationInsertions).flat().sort();
 		assert.equal(
 			expectedGenerated.length,
-			33,
-			"24 migration routes, all five upstream additions, and the four reader-path orientation pages have insertion points",
+			34,
+			"24 migration routes, all six upstream additions, and the four reader-path orientation pages have insertion points",
 		);
 		assert.deepEqual(generated, expectedGenerated, "no generated page may fall outside the insertion contract");
 

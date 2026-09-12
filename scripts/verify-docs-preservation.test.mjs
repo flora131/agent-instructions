@@ -38,6 +38,12 @@ import {
 	REBASE_MAIN,
 	REBASE_README,
 	REBASED_RECIPE,
+	REPLAY_FOLLOWUP,
+	REPLAY_HISTORY_PARTS,
+	REPLAY_MAIN,
+	REPLAY_PREDECESSOR,
+	REPLAY_README,
+	REPLAY_RECIPE,
 	REVIEW_PREDECESSOR,
 	REVIEW_README,
 	REVIEW_REPAIRS,
@@ -47,7 +53,9 @@ import {
 	reconstructFourthMainDelta,
 	reconstructLatestMainDelta,
 	reconstructRebaseMainDelta,
+	reconstructReplayMainDelta,
 	reconstructWaitMainDelta,
+	replayMainEvidence,
 	SECOND_RECONCILIATION,
 	splitBlocks,
 	verifyCommittedDocumentation,
@@ -200,6 +208,21 @@ for (const source of ["baseline", "main"]) {
 		});
 	}
 }
+
+// #2847 / PR #2971: the eighth capture carries upstream changes into pages the earlier layers also
+// edited — upstream dropped `budgetMs: 1000` from the two observation examples, for instance. A
+// test that checks what an earlier layer installed must read the tree with this capture's spans
+// reversed, which is the view the verifier hands that layer. Asserting against the raw working
+// tree instead would quietly assert that upstream never changed anything.
+const replayDelta = reconstructReplayMainDelta(repoRoot);
+const beforeReplay = (path) => {
+	let text = read(path);
+	for (const edit of [...replayDelta.edits, ...replayDelta.reader_repairs]
+		.filter((row) => row.target_path === path)
+		.reverse())
+		text = text.replace(edit.after, () => edit.before);
+	return text;
+};
 
 function changedJSON(path, change) {
 	const value = JSON.parse(read(path));
@@ -451,9 +474,10 @@ const waitDelta = reconstructWaitMainDelta(repoRoot);
 for (const [index, edit] of latestDelta.edits.entries()) {
 	test(`latest-main addition ${index + 1} cannot be deleted or tampered with at ${edit.target_path}`, () => {
 		const text = read(edit.target_path);
-		// New wait prose splits the older background-shell hunk. Reconstruct its exact
-		// predecessor view, but delete the original added lines from the real current reader.
-		let previousView = text;
+		// New wait prose splits the older background-shell hunk, and the eighth capture then
+		// carried upstream's rewrite of the same region. Reconstruct the exact predecessor view
+		// through both, but delete the original added lines from the real current reader.
+		let previousView = beforeReplay(edit.target_path);
 		for (const waitEdit of [...waitDelta.edits].reverse().filter((row) => row.target_path === edit.target_path))
 			previousView = previousView.replace(waitEdit.after, () => waitEdit.before);
 		assert.ok(previousView.includes(edit.after));
@@ -617,30 +641,53 @@ test("reader-anchor evidence cannot authorize omitted, forged, or arbitrary addi
 // #2847 / PR #2971: PR #2972 guidance must remain active, not merely archived.
 for (const [index, edit] of waitDelta.edits.entries()) {
 	test(`wait-main source hunk ${index + 1} rejects deletion and tampering`, () => {
-		const text = read(edit.target_path);
-		assert.equal(text.split(edit.after).length, 2);
+		// Locate the hunk where the wait-main layer still owns it. Upstream rewrote part of this
+		// guidance in the eighth capture, so the raw tree carries upstream's form of those lines.
+		assert.equal(beforeReplay(edit.target_path).split(edit.after).length, 2);
 		const added = edit.after.split("\n").filter((line) => line && !edit.before.split("\n").includes(line));
 		assert.ok(added.length > 0);
-		for (const replacement of [edit.before, edit.after.replace(added[0], `${added[0]} altered`)])
-			assert.throws(
-				() => check(new Map([[edit.target_path, text.replace(edit.after, () => replacement)]])),
-				/latest-main delta/u,
-			);
+		// Tampering is still rejected against the real tree. Where upstream superseded the hunk,
+		// drive the control through the exact upstream span that replaced it rather than skipping.
+		const text = read(edit.target_path);
+		const present = text.includes(edit.after)
+			? [edit.after]
+			: replayDelta.edits
+					.filter((row) => row.target_path === edit.target_path && edit.after.includes(row.before))
+					.map((row) => row.after);
+		assert.ok(present.length > 0, "an upstream rewrite must be declared by the replayed capture");
+		for (const target of present)
+			for (const replacement of ["", `${target.trimEnd()} altered\n`])
+				assert.throws(
+					() => check(new Map([[edit.target_path, text.replace(target, () => replacement)]])),
+					/latest-main delta/u,
+				);
 	});
 }
 
 test("wait-main examples and settled-output, ownership, UTF-8 and lifetime caveats cannot be deleted", () => {
-	for (const [path, fragment] of [
-		["background-tasks.md", 'bash({ action: "wait", id: taskId, budgetMs: 1000 })'],
-		["background-tasks.md", 'powershell({ action: "wait", id: taskId, budgetMs: 1000 })'],
+	for (const [path, fragment, current = fragment] of [
+		// Upstream dropped the explicit budget from the two observation examples in the eighth
+		// capture. The wait-main guidance is still required where that layer proves it, and the
+		// current tree is required to carry upstream's exact replacement for it.
+		[
+			"background-tasks.md",
+			'bash({ action: "wait", id: taskId, budgetMs: 1000 })',
+			'bash({ action: "wait", id: taskId })',
+		],
+		[
+			"background-tasks.md",
+			'powershell({ action: "wait", id: taskId, budgetMs: 1000 })',
+			'powershell({ action: "wait", id: taskId })',
+		],
 		["background-tasks.md", "Settled waits return all retained output again"],
 		["background-tasks.md", "Waiting never extends the original execution timeout or the owner's lifetime."],
 		["sdk/reference.md", "Partial UTF-8 characters continue on the next page."],
 		["sdk/reference.md", "Custom `operations.exec` does not provide existing-task ownership."],
 	]) {
+		assert.ok(beforeReplay(DOCS + path).includes(fragment));
 		const text = read(DOCS + path);
-		assert.ok(text.includes(fragment));
-		assert.throws(() => check(new Map([[DOCS + path, text.replace(fragment, "")]])), /latest-main delta/u);
+		assert.ok(text.includes(current));
+		assert.throws(() => check(new Map([[DOCS + path, text.replace(current, "")]])), /latest-main delta/u);
 	}
 });
 
@@ -822,7 +869,7 @@ test("fourth-main anchors, navigation and compatibility pointers cannot disappea
 		const publishedPointer = reconstructRebaseMainDelta(repoRoot).reader_repairs[0];
 		const after = repair.after
 			.replace(publishedPointer.before, () => publishedPointer.after)
-			.replace(REBASED_RECIPE, DRIFT_RECIPE);
+			.replace(REBASED_RECIPE, REPLAY_RECIPE);
 		if (repair.target_path === `${DOCS}docs.json`) {
 			// The reader-path pass regrouped navigation, so this addition is proved where the verifier
 			// proves it: in the reversed docs.json the declared edit restores. The entry itself is
@@ -910,7 +957,7 @@ test("cold data-URL verification batches each immutable blob once and isolates w
 		assert.deepEqual(
 			calls.filter(call => call.args[0] === 'cat-file' && call.args[1] === '-e')
 				.map(call => call.args[2].replace(/^[a-f0-9]{40}:/u, '<commit>:')),
-			['<commit>:' + ${JSON.stringify(READER_PATHS_FOLLOWUP)}],
+			['<commit>:' + ${JSON.stringify(REPLAY_FOLLOWUP)}],
 			'a cold verification probes this pass provenance exactly once',
 		);
 		assert.deepEqual(verifier.verifyCommittedDocumentation({ repoRoot }), committed);
@@ -927,7 +974,7 @@ test("cold data-URL verification batches each immutable blob once and isolates w
 		assert.deepEqual(
 			calls.filter(call => call.args[0] === 'cat-file' && call.args[1] !== '--batch')
 				.map(call => call.args.slice(1).join(' ').replace(/[a-f0-9]{40}:/u, '<commit>:')),
-			['-e <commit>:' + ${JSON.stringify(READER_PATHS_FOLLOWUP)}],
+			['-e <commit>:' + ${JSON.stringify(REPLAY_FOLLOWUP)}],
 			'the only non-batch cat-file call is this pass provenance probe',
 		);
 		const objects = batches.flatMap(call => {
@@ -1062,7 +1109,7 @@ test("rebase-main rejects missing or self-authorized supplemental policy and poi
 	assert.throws(() => verifyCommittedDocumentation({ repoRoot, revision: REBASE_MAIN }), /2847-rebase-main\.json/u);
 	const repair = reconstructRebaseMainDelta(repoRoot).reader_repairs[0];
 	const text = read(repair.target_path);
-	const currentPointer = repair.after.replace(REBASED_RECIPE, DRIFT_RECIPE);
+	const currentPointer = repair.after.replace(REBASED_RECIPE, REPLAY_RECIPE);
 	assert.ok(text.includes(currentPointer));
 	for (const replacement of [repair.before, repair.after.replace("/docs/", "/missing/")]) {
 		// The old proof still rejects forged policy; current pointers now also pass through the sixth layer.
@@ -1083,7 +1130,7 @@ test("rebase-main rejects missing or self-authorized supplemental policy and poi
 			repair.target_path,
 			text.replace(currentPointer, () => replacement),
 		);
-		assert.throws(() => check(paired), /latest-main delta.*drift-main/u);
+		assert.throws(() => check(paired), /latest-main delta.*replay-main/u);
 		assert.throws(
 			() => check(new Map([[repair.target_path, text.replace(currentPointer, () => replacement)]])),
 			/latest-main delta/u,
@@ -1123,7 +1170,17 @@ test("cold committed rebase proof uses authentic disposable history without Git 
 			},
 		});
 	const absent = () => {
-		for (const revision of [PR, FIRST_RECONCILIATION, PRE_REBASE, DRIFT_PREDECESSOR, REBASED_RECIPE])
+		for (const revision of [
+			PR,
+			FIRST_RECONCILIATION,
+			PRE_REBASE,
+			DRIFT_PREDECESSOR,
+			REBASED_RECIPE,
+			// The rebase moved these onto the unreachable pre-rebase line; only the bundle has them.
+			DRIFT_RECIPE,
+			READER_PATHS_PREDECESSOR,
+			REPLAY_PREDECESSOR,
+		])
 			assert.throws(
 				() => run(["cat-file", "-e", `${revision}^{commit}`]),
 				`original commit unexpectedly present: ${revision}`,
@@ -1157,6 +1214,15 @@ test("cold committed rebase proof uses authentic disposable history without Git 
 			READER_PATHS_README,
 			...new Set(readerPaths.edits.map((edit) => edit.target_path)),
 			...readerPaths.added_pages.map((page) => page.path),
+			// The replayed capture pins its own artifacts and transport, carries one upstream page in
+			// whole, and repairs one reader pointer, so the cold proof must see those bytes too.
+			REPLAY_FOLLOWUP,
+			REPLAY_README,
+			...REPLAY_HISTORY_PARTS,
+			...new Set(replayDelta.edits.map((edit) => edit.target_path)),
+			...new Set(replayDelta.reader_repairs.map((repair) => repair.target_path)),
+			...replayDelta.added_pages.map((page) => page.path),
+			`${DOCS}docs.json`,
 		];
 		const put = (path, bytes) => {
 			const oid = run(["hash-object", "-w", "--stdin"], bytes).trim();
@@ -1222,6 +1288,8 @@ test("cold committed rebase proof uses authentic disposable history without Git 
 			const repoRoot = ${JSON.stringify(fixture)};
 			const result = module.verifyCommittedDocumentation({ repoRoot });
 			assert.equal(result.rebaseMain.revision, module.REBASE_MAIN);
+			assert.equal(result.replayMain.revision, module.REPLAY_MAIN);
+			assert.equal(result.replayMain.predecessor, module.REPLAY_PREDECESSOR);
 			assert.equal(result.driftMain.revision, module.DRIFT_MAIN);
 			assert.equal(result.driftMain.predecessor, module.DRIFT_PREDECESSOR);
 			assert.equal(result.authoringReferenceAdditions, 5); assert.equal(result.reviewRepairs.aliases, 8);
@@ -1235,7 +1303,7 @@ test("cold committed rebase proof uses authentic disposable history without Git 
 			// earlier layer exactly as it did before this pass, not through the reader-path gate.
 			for (const [revision, pages] of [[module.FIRST_RECONCILIATION, 85], [module.SECOND_RECONCILIATION, 85],
 				[module.FOURTH_PREDECESSOR, 85], [module.REVIEW_PREDECESSOR, 86], [module.PRE_REBASE, 86],
-				[module.DRIFT_PREDECESSOR, 86], [module.READER_PATHS_PREDECESSOR, 86]]) {
+				[module.DRIFT_PREDECESSOR, 86], [module.READER_PATHS_PREDECESSOR, 86], [module.REPLAY_PREDECESSOR, 86]]) {
 				assert.equal(module.verifyCommittedDocumentation({ repoRoot, revision }).readerPages, pages);
 				assert.ok(owned.every(path => !fs.existsSync(path)));
 			}
@@ -1307,17 +1375,26 @@ test("drift-main evidence cannot omit source coverage or authorize matching read
 	);
 	for (const [index, repair] of driftDelta.reader_repairs.entries()) {
 		const text = read(repair.target_path);
-		assert.equal(text.split(repair.after).length, 2);
-		for (const replacement of [repair.before, `${repair.after} altered`]) {
+		// The eighth capture repoints the recipe URL this repair installed, so the bytes present in
+		// the tree today carry the newest recipe commit. Every other repair is unchanged.
+		const present = repair.after.replace(DRIFT_RECIPE, REPLAY_RECIPE);
+		assert.equal(text.split(present).length, 2);
+		for (const replacement of [repair.before, `${present} altered`]) {
+			const altered = text.replace(present, () => replacement);
+			// Whichever layer owns the current bytes is the layer that rejects forging them. If the
+			// alteration disturbs a span this capture declares, its reversal fails first; otherwise
+			// the tree still reverses cleanly and the forged drift evidence is what fails.
+			const owner = [...replayDelta.edits, ...replayDelta.reader_repairs]
+				.filter((row) => row.target_path === repair.target_path)
+				.some((row) => altered.split(row.after).length !== 2)
+				? /latest-main delta.*replay-main/u
+				: /drift-main evidence does not reconstruct/u;
 			const overrides = changedJSON(DRIFT_FOLLOWUP, (record) => {
 				record.reader_repairs[index].after = replacement;
 			});
-			overrides.set(
-				repair.target_path,
-				text.replace(repair.after, () => replacement),
-			);
-			assert.throws(() => check(overrides), /drift-main evidence does not reconstruct/u);
-			assert.throws(() => check(new Map([[repair.target_path, text.replace(repair.after, () => replacement)]])));
+			overrides.set(repair.target_path, altered);
+			assert.throws(() => check(overrides), owner);
+			assert.throws(() => check(new Map([[repair.target_path, text.replace(present, () => replacement)]])));
 		}
 	}
 });
@@ -1447,4 +1524,170 @@ test("the declared edit kinds cannot express a content-dropping change", () => {
 		/escape edit changes text/u,
 	);
 	assert.throws(() => assertReaderPathsKind({ ...escaped, kind: "prose-rewrite" }, added), /closed set/u);
+});
+
+// #2847 / PR #2971: the eighth capture — a new upstream main, and the branch replayed onto it.
+// The reader tree must be the pre-rebase tree plus exactly the declared upstream spans, so these
+// controls prove the layer rejects an omitted upstream hunk, a forged digest and a silent edit.
+// `replayDelta` and `beforeReplay` are declared beside the other shared helpers above.
+
+test("the replayed capture preserves every earlier proof and its own source coverage", () => {
+	const result = check();
+	assert.equal(result.replayMain.revision, REPLAY_MAIN);
+	assert.equal(result.replayMain.predecessor, REPLAY_PREDECESSOR);
+	assert.equal(result.replayMain.changedPages, 5);
+	assert.equal(result.replayMain.edits, 17);
+	assert.equal(result.replayMain.addedPages, 1);
+	assert.equal(result.replayMain.navigationAdoptions, 1);
+	// Every earlier layer still reports, against the reversed pre-rebase tree.
+	assert.equal(result.readerPaths.predecessor, READER_PATHS_PREDECESSOR);
+	assert.equal(result.driftMain.revision, DRIFT_MAIN);
+	assert.equal(result.rebaseMain.revision, REBASE_MAIN);
+	assert.equal(result.latestMain.revision, LATEST_MAIN);
+	assert.equal(result.baseline.pages, 44);
+});
+
+// An omitted upstream hunk is the failure this capture exists to catch: the reader tree would
+// silently lose an upstream paragraph while every remaining declaration still reconciled.
+for (const [index, edit] of replayDelta.edits.entries()) {
+	test(`replay-main source span ${index + 1} requires the exact upstream prose`, () => {
+		const text = read(edit.target_path);
+		assert.equal(text.split(edit.after).length, 2);
+		for (const replacement of [edit.before, `${edit.after.trimEnd()} altered\n`])
+			assert.throws(
+				() => check(new Map([[edit.target_path, text.replace(edit.after, () => replacement)]])),
+				/latest-main delta.*replay-main|replay-main exact preservation differs/u,
+			);
+	});
+}
+
+test("replay-main evidence cannot omit an upstream hunk or forge a digest", () => {
+	assert.deepEqual(JSON.parse(read(REPLAY_FOLLOWUP)), replayMainEvidence(replayDelta));
+	assert.equal(replayDelta.edits.length, 17);
+	for (const change of [
+		(record) => record.edits.pop(),
+		(record) => record.edits.shift(),
+		(record) => record.changed_source_paths.pop(),
+		(record) => record.unchanged_source_paths.pop(),
+		(record) => record.added_pages.pop(),
+		(record) => record.navigation_adoption.pop(),
+		(record) => record.reader_repairs.pop(),
+		(record) => {
+			record.edits[0].latest_lines[0]++;
+		},
+		(record) => {
+			record.edits[0].before_sha256 = "0".repeat(64);
+		},
+		(record) => {
+			record.edits[0].after_sha256 = "0".repeat(64);
+		},
+		(record) => {
+			record.added_pages[0].sha256 = "0".repeat(64);
+		},
+		(record) => {
+			record.navigation_adoption[0].follows = "tools";
+		},
+		(record) => {
+			record.source_trees.unchanged_sha256 = "0".repeat(64);
+		},
+		(record) => {
+			record.predecessor = DRIFT_PREDECESSOR;
+		},
+		(record) => {
+			record.latest_main = DRIFT_MAIN;
+		},
+		(record) => {
+			record.history_transport.prerequisites = [];
+		},
+		(record) => {
+			record.history_transport.sha256 = "0".repeat(64);
+		},
+	])
+		assert.throws(() => check(changedJSON(REPLAY_FOLLOWUP, change)), /replay-main evidence does not reconstruct/u);
+	assert.throws(
+		() => check(new Map([[REPLAY_README, `${read(REPLAY_README)}\n`]])),
+		/replay-main explanation changed/u,
+	);
+});
+
+test("an undisclosed reader edit fails even with the replayed evidence intact", () => {
+	// Each undisclosed change is still named by the layer that owns it, exactly as before the
+	// rebase; the eighth layer adds cases for the carried page and the adopted navigation entry.
+	for (const [path, altered, expected] of [
+		[
+			`${DOCS}web-access.md`,
+			`${read(`${DOCS}web-access.md`)}\nAn undisclosed caveat.\n`,
+			/carried upstream page changed/u,
+		],
+		[
+			// Dropping the adopted entry: the reversal can no longer locate it at all.
+			`${DOCS}docs.json`,
+			read(`${DOCS}docs.json`).replace('              "web-access",\n', ""),
+			/navigation entry web-access must appear exactly once/u,
+		],
+		[
+			// Listing it twice is equally rejected, before any position is considered.
+			`${DOCS}docs.json`,
+			read(`${DOCS}docs.json`).replace(
+				'              "web-access",\n',
+				'              "web-access",\n              "web-access",\n',
+			),
+			/navigation entry web-access must appear exactly once/u,
+		],
+		[
+			// Moving it away from `tools/edit` breaks the adjacency the reversal depends on.
+			`${DOCS}docs.json`,
+			read(`${DOCS}docs.json`).replace(
+				'              "web-access",\n              "session-format"',
+				'              "session-format",\n              "web-access"',
+			),
+			/latest-main delta.*replay-main.*docs\.json/u,
+		],
+		[
+			`${DOCS}tools.md`,
+			read(`${DOCS}tools.md`).replace("# Built-in tools", "# Built-in tools\n\nUndisclosed."),
+			/replay-main exact preservation differs|latest-main delta/u,
+		],
+		[
+			`${DOCS}usage.md`,
+			read(`${DOCS}usage.md`).replace("# Using Atomic", "# Using Atomic\n\nExtra."),
+			/baseline:usage::\d+: source prose\/example\/table\/caveat differs/u,
+		],
+		[
+			`${DOCS}workflows/verification.md`,
+			read(`${DOCS}workflows/verification.md`).replace(REPLAY_RECIPE, DRIFT_RECIPE),
+			/replay-main exact preservation differs|latest-main delta/u,
+		],
+	])
+		assert.throws(() => check(new Map([[path, altered]])), expected);
+});
+
+test("the replayed transport is independently required after warm success", () => {
+	assert.equal(check().replayMain.revision, REPLAY_MAIN);
+	for (const path of REPLAY_HISTORY_PARTS) {
+		const bytes = readFileSync(resolve(repoRoot, path));
+		const changed = Buffer.from(bytes);
+		changed[changed.length - 1] ^= 1;
+		assert.throws(() => check(new Map([[path, changed]])), /rebased history transport checksum changed/u);
+		assert.throws(() => check(new Map([[path, Buffer.alloc(0)]])), /rebased history transport part size changed/u);
+	}
+	assert.equal(check().replayMain.revision, REPLAY_MAIN);
+});
+
+test("the pre-rebase and historical lines verify exactly as they did before this capture", () => {
+	// The pre-rebase head does not descend from the captured upstream main, so it must keep routing
+	// to the reader-path layer and report no replay capture at all — the objects come from the
+	// committed bundle, since the rebase left them unreachable from every ref.
+	const before = verifyCommittedDocumentation({ repoRoot, revision: REPLAY_PREDECESSOR });
+	assert.equal(before.replayMain, undefined);
+	assert.equal(before.readerPaths.predecessor, READER_PATHS_PREDECESSOR);
+	assert.equal(before.driftMain.revision, DRIFT_MAIN);
+	const readerPathsPredecessor = verifyCommittedDocumentation({ repoRoot, revision: READER_PATHS_PREDECESSOR });
+	assert.equal(readerPathsPredecessor.replayMain, undefined);
+	assert.equal(readerPathsPredecessor.readerPaths, undefined);
+	assert.equal(readerPathsPredecessor.driftMain.revision, DRIFT_MAIN);
+	const drift = verifyCommittedDocumentation({ repoRoot, revision: DRIFT_PREDECESSOR });
+	assert.equal(drift.replayMain, undefined);
+	assert.equal(drift.driftMain, undefined);
+	assert.equal(drift.rebaseMain.revision, REBASE_MAIN);
 });
