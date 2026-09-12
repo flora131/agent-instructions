@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.19-alpha.6] - 2026-09-11
+
 ### Breaking Changes
 
 - `write` no longer silently overwrites a file this session has never seen. Replacing an existing file now requires the session to have already observed exactly the content being replaced, checked under the same per-file mutation queue as the write. A session with no version of its own is refused with `no_prior_observation`; one whose recorded version no longer matches the file on disk is refused with `changed_since_observation` and told which line diverged, what it assumed was there, and what the file holds instead. Both carry the same `FILE_MUTATION_CONFLICT` code and requester identity as an `edit` conflict. Creating a new file, and overwriting one this session read, wrote, or edited, are unaffected ([#2329](https://github.com/bastani-inc/atomic/issues/2329)).

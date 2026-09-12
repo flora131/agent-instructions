@@ -4,6 +4,8 @@ All notable changes to the `pi-intercom` extension will be documented in this fi
 
 ## [Unreleased]
 
+## [0.9.19-alpha.6] - 2026-09-11
+
 ### Fixed
 
 - A broker refusal received by an already-registered client now rejects that client's outstanding requests with the broker's own reason instead of being discarded. Previously the refusal was delivered to a listener that `connect()` removes after registration, so pipelined work — notably the session-directory barrier behind workflow route updates — waited out its five-second timer and surfaced `List sessions timeout` or a generic disconnect. Reasons such as `Pending-stage route is not authorized` now reach callers as non-recoverable errors, and the `disconnected` event carries the same cause. Pre-registration rejection, transport-disconnect classification, and explicit shutdown are unchanged.

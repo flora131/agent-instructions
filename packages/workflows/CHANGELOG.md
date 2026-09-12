@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.9.19-alpha.6] - 2026-09-11
+
 ### Fixed
 
 - Workflow stage routes are no longer republished to the broker when nothing about the route changed. Every store invalidation — including tool events, attachment changes, and notices that leave the route projection identical — previously re-announced every run, so a burst of unrelated activity could produce a thousand redundant broker round trips and surface as `Intercom event relay failed (atomic:workflow-pending-stage-route): List sessions timeout`. Genuine changes still publish immediately and are never debounced, and an announcement that is rejected or that no consumer acknowledges is retried on the next invalidation.
