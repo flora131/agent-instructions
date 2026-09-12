@@ -2,11 +2,18 @@ import assert from "node:assert/strict";
 import { stripVTControlCharacters } from "node:util";
 import type { AssistantMessage } from "@bastani/pi-ai/compat";
 import { getKeybindings, setKeybindings } from "@earendil-works/pi-tui";
-import { test } from "vitest";
+import { test, vi } from "vitest";
 import type { AgentSessionEvent } from "../../packages/coding-agent/src/core/agent-session.js";
 import { KeybindingsManager } from "../../packages/coding-agent/src/core/keybindings.js";
 import { SessionManager } from "../../packages/coding-agent/src/core/session-manager.js";
+import { AssistantMessageComponent } from "../../packages/coding-agent/src/modes/interactive/components/assistant-message.js";
+import {
+	chatEntriesFromAgentMessages,
+	LiveChatEntriesController,
+	renderChatMessageEntry,
+} from "../../packages/coding-agent/src/modes/interactive/components/chat-message-renderer.js";
 import { TaskInspector } from "../../packages/coding-agent/src/modes/interactive/components/task-inspector.js";
+import { TaskLiveTranscript } from "../../packages/coding-agent/src/modes/interactive/components/task-live-transcript.js";
 import { initTheme } from "../../packages/coding-agent/src/modes/interactive/theme/theme.js";
 import { taskFixture } from "../helpers/task-projection.js";
 
@@ -157,4 +164,163 @@ test("live transcript keeps earlier pages and scroll position while new state ar
 		await fixture.dispose();
 		setKeybindings(keys);
 	}
+});
+
+test("streaming rebuilds only changed message components and invalidation refreshes history", () => {
+	initTheme("dark");
+	let listener: ((event: AgentSessionEvent) => void) | undefined;
+	let requests = 0;
+	const history = Array.from({ length: 100 }, (_, index) => assistant(`HISTORY-${index} **retained**`));
+	const updates = vi.spyOn(AssistantMessageComponent.prototype, "updateContent");
+	const transcript = new TaskLiveTranscript(
+		{
+			getSessionId: () => "retention-test",
+			getEntries: () => [],
+			getStreamingMessage: () => assistant("Live"),
+			subscribe: (callback) => {
+				listener = callback;
+				return () => {
+					listener = undefined;
+				};
+			},
+		},
+		history,
+		() => {
+			requests++;
+		},
+	);
+	try {
+		const initial = transcript.render(80);
+		assert.equal(updates.mock.calls.length, 101);
+		for (let index = 0; index < 30; index++) {
+			listener?.({
+				type: "message_update",
+				message: assistant(""),
+				assistantMessageEvent: {
+					type: "text_delta",
+					contentIndex: 0,
+					delta: ` delta-${index}`,
+					partial: assistant(""),
+				},
+			});
+			transcript.render(80);
+		}
+		assert.equal(requests, 30);
+		assert.equal(updates.mock.calls.length, 131, "historical Markdown must not be reconstructed per delta");
+		const final = transcript.render(80);
+		assert.deepEqual(final.slice(0, initial.length - 2), initial.slice(0, initial.length - 2));
+		for (const width of [40, 100, 80]) {
+			const text = stripVTControlCharacters(transcript.render(width).join("\n"));
+			for (let index = 0; index < 100; index++) assert.equal(text.split(`HISTORY-${index} `).length - 1, 1);
+		}
+		assert.equal(updates.mock.calls.length, 131, "resize reuses components and their width-aware renderers");
+		listener?.({ type: "agent_end", messages: [] });
+		transcript.render(80);
+		assert.equal(updates.mock.calls.length, 131);
+		transcript.invalidate();
+		assert.deepEqual(transcript.render(80), final);
+		assert.equal(updates.mock.calls.length, 232);
+	} finally {
+		transcript.dispose();
+		updates.mockRestore();
+	}
+	assert.equal(listener, undefined);
+});
+
+test("retained components match fresh rendering through tools, thinking, errors and theme changes", () => {
+	initTheme("dark");
+	const messages = [assistant("Duplicate"), assistant("Duplicate"), assistant("Unicode 界 👩‍💻 and **Markdown**")];
+	const entries = chatEntriesFromAgentMessages(messages);
+	const controller = new LiveChatEntriesController(entries);
+	let listener: ((event: AgentSessionEvent) => void) | undefined;
+	const transcript = new TaskLiveTranscript(
+		{
+			getSessionId: () => "parity",
+			getEntries: () => [],
+			subscribe: (callback) => {
+				listener = callback;
+				return () => {
+					listener = undefined;
+				};
+			},
+		},
+		messages,
+		() => {},
+	);
+	const compare = () => {
+		for (const width of [80, 37, 100, 80]) {
+			const expected = entries.flatMap((entry) =>
+				renderChatMessageEntry(entry, {
+					ui: { requestRender: () => {} },
+					cwd: process.cwd(),
+					hideThinkingBlock: true,
+					toolOutputExpanded: true,
+					showImages: false,
+				}).render(width),
+			);
+			assert.deepEqual(transcript.render(width), expected);
+		}
+	};
+	const emit = (event: AgentSessionEvent) => {
+		// Separate controller state: text deltas mutate the streaming message in place.
+		controller.applyEvent(structuredClone(event));
+		listener?.(structuredClone(event));
+		compare();
+	};
+	try {
+		compare();
+		emit({ type: "message_start", message: assistant("") });
+		emit({
+			type: "message_update",
+			message: assistant(""),
+			assistantMessageEvent: {
+				type: "text_delta",
+				contentIndex: 0,
+				delta: "  live\n\n**raw** 界  ",
+				partial: assistant(""),
+			},
+		});
+		emit({
+			type: "message_end",
+			message: {
+				...assistant("finished"),
+				content: [
+					{ type: "thinking", thinking: "hidden reasoning" },
+					{ type: "text", text: "finished" },
+					{ type: "toolCall", id: "call", name: "bash", arguments: { command: "echo first" } },
+				],
+			},
+		});
+		emit({ type: "tool_execution_start", toolCallId: "call", toolName: "bash", args: { command: "echo final" } });
+		emit({
+			type: "tool_execution_update",
+			toolCallId: "call",
+			toolName: "bash",
+			args: {},
+			partialResult: {
+				content: [{ type: "text", text: "partial\noutput" }],
+			},
+		});
+		emit({
+			type: "tool_execution_end",
+			toolCallId: "call",
+			toolName: "bash",
+			isError: false,
+			result: {
+				content: [{ type: "text", text: "complete\noutput" }],
+			},
+		});
+		for (const stopReason of ["aborted", "error"] as const) {
+			emit({ type: "message_start", message: assistant("") });
+			emit({ type: "tool_execution_start", toolCallId: stopReason, toolName: "read", args: { path: "a.ts" } });
+			emit({ type: "message_end", message: { ...assistant(""), stopReason, errorMessage: `test ${stopReason}` } });
+		}
+		initTheme("light");
+		transcript.invalidate();
+		compare();
+	} finally {
+		transcript.dispose();
+		initTheme("dark");
+	}
+	assert.equal(listener, undefined);
 });
