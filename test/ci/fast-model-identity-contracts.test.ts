@@ -191,6 +191,11 @@ const proseNames = new Set([
 	"openai",
 	"anthropic",
 	// Parameter and request-field names, never exports.
+	// PR #2998 names bundled web-access tools and their parameters, not package-root exports.
+	"code_search",
+	"web_search",
+	"repoName",
+	"query",
 	// Subagent tool/action names and targeting fields are not package-root exports.
 	"subagent",
 	"interrupt",

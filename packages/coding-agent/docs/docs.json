@@ -70,6 +70,7 @@
         "pages": [
           "tools",
           "tools/edit",
+          "web-access",
           "session-format"
         ]
       },
