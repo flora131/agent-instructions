@@ -36,7 +36,6 @@
 packages/coding-agent/docs/**/*.md text eol=lf
 packages/coding-agent/docs/**/*.mdx text eol=lf
 packages/coding-agent/docs/**/*.svg text eol=lf
-docs/2847-stage-skill-verification.md text eol=lf
 
 # Graphics
 *.png      binary
