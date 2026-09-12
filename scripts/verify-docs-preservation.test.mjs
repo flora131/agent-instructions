@@ -906,9 +906,16 @@ test("cold data-URL verification batches each immutable blob once and isolates w
 		assert.equal(committed.readerPages, 86);
 		assert.equal(committed.fourthMain.pages, 48);
 		const beforeRepeat = calls.length;
+		// The cold run probes once for this pass's provenance; that probe reads an immutable object.
+		assert.deepEqual(
+			calls.filter(call => call.args[0] === 'cat-file' && call.args[1] === '-e')
+				.map(call => call.args[2].replace(/^[a-f0-9]{40}:/u, '<commit>:')),
+			['<commit>:' + ${JSON.stringify(READER_PATHS_FOLLOWUP)}],
+			'a cold verification probes this pass provenance exactly once',
+		);
 		assert.deepEqual(verifier.verifyCommittedDocumentation({ repoRoot }), committed);
-		// A warm repeat resolves HEAD afresh and probes for this pass's provenance; nothing else.
-		assert.deepEqual(calls.slice(beforeRepeat).map(call => call.args.slice(0, 2).join(' ')), ['rev-parse --verify', 'cat-file -e']);
+		// A warm repeat resolves HEAD afresh; the provenance probe and every other read are cached.
+		assert.deepEqual(calls.slice(beforeRepeat).map(call => call.args.slice(0, 2).join(' ')), ['rev-parse --verify']);
 		const path = verifier.DOCS + 'computer-use.md';
 		const text = fs.readFileSync(repoRoot + '/' + path, 'utf8');
 		const overrides = new Map([[path, text.replace('pyautogui', '')]]);
@@ -917,6 +924,12 @@ test("cold data-URL verification batches each immutable blob once and isolates w
 		assert.throws(() => verifier.verifyWorkingTreeDocumentation({ repoRoot, overrides }), /fourth-main new page differs/u);
 		const batches = calls.filter(call => call.args[0] === 'cat-file' && call.args[1] === '--batch');
 		assert.ok(batches.length > 0);
+		assert.deepEqual(
+			calls.filter(call => call.args[0] === 'cat-file' && call.args[1] !== '--batch')
+				.map(call => call.args.slice(1).join(' ').replace(/[a-f0-9]{40}:/u, '<commit>:')),
+			['-e <commit>:' + ${JSON.stringify(READER_PATHS_FOLLOWUP)}],
+			'the only non-batch cat-file call is this pass provenance probe',
+		);
 		const objects = batches.flatMap(call => {
 			assert.deepEqual(call.args, ['cat-file', '--batch']);
 			assert.equal(call.encoding, null, 'batch must preserve raw image bytes');
@@ -1162,7 +1175,8 @@ test("cold committed rebase proof uses authentic disposable history without Git 
 			invalid.push([commit(), "missing committed blob"]);
 			run(["read-tree", candidate]);
 		}
-		// Artifact presence does not select rebase mode without selected-main ancestry.
+		// Artifact presence does not select a layer's mode without that layer's own ancestry: this tree
+		// carries this pass's provenance, and the earlier gate still rejects the wrong-ancestry commit.
 		const noAncestry = run(["commit-tree", run(["write-tree"]).trim(), "-p", FOURTH_MAIN], "wrong ancestry\n").trim();
 		invalid.push([noAncestry, "fourth-main requires all predecessor proofs"]);
 		const originalLedger = "docs/migrations/2847-content-ledger.md";
@@ -1211,8 +1225,11 @@ test("cold committed rebase proof uses authentic disposable history without Git 
 				assert.throws(() => module.verifyCommittedDocumentation({ repoRoot, revision }), error => error.message.includes(message));
 				assert.ok(owned.every(path => !fs.existsSync(path)), 'failed proof leaked temporary objects');
 			}
+			// This pass's own predecessor carries no reader-path artifact: it must verify through the
+			// earlier layer exactly as it did before this pass, not through the reader-path gate.
 			for (const [revision, pages] of [[module.FIRST_RECONCILIATION, 85], [module.SECOND_RECONCILIATION, 85],
-				[module.FOURTH_PREDECESSOR, 85], [module.REVIEW_PREDECESSOR, 86], [module.PRE_REBASE, 86], [module.DRIFT_PREDECESSOR, 86]]) {
+				[module.FOURTH_PREDECESSOR, 85], [module.REVIEW_PREDECESSOR, 86], [module.PRE_REBASE, 86],
+				[module.DRIFT_PREDECESSOR, 86], [module.READER_PATHS_PREDECESSOR, 86]]) {
 				assert.equal(module.verifyCommittedDocumentation({ repoRoot, revision }).readerPages, pages);
 				assert.ok(owned.every(path => !fs.existsSync(path)));
 			}

@@ -2166,7 +2166,7 @@ export function assertReaderPathsKind(edit, addedSlugs) {
 	}
 }
 
-function verifyReaderPaths({ repoRoot, revision, overrides }) {
+function verifyReaderPaths({ repoRoot, revision, overrides, commit }) {
 	const current = reader(repoRoot, revision, overrides);
 	const manifestText = current.read(READER_PATHS_FOLLOWUP);
 	assert.equal(digest(manifestText), READER_PATHS_MANIFEST_SHA256, "reader-path provenance changed");
@@ -2179,9 +2179,10 @@ function verifyReaderPaths({ repoRoot, revision, overrides }) {
 	assert.equal(manifest.schema, "2847-reader-paths-v1");
 	assert.equal(manifest.baseline, BASELINE);
 	assert.equal(manifest.predecessor, READER_PATHS_PREDECESSOR);
-	const head = git(repoRoot, ["rev-parse", "--verify", `${revision ?? "HEAD"}^{commit}`]).trim();
+	// The caller has already resolved HEAD or its revision; re-resolving spends a Git child per run.
+	assert.match(commit, /^[a-f0-9]{40}$/u, "reader-path verification needs a resolved commit");
 	assert.equal(
-		git(repoRoot, ["merge-base", head, READER_PATHS_PREDECESSOR]).trim(),
+		git(repoRoot, ["merge-base", commit, READER_PATHS_PREDECESSOR]).trim(),
 		READER_PATHS_PREDECESSOR,
 		"reader-path provenance requires its exact predecessor in history",
 	);
@@ -2242,12 +2243,25 @@ function verifyReaderPaths({ repoRoot, revision, overrides }) {
 	};
 }
 
-/** True when the tree or commit carries this pass's declared provenance. */
+/** True when a commit carries this pass's declared provenance. */
 function hasReaderPaths(repoRoot, revision) {
 	if (!revision) return existsSync(join(repoRoot, READER_PATHS_FOLLOWUP));
 	try {
 		git(repoRoot, ["cat-file", "-e", `${revision}:${READER_PATHS_FOLLOWUP}`]);
 		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * This pass's layer applies only to its own line of history. Artifact presence alone must never
+ * reinterpret an earlier revision: a commit that predates this predecessor keeps verifying exactly
+ * as it did before this layer existed, through the gates below.
+ */
+function onReaderPathsBase(repoRoot, commit) {
+	try {
+		return git(repoRoot, ["merge-base", commit, READER_PATHS_PREDECESSOR]).trim() === READER_PATHS_PREDECESSOR;
 	} catch {
 		return false;
 	}
@@ -2262,9 +2276,9 @@ export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
 			revision === "HEAD"
 				? context.transportRevision
 				: git(repoRoot, ["rev-parse", "--verify", `${revision}^{commit}`]).trim();
-		if (hasReaderPaths(repoRoot, commit)) {
+		if (onReaderPathsBase(repoRoot, commit) && hasReaderPaths(repoRoot, commit)) {
 			context.transportRevision = commit;
-			const result = verifyReaderPaths({ repoRoot, revision: commit });
+			const result = verifyReaderPaths({ repoRoot, revision: commit, commit });
 			console.log(JSON.stringify({ mode: "committed", revision: commit, ...result }));
 			return result;
 		}
@@ -2302,8 +2316,8 @@ export function verifyCommittedDocumentation({ repoRoot, revision = "HEAD" }) {
 export function verifyWorkingTreeDocumentation({ repoRoot, overrides = new Map() }) {
 	return withHistory({ repoRoot, overrides }, () => {
 		const commit = git(repoRoot, ["rev-parse", "--verify", "HEAD^{commit}"]).trim();
-		if (hasReaderPaths(repoRoot) || overrides.has(READER_PATHS_FOLLOWUP))
-			return verifyReaderPaths({ repoRoot, overrides });
+		if (onReaderPathsBase(repoRoot, commit) && (hasReaderPaths(repoRoot) || overrides.has(READER_PATHS_FOLLOWUP)))
+			return verifyReaderPaths({ repoRoot, overrides, commit });
 		if (git(repoRoot, ["merge-base", commit, DRIFT_MAIN]).trim() === DRIFT_MAIN)
 			return verifyDrift({ repoRoot, overrides });
 		if (git(repoRoot, ["merge-base", commit, REBASE_MAIN]).trim() === REBASE_MAIN)
