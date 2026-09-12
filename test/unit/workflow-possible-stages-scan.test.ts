@@ -166,6 +166,36 @@ describe("#3001 call-scoped discovery metadata", () => {
 	});
 });
 
+// Regression #3001: arguments exposes a second reference to the caller options object.
+for (const extension of ["ts", "js"]) {
+	for (const access of [
+		"arguments[2].possibleStageNames = ['actual-*'];",
+		"const alias = arguments[2]; alias.possibleStageNames = ['actual-*'];",
+	]) {
+		test(`#3001 ${extension} arguments alias retains both warnings: ${access}`, () => {
+			const result = scanFile(
+				`arguments-${extension}-${access.length}.${extension}`,
+				`
+				async function fan(ctx, steps, options) {
+					${access}
+					const warmSteps = indices.map(index => steps[index]${extension === "ts" ? "!" : ""});
+					const restSteps = indices.map(index => steps[index]${extension === "ts" ? "!" : ""});
+					await ctx.parallel(warmSteps, { possibleStageNames: options.possibleStageNames });
+					await ctx.parallel(restSteps, { possibleStageNames: options.possibleStageNames });
+				}
+				export default workflow({ name: 'arguments', async run(ctx) {
+					await fan(ctx, opaque(), { possibleStageNames: ['stale-*'] });
+				} });
+			`,
+			);
+			assert.deepEqual(result.stages, []);
+			assert.equal(result.warnings.length, 2);
+			for (const group of ["warmSteps", "restSteps"])
+				assert.ok(result.warnings.some((warning) => warning.includes(`"${group}"`)));
+		});
+	}
+}
+
 // Regression #3001: parameter initialization runs before body-only provenance checks.
 for (const extension of ["ts", "js"]) {
 	for (const initializer of [
@@ -203,6 +233,9 @@ for (const extension of ["ts", "js"]) {
 		["const cap = options.concurrency;", "get concurrency() { this.possibleStageNames = ['actual-*']; return 2; }"],
 		["const { concurrency } = options;", "get concurrency() { this.possibleStageNames = ['actual-*']; return 2; }"],
 		["options.mutate?.();", "mutate: () => sideEffect()"],
+		["options.reset`x`;", "reset: function() { this.possibleStageNames = ['actual-*']; }"],
+		[`options.reset\`\${1}\`;`, "reset: function() { this.possibleStageNames = ['actual-*']; }"],
+		["const reset = options.reset; reset();", "reset: () => sideEffect()"],
 	]) {
 		test(`#3001 ${extension} options side effect retains both warnings: ${access}`, () => {
 			const result = scanFile(

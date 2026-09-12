@@ -1182,6 +1182,8 @@ class PossibleStagesScanner {
 		}
 		// A property read may be repeated, but rebinding/shadowing the options parameter is not supported.
 		const body = unit.tokens.slice(owner.bodyOpen, owner.bodyClose);
+		// The arguments object exposes parameter aliases outside the supported named forwarding shape.
+		if (body.some((token) => token.kind === "ident" && token.value === "arguments")) return undefined;
 		if (hasDiscoveryDestructuringWrite(body, value[0].value)) return undefined;
 		// Only direct parallel-option forwarding is proven safe; aliases, escapes and
 		// chained array operations can mutate the caller's literal metadata.
@@ -1210,11 +1212,9 @@ class PossibleStagesScanner {
 						return undefined;
 				}
 			}
-			if (body[index + 1]?.value !== "." && !destructured) return undefined;
-			if (!destructured && ["(", ".", "[", "?", "?."].includes(body[index + 3]?.value ?? "")) return undefined;
-			if (["delete", "+", "-"].includes(body[index - 1]?.value ?? "")) return undefined;
-			if (["=", "+", "-", "*", "/", "%", "&", "|", "^", "?", "<", ">"].includes(body[index + 3]?.value ?? ""))
-				return undefined;
+			// Support only the two authored shapes: direct metadata forwarding and
+			// destructuring plain caller fields. Other member uses may execute or escape.
+			if (!destructured && !forwarded.has(body[index]!)) return undefined;
 		}
 		const names: string[] = [];
 		for (const callerPath of this.closure) {
