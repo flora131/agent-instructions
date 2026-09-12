@@ -12,7 +12,7 @@ const documentationPaths = [
 	"packages/intercom/docs/workflow-stage-discovery.md",
 	"packages/workflows/README.md",
 	"packages/intercom/README.md",
-	"packages/coding-agent/docs/intercom.md",
+	"packages/coding-agent/docs/intercom/reference.md",
 	"packages/coding-agent/docs/workflows/operations.md",
 ] as const;
 const promptSourcePaths = [

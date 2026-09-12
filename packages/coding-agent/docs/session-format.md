@@ -67,6 +67,8 @@ interface ToolCall {
 }
 ```
 
+<a id="base-message-types-from-bastani/pi-ai"></a>
+
 ### Base Message Types (from `@bastani/pi-ai`)
 
 ```typescript

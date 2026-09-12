@@ -1,8 +1,20 @@
+---
+title: "Atomic packages"
+description: "Install, manage, and share Atomic packages that bundle extensions, skills, prompt templates, themes, and workflows."
+---
+
 > Atomic can help you create packages. Ask it to bundle your extensions, skills, prompt templates, or themes.
 
 # Atomic Packages
 
 Atomic packages bundle extensions, skills, prompt templates, themes, and workflow definitions so you can share them through npm or git. Declare resources in `package.json` under the `atomic` key, or use conventional directories.
+
+## Where to go next
+
+Atomic packages bundle and distribute extensions, skills, prompts, themes, and workflows. Read this page to install and manage them, then continue:
+
+- [Creating packages](/packages/authoring) — create a package, lay out its structure, and declare dependencies.
+- [Package reference](/packages/reference) — filtering, scope, and deduplication contracts.
 
 ## Table of Contents
 
@@ -13,14 +25,14 @@ Atomic packages bundle extensions, skills, prompt templates, themes, and workflo
     - [npm](#npm)
     - [git](#git)
     - [Local Paths](#local-paths)
-  - [Creating an Atomic Package](#creating-an-atomic-package)
-    - [Gallery Metadata](#gallery-metadata)
-  - [Package Structure](#package-structure)
-    - [Convention Directories](#convention-directories)
-  - [Dependencies](#dependencies)
-  - [Package Filtering](#package-filtering)
+  - [Creating an Atomic Package](/packages/authoring#creating-an-atomic-package)
+    - [Gallery Metadata](/packages/authoring#gallery-metadata)
+  - [Package Structure](/packages/authoring#package-structure)
+    - [Convention Directories](/packages/authoring#convention-directories)
+  - [Dependencies](/packages/authoring#dependencies)
+  - [Package Filtering](/packages/reference#package-filtering)
   - [Enable and Disable Resources](#enable-and-disable-resources)
-  - [Scope and Deduplication](#scope-and-deduplication)
+  - [Scope and Deduplication](/packages/reference#scope-and-deduplication)
 
 ## Install and Manage
 
@@ -45,7 +57,7 @@ atomic update npm:@foo/bar      # update one package
 atomic update --extension npm:@foo/bar
 ```
 
-These commands manage Atomic packages and `atomic update` can update the Atomic CLI installation. To uninstall Atomic itself, see [Quickstart](/quickstart#uninstall).
+These commands manage Atomic packages and `atomic update` can update the Atomic CLI installation. To uninstall Atomic itself, see [Quickstart](/getting-started/installation#uninstall).
 
 Self-update resolves an exact advertised package/version target and installs that pinned spec, so the update cannot drift to a newer registry release during installation. Any release note supplied by the update service is shown before installation. Atomic only updates installations it can verify are writable and managed by the detected global package manager; otherwise it prints a manual command. On Windows, loaded native dependencies are temporarily quarantined during replacement and stale quarantine directories are cleaned on later update attempts.
 
@@ -128,114 +140,27 @@ Local paths point to files or directories on disk and are added to settings with
 
 ## Creating an Atomic Package
 
-Add an app manifest to `package.json` or use conventional directories. The manifest key is the configured app name (`atomic` here, from `atomicConfig.name`; legacy `piConfig.name` is also read). The legacy `pi` key remains supported as a backwards-compatible shim. Include the `atomic-package` keyword for discoverability.
-
-```json
-{
-  "name": "my-package",
-  "keywords": ["atomic-package"],
-  "atomic": {
-    "extensions": ["./extensions"],
-    "skills": ["./skills"],
-    "prompts": ["./prompts"],
-    "themes": ["./themes"],
-    "workflows": ["./workflows"]
-  }
-}
-```
-
-Paths are relative to the package root. Arrays support glob patterns and `!exclusions`.
+Moved to [Creating packages](/packages/authoring#creating-an-atomic-package).
 
 ### Gallery Metadata
 
-The package gallery currently recognizes legacy `pi-package` metadata, while new Atomic packages should also include `atomic-package`. Add `video` or `image` fields to show a preview:
-
-```json
-{
-  "name": "my-package",
-  "keywords": ["atomic-package", "pi-package"],
-  "atomic": {
-    "extensions": ["./extensions"],
-    "video": "https://example.com/demo.mp4",
-    "image": "https://example.com/screenshot.png"
-  }
-}
-```
-
-- **video**: MP4 only. On desktop, autoplays on hover. Clicking opens a fullscreen player.
-- **image**: PNG, JPEG, GIF, or WebP. Displayed as a static preview.
-
-If both are set, video takes precedence.
+Moved to [Creating packages](/packages/authoring#gallery-metadata).
 
 ## Package Structure
 
+Moved to [Creating packages](/packages/authoring#package-structure).
+
 ### Convention Directories
 
-If no app manifest (`atomic`, or legacy `pi`) is present, Atomic auto-discovers resources from these directories:
-
-- `extensions/` loads `.ts` and `.js` files
-- `skills/` recursively finds `SKILL.md` folders and loads top-level `.md` files as skills
-- `prompts/` loads `.md` files
-- `themes/` loads `.json` files
-- `workflows/` loads workflow SDK files (`.ts`, `.js`, `.mjs`, `.cjs`); `workflow/` is also accepted as a singular alias. Workflow files import `workflow` from `@bastani/atomic/workflows`, import `Type` from `typebox`, and export the definition returned by `workflow({ ... })`. TypeScript resolves the published `@bastani/atomic/workflows` specifier through the `@bastani/atomic` package. Atomic resolves that workflow specifier and the supported TypeBox root, `typebox/compile`, `typebox/value`, and legacy `@sinclair/typebox` aliases to in-memory host modules when it loads the workflow at runtime. See [Programmatic usage](/workflows/api-reference#programmatic-usage).
-
-When a package manifest exists, declared resource arrays normally define what loads. Workflows are the exception: if `atomic.workflows` / legacy `pi.workflows` is omitted, Atomic still checks conventional `workflows/` and `workflow/` directories.
+Moved to [Creating packages](/packages/authoring#convention-directories).
 
 ## Dependencies
 
-Third-party runtime dependencies belong in `dependencies` in `package.json`. Dependencies that do not register extensions, skills, prompt templates, themes, or workflows also belong in `dependencies`. When Atomic installs a package from npm or git, it runs the configured npm-compatible install command, so those dependencies are installed automatically.
-
-Atomic bundles core packages for extensions and skills. If you import any of these, list them in `peerDependencies` with a `"*"` range and do not bundle them: `@bastani/pi-ai`, `@earendil-works/pi-agent-core`, `@bastani/atomic`, `@earendil-works/pi-tui`, `typebox`.
-
-Workflow packages import `workflow` from `@bastani/atomic/workflows`, import `Type` from `typebox`, and export definitions returned by `workflow({ ... })`. List `@bastani/atomic` and `typebox` in `peerDependencies` so package consumers receive the workflow SDK and schema library.
-
-Package-authored workflows should follow the same [guiding principles](/workflows/authoring#guiding-principles) as project workflows.
-
-Other Atomic packages must be bundled in your tarball. Add them to `dependencies` and `bundledDependencies`, then reference their resources through `node_modules/` paths. Atomic loads packages with separate module roots, so separate installs do not collide or share modules.
-
-Example:
-
-```json
-{
-  "dependencies": {
-    "shitty-extensions": "^1.0.1"
-  },
-  "bundledDependencies": ["shitty-extensions"],
-  "atomic": {
-    "extensions": ["extensions", "node_modules/shitty-extensions/extensions"],
-    "skills": ["skills", "node_modules/shitty-extensions/skills"]
-  }
-}
-```
+Moved to [Creating packages](/packages/authoring#dependencies).
 
 ## Package Filtering
 
-Filter what a package loads using the object form in settings:
-
-```json
-{
-  "packages": [
-    "npm:simple-pkg",
-    {
-      "source": "npm:my-package",
-      "extensions": ["extensions/*.ts", "!extensions/legacy.ts"],
-      "skills": [],
-      "prompts": ["prompts/review.md"],
-      "themes": ["+themes/legacy.json"],
-      "workflows": ["workflows/*.ts"]
-    }
-  ]
-}
-```
-
-`+path` and `-path` are exact paths relative to the package root.
-
-- Omit a key to load all of that type.
-- Use `[]` to load none of that type.
-- `!pattern` excludes matches.
-- `+path` force-includes an exact path.
-- `-path` force-excludes an exact path.
-- Filters layer on top of the manifest. They narrow down what is already allowed.
+Moved to [Package reference](/packages/reference#package-filtering).
 
 ## Enable and Disable Resources
 
@@ -243,8 +168,4 @@ Use `atomic config` to enable or disable extensions, skills, prompt templates, a
 
 ## Scope and Deduplication
 
-Packages can appear in both global and project settings. The project entry normally wins. A project entry with `autoload: false` instead acts as a delta over the global entry: it starts with no newly auto-discovered resources while explicit include/exclude patterns adjust the inherited package resources. Identity is determined by:
-
-- npm: package name
-- git: repository URL without ref
-- local: resolved absolute path
+Moved to [Package reference](/packages/reference#scope-and-deduplication).

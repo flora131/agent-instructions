@@ -152,6 +152,10 @@ function activeSubagentContractPath(file: string): boolean {
 		return true;
 	if (file.startsWith("packages/subagents/")) return true;
 	if (file === "packages/intercom/README.md" || file.startsWith("packages/intercom/skills/")) return true;
+	// #2847 split intercom.md and subagents.md into child pages; the stale-resume
+	// scan has to follow the prose into them or it silently stops covering it.
+	if (file.startsWith("packages/coding-agent/docs/intercom/")) return true;
+	if (file.startsWith("packages/coding-agent/docs/subagents/")) return true;
 	return [
 		"packages/coding-agent/docs/intercom.md",
 		"packages/coding-agent/docs/subagents.md",

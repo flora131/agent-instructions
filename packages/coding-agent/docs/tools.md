@@ -1,3 +1,8 @@
+---
+title: "Built-in tools"
+description: "The tools Atomic gives the model by default."
+---
+
 # Built-in tools
 
 Atomic enables these coding tools in normal sessions by default: `read`, `write`, `edit`, `bash`, `kill`, `find`, and `search`.

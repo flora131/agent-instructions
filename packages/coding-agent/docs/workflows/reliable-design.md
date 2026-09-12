@@ -100,14 +100,14 @@ Workflow-authored `ctx.ui` gates remain supported. `workflow answer` relays an a
 
 ### Stage model and thinking-level assignment
 
-Before launching an authored workflow, assign every model stage a **role**, **failure cost**, **primary model**, **thinking level**, and **fallback policy**. Read [Model Selection](/models/model-selection) for the role defaults and [Evals](/models/evals) for the measured per-evaluation scores — its task-type picker maps each stage type (terminal debugging, knowledge-work planning, tool-calling loops, document research, code-reading review) to the eval that measures it and the models that lead it — but treat thinking levels in benchmark rows as measurement configurations, not production defaults. Reserve `max` for high-cost-of-error roles or an explicit user request; use `high` for demanding mapping, lifecycle analysis, compatibility, planning, synthesis, triage, and repair; use `medium` for user-impact review and final reporting; and keep deterministic checks as tool nodes with no model call.
+Before launching an authored workflow, assign every model stage a **role**, **failure cost**, **primary model**, **thinking level**, and **fallback policy**. Read [Model Selection](/models/model-selection) for the role defaults and [Evals](/models/evals) for the measured per-evaluation scores — its task-type picker maps each stage type (terminal debugging, knowledge-work planning, tool-calling loops, document research, code-reading review) to the eval that measures it and the models that lead it — but treat thinking levels in benchmark rows as measurement configurations, not production defaults. Use `low` or `medium` for implementation and routine fixes, and `high` or `xhigh` for code review, test design, failure analysis, and approval decisions when supported. Use `high` for demanding mapping, lifecycle analysis, compatibility, planning, synthesis, and triage, and `medium` for user-impact review and final reporting. `max` is an exception justified by task-specific evidence or an explicit user request, not a role default. Keep deterministic checks as tool nodes with no model call.
 
 Print this compact assignment before launch, with a short cost/quality rationale for each model stage:
 
 ```text
 Stage | Model | Thinking | Role
 map | <catalog fullId> | high | codebase mapping
-approve | <catalog fullId> | max | final approval
+approve | <catalog fullId> | high | final approval
 report | <catalog fullId> | medium | final reporting
 tests | — | — | deterministic check (tool node)
 ```
@@ -410,7 +410,7 @@ Humans can steer the shape directly:
 - **State the loop.** "Iterate until tests pass" or "review and fix until approved" defines a hard workflow stop condition.
 - **State the evidence.** A QA video, test output, generated artifact, or reviewer sign-off tells the graph which gates it needs.
 - **State the boundary.** "Work in a separate worktree", "do not create a PR", or "stop after implementation" separates implementation from final actions.
-- **State the queue policy.** Say how to split, order, isolate, and bound queued items; otherwise Atomic runs the [dependency-triage and bounded-dispatch playbook](#task-queues-and-software-factories) before implementation. Ordinary list order and per-item "create a PR after" wording do not create a cross-item dependency.
+- **State the queue policy.** Say how to split, order, isolate, and bound queued items; otherwise Atomic runs the [dependency-triage and bounded-dispatch playbook](/workflows/reliable-design#task-queues-and-software-factories) before implementation. Ordinary list order and per-item "create a PR after" wording do not create a cross-item dependency.
 
 Absent these controls, Atomic applies the self-prompt and rubric above; a prompt that names none of them delegates the shape decision rather than avoiding it.
 
@@ -1348,6 +1348,8 @@ A failed test becomes the next objective.
 Validation failed on `[command]`. Treat that as the source of truth. Fix the root cause only, rerun the failing check, then report the result.
 ```
 
+<a id="8-interrupt-stale-or-wrong-work" />
+
 #### 8. Pause stale or wrong work
 
 If a run is solving the wrong problem, based on outdated assumptions, or duplicating another run, stop it. Continuing usually creates more cleanup.
@@ -1395,6 +1397,8 @@ Constructive quorum relies on existing Intercom mechanics: every workflow invoca
 
 #### Pattern diagrams
 
+<a id="1-classify-and-act"></a>
+
 ##### 1. Classify-and-act
 
 Builtin definition and contracts: [Six composable pattern builtins](/workflows/builtins#six-composable-pattern-builtins).
@@ -1419,6 +1423,8 @@ Best practices:
 - Make the classifier return a structured category and confidence, not free-form prose.
 - Keep each action branch isolated with the minimum tools and context it needs.
 - Add a fallback or human-input branch for low-confidence classifications.
+
+<a id="2-fan-out-and-synthesize"></a>
 
 ##### 2. Fan-out-and-synthesize
 
@@ -1447,6 +1453,8 @@ Best practices:
 - Partition by files, sources, claims, candidates, or work items that can be evaluated independently.
 - Save each branch to a separate artifact and pass paths with `reads` instead of inlining all branch output.
 - Treat synthesis as a barrier: it waits for every branch, deduplicates, resolves conflicts, and cites evidence.
+
+<a id="3-adversarial-verification" />
 
 ##### 3. Adversarial verification
 
@@ -1486,6 +1494,8 @@ Best practices:
 - Invalid criterion reports are written as invalid artifacts and re-asked in bounded waves up to `reask_limit`; an invalid or missing report is counted in `invalidCount` only and is never converted into a fail vote or included in the mean. If the required quorum is still missing after the re-asks, the round is `indeterminate` rather than silently narrowing the decision.
 - `score_table_path` names the durable `verification-summary-<round>.json` for the final round. Its object contains `scores` (`criterion_id`, integer `score`, `evidence`, and `findings` with `finding` plus `severity`), `mean`, `invalidCount`, the `decision` (`accept`, `repair`, or `indeterminate` with its corresponding mean/findings or missing count), and folded `usage`; `review_report_path` carries repair guidance or quorum evidence.
 
+<a id="4-generate-and-filter"></a>
+
 ##### 4. Generate-and-filter
 
 Builtin definition and contracts: [Six composable pattern builtins](/workflows/builtins#six-composable-pattern-builtins).
@@ -1513,6 +1523,8 @@ Best practices:
 - Use this for exploration, naming, design options, hypotheses, and lightweight eval ideas.
 - When the filter ranks candidates rather than applying a threshold, use the same judge guidance as Tournament: graded per-criterion integer scores rather than binary keep/drop, a Bradley–Terry preference from the score gap so near-ties stay near-ties, and K repeats with candidates swapped between the A and B slots. See [Verification scaling](#verification-scaling).
 - For a custom ranking filter, reuse the shared `verification-criteria` module and its `criteria.md` parser rather than inventing a binary keep/drop rubric; stable criterion ids let the judge select the same criteria in each comparison. See [Adversarial verification](#3-adversarial-verification) for the accepted shapes and score decision.
+
+<a id="5-tournament" />
 
 ##### 5. Tournament
 
@@ -1547,6 +1559,8 @@ Best practices:
 - The shipped tournament inputs use `num_attempts=4` and `max_concurrency=4`; `n_evaluations=2` repeats each criterion/directed pair, `pivots=1` selects the second comparison phase's pivot candidates, and `seed=0` drives the deterministic schedule. `criteria` is optional and accepts a markdown rubric, a string-to-description record, a string list, or a `CriterionInput` list; omission uses the shipped three-criterion Correctness, Completeness, and Evidence and task fit rubric. Optional ordered `models` ids are assigned round-robin to attempt slots.
 - `comparisons_path` points to `comparisons.json`, whose ledger records the task and seed, `params` (`n`, `pivots`, `n_evaluations`, and normalized `criteria`), per-job `comparisons` rows (`a`, `b`, phase, criterion id, repeat, slot-swap flag, scores or an `invalid` marker, preference, and judge artifact path), aggregate `pairs`, weights/counts, the complete `ranking`, and optional model assignment. Its `budget` records planned versus executed judge stages, including re-asks; invalid reports remain auditable rows and an all-invalid pair remains marked invalid rather than becoming a score.
 
+<a id="6-loop-until-done" />
+
 ##### 6. Loop until done
 
 Builtin definition and contracts: [Six composable pattern builtins](/workflows/builtins#six-composable-pattern-builtins).
@@ -1576,6 +1590,8 @@ Best practices:
 - The builtin defaults `max_iterations=5`, `progress_scoring=true`, and `progress_repeats=1`; set `progress_scoring` false to omit advisory scoring, while `progress_repeats` is the repeat count passed to the scoring primitive. Each scored iteration adds a `progress` entry to `progress-ledger.json` with `score`, `perRepeat` (null for an invalid repeat), `trend`, and the classifier `window`; the ledger also emits `progress_curve`, `final_trend`, and `progress_disclaimer`.
 - Progress scores use the anchored 1–20 scale and average valid repeat scores per checkpoint. `classify_trend` uses `window=3`, `riseDelta=1.5`, and `fallDelta=-1.5`; it compares equal leading/trailing halves of the trailing two windows, drops an odd middle sample, and classifies inclusive threshold crossings as `rising`, `flat`, or `regressing`. A short series is `flat` evidence.
 - The trend is monitoring and escalation evidence only: it never kills, terminates, or approves a loop, and the explicit evaluator stop condition remains authoritative. `progress_curve`, `final_trend`, and `progress_disclaimer` are advisory outputs, not alternate closure signals.
+
+<a id="7-constructive-quorum"></a>
 
 ##### 7. Constructive quorum
 
@@ -1607,6 +1623,8 @@ Best practices:
 - Run exactly one bounded evidence-exchange round. Share concrete findings and evidence, challenge blocking claims, and stop rather than opening a second round.
 - Change a verdict only through evidence, never deference. Each reviewer emits its own final structured verdict and records whether deliberation changed it and which evidence caused the change.
 - Let the existing deterministic reducer count the final votes; deliberation shapes votes but does not replace quorum counts or the `stop_review_loop` contract.
+
+<a id="stacked-implementation-slices-starter-pattern" />
 
 ##### Stacked implementation slices starter pattern
 

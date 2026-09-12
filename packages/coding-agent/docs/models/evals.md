@@ -26,7 +26,7 @@ Practical workflow default: use `low` or `medium` for coding, and `high` or `xhi
 
 | Task type | Benchmark to read | Selected measured candidates | Cost-conscious alternative |
 | --- | --- | --- | --- |
-| Implementing features and fixing bugs | September 3 Datacurve DeepSWE | Astra xhigh, Gemini 3.8 Flash high and Opus 5 max display 74% | Luna max 67% / $0.61; GLM-5.3-Flash max 63% / $0.24 |
+| Implementing features and fixing bugs | September 3 Datacurve DeepSWE | Astra xhigh, Gemini 3.8 Flash high and Opus 5 max display 74% | Luna max 67% / \$0.61; GLM-5.3-Flash max 63% / \$0.24 |
 | Terminal work and shell debugging | Terminal-Bench v4.0 | Astra xhigh 60%, max 59%; Fable 5.1 xhigh with fallback 55% | GLM-5.3-Flash 33% at $0.25 per Index task; task-specific quality is materially lower |
 | Knowledge-work deliverables | AA-Briefcase / GDPval-AA v2, normalized Elo, not pass rates | Fable 5.1 max with fallback 58% / 63%; Opus 5 max 57% / 62% | GLM-5.3-Flash 48% / 58% at $0.25 per Index task |
 | SaaS workflows through REST APIs | AutomationBench-AA | Astra max 68%; Astra high and xhigh, Grok 4.6 high 67% | GLM-5.3-Flash 60%; Luna max 50% |
@@ -109,7 +109,7 @@ What the three charts say together:
 - **Accuracy is flat at the top.** Three models display 74% and a fourth 73%, all inside each other's confidence intervals. Choose among them on cost and steps, not score.
 - **The displayed 74% rows span about fivefold in cost.** Gemini 3.8 Flash [high] costs $2.36 and Opus 5 [max] $11.84. Luna [max] reaches 67% for $0.61. Sonnet 5 [max] costs $26.40 for 54% and 268 steps in this snapshot.
 - **Steps predict wall time and tool-call load.** Astra [xhigh] (29) and Sol [max] (61) finish in a third of the steps that Gemini 3.8 Flash [high] (166) or DeepSeek V4 Pro [max] (155) need. For a worker loop that pays per tool call or that a reviewer must audit, prefer the low-step row at the same accuracy.
-- **The cheap tier is honest about its ceiling.** GLM-5.3-Flash [max] 63% at $0.24 and DeepSeek V4 Flash [max] 53% at $0.46 are the only rows under $1 besides Luna; they are budget workers, not judgment gates.
+- **The cheap tier is honest about its ceiling.** GLM-5.3-Flash [max] 63% at \$0.24 and DeepSeek V4 Flash [max] 53% at \$0.46 are the only rows under \$1 besides Luna; they are budget workers, not judgment gates.
 
 ## Artificial Analysis: current measures
 

@@ -43,4 +43,4 @@ Every built-in, factory-created, direct, workflow-stage, and isolated bash or Po
 
 Atomic clears these ten reserved names before overlaying the current snapshot, preventing stale metadata from another session or workflow stage. Unrelated inherited/caller variables remain intact. The snapshot is taken when execution begins, so a resumed session or later model change is reflected. SDK `createBashTool()` and `createPowerShellTool()` expose it by default; set `exposeSessionEnvironment: false` to opt out.
 
-See [Using Atomic](/usage#environment-variables) and [RPC direct bash](/rpc#bash) for execution and streaming behavior.
+See [Using Atomic](/reference/cli#environment-variables) and [RPC direct bash](/rpc/protocol#bash) for execution and streaming behavior.

@@ -54,9 +54,14 @@ Prefer direct file automation for structured tasks such as assembling slides, fi
 | AppleScript or JavaScript for Automation through `osascript` | Create documents, address named app objects, export files, coordinate scriptable macOS apps. | macOS only. Each app defines its own scripting dictionary; some apps expose little or no scripting support. |
 | Office Scripts | Repeatable Excel workbook operations through the Automate tab, including supported Power Automate flows. | Excel only. Availability depends on the account, app version, and organization policy; it is not a general desktop-control API. |
 | PowerShell with COM automation | Drive installed Windows applications that expose COM, including desktop Office. | Windows-specific. Do not assume unattended service execution is supported or reuse the user's active app instance without permission. |
+| VBA in desktop Excel, Word, or PowerPoint | Format ranges, update charts, assemble slides, or automate document operations through Office's object models. | Requires a supporting desktop Office app and permitted macros. Windows and Mac APIs differ; VBA does not run in Office on the web. |
 | Application APIs, such as Blender's Python API | Generate geometry, set scene properties, apply repeated edits, and render or export. | Use the API and runtime for the installed app version. Some operations depend on an active document, selection, or editor context. |
 
 Before writing a script, identify the input format, required features, output path, and library or app version. Read the relevant API reference rather than guessing methods. Start with a read-only query or a disposable copy. Save to a new path and reopen the result to check its contents; use a compatible viewer or renderer when appearance matters. Scripts still need the same authorization as UI actions to overwrite, upload, or publish files.
+
+For scripts that operate an application, also keep these application-specific checks:
+
+Before writing a script, identify the target app/version, input document, object names, and output path. Read the application's API reference or scripting dictionary rather than guessing methods. Start with a read-only query or a disposable copy, and keep a record of which operations changed the document.
 
 ### macOS recipe: create a draft with osascript
 
@@ -127,6 +132,36 @@ This example uses the layouts and placeholder IDs in the library's default templ
 Reopen the saved deck to check slide count and text. Then view it in PowerPoint, LibreOffice Impress, or another compatible renderer to check clipping, fonts, and layout. `python-pptx` does not render slides or export PDF; use a compatible application for those steps. A successful save is not a visual check. If no renderer is available, hand off the draft and state that its appearance remains unchecked.
 
 For similar file-based tasks, use [python-docx](https://python-docx.readthedocs.io/en/latest/) for Word documents or [openpyxl](https://openpyxl.readthedocs.io/en/stable/) for Excel workbooks. Check feature support before editing a complex existing file. Use an app's own API when a library cannot make the required change, rather than forcing a lossy conversion. If an approved task requires macros, inspect the code and follow the organization's macro policy; never weaken security settings to run it.
+
+### Office recipe: format an Excel report with VBA
+
+For a desktop workbook, use [VBA](https://learn.microsoft.com/en-us/office/vba/library-reference/concepts/getting-started-with-vba-in-office) to change specific ranges instead of sending a long sequence of clicks. Try this on a trusted copy of a workbook with a worksheet named `Summary` and a report in `A1:D20`:
+
+1. Save the copy as an Excel Macro-Enabled Workbook, `.xlsm`, if you want to retain the macro.
+2. Open Developer > Visual Basic. In the copied workbook's project, choose Insert > Module and paste the macro below. If Developer is hidden, enable that tab through Excel's ribbon settings.
+3. Review the code and run `FormatSummary` through Developer > Macros, subject to your organization's macro policy.
+4. Inspect the header, number formatting, and column widths. Save only the reviewed copy.
+
+```vb
+Option Explicit
+
+Sub FormatSummary()
+    Dim report As Worksheet
+    Set report = ThisWorkbook.Worksheets("Summary")
+
+    report.Range("A1:D1").Font.Bold = True
+    report.Range("B2:D20").NumberFormat = "#,##0.00"
+    report.Range("A1:D20").Columns.AutoFit
+End Sub
+```
+
+`ThisWorkbook` is the workbook containing the macro, not whichever workbook happens to be active. Put the macro in the copied report's project, not a personal macro workbook. The example changes formatting only and does not save automatically. Its operations are documented in the [Excel VBA reference](https://learn.microsoft.com/en-us/office/vba/api/overview/excel).
+
+For other jobs, address workbook, worksheet, slide, shape, or document objects explicitly. A recorded macro can help discover operations, but replace dependence on `Selection`, `ActiveSheet`, or `ActivePresentation` with references to the intended objects before reusing it. For presentations, use PowerPoint's object model rather than treating Excel VBA as a universal Office API.
+
+Never enable all macros, weaken Trust Center settings, or enable programmatic access to the VBA project just to inject code. If policy blocks the macro, use an approved mechanism or report the restriction. VBA in a document can access more than that document, so inspect unfamiliar macros before opening or running them. If a script changes application-wide settings such as events or alerts, restore their previous values on success and error; do not suppress prompts to force a save.
+
+VBA support in desktop Excel, Word, and PowerPoint includes macOS, but Windows COM, ActiveX, and Win32-dependent code is not portable. Consult Microsoft's [Office for Mac guidance](https://learn.microsoft.com/en-us/office/vba/api/overview/office-mac) for sandbox and file-access differences. Saving as `.xlsx` cannot retain VBA; choose the output format deliberately.
 
 ### Office Scripts, app runtimes, and file tools
 

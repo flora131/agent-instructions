@@ -28,7 +28,7 @@ describe("custom workflow folder disclosure", () => {
 	test("keeps workflow creation docs explicit and scoped", async () => {
 		for (const path of [
 			"packages/coding-agent/docs/workflows/builtins.md",
-			"packages/coding-agent/docs/quickstart.md",
+			"packages/coding-agent/docs/getting-started/first-session.md",
 		]) {
 			expectFolderDisclosure(await readRepositoryFile(path), path);
 		}

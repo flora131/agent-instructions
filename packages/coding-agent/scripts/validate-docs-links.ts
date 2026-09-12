@@ -20,9 +20,7 @@ type JsonValue =
   | { [key: string]: JsonValue };
 
 type DocsConfig = {
-  navigation?: {
-    groups?: JsonValue;
-  };
+  navigation?: JsonValue;
 };
 
 type FindingKind = "bad-extension" | "missing-target" | "missing-nav-page";
@@ -92,8 +90,11 @@ function collectDocsJsonPages(value: JsonValue | undefined, pages: string[] = []
     return pages;
   }
 
-  if (typeof value === "object" && value.pages !== undefined) {
-    collectDocsJsonPages(value.pages, pages);
+  if (typeof value === "object") {
+    // Mintlify nests pages under `tabs`, `groups`, `anchors`, or `pages` at any depth.
+    for (const key of ["tabs", "anchors", "groups", "pages"] as const) {
+      if (value[key] !== undefined) collectDocsJsonPages(value[key], pages);
+    }
   }
   return pages;
 }
@@ -246,7 +247,7 @@ function main(): number {
   const findings: Finding[] = [];
 
   const docsConfig = JSON.parse(readFileSync(docsJsonPath, "utf8")) as DocsConfig;
-  const navPages = collectDocsJsonPages(docsConfig.navigation?.groups);
+  const navPages = collectDocsJsonPages(docsConfig.navigation);
   for (const page of navPages) {
     if (!page || page.startsWith("http://") || page.startsWith("https://")) continue;
     if (!knownSlugs.has(page)) {

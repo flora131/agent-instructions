@@ -235,13 +235,25 @@ describe("workflow-first execution routing", () => {
 				"thinking level",
 				"fallback policy",
 				"Stage | Model | Thinking | Role",
-				"high-cost-of-error roles",
+				path.endsWith("reliable-design.md")
+					? "`max` is an exception justified by task-specific evidence or an explicit user request, not a role default"
+					: "high-cost-of-error roles",
 				"deterministic checks as tool nodes with no model call",
 				"fallback",
 				"availableThinkingLevels",
 				"leave the stage unpinned rather than inventing",
 			]) {
 				expect(documentation, path).toContain(phrase);
+			}
+			if (path.endsWith("reliable-design.md")) {
+				// #2847 reconciliation: current upstream model selection supersedes the older role default.
+				for (const phrase of [
+					"Use `low` or `medium` for implementation and routine fixes",
+					"`high` or `xhigh` for code review, test design, failure analysis, and approval decisions when supported",
+					"approve | <catalog fullId> | high | final approval",
+				])
+					expect(documentation, path).toContain(phrase);
+				expect(documentation, path).not.toContain("approve | <catalog fullId> | max | final approval");
 			}
 		}
 	});
@@ -896,7 +908,7 @@ describe("workflow-first execution routing", () => {
 		const exactGuidance: Record<string, string> = {
 			"packages/intercom/skills/intercom/SKILL.md":
 				"The invocation context can control owned isolated subgroups by exact target, while sibling subgroups and other runs remain isolated.",
-			"packages/coding-agent/docs/intercom.md":
+			"packages/coding-agent/docs/intercom/reference.md":
 				"The invocation group has asymmetric exact-target control over its owned subgroups; ownership does not grant reverse or lateral access.",
 		};
 		for (const [path, sentence] of Object.entries(exactGuidance)) {

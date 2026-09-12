@@ -1,3 +1,8 @@
+---
+title: "API reference"
+description: "Exhaustive workflow, stage, and context contracts."
+---
+
 # Workflow API Reference
 
 Use this reference while authoring definitions or integrating the workflow SDK programmatically. For a continuous first workflow, start with [Custom Workflow Authoring](/workflows/authoring).
@@ -432,7 +437,7 @@ Callbacks that spawn child processes or perform network I/O need an explicit `ti
 
 With `timeoutMs`, each retry receives a fresh signal and deadline. Run cancellation and operator abort remain cancellation rather than timeout, and a callback that completes before its deadline is unchanged. Omitting `timeoutMs` keeps the existing unbounded callback path.
 
-See [`ctx.tool` — durable cached tool execution](/workflows/operations#ctxtool--durable-cached-tool-execution) for durable failure replay, process-output safety, explicit repair handoffs, and cancellation behavior.
+See [`ctx.tool` — durable cached tool execution](/workflows/operations#ctx-tool-—-durable-cached-tool-execution) for durable failure replay, process-output safety, explicit repair handoffs, and cancellation behavior.
 
 ### `ctx.exit(options?)`
 
@@ -454,7 +459,7 @@ interface WorkflowExitOptions<TOutputs extends WorkflowOutputValues = WorkflowOu
 
 Intentionally ends the current run from any call depth. `status` defaults to `"completed"`; `failed` exits default to `resumable: false`, and `resumable: true` keeps the durable run eligible for a later retry. Supplying `resumable` with another status records a non-resumable authoring failure. The runtime persists and displays `reason`, and `outputs` may provide only declared, schema-valid, serializable output keys.
 
-See [Early exit with `ctx.exit()`](/workflows/authoring#early-exit-with-ctxexit) for snapshotting, cleanup, replay, and race semantics.
+See [Early exit with `ctx.exit()`](/workflows/authoring#early-exit-with-ctx-exit) for snapshotting, cleanup, replay, and race semantics.
 
 ## Task and Stage Options
 
@@ -602,7 +607,7 @@ readonly schema?: TSchema;
 
 Enables a schema-specific, single-use final-answer tool for that item. `ctx.stage`, `ctx.task`, `ctx.chain`, and `ctx.parallel` items accept a TypeBox schema or a plain JSON Schema descriptor object. The schema may describe an object, array, or primitive, and the captured JSON value becomes the schema-backed `stage.prompt(...)` result or `WorkflowTaskResult.structured`; task text remains formatted JSON for handoffs.
 
-A schema-backed `StageContext` supports one `prompt()` call, so create another stage for another structured prompt. Missing or invalid `structured_output` calls receive up to three corrective follow-ups quoting the contract error and reminding the model to call `structured_output` instead of replying with plain JSON. That budget is per model candidate: a candidate that spends the initial prompt and all three follow-ups without a valid call is treated as a failed candidate and the stage advances to the next entry in [`fallbackModels`](#fallbackmodels--fallbackthinkinglevels), which receives the original stage prompt and its own fresh budget. The recorded attempt error names what the turn actually looked like — no assistant message after the prompt, an assistant message with empty text, or the `structured_output` validation error — so a repeated external cause is attributable. With no fallback candidate left, the stage fails with the contract error rather than completing. An explicit tool allowlist automatically receives the final-answer tool, while items without `schema` do not.
+A schema-backed `StageContext` supports one `prompt()` call, so create another stage for another structured prompt. Missing or invalid `structured_output` calls receive up to three corrective follow-ups quoting the contract error and reminding the model to call `structured_output` instead of replying with plain JSON. That budget is per model candidate: a candidate that spends the initial prompt and all three follow-ups without a valid call is treated as a failed candidate and the stage advances to the next entry in [`fallbackModels`](#fallbackmodels-/-fallbackthinkinglevels), which receives the original stage prompt and its own fresh budget. The recorded attempt error names what the turn actually looked like — no assistant message after the prompt, an assistant message with empty text, or the `structured_output` validation error — so a repeated external cause is attributable. With no fallback candidate left, the stage fails with the contract error rather than completing. An explicit tool allowlist automatically receives the final-answer tool, while items without `schema` do not.
 
 When `schema` and `output` are both configured, the successful `structured_output` turn carries two separate results. All ordinary assistant text blocks from that exact message, in order, are written to the artifact; the successful tool arguments become the typed schema-backed workflow value. The runtime snapshots both sides against the exact successful tool-call id rather than searching by tool name, so corrective attempts and later admitted turns cannot replace either result, and it never serializes the tool arguments into the artifact. When the successful message carries no ordinary text — including when a model-fallback session recreation leaves the live session without that message — the artifact falls back to the most recent earlier assistant text that made no `structured_output` call; if no such text exists the artifact is empty and its receipt includes the standard empty-artifact warning. Stages with `schema` but no `output` keep their existing result-text behavior. Builtin pattern workflows that hand structured decisions to later stages (`adversarial-verification`, `generate-and-filter`, `tournament`, `loop-until-done`) persist those decisions themselves, so their `*.json` inter-stage artifacts remain machine-readable JSON.
 
@@ -679,7 +684,7 @@ Selects or creates a reusable same-repository Git worktree for `ctx.stage`, `ctx
 - **Caching and diagnostics:** Temporary isolation defaults to the runner invocation cwd, and relative task cwd values resolve there. Reusable setup is cached by canonical repository and target identity independently of equivalent path spelling or `baseBranch`, revalidates checkout identity before reuse, retries one transient timeout from read-only repository probes, and reports the exact Git command, cwd, timeout, elapsed time, exit status or signal, and spawn error details on failure.
 - **Security boundary:** Worktrees isolate checkouts and cwd, not the operating system. Use a container, VM, or another OS-enforced boundary for untrusted code that can race or mutate arbitrary paths.
 
-For lower-level integrations, [`setupGitWorktree(options)`](#setupgitworktreeoptions) returns the validated and remapped setup result.
+For lower-level integrations, [`setupGitWorktree(options)`](#setupgitworktree-options) returns the validated and remapped setup result.
 
 ### `sessionDir`
 

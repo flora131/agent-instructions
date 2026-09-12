@@ -13,7 +13,7 @@ const docsRoot = join(dirname(fileURLToPath(import.meta.url)), "../docs");
 
 test("Mintlify navigation reaches every documentation page without duplicate or missing routes (#9380)", () => {
 	const config = JSON.parse(readFileSync(join(docsRoot, "docs.json"), "utf8")) as {
-		navigation: { groups: NavigationGroup[] };
+		navigation: { tabs: { tab: string; groups: NavigationGroup[] }[] };
 	};
 	const roots: string[] = [];
 	const visit = (group: NavigationGroup): void => {
@@ -29,7 +29,15 @@ test("Mintlify navigation reaches every documentation page without duplicate or 
 			}
 		}
 	};
-	for (const group of config.navigation.groups) visit(group);
+	// #2847 keeps upstream's exact coverage assertions with the reader-tab navigation shape.
+	assert.deepEqual(
+		config.navigation.tabs.map((tab) => tab.tab),
+		["Learn", "Build", "Reference"],
+	);
+	for (const tab of config.navigation.tabs) {
+		assert.ok(Array.isArray(tab.groups) && tab.groups.length > 0);
+		for (const group of tab.groups) visit(group);
+	}
 	assert.equal(new Set(roots).size, roots.length, "duplicate navigation routes");
 	const pages = readdirSync(docsRoot, { recursive: true })
 		.filter((file) => /\.mdx?$/.test(file))

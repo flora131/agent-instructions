@@ -1,3 +1,8 @@
+---
+title: "JSON event stream"
+description: "Run one prompt and parse Atomic's output as newline-delimited events."
+---
+
 # JSON Event Stream Mode
 
 ```bash
@@ -7,6 +12,18 @@ atomic --mode json "Your prompt"
 Outputs all session events as JSON lines to stdout. Useful for integrating Atomic into other tools or custom UIs.
 
 If a complete saved provider/model default names a provider that remains unsupported after provider registration, JSON mode writes the generic configuration diagnostic to stderr and exits nonzero before sending the prompt. It writes no human diagnostic to stdout, so any stdout records remain valid JSONL. This differs from ordinary supported-provider model or authentication fallback, which retains normal automatic model selection.
+
+## Choosing an integration mode
+
+JSON mode is one of three ways to drive Atomic from your own software. Pick the smallest one that does the job.
+
+| You want | Use | Why |
+| --- | --- | --- |
+| One prompt, structured output, then exit | **JSON event stream mode** (this page) | One process, one prompt, newline-delimited events on stdout. Nothing to keep alive. |
+| A long-lived process you send more input to | [RPC mode](/rpc) | Send further prompts, interrupt, switch models, and answer tool permission prompts on a live process. |
+| Atomic embedded inside a Node.js application | [SDK](/sdk) | The same engine as a library, with programmatic control over extensions, skills, tools, and session storage. |
+
+If you need the event contract rather than a walkthrough, go to the [RPC protocol](/rpc/protocol) or the [SDK API reference](/sdk/reference). [Programmatic use](/programmatic) compares all three modes side by side.
 
 ## Event Types
 

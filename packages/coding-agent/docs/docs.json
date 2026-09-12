@@ -10,99 +10,221 @@
     "dark": "#1D4ED8"
   },
   "navigation": {
-    "groups": [
+    "tabs": [
       {
-        "group": "Start here",
-        "pages": [
-          "index",
-          "quickstart",
-          "usage",
-          "computer-use",
-          "providers",
-          "environment-variables",
-          "llama-cpp",
-          "herdr",
-          "containerization",
-          "security",
-          "settings",
-          "keybindings",
-          "sessions",
-          "background-tasks",
-          "compaction"
+        "tab": "Learn",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "index"
+            ]
+          },
+          {
+            "group": "Quickstart",
+            "pages": [
+              "quickstart",
+              "getting-started/installation",
+              "getting-started/authentication",
+              "getting-started/first-session",
+              "getting-started/project-instructions"
+            ]
+          },
+          {
+            "group": "Start here",
+            "pages": [
+              "guides"
+            ]
+          },
+          {
+            "group": "Everyday use",
+            "pages": [
+              "usage",
+              "guides/non-interactive",
+              "sessions",
+              "compaction",
+              "guides/configuration"
+            ]
+          },
+          {
+            "group": "Running work for you",
+            "pages": [
+              "guides/workflows",
+              "guides/subagents",
+              "background-tasks",
+              "guides/intercom",
+              "computer-use"
+            ]
+          },
+          {
+            "group": "Models and providers",
+            "pages": [
+              "providers",
+              "llama-cpp"
+            ]
+          },
+          {
+            "group": "Safety and isolation",
+            "pages": [
+              "security",
+              "containerization"
+            ]
+          }
         ]
       },
       {
-        "group": "Customization",
-        "pages": [
-          "extensions",
-          "skills",
-          "subagents",
-          "intercom",
+        "tab": "Build",
+        "groups": [
           {
-            "group": "Workflows",
+            "group": "Build with Atomic",
             "pages": [
-              "workflows",
-              "workflows/builtins",
-              "workflows/authoring",
-              "workflows/reliable-design",
-              "workflows/verification",
-              "workflows/operations",
-              "workflows/api-reference"
+              "build"
             ]
           },
-          "prompt-templates",
-          "themes",
-          "packages",
           {
-            "group": "Models",
+            "group": "Extend a session",
+            "pages": [
+              {
+                "group": "Skills",
+                "pages": [
+                  "skills",
+                  "skills/authoring"
+                ]
+              },
+              "prompt-templates",
+              "themes",
+              {
+                "group": "Extensions",
+                "pages": [
+                  "extensions",
+                  "extensions/authoring",
+                  "extensions/events",
+                  "extensions/ui",
+                  "extensions/examples"
+                ]
+              }
+            ]
+          },
+          {
+            "group": "Orchestrate work",
+            "pages": [
+              {
+                "group": "Workflows",
+                "pages": [
+                  "workflows",
+                  "workflows/builtins",
+                  "workflows/authoring",
+                  "workflows/reliable-design",
+                  "workflows/verification",
+                  "workflows/operations",
+                  "workflows/api-reference"
+                ]
+              },
+              {
+                "group": "Subagents",
+                "pages": [
+                  "subagents",
+                  "subagents/authoring"
+                ]
+              },
+              {
+                "group": "Intercom",
+                "pages": [
+                  "intercom",
+                  "intercom/operations"
+                ]
+              }
+            ]
+          },
+          {
+            "group": "Distribute",
+            "pages": [
+              "packages",
+              "packages/authoring"
+            ]
+          },
+          {
+            "group": "Models and providers",
             "pages": [
               "models",
               "models/model-selection",
               "models/pareto-efficiency",
-              "models/evals"
+              "models/evals",
+              "custom-provider",
+              "custom-provider/override",
+              "custom-provider/registration",
+              "custom-provider/oauth",
+              "custom-provider/streaming"
             ]
           },
-          "custom-provider"
+          {
+            "group": "Programmatic use",
+            "pages": [
+              "programmatic",
+              "sdk",
+              "rpc",
+              "rpc/extension-ui",
+              "rpc/examples",
+              "json",
+              "tui"
+            ]
+          }
         ]
       },
       {
-        "group": "Reference",
-        "pages": [
-          "tools",
-          "tools/edit",
-          "web-access",
-          "session-format"
-        ]
-      },
-      {
-        "group": "Programmatic Usage",
-        "pages": [
-          "sdk",
-          "rpc",
-          "json",
-          "tui"
-        ]
-      },
-      {
-        "group": "Platform Setup",
-        "pages": [
-          "windows",
-          "termux",
-          "tmux",
-          "terminal-setup",
-          "shell-aliases"
-        ]
-      },
-      {
-        "group": "Development",
-        "pages": [
-          "development"
-        ]
-      },
-      {
-        "group": "Changelog",
-        "pages": [
-          "changelog"
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Reference",
+            "pages": [
+              "reference",
+              "reference/cli",
+              "settings",
+              "environment-variables",
+              "keybindings",
+              "tools",
+              "tools/edit",
+              "web-access",
+              "session-format"
+            ]
+          },
+          {
+            "group": "Domain reference",
+            "pages": [
+              "providers/reference",
+              "models/reference",
+              "compaction/reference",
+              "skills/reference",
+              "subagents/reference",
+              "intercom/reference",
+              "packages/reference",
+              "themes/reference",
+              "extensions/api-reference",
+              "custom-provider/api-reference",
+              "sdk/reference",
+              "rpc/protocol",
+              "tui/reference"
+            ]
+          },
+          {
+            "group": "Platform setup",
+            "pages": [
+              "windows",
+              "termux",
+              "terminal-setup",
+              "tmux",
+              "herdr",
+              "shell-aliases"
+            ]
+          },
+          {
+            "group": "Project",
+            "pages": [
+              "development",
+              "changelog",
+              "models/artificial-analysis-index"
+            ]
+          }
         ]
       }
     ]
