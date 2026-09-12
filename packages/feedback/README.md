@@ -8,7 +8,13 @@ This bundled extension provides a safe, ordinary-conversation workflow for draft
 
 Bug drafts require a title, what happened, and reproduction steps. Enhancement drafts require a title, the requested change, and why it helps. Missing required fields produce a tool error so you can correct the draft; prepared details are returned only for valid drafts.
 
-Posting is handled separately by the approval-gated feedback submission boundary.
+The `feedback_submit_issue` tool posts only the latest reviewed draft after clear approval, re-scrubbing it and preventing duplicate submissions.
+
+Reply with clear approval such as `Yes.`, `Approved.`, or `Please post this issue.` after the exact draft display. Unrelated conversation or tool activity requires a fresh display before approval. A newer failed preparation or persisted-output marker blocks submission rather than selecting an older draft. Posting requires `GITHUB_TOKEN` or `GH_TOKEN` in Atomic's environment with issue-creation permission; the first takes precedence. Failed attempts consume their approval. If the outcome is unknown, inspect the target repository before approving a retry. Duplicate protection applies within a session, not across independent sessions.
+
+## Custom submission transports
+
+An `IssueSubmissionTransport` implementation returns `{ html_url: string }` on success or `undefined` for a malformed response. The built-in GitHub transport validates that response shape and discards other response fields. Submission still checks that the URL identifies an issue in the target repository before reporting success. Transport failures can throw `IssueTransportError` for a safe, classified error.
 
 ## Privacy scrubbing
 

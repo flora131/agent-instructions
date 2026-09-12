@@ -7,6 +7,11 @@ All notable changes to this project will be documented in this file.
 - Added typed feedback draft validation, deterministic issue formatting, privacy scrubbing, and bounded diagnostic utilities ([#2799](https://github.com/bastani-inc/atomic/issues/2799)).
 - Added `/feedback` and a bundled conversational skill to collect bug reports or enhancement requests and prepare editable, privacy-scrubbed drafts without posting them ([#2799](https://github.com/bastani-inc/atomic/issues/2799)).
 - Added bug investigation through the existing debugger with a fresh, foreground handoff, bounded privacy-scrubbed diagnostics, extension activity, and path-only worktree disclosure. Unavailable investigations leave an editable draft with honest unknowns ([#2799](https://github.com/bastani-inc/atomic/issues/2799)).
+- Added approval-gated, privacy-scrubbed GitHub feedback submission with duplicate protection and safe, distinct authentication, permission, rate-limit, validation, network, abort, and malformed-response failures ([#2799](https://github.com/bastani-inc/atomic/issues/2799)).
+
+### Changed
+
+- Custom issue transports now return `{ html_url: string }` or `undefined` for malformed replies. The GitHub transport validates that shape and discards unused response fields ([#2799](https://github.com/bastani-inc/atomic/issues/2799)).
 
 ### Fixed
 
@@ -26,3 +31,4 @@ All notable changes to this project will be documented in this file.
 - Fixed bug drafts omitting extension activity when that information is missing; they now say `Not reported` instead of implying no extensions were active ([#2799](https://github.com/bastani-inc/atomic/issues/2799)).
 - Limited diagnostic path parsing and Git execution time for large worktrees, and included copy destinations in newly observed paths ([#2799](https://github.com/bastani-inc/atomic/issues/2799)).
 - Fixed staged rename destinations being omitted from newly observed paths, and disclose when diagnostic path lists exceed their 100-entry limit ([#2799](https://github.com/bastani-inc/atomic/issues/2799)).
+- Bound approval to the latest exact draft display, accepted direct conversational approvals, and refused fallback to older drafts when the latest preparation failed or its output was persisted ([#2799](https://github.com/bastani-inc/atomic/issues/2799)).
