@@ -58,16 +58,16 @@ Requires Pi v0.37.3+.
 web_search({ query: "TypeScript best practices 2025" })
 
 // Fetch a page
-fetch_content({ url: "https://docs.example.com/guide" })
+fetch_content({ urls: ["https://docs.example.com/guide"] })
 
 // Clone a GitHub repo
-fetch_content({ url: "https://github.com/owner/repo" })
+fetch_content({ urls: ["https://github.com/owner/repo"] })
 
 // Understand a YouTube video
-fetch_content({ url: "https://youtube.com/watch?v=abc", prompt: "What libraries are shown?" })
+fetch_content({ urls: ["https://youtube.com/watch?v=abc"], prompt: "What libraries are shown?" })
 
 // Analyze a screen recording
-fetch_content({ url: "/path/to/recording.mp4", prompt: "What error appears on screen?" })
+fetch_content({ urls: ["/path/to/recording.mp4"], prompt: "What error appears on screen?" })
 ```
 
 ## Tools
@@ -116,18 +116,22 @@ code_search({ query: "Express middleware error handling", maxTokens: 10000 })
 
 Fetch URL(s) and extract readable content as markdown. Automatically detects and handles GitHub repos, YouTube videos, PDFs, local video files, and regular web pages.
 
+Use the lowercase `urls` field with a nonempty array of strings, even for one URL. Replace legacy `{ url: "..." }` calls with `{ urls: ["..."] }`. Missing targets, empty arrays, empty strings, object entries, and unrecognized fields are rejected before fetching. Atomic's standard argument normalization can convert a scalar `urls` string into a one-item array, but prompts and integrations should always send the documented array form.
+
+See [Atomic's fetch argument guide](../coding-agent/docs/web-access.md) for examples and validation troubleshooting.
+
 ```typescript
-fetch_content({ url: "https://example.com/article" })
-fetch_content({ urls: ["url1", "url2", "url3"] })
-fetch_content({ url: "https://github.com/owner/repo" })
-fetch_content({ url: "https://youtube.com/watch?v=abc", prompt: "What libraries are shown?" })
-fetch_content({ url: "/path/to/recording.mp4", prompt: "What error appears on screen?" })
-fetch_content({ url: "https://youtube.com/watch?v=abc", timestamp: "23:41-25:00", frames: 4 })
+fetch_content({ urls: ["https://example.com/article"] })
+fetch_content({ urls: ["https://example.com/one", "https://example.com/two"] })
+fetch_content({ urls: ["https://github.com/owner/repo"] })
+fetch_content({ urls: ["https://youtube.com/watch?v=abc"], prompt: "What libraries are shown?" })
+fetch_content({ urls: ["/path/to/recording.mp4"], prompt: "What error appears on screen?" })
+fetch_content({ urls: ["https://youtube.com/watch?v=abc"], timestamp: "23:41-25:00", frames: 4 })
 ```
 
 | Parameter | Description |
 |-----------|-------------|
-| `url` / `urls` | Single URL/path or multiple URLs |
+| `urls` | Required nonempty array of URL/path strings, including for a single target |
 | `prompt` | Question to ask about a YouTube video or local video file |
 | `timestamp` | Extract frame(s) — single (`"23:41"`), range (`"23:41-25:00"`), or seconds (`"85"`) |
 | `frames` | Number of frames to extract (max 12) |
@@ -168,11 +172,11 @@ Fallback: Gemini API (Files API upload) → Gemini Web when browser cookies are 
 Use `timestamp` and/or `frames` on any YouTube URL or local video file to extract visual frames as images.
 
 ```typescript
-fetch_content({ url: "...", timestamp: "23:41" })                       // single frame
-fetch_content({ url: "...", timestamp: "23:41-25:00" })                 // range, 6 frames
-fetch_content({ url: "...", timestamp: "23:41-25:00", frames: 3 })      // range, custom count
-fetch_content({ url: "...", timestamp: "23:41", frames: 5 })            // 5 frames at 5s intervals
-fetch_content({ url: "...", frames: 6 })                                // sample whole video
+fetch_content({ urls: ["..."], timestamp: "23:41" })                   // single frame
+fetch_content({ urls: ["..."], timestamp: "23:41-25:00" })             // range, 6 frames
+fetch_content({ urls: ["..."], timestamp: "23:41-25:00", frames: 3 })  // range, custom count
+fetch_content({ urls: ["..."], timestamp: "23:41", frames: 5 })        // 5 frames at 5s intervals
+fetch_content({ urls: ["..."], frames: 6 })                            // sample whole video
 ```
 
 Requires `ffmpeg` (and `yt-dlp` for YouTube). Timestamps accept `H:MM:SS`, `MM:SS`, or bare seconds.
@@ -191,7 +195,7 @@ When Readability fails or returns only a cookie notice, the extension retries vi
 web_search(query)
   → Exa (direct API with key, MCP without) → Perplexity → Gemini API → Gemini Web (if browser cookies enabled)
 
-fetch_content(url)
+fetch_content({ urls: [url] })
   → Video file?  Gemini API (Files API) → Gemini Web (if browser cookies enabled)
   → GitHub URL?  Clone repo, return file contents + local path
   → YouTube URL? Gemini Web (if browser cookies enabled) → Gemini API → Perplexity
