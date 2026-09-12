@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.9.19-alpha.7] - 2026-09-12
+
 ### Fixed
 
 - Warm-first verifier and tournament judge groups now advertise conservative possible-stage names in source and bundled workflows without the builtin `warmSteps`/`restSteps` discovery warnings. Call-scoped `possibleStageNames` metadata leaves execution unchanged and retains diagnostics for unsupported dynamic calls ([#3001](https://github.com/bastani-inc/atomic/issues/3001)).

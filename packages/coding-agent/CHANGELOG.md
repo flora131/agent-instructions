@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.19-alpha.7] - 2026-09-12
+
 ### Fixed
 
 - Reduced CPU work in long `/tasks` live transcripts on Windows by reusing unchanged message rendering during streaming, without dropping history or delaying live updates.
