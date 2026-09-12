@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- Kept the background workflow summary within narrow terminal widths, including 27 columns. The shared workflow widget now stays within ten rows, shrinks on short terminals, and scrolls one row at a time with Alt+PageUp / Alt+PageDown without taking focus from the editor. All workflow rows remain reachable when a multiline draft reduces the visible widget area ([#3015](https://github.com/bastani-inc/atomic/issues/3015)).
+- Kept the workflow being read in view when live runs are inserted or removed above it, including workflows with identical names. Resizing to a collapsed summary and back preserves the reading position; removing the viewed run selects its next surviving neighbour, or the previous one when no later run remains ([#3017](https://github.com/bastani-inc/atomic/pull/3017)).
+
 ## [0.9.19-alpha.8] - 2026-09-12
 
 ### Fixed
