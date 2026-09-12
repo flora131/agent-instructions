@@ -12,7 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- Removed generated `root`, `dep`, and `deps` labels from workflow graph nodes and left model text blank when no model is set. Cards omit the extra padding row. Queued-message counts appear on a separate `✉ N` row, reusing empty space or expanding occupied cards without hiding status or model details. Dependency edges are unchanged.
+- Removed generated `root`, `dep`, and `deps` labels from workflow graph nodes and left model text blank when no model is set. Cards omit the extra padding row. Queued-message counts appear on a separate `✉ N queued` row, reusing empty space or expanding occupied cards without hiding status or model details. Dependency edges are unchanged.
 
 ## [0.9.19-alpha.7] - 2026-09-12
 

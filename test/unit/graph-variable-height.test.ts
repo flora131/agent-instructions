@@ -51,7 +51,7 @@ test("graph reflows model-card queues without a snapshot change and updates down
 		queued = 1_000_000;
 		const grown = visibleText(view.render(96)).split("\n");
 		const badge = grown.find((line) => line.includes("✉ 1000000"))!;
-		assert.match(badge, /│\s*✉ 1000000\s*│/);
+		assert.match(badge, /│\s*✉ 1000000 queued\s*│/);
 		assert.doesNotMatch(badge, /pending/);
 		assert.match(grown.join("\n"), /gpt-5-mini/);
 		const grownNext = grown.findIndex((line) => /╭.*next.*╮/.test(line));
@@ -99,7 +99,7 @@ test("queued child cards grow to preserve their full UUID, status and separate b
 		assert.ok(top >= 0);
 		const card = lines.slice(top, top + 6);
 		assert.match(card[5]!, /╰─+╯/);
-		assert.match(card[4]!, /│\s*✉ 1000000\s*│/);
+		assert.match(card[4]!, /│\s*✉ 1000000 queued\s*│/);
 		assert.match(card[3]!, /running/);
 		const identity = card
 			.slice(1, 3)

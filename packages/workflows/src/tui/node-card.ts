@@ -62,7 +62,7 @@ function queuedBadgeCount(count: number | undefined): number {
 }
 
 function queuedBadgeText(count: number): string {
-	return `✉ ${count}`;
+	return `✉ ${count} queued`;
 }
 
 function pickBorder(status: StageStatus, focused: boolean, phase: number, theme: GraphTheme): string {

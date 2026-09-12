@@ -29,13 +29,13 @@ import { visibleWidth } from "../../packages/workflows/src/tui/text-helpers.js";
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
 const stripAnsi = (s: string) => s.replace(ANSI_RE, "");
 
+// PR #3012: keep the queued label on the standalone count row.
 function assertQueuedRow(lines: string[], count: number): void {
 	const body = lines.slice(1, -1).map((line) => stripAnsi(line).slice(1, -1).trim());
 	assert.deepEqual(
 		body.filter((line) => line.includes("✉")),
-		[`✉ ${count}`],
+		[`✉ ${count} queued`],
 	);
-	assert.doesNotMatch(lines.map(stripAnsi).join("\n"), /queued/);
 }
 
 const theme = deriveGraphTheme({});
@@ -540,7 +540,7 @@ describe("renderNodeCard — metadata line", () => {
 							assert.match(stripAnsi(lines[3]!), /enter to respond/);
 						} else {
 							const metadata = stripAnsi(lines[3]!).slice(1, -1).trim();
-							assert.equal(metadata, queuedMessageCount ? `✉ ${queuedMessageCount}` : "");
+							assert.equal(metadata, queuedMessageCount ? `✉ ${queuedMessageCount} queued` : "");
 							assert.doesNotMatch(metadata, /—|high/);
 						}
 						assert.equal(lines.length, NODE_H);
