@@ -13,7 +13,7 @@ import {
 } from "../../packages/intercom/broker/send-handler.js";
 import { buildMessageSendSignature } from "../../packages/intercom/broker/send-signature.js";
 import { SupervisorChannelCache } from "../../packages/intercom/broker/supervisor-channel.js";
-import type { BrokerMessage, Message, SessionInfo } from "../../packages/intercom/types.js";
+import type { BrokerMessage, ClientMessage, Message, SessionInfo } from "../../packages/intercom/types.js";
 
 function session(
 	id: string,
@@ -875,7 +875,12 @@ test("explicit reply recipient binding is validated, retained in authority, and 
 	const cache = new DeliveredMessageCache();
 	const writes: Array<{ socket: net.Socket; message: BrokerMessage }> = [];
 	let queued = 0;
-	const send = (frame: Record<string, unknown>) => {
+	type SendFrame = Extract<ClientMessage, { type: "send" | "supervisor_send" }>;
+	// Wire validation must also cover values excluded by the valid protocol type.
+	type SendOverrides = Partial<Omit<SendFrame, "expectedRecipientId">> & {
+		expectedRecipientId?: SendFrame["expectedRecipientId"] | null | false | 0;
+	};
+	const send = (frame: SendOverrides) => {
 		handleBrokerSend(
 			sender.socket,
 			{
@@ -900,7 +905,7 @@ test("explicit reply recipient binding is validated, retained in authority, and 
 		);
 		return writes.at(-1)!.message;
 	};
-	for (const expectedRecipientId of [undefined, null, false, 0, "", " "]) {
+	for (const expectedRecipientId of [undefined, null, false, 0, "", " "] as const) {
 		const result = send({ expectedRecipientId });
 		assert.equal(result.type, "delivery_failed");
 		if (result.type === "delivery_failed") assert.match(result.reason, /Invalid expectedRecipientId format/);
@@ -914,7 +919,7 @@ test("explicit reply recipient binding is validated, retained in authority, and 
 			message: { ...message("ask-not-reply"), replyTo: "thread", expectsReply: true },
 		},
 		{ expectedRecipientId: recipient.info.id, to: "workflow:11111111-1111-4111-8111-111111111111/future" },
-	])
+	] satisfies SendOverrides[])
 		assert.equal(send(frame).type, "delivery_failed");
 	assert.equal(queued, 0);
 	assert.equal(writes.filter((entry) => entry.socket === recipient.socket).length, 0);

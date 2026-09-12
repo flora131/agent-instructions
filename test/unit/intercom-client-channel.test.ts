@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { test } from "vitest";
+import { Socket } from "node:net";
+import { test, vi } from "vitest";
 import { IntercomClient } from "../../packages/intercom/broker/client.js";
-import type { Message, SessionInfo } from "../../packages/intercom/types.js";
+import type { BrokerMessage, Message, SessionInfo } from "../../packages/intercom/types.js";
 
 test("client preserves the supervisor channel on inbound broker messages", () => {
 	const client = new IntercomClient();
@@ -231,21 +232,15 @@ test("client lists every broker group with membership markers", async () => {
 test("reply recipient binding is omitted when absent and distinguishes concurrent send identities", async () => {
 	const client = new IntercomClient();
 	const frames: Array<{ message: Message; attemptId: string; expectedRecipientId?: string }> = [];
-	const internals = client as unknown as {
-		socket: { destroyed: boolean; writableEnded: boolean; writable: boolean; write(data: Buffer): boolean };
-		_sessionId: string;
-		handleBrokerMessage(message: unknown): void;
-	};
-	internals.socket = {
-		destroyed: false,
-		writableEnded: false,
-		writable: true,
-		write(data) {
-			frames.push(JSON.parse(data.subarray(4).toString("utf8")));
-			return true;
-		},
-	};
-	internals._sessionId = "self";
+	const socket = new Socket();
+	vi.spyOn(socket, "write").mockImplementation((data) => {
+		assert.ok(Buffer.isBuffer(data));
+		frames.push(JSON.parse(data.subarray(4).toString("utf8")));
+		return true;
+	});
+	client["socket"] = socket;
+	client["_sessionId"] = "self";
+	const receive = (message: BrokerMessage) => client["handleBrokerMessage"](message);
 	const options = { text: "answer", messageId: "bound", replyTo: "question", expectedRecipientId: "recipient" };
 	const bound = client.send("recipient-name", options);
 	assert.equal(frames[0]!.expectedRecipientId, "recipient");
@@ -254,10 +249,10 @@ test("reply recipient binding is omitted when absent and distinguishes concurren
 		/different|conflict|mismatch/i,
 	);
 	assert.equal(frames.length, 1);
-	internals.handleBrokerMessage({ type: "delivered", messageId: "bound", attemptId: frames[0]!.attemptId });
+	receive({ type: "delivered", messageId: "bound", attemptId: frames[0]!.attemptId });
 	assert.equal((await bound).delivered, true);
 	const unbound = client.send("recipient-name", { text: "answer", messageId: "unbound", replyTo: "question" });
 	assert.equal(Object.hasOwn(frames[1]!, "expectedRecipientId"), false);
-	internals.handleBrokerMessage({ type: "delivered", messageId: "unbound", attemptId: frames[1]!.attemptId });
+	receive({ type: "delivered", messageId: "unbound", attemptId: frames[1]!.attemptId });
 	assert.equal((await unbound).delivered, true);
 });

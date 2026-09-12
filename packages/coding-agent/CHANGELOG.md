@@ -4,7 +4,7 @@
 
 ### Breaking Changes
 
-- Explicit Intercom `reply` selectors reject stale, unknown, empty, or sender-mismatched threads instead of falling back. Use `pending` and an exact `replyTo` for unresolved questions.
+- Explicit Intercom `action: "reply"` selectors reject stale, unknown, empty, or sender-mismatched threads instead of falling back. Use `action: "pending"` and `replyTo: "<pending-ask-id>"` for unresolved questions.
 
 ### Changed
 
