@@ -143,13 +143,30 @@ export function createStageControlHandle(runtime: LiveStageRuntime): StageContro
 		async pause() {
 			runtime.throwIfStageMutationBlocked();
 			const statusBeforePause = runtime.stageSnapshot.status;
+			let readinessPauseVersion: number | undefined;
 			// Close readiness admission synchronously, even while SDK pause acknowledges.
 			if (runtime.state.readinessController !== undefined) {
 				runtime.scheduler.ensureReleaseBarrier(runtime.stageId);
-				runtime.state.readinessPauseVersion = (runtime.state.readinessPauseVersion ?? 0) + 1;
+				readinessPauseVersion = (runtime.state.readinessPauseVersion ?? 0) + 1;
+				runtime.state.readinessPauseVersion = readinessPauseVersion;
 			}
 			if (statusBeforePause === "pending" || statusBeforePause === "running" || runtime.innerCtx.isStreaming) {
-				await runtime.innerCtx.__requestPause();
+				try {
+					await runtime.innerCtx.__requestPause();
+				} catch (error) {
+					// Roll back only this readiness selection, never a newer pause or
+					// a barrier retained by an acknowledged/cascaded stage pause.
+					if (
+						readinessPauseVersion !== undefined &&
+						runtime.state.readinessPauseVersion === readinessPauseVersion &&
+						runtime.stageSnapshot.status !== "paused" &&
+						runtime.stageSnapshot.status !== "blocked" &&
+						!runtime.scheduler.hasCascadePauseOwners(runtime.stageId)
+					) {
+						runtime.scheduler.releaseStageBarrier(runtime.stageId);
+					}
+					throw error;
+				}
 			}
 			const changed = runtime.activeStore.recordStagePaused(runtime.runId, runtime.stageId);
 			if (changed) {

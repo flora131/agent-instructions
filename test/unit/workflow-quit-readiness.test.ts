@@ -38,6 +38,7 @@ function startReadiness(
 		usePromptNodesForUi?: boolean;
 		confirmStageReadiness?: RunOpts["confirmStageReadiness"];
 		afterStage?: () => Promise<void>;
+		abort?: () => Promise<void>;
 	} = {},
 ) {
 	const root = new AbortController();
@@ -49,6 +50,7 @@ function startReadiness(
 	const state = { hidden: 0, downstream: 0, mounted: 0 };
 	const { session, emit } = makeMockSession({
 		isStreaming: false,
+		...(options.abort ? { abort: options.abort } : {}),
 		async prompt() {
 			emit({ type: "tool_execution_start", toolCallId: "answered", toolName: "ask_user_question", args: {} });
 			emit({
@@ -121,6 +123,90 @@ function startReadiness(
 		},
 	};
 }
+
+// Related: #2897. A failed quit must roll back admission, not strand an accepted answer.
+test("failed quit acknowledgement releases accepted readiness without requiring resume", async () => {
+	const fixture = startReadiness({
+		async abort() {
+			throw new Error("abort failed");
+		},
+	});
+	try {
+		const request = await fixture.first;
+		const handle = stageControlRegistry.get(fixture.runId, request.stageId)!;
+		broker.resolve(request, ready);
+		const result = await workflowQuitAction({ action: "quit", runId: fixture.runId });
+		assert.ok("status" in result);
+		assert.equal(result.status, "noop");
+		assert.ok(result.message);
+		assert.match(result.message, /Failed to pause workflow stages: .*abort failed/);
+		for (let index = 0; index < 20; index++) await turn();
+		assert.equal(fixture.state.downstream, 1, "failed pause must not strand accepted readiness");
+		assert.equal(handle.status, "completed");
+		assert.equal(store.runs().find((item) => item.id === fixture.runId)?.status, "completed");
+		assert.equal(fixture.root.signal.aborted, false);
+	} finally {
+		await fixture.close();
+	}
+});
+
+test("concurrent failed pauses keep readiness fenced until acknowledgement and recover after resume", async () => {
+	const abort = Promise.withResolvers<void>();
+	const failure = new Error("abort failed");
+	const fixture = startReadiness({ abort: () => abort.promise });
+	try {
+		const request = await fixture.first;
+		const handle = stageControlRegistry.get(fixture.runId, request.stageId)!;
+		broker.resolve(request, ready);
+		const pauses = Promise.allSettled([handle.pause(), handle.pause()]);
+		for (let index = 0; index < 20; index++) await turn();
+		assert.equal(handle.status, "running");
+		assert.equal(fixture.state.downstream, 0, "unacknowledged pause must fence readiness");
+		abort.reject(failure);
+		assert.deepEqual(await pauses, [
+			{ status: "rejected", reason: failure },
+			{ status: "rejected", reason: failure },
+		]);
+		await handle.resume();
+		for (let index = 0; index < 20; index++) await turn();
+		assert.equal(fixture.state.downstream, 1);
+		assert.equal(handle.status, "completed");
+		assert.equal(fixture.root.signal.aborted, false);
+	} finally {
+		abort.reject(failure);
+		await fixture.close();
+	}
+});
+
+test("successful retry after failed pause retains readiness admission until explicit resume", async () => {
+	let aborts = 0;
+	const failure = new Error("first abort failed");
+	const fixture = startReadiness({
+		async abort() {
+			if (++aborts === 1) throw failure;
+		},
+	});
+	try {
+		const request = await fixture.first;
+		const handle = stageControlRegistry.get(fixture.runId, request.stageId)!;
+		broker.resolve(request, ready);
+		await handle.pause().catch(async (error) => {
+			assert.equal(error, failure);
+			await handle.pause();
+		});
+		assert.equal(aborts, 2);
+		for (let index = 0; index < 20; index++) await turn();
+		assert.equal(handle.status, "paused");
+		assert.equal(fixture.state.downstream, 0);
+		assert.equal(store.runs().find((item) => item.id === fixture.runId)?.status, "paused");
+		await handle.resume();
+		for (let index = 0; index < 20; index++) await turn();
+		assert.equal(fixture.state.downstream, 1);
+		assert.equal(handle.status, "completed");
+	} finally {
+		await fixture.close();
+	}
+});
 
 // Related: #2897. The idle executor-owned readiness question also needs cancellation.
 test.each(["tool", "slash", "slash-implicit", "nested-tool", "answer-race"] as const)(
