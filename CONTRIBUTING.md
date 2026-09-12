@@ -28,7 +28,7 @@ Thanks for your interest in contributing to Atomic. This guide explains how to p
 
 For every external contribution, first open a proposal issue for a new idea or discuss an existing issue with your intended approach. Wait for explicit maintainer approval of the proposed scope before implementing it and opening a pull request. This applies to all changes, including small fixes and documentation-only changes, and to draft pull requests.
 
-Opening an issue, expressing interest, silence, or assignment alone does not constitute scope approval. A maintainer will respond within 24 hours. An expression of interest alone does not reserve an issue.
+Opening an issue, expressing interest, silence, or assignment alone does not constitute scope approval. A maintainer will respond as soon as possible. An expression of interest alone does not reserve an issue.
 
 Assignments are normally held for seven days. Post a progress update if you need more time. Maintainers may release an assignment when there has been no activity.
 
