@@ -166,6 +166,68 @@ describe("#3001 call-scoped discovery metadata", () => {
 	});
 });
 
+// Regression #3001: parameter initialization runs before body-only provenance checks.
+for (const extension of ["ts", "js"]) {
+	for (const initializer of [
+		"ignored = (options.possibleStageNames = ['actual-*'])",
+		"ignored = options.possibleStageNames.splice(0, 1, 'actual-*')",
+		"{ ignored = (options.possibleStageNames = ['actual-*']) } = {}",
+	]) {
+		test(`#3001 ${extension} parameter side effect retains both warnings: ${initializer}`, () => {
+			const result = scanFile(
+				`parameter-${extension}-${initializer.length}.${extension}`,
+				`
+				async function fan(ctx, steps, options, ${initializer}) {
+					const warmSteps = indices.map(index => steps[index]${extension === "ts" ? "!" : ""});
+					const restSteps = indices.map(index => steps[index]${extension === "ts" ? "!" : ""});
+					await ctx.parallel(warmSteps, { possibleStageNames: options.possibleStageNames });
+					await ctx.parallel(restSteps, { possibleStageNames: options.possibleStageNames });
+				}
+				export default workflow({ name: 'parameter', async run(ctx) {
+					await fan(ctx, opaque(), { possibleStageNames: ['stale-*'] });
+				} });
+			`,
+			);
+			assert.deepEqual(result.stages, []);
+			assert.equal(result.warnings.length, 2);
+			for (const group of ["warmSteps", "restSteps"])
+				assert.ok(result.warnings.some((warning) => warning.includes(`"${group}"`)));
+		});
+	}
+}
+
+// Regression #3001: caller methods/getters must not mutate metadata behind a member read.
+for (const extension of ["ts", "js"]) {
+	for (const [access, field] of [
+		["options.mutate();", "mutate() { this.possibleStageNames = ['actual-*']; }"],
+		["const cap = options.concurrency;", "get concurrency() { this.possibleStageNames = ['actual-*']; return 2; }"],
+		["const { concurrency } = options;", "get concurrency() { this.possibleStageNames = ['actual-*']; return 2; }"],
+		["options.mutate?.();", "mutate: () => sideEffect()"],
+	]) {
+		test(`#3001 ${extension} options side effect retains both warnings: ${access}`, () => {
+			const result = scanFile(
+				`side-effect-${extension}-${access.length}.${extension}`,
+				`
+				async function fan(ctx, steps, options) {
+					${access}
+					const warmSteps = indices.map(index => steps[index]${extension === "ts" ? "!" : ""});
+					const restSteps = indices.map(index => steps[index]${extension === "ts" ? "!" : ""});
+					await ctx.parallel(warmSteps, { possibleStageNames: options.possibleStageNames });
+					await ctx.parallel(restSteps, { possibleStageNames: options.possibleStageNames });
+				}
+				export default workflow({ name: 'side-effect', async run(ctx) {
+					await fan(ctx, opaque(), { possibleStageNames: ['stale-*'], ${field} });
+				} });
+			`,
+			);
+			assert.deepEqual(result.stages, []);
+			assert.equal(result.warnings.length, 2);
+			for (const group of ["warmSteps", "restSteps"])
+				assert.ok(result.warnings.some((warning) => warning.includes(`"${group}"`)));
+		});
+	}
+}
+
 // Regression #3001: writes through destructuring and other property-write forms invalidate caller metadata.
 for (const extension of ["ts", "js"]) {
 	for (const [variant, mutation] of [

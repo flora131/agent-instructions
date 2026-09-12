@@ -1139,6 +1139,17 @@ class PossibleStagesScanner {
 		return resolveRelativeSpecifier(specifier, importingFile);
 	}
 
+	/** Caller options must expose ordinary own data fields, not executable members or a custom prototype. */
+	private hasDataOnlyDiscoveryOptions(argument: readonly Token[] | undefined): boolean {
+		if (argument?.[0]?.value !== "{" || argument.at(-1)?.value !== "}") return false;
+		return arrayElements(argument).every(
+			(field) =>
+				(field[0]?.kind === "ident" || field[0]?.kind === "string") &&
+				field[0].value !== "__proto__" &&
+				field[1]?.value === ":",
+		);
+	}
+
 	private discoveryNames(call: CtxCall, unit: FileUnit, path: string): readonly string[] | undefined {
 		if (call.method !== "parallel") return undefined;
 		const value = discoveryField(splitTopLevelArguments(call, unit.tokens)[1]);
@@ -1157,6 +1168,18 @@ class PossibleStagesScanner {
 		if (owner === undefined || !owner.declaration) return undefined;
 		const parameter = owner.params.findIndex((param) => param[0]?.value === value[0]?.value);
 		if (parameter < 0) return undefined;
+		// Parameter initializers execute before the body. Only inert defaults are supported.
+		for (const param of owner.params) {
+			if (param[0]?.kind !== "ident") return undefined;
+			const assignment = param.findIndex((token) => token.value === "=");
+			if (assignment < 0) continue;
+			const initial = param.slice(assignment + 1);
+			const emptyObject = initial.length === 2 && initial[0]?.value === "{" && initial[1]?.value === "}";
+			const scalar =
+				initial.length === 1 &&
+				(initial[0]?.kind === "string" || ["true", "false", "null", "undefined"].includes(initial[0]?.value ?? ""));
+			if (!emptyObject && !scalar) return undefined;
+		}
 		// A property read may be repeated, but rebinding/shadowing the options parameter is not supported.
 		const body = unit.tokens.slice(owner.bodyOpen, owner.bodyClose);
 		if (hasDiscoveryDestructuringWrite(body, value[0].value)) return undefined;
@@ -1188,6 +1211,7 @@ class PossibleStagesScanner {
 				}
 			}
 			if (body[index + 1]?.value !== "." && !destructured) return undefined;
+			if (!destructured && ["(", ".", "[", "?", "?."].includes(body[index + 3]?.value ?? "")) return undefined;
 			if (["delete", "+", "-"].includes(body[index - 1]?.value ?? "")) return undefined;
 			if (["=", "+", "-", "*", "/", "%", "&", "|", "^", "?", "<", ">"].includes(body[index + 3]?.value ?? ""))
 				return undefined;
@@ -1219,6 +1243,7 @@ class PossibleStagesScanner {
 				if (calls === undefined) return undefined;
 				for (const argsOpen of calls) {
 					const argument = splitTopLevelArguments({ method: "parallel", argsOpen }, caller.tokens)[parameter];
+					if (!this.hasDataOnlyDiscoveryOptions(argument)) return undefined;
 					const declared = literalDiscoveryNames(discoveryField(argument));
 					if (declared === undefined) return undefined;
 					names.push(...declared);
