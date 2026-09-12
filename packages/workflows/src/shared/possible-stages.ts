@@ -803,6 +803,9 @@ function discoveryField(object: readonly Token[] | undefined): readonly Token[] 
 	if (object?.[0]?.value !== "{" || object.at(-1)?.value !== "}") return undefined;
 	let value: readonly Token[] | undefined;
 	for (const field of arrayElements(object)) {
+		// Computed fields/accessors may overwrite the metadata with an unproven value.
+		const key = ["get", "set", "async", "*"].includes(field[0]?.value ?? "") ? field.slice(1) : field;
+		if (key[0]?.value === "[" || (key[0]?.value === "*" && key[1]?.value === "[")) return undefined;
 		if (field[0]?.value === ".") {
 			if (value !== undefined) return undefined;
 			continue;
@@ -830,6 +833,7 @@ interface DiscoveryHelper {
 	readonly params: readonly (readonly Token[])[];
 	readonly bodyOpen: number;
 	readonly bodyClose: number;
+	readonly declaration: boolean;
 }
 
 /** Named declarations only. Arrow helpers and further forwarding remain unsupported. */
@@ -846,15 +850,30 @@ function discoveryHelpers(tokens: readonly Token[]): DiscoveryHelper[] {
 		while (bodyOpen < tokens.length && tokens[bodyOpen]?.value !== "{") bodyOpen += 1;
 		const bodyClose = matchBracket(tokens, bodyOpen, "{", "}");
 		if (bodyClose === undefined) continue;
+		const preceding = tokens[index - (tokens[index - 1]?.value === "async" ? 2 : 1)]?.value;
 		helpers.push({
 			name: tokens[index + 1]!.value,
 			nameIndex: index + 1,
 			params: splitTopLevelArguments({ method: "parallel", argsOpen: open }, tokens),
 			bodyOpen,
 			bodyClose,
+			declaration: preceding === undefined || ["export", ";", "{", "}"].includes(preceding),
 		});
 	}
 	return helpers;
+}
+
+/** An enclosing destructuring target can write a property far from its assignment token. */
+function hasDiscoveryDestructuringWrite(tokens: readonly Token[], parameter: string): boolean {
+	for (let index = 0; index < tokens.length; index += 1) {
+		const open = tokens[index]?.value;
+		if (open !== "[" && open !== "{") continue;
+		const close = matchBracket(tokens, index, open, open === "[" ? "]" : "}");
+		if (close === undefined || !["=", "of", "in"].includes(tokens[close + 1]?.value ?? "")) continue;
+		if (tokens.slice(index + 1, close).some((token) => token.kind === "ident" && token.value === parameter))
+			return true;
+	}
+	return false;
 }
 
 /** Fail closed on aliases, rebindings and shadowed names rather than borrowing another scope's metadata. */
@@ -1134,17 +1153,20 @@ class PossibleStagesScanner {
 		const owner = discoveryHelpers(unit.tokens)
 			.filter((helper) => helper.bodyOpen < call.argsOpen && helper.bodyClose > call.argsOpen)
 			.at(-1);
-		if (owner === undefined) return undefined;
+		if (owner === undefined || !owner.declaration) return undefined;
 		const parameter = owner.params.findIndex((param) => param[0]?.value === value[0]?.value);
 		if (parameter < 0) return undefined;
 		// A property read may be repeated, but rebinding/shadowing the options parameter is not supported.
 		const body = unit.tokens.slice(owner.bodyOpen, owner.bodyClose);
+		if (hasDiscoveryDestructuringWrite(body, value[0].value)) return undefined;
 		for (let index = 0; index < body.length; index += 1) {
 			if (body[index]?.value !== value[0]?.value) continue;
 			const destructured =
 				body[index - 2]?.value === "}" && body[index - 1]?.value === "=" && body[index + 1]?.value === ";";
 			if (body[index + 1]?.value !== "." && !destructured) return undefined;
-			if (["=", "+", "-"].includes(body[index + 3]?.value ?? "")) return undefined;
+			if (["delete", "+", "-"].includes(body[index - 1]?.value ?? "")) return undefined;
+			if (["=", "+", "-", "*", "/", "%", "&", "|", "^", "?", "<", ">"].includes(body[index + 3]?.value ?? ""))
+				return undefined;
 		}
 		const names: string[] = [];
 		for (const callerPath of this.closure) {

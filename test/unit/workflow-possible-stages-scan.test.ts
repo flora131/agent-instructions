@@ -166,6 +166,105 @@ describe("#3001 call-scoped discovery metadata", () => {
 	});
 });
 
+// Regression #3001: writes through destructuring and other property-write forms invalidate caller metadata.
+for (const extension of ["ts", "js"]) {
+	for (const [variant, mutation] of [
+		["array", "[options.possibleStageNames] = [unknownNames];"],
+		["nested-array", "[[options.possibleStageNames]] = [[unknownNames]];"],
+		["object", "({ names: options.possibleStageNames } = source);"],
+		["nested-object", "({ names: [options.possibleStageNames] } = source);"],
+		["rest", "[...options.possibleStageNames] = source;"],
+		["loop", "for ([options.possibleStageNames] of source) {}"],
+		["logical", "options.possibleStageNames ||= unknownNames;"],
+		["delete", "delete options.possibleStageNames;"],
+		["prefix", "++options.possibleStageNames;"],
+	]) {
+		test(`#3001 ${extension} ${variant} metadata write retains both warnings`, () => {
+			const result = scanFile(
+				`write-${extension}-${variant}.${extension}`,
+				`
+				async function fan(ctx, steps, options) {
+					${mutation}
+					const warmSteps = indices.map(index => steps[index]${extension === "ts" ? "!" : ""});
+					const restSteps = indices.map(index => steps[index]${extension === "ts" ? "!" : ""});
+					await ctx.parallel(warmSteps, { possibleStageNames: options.possibleStageNames });
+					await ctx.parallel(restSteps, { possibleStageNames: options.possibleStageNames });
+				}
+				export default workflow({ name: "write", async run(ctx) {
+					await fan(ctx, opaque(), { possibleStageNames: ['a-*'] });
+				} });
+			`,
+			);
+			assert.deepEqual(result.stages, []);
+			assert.equal(result.warnings.length, 2);
+			for (const group of ["warmSteps", "restSteps"])
+				assert.ok(result.warnings.some((w) => w.includes(`"${group}"`)));
+		});
+	}
+}
+
+// Regression #3001: an unknown computed key can replace earlier literal metadata.
+for (const extension of ["ts", "js"]) {
+	for (const override of [
+		"['possibleStageNames']: unknownNames",
+		"[key]: unknownNames",
+		"get ['possibleStageNames']() { return unknownNames; }",
+	]) {
+		test(`#3001 ${extension} computed override retains both warnings: ${override}`, () => {
+			const result = scanFile(
+				`computed-${extension}-${override.length}.${extension}`,
+				`
+				async function fan(ctx, steps, options) {
+					const warmSteps = indices.map(index => steps[index]${extension === "ts" ? "!" : ""});
+					const restSteps = indices.map(index => steps[index]${extension === "ts" ? "!" : ""});
+					await ctx.parallel(warmSteps, { possibleStageNames: options.possibleStageNames });
+					await ctx.parallel(restSteps, { possibleStageNames: options.possibleStageNames });
+				}
+				export default workflow({ name: "computed", async run(ctx) {
+					await fan(ctx, opaque(), { possibleStageNames: ['a-*'], ${override} });
+				} });
+			`,
+			);
+			assert.deepEqual(result.stages, []);
+			assert.equal(result.warnings.length, 2);
+			for (const group of ["warmSteps", "restSteps"])
+				assert.ok(result.warnings.some((w) => w.includes(`"${group}"`)));
+		});
+	}
+}
+
+// Regression #3001: expression-local names do not prove an imported helper is unused.
+for (const extension of ["ts", "js"]) {
+	for (const bound of [false, true]) {
+		test(`#3001 ${extension} ${bound ? "bound" : "exported"} function expressions retain both warnings`, () => {
+			const stem = `expression-${extension}-${bound}`;
+			writeFixture(
+				`${stem}-helper.${extension}`,
+				`
+				${bound ? "const impl" : "export const fan"} = async function internalFan(ctx, steps, options) {
+					const warmSteps = indices.map(index => steps[index]${extension === "ts" ? "!" : ""});
+					const restSteps = indices.map(index => steps[index]${extension === "ts" ? "!" : ""});
+					await ctx.parallel(warmSteps, { possibleStageNames: options.possibleStageNames });
+					await ctx.parallel(restSteps, { possibleStageNames: options.possibleStageNames });
+				};
+				${bound ? "export const fan = impl;" : ""}
+			`,
+			);
+			const result = scanFile(
+				`${stem}.${extension}`,
+				`
+				import { fan } from "./${stem}-helper.js";
+				export default workflow({ name: "expression", async run(ctx) { await fan(ctx, opaque(), {}); } });
+			`,
+			);
+			assert.deepEqual(result.stages, []);
+			assert.equal(result.warnings.length, 2);
+			for (const group of ["warmSteps", "restSteps"])
+				assert.ok(result.warnings.some((w) => w.includes(`"${group}"`)));
+		});
+	}
+}
+
 // Regression #3001: use real package build output, not a hand-written JavaScript proxy.
 test("#3001 packaged builtin JavaScript discovers warm/rest names", () => {
 	const bundled = join(BUILTIN_DIR, "..", "..", "coding-agent", "dist", "builtin", "workflows", "builtin");
