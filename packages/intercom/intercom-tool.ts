@@ -151,14 +151,14 @@ async function resolveReplySender(
 }
 
 function formatWorkflowStageRow(stage: WorkflowStageRosterEntry): string {
-	return `- **${stage.stageName}** — workflow stage [${stage.lifecycle.toUpperCase()}] — target: \`${stage.target}\`${
-		stage.sessionId === undefined ? "" : ` — intercom session: ${stage.sessionId}`
+	return `- \`${stage.target}\` [${stage.lifecycle.toUpperCase()}] workflow stage: ${stage.stageName}${
+		stage.sessionId === undefined ? "" : ` session: \`${stage.sessionId}\``
 	}`;
 }
 
 /** D7 (slice 4): one possible-future row from the run's persisted scan (or the `**` broadcast row). */
 function formatWorkflowFutureStageRow(stage: WorkflowFutureStageRosterEntry): string {
-	return `- future workflow stage \`${stage.target}\` — ${stage.queuedCount} queued message${
+	return `- \`${stage.target}\` [future] ${stage.queuedCount} queued message${
 		stage.queuedCount === 1 ? "" : "s"
 	}`;
 }
@@ -999,6 +999,7 @@ one shared membership; contact_supervisor remains the only cross-group path.`,
               messageId: replyMessageId,
               logicalTarget: replyLogicalTarget,
               ...(route.expectsReply ? { requirePendingReply: true as const } : {}),
+              ...(to === undefined ? {} : { expectedRecipientId: route.senderId }),
               text: message,
               attachments,
               replyTo: route.messageId,

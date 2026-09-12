@@ -227,3 +227,37 @@ test("client lists every broker group with membership markers", async () => {
 
 	assert.deepEqual(await listed, groups);
 });
+
+test("reply recipient binding is omitted when absent and distinguishes concurrent send identities", async () => {
+	const client = new IntercomClient();
+	const frames: Array<{ message: Message; attemptId: string; expectedRecipientId?: string }> = [];
+	const internals = client as unknown as {
+		socket: { destroyed: boolean; writableEnded: boolean; writable: boolean; write(data: Buffer): boolean };
+		_sessionId: string;
+		handleBrokerMessage(message: unknown): void;
+	};
+	internals.socket = {
+		destroyed: false,
+		writableEnded: false,
+		writable: true,
+		write(data) {
+			frames.push(JSON.parse(data.subarray(4).toString("utf8")));
+			return true;
+		},
+	};
+	internals._sessionId = "self";
+	const options = { text: "answer", messageId: "bound", replyTo: "question", expectedRecipientId: "recipient" };
+	const bound = client.send("recipient-name", options);
+	assert.equal(frames[0]!.expectedRecipientId, "recipient");
+	await assert.rejects(
+		client.send("recipient-name", { ...options, expectedRecipientId: "other" }),
+		/different|conflict|mismatch/i,
+	);
+	assert.equal(frames.length, 1);
+	internals.handleBrokerMessage({ type: "delivered", messageId: "bound", attemptId: frames[0]!.attemptId });
+	assert.equal((await bound).delivered, true);
+	const unbound = client.send("recipient-name", { text: "answer", messageId: "unbound", replyTo: "question" });
+	assert.equal(Object.hasOwn(frames[1]!, "expectedRecipientId"), false);
+	internals.handleBrokerMessage({ type: "delivered", messageId: "unbound", attemptId: frames[1]!.attemptId });
+	assert.equal((await unbound).delivered, true);
+});

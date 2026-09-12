@@ -864,3 +864,65 @@ test("broker records delivered questions and clears them only after routing the 
 	);
 	assert.deepEqual(pending.takeForTarget("target-exact"), []);
 });
+
+test("explicit reply recipient binding is validated, retained in authority, and cannot queue", () => {
+	const sender = session("sender", "sender", {} as net.Socket);
+	const recipient = session("recipient", "recipient", {} as net.Socket);
+	const sessions = new Map([
+		[sender.info.id, sender],
+		[recipient.info.id, recipient],
+	]);
+	const cache = new DeliveredMessageCache();
+	const writes: Array<{ socket: net.Socket; message: BrokerMessage }> = [];
+	let queued = 0;
+	const send = (frame: Record<string, unknown>) => {
+		handleBrokerSend(
+			sender.socket,
+			{
+				type: "send",
+				to: "recipient",
+				message: { ...message("bound-reply"), replyTo: "ordinary-thread" },
+				...frame,
+			},
+			sender.info.id,
+			sessions,
+			cache,
+			(socket, message) => {
+				writes.push({ socket, message });
+				return true;
+			},
+			new SupervisorChannelCache(),
+			new PendingQuestionIndex(),
+			() => {
+				queued++;
+				return true;
+			},
+		);
+		return writes.at(-1)!.message;
+	};
+	for (const expectedRecipientId of [undefined, null, false, 0, "", " "]) {
+		const result = send({ expectedRecipientId });
+		assert.equal(result.type, "delivery_failed");
+		if (result.type === "delivery_failed") assert.match(result.reason, /Invalid expectedRecipientId format/);
+	}
+	for (const frame of [
+		{ expectedRecipientId: "other" },
+		{ expectedRecipientId: recipient.info.id, message: message("not-a-reply") },
+		{ expectedRecipientId: recipient.info.id, type: "supervisor_send" },
+		{
+			expectedRecipientId: recipient.info.id,
+			message: { ...message("ask-not-reply"), replyTo: "thread", expectsReply: true },
+		},
+		{ expectedRecipientId: recipient.info.id, to: "workflow:11111111-1111-4111-8111-111111111111/future" },
+	])
+		assert.equal(send(frame).type, "delivery_failed");
+	assert.equal(queued, 0);
+	assert.equal(writes.filter((entry) => entry.socket === recipient.socket).length, 0);
+	assert.equal(send({ expectedRecipientId: recipient.info.id }).type, "delivered");
+	assert.equal(send({ expectedRecipientId: recipient.info.id }).type, "delivered");
+	const changed = send({});
+	assert.equal(changed.type, "delivery_failed");
+	if (changed.type === "delivery_failed") assert.equal(changed.reasonCode, "message_id_conflict");
+	assert.equal(writes.filter((entry) => entry.socket === recipient.socket).length, 1);
+	assert.equal(send({ message: { ...message("unbound-reply"), replyTo: "ordinary-thread" } }).type, "delivered");
+});

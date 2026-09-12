@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Breaking Changes
+
+- Explicit Intercom `reply` selectors reject stale, unknown, empty, or sender-mismatched threads instead of falling back. Use `pending` and an exact `replyTo` for unresolved questions.
+
+### Changed
+
+- Intercom agent lists put exact copyable session IDs and workflow paths first, with useful metadata and meaningful names secondary rather than redundant generated aliases.
+
+### Fixed
+
+- Intercom targeted replies now complete the requested ask when an unrelated message is active, rather than delivering a response with the wrong thread ID or refusing it.
+
 ## [0.9.19-alpha.7] - 2026-09-12
 
 ### Fixed
