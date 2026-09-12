@@ -89,7 +89,7 @@ describe("renderNodeCard — queued-message badge", () => {
 	test("claims the dim metadata row on an ordinary card, keeping status and duration", () => {
 		const stage = makeStage({ status: "running", startedAt: 1, parentIds: ["upstream"] });
 		const plain = stripAnsi(renderNodeCard(stage, { theme }).join("\n"));
-		assert.match(plain, /1 dep/);
+		assert.doesNotMatch(plain, /\b\d+ deps?\b/);
 		const lines = renderNodeCard(stage, { theme, queuedMessageCount: 2 });
 		assert.equal(lines.length, NODE_H);
 		for (const line of lines) assert.equal(stripAnsi(line).length, NODE_W);
@@ -418,6 +418,71 @@ describe("renderNodeCard — status border colours", () => {
 	});
 });
 
+test("dependent cards retain metadata and geometry across statuses, tools and queued messages", () => {
+	for (const parentIds of [["one"], ["one", "two"], ["one", "one"]]) {
+		for (const status of [
+			"pending",
+			"running",
+			"paused",
+			"completed",
+			"failed",
+			"blocked",
+			"skipped",
+			"awaiting_input",
+		] as const) {
+			for (const nodeKind of [undefined, "tool"] as const) {
+				for (const height of [5, NODE_H]) {
+					for (const queuedMessageCount of [0, 2]) {
+						const stage = makeStage({ parentIds, status, nodeKind, model: "dep-deps", durationMs: 1200 });
+						const before = structuredClone(stage);
+						const lines = renderNodeCard(stage, { theme, height, queuedMessageCount });
+						const rendered = stripAnsi(lines.join("\n"));
+						assert.doesNotMatch(rendered, /\b\d+ deps?\b/);
+						assert.equal(lines.length, height);
+						for (const line of lines) assert.equal(visibleWidth(line), NODE_W);
+						assert.deepEqual(stage, before);
+						assert.equal(stage.parentIds, parentIds);
+						if (queuedMessageCount) assert.match(rendered, /2 queued/);
+						if (status === "awaiting_input") assert.match(rendered, /enter to respond/);
+						else {
+							assert.match(rendered, new RegExp(status === "completed" ? "complete" : status));
+							if (nodeKind === "tool") assert.match(rendered, /durable tool/);
+							else if (status !== "blocked") assert.match(rendered, /\b1s\b/);
+							if (height === NODE_H || !queuedMessageCount) assert.match(rendered, /dep-deps/);
+						}
+					}
+				}
+			}
+		}
+	}
+});
+
+test("dependent child boundaries preserve identity and summaries without dependency counts", () => {
+	for (const parentIds of [["one"], ["one", "two"]]) {
+		for (const completed of [false, true]) {
+			const identity = { alias: "child", workflow: "dep-deps", runId: "child-run" };
+			const stage = makeStage({
+				parentIds,
+				status: completed ? "completed" : "running",
+				...(completed
+					? { workflowChild: { ...identity, status: "completed", outputs: { result: "ready" } } }
+					: { workflowChildRun: identity }),
+			});
+			for (const queuedMessageCount of [0, 2]) {
+				const lines = renderNodeCard(stage, { theme, queuedMessageCount });
+				const rendered = stripAnsi(lines.join("\n"));
+				assert.doesNotMatch(rendered, /\b\d+ deps?\b/);
+				assert.match(rendered, /dep-deps/);
+				assert.match(rendered, /child-run/);
+				assert.match(rendered, completed ? /complete/ : /running/);
+				assert.match(rendered, queuedMessageCount ? /2 queued/ : completed ? /1 out/ : /live/);
+				assert.equal(lines.length, NODE_H);
+				for (const line of lines) assert.equal(visibleWidth(line), NODE_W);
+			}
+		}
+	}
+});
+
 describe("renderNodeCard — metadata line", () => {
 	test("stages show a compact model row and keep geometry", () => {
 		const lines = renderNodeCard(makeStage({ status: "completed", durationMs: 1200, model: "gpt-5-mini" }), {
@@ -441,7 +506,7 @@ describe("renderNodeCard — metadata line", () => {
 		assert.equal(metadata, "topology unavailable");
 	});
 
-	test("running stages show both a model row and dependency metadata", () => {
+	test("running stages keep the model row and leave dependency metadata empty", () => {
 		const lines = renderNodeCard(
 			makeStage({
 				status: "running",
@@ -453,7 +518,7 @@ describe("renderNodeCard — metadata line", () => {
 		);
 
 		assert.match(stripAnsi(lines[3]!), /gpt-5-mini/);
-		assert.match(stripAnsi(lines[4]!), /1 dep/);
+		assert.equal(stripAnsi(lines[4]!).slice(1, -1).trim(), "");
 	});
 
 	test("child workflow boundaries show child workflow and run summary", () => {
