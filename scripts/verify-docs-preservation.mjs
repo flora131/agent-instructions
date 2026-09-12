@@ -2105,9 +2105,14 @@ function verifyDrift({ repoRoot, revision, overrides, snapshot }) {
 export const READER_PATHS_PREDECESSOR = "dac1bf102cdee514badd82f48c587d6b2dbd06b8";
 export const READER_PATHS_FOLLOWUP = "docs/migrations/2847-reader-paths.json";
 export const READER_PATHS_README = "docs/migrations/2847-reader-paths.md";
-const READER_PATHS_MANIFEST_SHA256 = "418ce976cad297111afa6310a31ec6144d35858fce49051c4b99c14163c61ebb";
-const READER_PATHS_README_SHA256 = "258d3620fb9d26a0e8214dca09c0fd00dfe8b7c30332a939ade4d2c8cdb95804";
-const READER_PATHS_KINDS = new Set(["navigation-restructure", "frontmatter-label", "latex-escape"]);
+const READER_PATHS_MANIFEST_SHA256 = "e042058391cef015bf30a55c4779398942f00795db9c5bc2dbd4498ebf2021ec";
+const READER_PATHS_README_SHA256 = "6de25aaa760d245b35bebd394ff13fe43c3ec9aaf57cc3bd65995407da7876c0";
+const READER_PATHS_KINDS = new Set([
+	"navigation-restructure",
+	"frontmatter-label",
+	"latex-escape",
+	"retired-compatibility-stub",
+]);
 
 /** Every navigation page entry, in order, from a docs.json text. */
 export function navigationPages(text) {
@@ -2157,6 +2162,16 @@ export function assertReaderPathsKind(edit, addedSlugs) {
 				.filter((line) => !/^(title|description|sidebarTitle):/u.test(line.trim()));
 		assert.deepEqual(scalars(edit.after), scalars(edit.before), `${edit.target_path}: label edit carries prose`);
 		assert.ok(/^(title|sidebarTitle):/mu.test(edit.after), `${edit.target_path}: label edit sets no label`);
+	} else if (edit.kind === "retired-compatibility-stub") {
+		// A retired stub is deleted outright (#2847 / PR #2971). The edit keeps its anchor line and
+		// drops exactly one heading plus its "Moved to …" pointer, so no other content can ride along.
+		assert.equal(edit.target_path, `${DOCS}index.md`, "only index.md retires compatibility stubs");
+		assert.ok(edit.before.startsWith(edit.after), `${edit.target_path}: stub retirement rewrites its anchor`);
+		assert.match(
+			edit.before.slice(edit.after.length),
+			/^\n## [^\n]+\n(?:\n|[^#\n][^\n]*\n)*?Moved to \[[^\]]+\]\(\/[A-Za-z0-9._/-]*#[^)\s]+\)\.\n$/u,
+			`${edit.target_path}: a retired stub must be one heading plus its "Moved to" pointer`,
+		);
 	} else {
 		// Escaping a currency sign for Mintlify's math parser: the only permitted difference is the
 		// backslash itself, so no word, number, table cell, or caveat can change under this kind.

@@ -71,39 +71,3 @@ The documentation is organized by what you are trying to do, not by product area
 4. [Add project instructions](/getting-started/project-instructions).
 5. [Learn the interactive commands](/usage).
 6. [Learn sessions](/sessions) and [context management](/compaction).
-
-## Start here
-
-The catalogue of everyday learning material now lives on the Learn landing page.
-
-Moved to [Guides](/guides#start-here).
-
-## Customization
-
-The catalogue of customization mechanisms now lives on the Build landing page.
-
-Moved to [Build with Atomic](/build#customization).
-
-## Programmatic usage
-
-The catalogue of integration modes now lives on the Build landing page, and [Programmatic use](/programmatic) compares them.
-
-Moved to [Build with Atomic](/build#programmatic-usage).
-
-## Reference
-
-The catalogue of exact contracts now lives on the Reference index.
-
-Moved to [Reference](/reference#reference-2).
-
-## Platform setup
-
-Platform pages are grouped under Platform setup on the Reference index.
-
-Moved to [Reference](/reference#platform-setup).
-
-## Development
-
-Maintainer material is grouped under Project on the Reference index.
-
-Moved to [Reference](/reference#development).

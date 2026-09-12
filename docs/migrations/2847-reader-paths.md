@@ -6,8 +6,9 @@ group becomes five reader-intent groups, Build's single `Customization` group sp
 moves into the existing `Reference > Platform setup` group beside tmux, and four short Learn
 orientation pages are added.
 
-**Nothing moved and nothing was deleted.** Every earlier proof still runs. The machine-readable
-record is [`2847-reader-paths.json`](./2847-reader-paths.json); this file explains it.
+**Nothing moved.** The only deletion is the six retired `index.md` compatibility stubs recorded
+below; every earlier proof still runs. The machine-readable record is
+[`2847-reader-paths.json`](./2847-reader-paths.json); this file explains it.
 
 ## Why this record has a different shape
 
@@ -31,6 +32,7 @@ closed-set kind check that no content-dropping edit can satisfy.
 | `navigation-restructure` | `docs.json` | Every page entry present before is present exactly once after; the only new entries are this pass's four added pages; the three reader tabs are unchanged; nothing outside `navigation` changed. |
 | `frontmatter-label` | `background-tasks.md`, `packages.md` | The edit touches `title`/`description`/`sidebarTitle` frontmatter scalars only. Any prose riding along fails. |
 | `latex-escape` | `models/evals.md`, `models/model-selection.md`, `models/pareto-efficiency.md` | The *only* difference is the added backslash: `after.replaceAll("\\$", "$") === before`. No number, table cell, or caveat can change under this kind. |
+| `retired-compatibility-stub` | `index.md` | The edit keeps its anchor line and drops exactly one heading plus its single `Moved to [text](/route#anchor).` pointer; a removal that carried anything else fails the kind check. |
 
 ## Route and fragment compatibility
 
@@ -38,6 +40,17 @@ closed-set kind check that no content-dropping edit can satisfy.
 "Background and parallel work", because the old label implied non-interactive execution. Its page
 heading and anchors are untouched, so `/background-tasks#choose-how-long-to-wait` and its siblings
 still resolve. `/herdr` also keeps its route; only its group moved.
+
+## The six retired index.md stubs
+
+The maintainer retired `index.md`'s six compatibility stubs — `## Start here`, `## Customization`,
+`## Programmatic usage`, `## Reference`, `## Platform setup`, and `## Development` — each of which
+was a heading, one connective sentence, and a pointer to where the content now lives. Nothing in
+this repository linked to `/#start-here`, `/#customization`, `/#programmatic-usage`, `/#reference`,
+`/#platform-setup`, or `/#development`, and the maintainer accepted that those six public URLs stop
+resolving; the content itself is unaffected and still lives at the routes the pointers named. The
+compatibility-heading contract in `test/unit/docs-information-architecture.test.ts` is narrowed to
+exactly these six ledger rows and continues to cover every other moved section.
 
 ## Why the currency signs were escaped
 

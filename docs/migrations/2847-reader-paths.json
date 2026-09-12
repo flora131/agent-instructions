@@ -4,7 +4,7 @@
  "pull_request": "bastani-inc/atomic#2971",
  "baseline": "59586efd26afd32a27c999ac8bcce102777e40e4",
  "predecessor": "dac1bf102cdee514badd82f48c587d6b2dbd06b8",
- "provenance": "Supplemental, append-only record for the reader-learning-paths navigation pass. It adds no allowance to any earlier #2847 layer: scripts/verify-docs-preservation.mjs reverses every edit listed here and re-runs the complete prior proof against the reversed predecessor tree. No existing reader block moved, and nothing was deleted; the pass regroups navigation, renames two labels, escapes sixteen currency signs on five lines Mintlify parsed as inline math, and adds four orientation pages.",
+ "provenance": "Supplemental, append-only record for the reader-learning-paths navigation pass. It adds no allowance to any earlier #2847 layer: scripts/verify-docs-preservation.mjs reverses every edit listed here and re-runs the complete prior proof against the reversed predecessor tree. No existing reader block moved; index.md's six compatibility stubs are retired outright by maintainer decision, each declared below as the anchor line it keeps plus the heading and \"Moved to …\" pointer it drops, and the pass regroups navigation, renames two labels, escapes sixteen currency signs on five lines Mintlify parsed as inline math, and adds four orientation pages.",
  "added_pages": [
   {
    "path": "packages/coding-agent/docs/guides/non-interactive.md",
@@ -111,6 +111,66 @@
    ],
    "before": "- **Gemini 3.8 Flash [high]**, added September 1, 2026, arrives at 74% for $2.36 and takes the accuracy ceiling. Rounded scores cannot settle the top of this board: Gemini 3.8 Flash and Claude Opus 5 both display 74%, and only the unrounded rates — 73.83% against 73.65% — order them. The dominance holds either way, because the cheaper model is also $9.48 less per task, about one fifth of Opus 5's cost.\n",
    "after": "- **Gemini 3.8 Flash [high]**, added September 1, 2026, arrives at 74% for \\$2.36 and takes the accuracy ceiling. Rounded scores cannot settle the top of this board: Gemini 3.8 Flash and Claude Opus 5 both display 74%, and only the unrounded rates — 73.83% against 73.65% — order them. The dominance holds either way, because the cheaper model is also \\$9.48 less per task, about one fifth of Opus 5's cost.\n"
+  },
+  {
+   "kind": "retired-compatibility-stub",
+   "target_path": "packages/coding-agent/docs/index.md",
+   "previous_lines": [
+    74,
+    79
+   ],
+   "before": "6. [Learn sessions](/sessions) and [context management](/compaction).\n\n## Start here\n\nThe catalogue of everyday learning material now lives on the Learn landing page.\n\nMoved to [Guides](/guides#start-here).\n",
+   "after": "6. [Learn sessions](/sessions) and [context management](/compaction).\n"
+  },
+  {
+   "kind": "retired-compatibility-stub",
+   "target_path": "packages/coding-agent/docs/index.md",
+   "previous_lines": [
+    80,
+    85
+   ],
+   "before": "6. [Learn sessions](/sessions) and [context management](/compaction).\n\n## Customization\n\nThe catalogue of customization mechanisms now lives on the Build landing page.\n\nMoved to [Build with Atomic](/build#customization).\n",
+   "after": "6. [Learn sessions](/sessions) and [context management](/compaction).\n"
+  },
+  {
+   "kind": "retired-compatibility-stub",
+   "target_path": "packages/coding-agent/docs/index.md",
+   "previous_lines": [
+    86,
+    91
+   ],
+   "before": "6. [Learn sessions](/sessions) and [context management](/compaction).\n\n## Programmatic usage\n\nThe catalogue of integration modes now lives on the Build landing page, and [Programmatic use](/programmatic) compares them.\n\nMoved to [Build with Atomic](/build#programmatic-usage).\n",
+   "after": "6. [Learn sessions](/sessions) and [context management](/compaction).\n"
+  },
+  {
+   "kind": "retired-compatibility-stub",
+   "target_path": "packages/coding-agent/docs/index.md",
+   "previous_lines": [
+    92,
+    97
+   ],
+   "before": "6. [Learn sessions](/sessions) and [context management](/compaction).\n\n## Reference\n\nThe catalogue of exact contracts now lives on the Reference index.\n\nMoved to [Reference](/reference#reference-2).\n",
+   "after": "6. [Learn sessions](/sessions) and [context management](/compaction).\n"
+  },
+  {
+   "kind": "retired-compatibility-stub",
+   "target_path": "packages/coding-agent/docs/index.md",
+   "previous_lines": [
+    98,
+    103
+   ],
+   "before": "6. [Learn sessions](/sessions) and [context management](/compaction).\n\n## Platform setup\n\nPlatform pages are grouped under Platform setup on the Reference index.\n\nMoved to [Reference](/reference#platform-setup).\n",
+   "after": "6. [Learn sessions](/sessions) and [context management](/compaction).\n"
+  },
+  {
+   "kind": "retired-compatibility-stub",
+   "target_path": "packages/coding-agent/docs/index.md",
+   "previous_lines": [
+    104,
+    109
+   ],
+   "before": "6. [Learn sessions](/sessions) and [context management](/compaction).\n\n## Development\n\nMaintainer material is grouped under Project on the Reference index.\n\nMoved to [Reference](/reference#development).\n",
+   "after": "6. [Learn sessions](/sessions) and [context management](/compaction).\n"
   }
  ]
 }

@@ -1151,6 +1151,12 @@ test("cold committed rebase proof uses authentic disposable history without Git 
 			),
 			`${DOCS}computer-use.md`,
 			`${DOCS}workflows/verification.md`,
+			// The reader-path layer pins its own artifacts and edits its own reader pages, so the cold
+			// proof must see this pass's candidate bytes, not only the parent commit's.
+			READER_PATHS_FOLLOWUP,
+			READER_PATHS_README,
+			...new Set(readerPaths.edits.map((edit) => edit.target_path)),
+			...readerPaths.added_pages.map((page) => page.path),
 		];
 		const put = (path, bytes) => {
 			const oid = run(["hash-object", "-w", "--stdin"], bytes).trim();

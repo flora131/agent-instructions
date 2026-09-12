@@ -1041,7 +1041,36 @@ describe("docs public entry points (#2847)", () => {
 });
 
 describe("docs compatibility headings (#2847)", () => {
-	const movedRows = ledger.blocks.filter((row) => row.status === "moved" && row.source_heading !== null);
+	// Retired 2026-09-12 (#2847 / PR #2971): the maintainer retired index.md's six compatibility
+	// stubs, accepting that `/#start-here`, `/#customization`, `/#programmatic-usage`, `/#reference`,
+	// `/#platform-setup`, and `/#development` stop resolving. Nothing in the repository linked to
+	// them. Every other moved section on every other page still owes a compatibility heading.
+	const retiredStubs = new Set(["index::004", "index::005", "index::006", "index::007", "index::008", "index::009"]);
+	const movedRows = ledger.blocks.filter(
+		(row) => row.status === "moved" && row.source_heading !== null && !retiredStubs.has(row.id),
+	);
+
+	test("the retired compatibility stubs are exactly the six approved index.md rows", () => {
+		const retired = ledger.blocks.filter((row) => retiredStubs.has(row.id));
+		assert.deepEqual(
+			retired.map((row) => `${row.source_path}#${row.source_anchor}`),
+			[
+				"index.md#start-here",
+				"index.md#customization",
+				"index.md#programmatic-usage",
+				"index.md#reference",
+				"index.md#platform-setup",
+				"index.md#development",
+			],
+			"the exemption may name only the six anchors the maintainer retired",
+		);
+		// An exemption for a stub that is still on the page would silently suspend the contract.
+		const headings = new Set(headingsOfPage("index").map((heading) => heading.text));
+		for (const row of retired) {
+			assert.equal(row.status, "moved", `${row.id} must be a moved row`);
+			assert.ok(!headings.has(row.source_heading ?? ""), `${row.id}: "${row.source_heading}" is still on index.md`);
+		}
+	});
 
 	test("every moved section keeps its heading, verbatim and in baseline order", () => {
 		// Mintlify redirect sources cannot carry a fragment, so a compatibility
