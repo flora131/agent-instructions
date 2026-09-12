@@ -173,9 +173,13 @@ function workflowChildMetaText(stage: StageSnapshot): string | undefined {
 	return undefined;
 }
 
-function joinCompactStatusMeta(status: string, meta: string, width: number): string {
+function joinCompactStatusMeta(status: string, meta: string, width: number, queuedCount = 0): string {
 	const candidates = [`${status} · ${meta}`, `${status} ·${meta}`, `${status}· ${meta}`, `${status}·${meta}`];
-	return candidates.find((candidate) => visibleWidth(candidate) <= width) ?? meta;
+	if (queuedCount > 0) {
+		// Drop badge decoration before sacrificing the node's lifecycle status.
+		candidates.push(`${status} ${queuedCount} queued`, `${status} ✉${queuedCount}`);
+	}
+	return candidates.find((candidate) => visibleWidth(candidate) <= width) ?? (queuedCount > 0 ? status : meta);
 }
 
 function statusLabel(status: StageStatus): string {
@@ -307,7 +311,7 @@ export function renderNodeCard(stage: StageSnapshot, opts: NodeCardOpts): string
 	const queuedCount = queuedBadgeCount(opts.queuedMessageCount);
 	const compactStatus =
 		queuedCount > 0 && stage.status !== "awaiting_input"
-			? joinCompactStatusMeta(statusText, queuedBadgeText(queuedCount), innerWidth)
+			? joinCompactStatusMeta(statusText, queuedBadgeText(queuedCount), innerWidth, queuedCount)
 			: statusText;
 	const statusLine =
 		`${bg}${bc}│${RESET}` +
@@ -333,7 +337,12 @@ export function renderNodeCard(stage: StageSnapshot, opts: NodeCardOpts): string
 	const childSummary =
 		childMeta === undefined
 			? undefined
-			: joinCompactStatusMeta(statusText, queuedCount > 0 ? queuedBadgeText(queuedCount) : childMeta, innerWidth);
+			: joinCompactStatusMeta(
+					statusText,
+					queuedCount > 0 ? queuedBadgeText(queuedCount) : childMeta,
+					innerWidth,
+					queuedCount,
+				);
 	const childSummaryLine =
 		childSummary === undefined
 			? undefined

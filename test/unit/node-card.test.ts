@@ -211,6 +211,28 @@ describe("renderNodeCard — queued-message badge", () => {
 			for (const line of lines) assert.equal(stripAnsi(line).length, NODE_W);
 		}
 	});
+	test("large queues never replace the cancelled status on ordinary or child cards", () => {
+		for (const child of [false, true]) {
+			for (const queuedMessageCount of [100, 1_000, 1_000_000]) {
+				const stage = makeStage({
+					status: "skipped",
+					nodeKind: "tool",
+					toolStatus: "cancelled",
+					...(child ? { workflowChildRun: { alias: "child", workflow: "verify", runId: "child-run" } } : {}),
+				});
+				const lines = renderNodeCard(stage, { theme, queuedMessageCount });
+				const rendered = stripAnsi(lines.join("\n"));
+				assert.match(rendered, new RegExp(`${statusIcon("cancelled")} cancelled`));
+				assert.match(rendered, new RegExp(String(queuedMessageCount)));
+				assert.doesNotMatch(rendered, /…/);
+				assert.equal(lines.length, 5);
+				for (const line of lines) assert.equal(visibleWidth(line), 24);
+				if (child) assert.match(rendered, /child-run/);
+				else assert.match(rendered, /durable tool/);
+			}
+		}
+	});
+
 	test("keeps every child-run queued badge whole for long status labels at the real geometry", () => {
 		const runId = "339e05a4-2289-408e-9076-d1a348f582ae";
 		const statuses: Array<{
@@ -262,7 +284,7 @@ describe("renderNodeCard — queued-message badge", () => {
 				for (const line of plainLines) assert.equal(line.length, 24, context);
 				assert.match(rendered, new RegExp(`${queuedMessageCount} queued`), context);
 				assert.doesNotMatch(rendered, /…/, context);
-				if (queuedMessageCount === 1) assert.match(rendered, new RegExp(expectedStatusText), context);
+				assert.match(rendered, new RegExp(expectedStatusText), context);
 			}
 		}
 	});
