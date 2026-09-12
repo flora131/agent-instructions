@@ -10,6 +10,7 @@
 ### Fixed
 
 - Reduced CPU work in long `/tasks` live transcripts on Windows by reusing unchanged message rendering during streaming, without dropping history or delaying live updates.
+- Fixed `/feedback` follow-ups to re-prepare and privacy-scrub requested bug and enhancement revisions before fresh approval. Submission refusals and failures now produce error tool results while preserving the editable draft ([#2799](https://github.com/bastani-inc/atomic/issues/2799)).
 
 ## [0.9.19-alpha.6] - 2026-09-11
 
