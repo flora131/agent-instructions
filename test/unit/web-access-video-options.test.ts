@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import { afterEach, test, vi } from "vitest";
-import { makeTempDirectory, removeTempDirectory, writeTextSync } from "../helpers/runtime.js";
+import { makeDirectorySync, removeTempDirectory, writeTextSync } from "../helpers/runtime.js";
 
 vi.mock("@bastani/atomic", () => ({
 	CONFIG_DIR_NAME: ".atomic",
@@ -100,11 +100,13 @@ test("ordinary text content is unchanged by video options", async () => {
 });
 
 test("local videos still reject invalid timestamps before extraction", async () => {
-	const directory = makeTempDirectory("web-access-video-options-");
+	// PR #3016: use a supported relative path, including when Windows temp and cwd use different drives.
+	const directory = `./.web-access-video-options-${randomUUID()}`;
+	makeDirectorySync(directory);
 	const fetch = vi.fn();
 	vi.stubGlobal("fetch", fetch);
 	try {
-		const video = join(directory, "clip.mp4");
+		const video = `${directory}/clip.mp4`;
 		// Timestamp validation precedes decoding, so no playable media or ffmpeg is needed.
 		writeTextSync(video, "local video fixture");
 		const result = await extractContent(video, undefined, { frames: 3, timestamp: "invalid" });
