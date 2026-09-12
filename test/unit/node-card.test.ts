@@ -22,12 +22,21 @@ import type { StageSnapshot, StageStatus } from "../../packages/workflows/src/sh
 import { hexBg, hexToAnsi } from "../../packages/workflows/src/tui/color-utils.js";
 import { deriveGraphTheme } from "../../packages/workflows/src/tui/graph-theme.js";
 import { NODE_H, NODE_W } from "../../packages/workflows/src/tui/layout.js";
-import { renderNodeCard } from "../../packages/workflows/src/tui/node-card.js";
+import { nodeCardHeight, renderNodeCard } from "../../packages/workflows/src/tui/node-card.js";
 import { statusIcon } from "../../packages/workflows/src/tui/status-helpers.js";
 import { visibleWidth } from "../../packages/workflows/src/tui/text-helpers.js";
 
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
 const stripAnsi = (s: string) => s.replace(ANSI_RE, "");
+
+function assertQueuedRow(lines: string[], count: number): void {
+	const body = lines.slice(1, -1).map((line) => stripAnsi(line).slice(1, -1).trim());
+	assert.deepEqual(
+		body.filter((line) => line.includes("✉")),
+		[`✉ ${count}`],
+	);
+	assert.doesNotMatch(lines.map(stripAnsi).join("\n"), /queued/);
+}
 
 const theme = deriveGraphTheme({});
 
@@ -87,15 +96,16 @@ describe("renderNodeCard — geometry", () => {
 });
 
 describe("renderNodeCard — queued-message badge", () => {
-	test("packs queued metadata beside status, keeping duration and model", () => {
+	test("adds a standalone queued row without losing duration, status or model", () => {
 		const stage = makeStage({ status: "running", durationMs: 1200, parentIds: ["upstream"], model: "gpt-5-mini" });
 		const plain = stripAnsi(renderNodeCard(stage, { theme }).join("\n"));
 		assert.doesNotMatch(plain, /\b\d+ deps?\b/);
 		const lines = renderNodeCard(stage, { theme, queuedMessageCount: 2 });
-		assert.equal(lines.length, NODE_H);
+		assert.equal(renderNodeCard(stage, { theme }).length, 5);
+		assert.equal(lines.length, 6);
 		for (const line of lines) assert.equal(stripAnsi(line).length, NODE_W);
 		const badged = stripAnsi(lines.join("\n"));
-		assert.match(badged, /2 queued/);
+		assertQueuedRow(lines, 2);
 		assert.match(badged, /running/);
 		assert.match(badged, /gpt-5-mini/);
 		assert.match(badged, /1s/);
@@ -120,11 +130,11 @@ describe("renderNodeCard — queued-message badge", () => {
 			.join("")
 			.replace(/^run /, "");
 
-		assert.equal(lines.length, NODE_H);
+		assert.equal(lines.length, 6);
 		for (const line of plainLines) assert.equal(line.length, NODE_W);
 		assert.match(rendered, /publish-child/);
 		assert.match(rendered, new RegExp(`${statusIcon("running")} running`));
-		assert.match(rendered, /✉ 2 queued/);
+		assertQueuedRow(lines, 2);
 		assert.equal(renderedRunId, runId);
 		assert.doesNotMatch(rendered, /…/);
 	});
@@ -134,7 +144,7 @@ describe("renderNodeCard — queued-message badge", () => {
 			theme,
 			queuedMessageCount: 1,
 		});
-		assert.match(stripAnsi(lines.join("\n")), /1 queued/);
+		assertQueuedRow(lines, 1);
 	});
 
 	test("keeps the awaiting-input action hint and replaces the redundant row", () => {
@@ -148,7 +158,7 @@ describe("renderNodeCard — queued-message badge", () => {
 			assert.equal(stripAnsi(badged[i]!).length, stripAnsi(plain[i]!).length, `row ${i} width must not shift`);
 		}
 		const rendered = stripAnsi(badged.join("\n"));
-		assert.match(rendered, /3 queued/);
+		assertQueuedRow(badged, 3);
 		assert.match(rendered, /↵ enter to respond/);
 		assert.match(rendered, /awaiting input/);
 		assert.doesNotMatch(rendered, /waiting for response/);
@@ -176,24 +186,20 @@ describe("renderNodeCard — queued-message badge", () => {
 		];
 
 		for (const { label, stage } of childBoundaries) {
-			for (const queuedMessageCount of [1, 2, 12, 100]) {
-				const lines = renderNodeCard(makeStage({ ...stage, status: "awaiting_input" }), {
-					theme,
-					width: 24,
-					height: 5,
-					queuedMessageCount,
-				});
+			for (const queuedMessageCount of [1, 2, 12, 100, 1_000, 1_000_000]) {
+				const childStage = makeStage({ ...stage, status: "awaiting_input" });
+				const height = nodeCardHeight(childStage, { width: 24, queuedMessageCount });
+				const lines = renderNodeCard(childStage, { theme, width: 24, height, queuedMessageCount });
 				const plainLines = lines.map(stripAnsi);
 				const rendered = plainLines.join("\n");
 				const context = `${label} queuedMessageCount=${queuedMessageCount}`;
-				const badgeLine = plainLines.find((line) => line.includes(`${queuedMessageCount} queued`));
-				const badgeText = badgeLine?.slice(1, -1).trim();
-
-				assert.equal(lines.length, 5, context);
+				// Awaiting-input cards retain their response layout, not the child summary rows.
+				assert.equal(height, 5, context);
+				assert.equal(lines.length, height, context);
 				for (const line of plainLines) assert.equal(visibleWidth(line), 24, context);
-				assert.notEqual(badgeText, undefined, context);
-				assert.match(badgeText!, new RegExp(`^\\S ${queuedMessageCount} queued$`), context);
-				assert.doesNotMatch(badgeText!, /…/, context);
+				assertQueuedRow(lines, queuedMessageCount);
+				assert.match(rendered, /publish-child/, context);
+				assert.doesNotMatch(rendered, /…/, context);
 				assert.match(rendered, new RegExp(`${statusIcon("awaiting_input")} awaiting input`), context);
 				assert.match(rendered, /↵ enter to respond/, context);
 			}
@@ -206,7 +212,7 @@ describe("renderNodeCard — queued-message badge", () => {
 				theme,
 				queuedMessageCount,
 			});
-			assert.doesNotMatch(stripAnsi(lines.join("\n")), /queued/, `count ${String(queuedMessageCount)}`);
+			assert.doesNotMatch(stripAnsi(lines.join("\n")), /✉|queued/, `count ${String(queuedMessageCount)}`);
 			assert.equal(lines.length, NODE_H);
 			for (const line of lines) assert.equal(stripAnsi(line).length, NODE_W);
 		}
@@ -223,7 +229,7 @@ describe("renderNodeCard — queued-message badge", () => {
 				const lines = renderNodeCard(stage, { theme, queuedMessageCount });
 				const rendered = stripAnsi(lines.join("\n"));
 				assert.match(rendered, new RegExp(`${statusIcon("cancelled")} cancelled`));
-				assert.match(rendered, new RegExp(String(queuedMessageCount)));
+				assertQueuedRow(lines, queuedMessageCount);
 				assert.doesNotMatch(rendered, /…/);
 				assert.equal(lines.length, 5);
 				for (const line of lines) assert.equal(visibleWidth(line), 24);
@@ -268,21 +274,30 @@ describe("renderNodeCard — queued-message badge", () => {
 		];
 
 		for (const { label, stage, expectedStatusText } of statuses) {
-			for (const queuedMessageCount of [1, 12, 100]) {
-				const lines = renderNodeCard(
-					makeStage({
-						...stage,
-						workflowChildRun: { alias: "child", workflow: "publish-child", runId },
-					}),
-					{ theme, width: 24, height: 5, queuedMessageCount },
-				);
+			for (const queuedMessageCount of [1, 12, 100, 1_000, 1_000_000]) {
+				const childStage = makeStage({
+					...stage,
+					workflowChildRun: { alias: "child", workflow: "publish-child", runId },
+				});
+				const height = nodeCardHeight(childStage, { width: 24, queuedMessageCount });
+				const lines = renderNodeCard(childStage, { theme, width: 24, height, queuedMessageCount });
 				const plainLines = lines.map(stripAnsi);
 				const rendered = plainLines.join("\n");
 				const context = `${label} queuedMessageCount=${queuedMessageCount}`;
 
-				assert.equal(lines.length, 5, context);
+				assert.equal(height, 6, context);
+				assert.equal(lines.length, height, context);
 				for (const line of plainLines) assert.equal(line.length, 24, context);
-				assert.match(rendered, new RegExp(`${queuedMessageCount} queued`), context);
+				assertQueuedRow(lines, queuedMessageCount);
+				assert.ok(
+					plainLines
+						.slice(1, -1)
+						.map((line) => line.slice(1, -1).trim())
+						.join("")
+						.includes(runId),
+					context,
+				);
+				assert.match(rendered, /publish-child/, context);
 				assert.doesNotMatch(rendered, /…/, context);
 				assert.match(rendered, new RegExp(expectedStatusText), context);
 			}
@@ -456,9 +471,10 @@ test("dependent cards retain metadata and geometry across statuses, tools and qu
 			"awaiting_input",
 		] as const) {
 			for (const nodeKind of [undefined, "tool"] as const) {
-				for (const height of [NODE_H, 6]) {
+				for (const customHeight of [NODE_H, 6]) {
 					for (const queuedMessageCount of [0, 2]) {
 						const stage = makeStage({ parentIds, status, nodeKind, model: "dep-deps", durationMs: 1200 });
+						const height = Math.max(customHeight, nodeCardHeight(stage, { queuedMessageCount }));
 						const before = structuredClone(stage);
 						const lines = renderNodeCard(stage, { theme, height, queuedMessageCount });
 						const rendered = stripAnsi(lines.join("\n"));
@@ -468,13 +484,14 @@ test("dependent cards retain metadata and geometry across statuses, tools and qu
 						for (const line of lines) assert.equal(visibleWidth(line), NODE_W);
 						assert.deepEqual(stage, before);
 						assert.equal(stage.parentIds, parentIds);
-						if (queuedMessageCount) assert.match(rendered, /2 queued/);
+						if (queuedMessageCount) assertQueuedRow(lines, queuedMessageCount);
+						assert.match(rendered, /dep-deps/);
 						if (status === "awaiting_input") assert.match(rendered, /enter to respond/);
 						else {
 							assert.match(rendered, new RegExp(status === "completed" ? "complete" : status));
 							if (nodeKind === "tool") assert.match(rendered, /durable tool/);
 							else if (status !== "blocked") assert.match(rendered, /\b1s\b/);
-							if (height === NODE_H || !queuedMessageCount) assert.match(rendered, /dep-deps/);
+							assert.match(rendered, /dep-deps/);
 						}
 					}
 				}
@@ -501,7 +518,8 @@ test("dependent child boundaries preserve identity and summaries without depende
 				assert.match(rendered, /dep-deps/);
 				assert.match(rendered, /child-run/);
 				assert.match(rendered, completed ? /complete/ : /running/);
-				assert.match(rendered, queuedMessageCount ? /2 queued/ : completed ? /1 out/ : /live/);
+				if (queuedMessageCount) assertQueuedRow(lines, queuedMessageCount);
+				else assert.match(rendered, completed ? /1 out/ : /live/);
 				assert.equal(lines.length, NODE_H);
 				for (const line of lines) assert.equal(visibleWidth(line), NODE_W);
 			}
@@ -510,7 +528,7 @@ test("dependent child boundaries preserve identity and summaries without depende
 });
 
 describe("renderNodeCard — metadata line", () => {
-	test("missing and empty models leave a blank row without hiding duration or queued badges", () => {
+	test("missing and empty models reuse the blank row for standalone queued badges", () => {
 		for (const model of [undefined, ""]) {
 			for (const nodeKind of [undefined, "tool"] as const) {
 				for (const status of ["pending", "running", "completed", "awaiting_input"] as const) {
@@ -520,10 +538,14 @@ describe("renderNodeCard — metadata line", () => {
 						if (status === "awaiting_input") {
 							assert.doesNotMatch(stripAnsi(lines.join("\n")), /—|high/);
 							assert.match(stripAnsi(lines[3]!), /enter to respond/);
-						} else assert.equal(stripAnsi(lines[3]!).slice(1, -1).trim(), "");
+						} else {
+							const metadata = stripAnsi(lines[3]!).slice(1, -1).trim();
+							assert.equal(metadata, queuedMessageCount ? `✉ ${queuedMessageCount}` : "");
+							assert.doesNotMatch(metadata, /—|high/);
+						}
 						assert.equal(lines.length, NODE_H);
 						for (const line of lines) assert.equal(visibleWidth(line), NODE_W);
-						if (queuedMessageCount) assert.match(stripAnsi(lines.join("\n")), /2 queued/);
+						if (queuedMessageCount) assertQueuedRow(lines, queuedMessageCount);
 						if (status !== "awaiting_input") {
 							assert.match(stripAnsi(lines[1]!), nodeKind === "tool" ? /durable tool/ : /—/);
 						}
@@ -533,13 +555,36 @@ describe("renderNodeCard — metadata line", () => {
 		}
 	});
 
+	test("orders model above status and the standalone queue below status", () => {
+		for (const status of ["running", "skipped", "awaiting_input"] as const) {
+			const stage = makeStage({
+				status,
+				nodeKind: "tool",
+				toolStatus: status === "skipped" ? "cancelled" : undefined,
+				model: "openai/gpt-5-mini",
+				thinkingLevel: "high",
+			});
+			const lines = renderNodeCard(stage, { theme, queuedMessageCount: 1_000_000 });
+			const rows = lines.map(stripAnsi);
+			const modelRow = rows.findIndex((row) => row.includes("gpt-5-mini · high"));
+			const statusRow = rows.findIndex((row) =>
+				row.includes(status === "skipped" ? "cancelled" : status === "awaiting_input" ? "awaiting input" : status),
+			);
+			const queueRow = rows.findIndex((row) => row.includes("✉ 1000000"));
+			assert.ok(modelRow > 0);
+			assert.equal(statusRow, modelRow + 1);
+			assert.equal(queueRow, statusRow + 1);
+			assertQueuedRow(lines, 1_000_000);
+		}
+	});
+
 	test("stages show a compact model row and keep geometry", () => {
 		const lines = renderNodeCard(makeStage({ status: "completed", durationMs: 1200, model: "gpt-5-mini" }), {
 			theme,
 		});
 
-		// The model row sits immediately above the bottom border, with no padding row.
-		assert.match(stripAnsi(lines[3]!), /gpt-5-mini/);
+		// The model row sits above status, with no trailing padding row.
+		assert.match(stripAnsi(lines[2]!), /gpt-5-mini/);
 		assert.match(stripAnsi(lines[4]!), /^╰─+╯$/);
 		assert.equal(lines.length, NODE_H);
 		for (const line of lines) {
@@ -566,7 +611,7 @@ describe("renderNodeCard — metadata line", () => {
 			{ theme },
 		);
 
-		assert.match(stripAnsi(lines[3]!), /gpt-5-mini/);
+		assert.match(stripAnsi(lines[2]!), /gpt-5-mini/);
 		assert.match(stripAnsi(lines[4]!), /^╰─+╯$/);
 	});
 
@@ -677,8 +722,8 @@ describe("renderNodeCard — metadata line", () => {
 		});
 
 		// #1859: canonical model identity stays on the model row, not the deps row.
-		assert.match(stripAnsi(lines[3]!), /gpt-5\.1-codex-fast/);
-		assert.doesNotMatch(stripAnsi(lines[3]!), /openai\//);
+		assert.match(stripAnsi(lines[2]!), /gpt-5\.1-codex-fast/);
+		assert.doesNotMatch(stripAnsi(lines[2]!), /openai\//);
 		// The removed metadata row no longer adds padding below the model.
 		assert.match(stripAnsi(lines[4]!), /^╰─+╯$/);
 		assert.doesNotMatch(stripAnsi(lines[4]!), /fast/);
@@ -694,7 +739,7 @@ describe("renderNodeCard — metadata line", () => {
 			}),
 			{ theme },
 		);
-		const modelRow = stripAnsi(lines[3]!);
+		const modelRow = stripAnsi(lines[2]!);
 		assert.ok(modelRow.replaceAll("│", "").trimEnd().endsWith("fast"), modelRow);
 		assert.doesNotMatch(modelRow, /f…|fa…|fas…/);
 		assert.match(modelRow, /…/);
@@ -711,7 +756,7 @@ describe("renderNodeCard — metadata line", () => {
 				makeStage({ status: "running", startedAt: Date.now() - 500, model, thinkingLevel: level }),
 				{ theme },
 			);
-			const modelRow = stripAnsi(lines[3]!).replaceAll("│", "").trim();
+			const modelRow = stripAnsi(lines[2]!).replaceAll("│", "").trim();
 			assert.ok(modelRow.endsWith(expected), `${model} :${level} → ${modelRow}`);
 			assert.match(modelRow, /…/);
 		}
@@ -723,7 +768,7 @@ describe("renderNodeCard — metadata line", () => {
 			theme,
 		});
 		for (const line of lines) assert.equal(visibleWidth(line), NODE_W);
-		assert.match(stripAnsi(lines[3]!), /…-fast · high/);
+		assert.match(stripAnsi(lines[2]!), /…-fast · high/);
 	});
 
 	test("keeps both the thinking level and the fast marker on overflow, truncating the model", () => {
@@ -736,7 +781,7 @@ describe("renderNodeCard — metadata line", () => {
 			}),
 			{ theme },
 		);
-		const modelRow = stripAnsi(lines[3]!).replaceAll("│", "").trim();
+		const modelRow = stripAnsi(lines[2]!).replaceAll("│", "").trim();
 		assert.ok(modelRow.endsWith("-fast · high"), modelRow);
 		assert.match(modelRow, /…/);
 	});

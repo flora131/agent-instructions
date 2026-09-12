@@ -45,8 +45,7 @@ export interface NodeCardOpts {
 	/** Run stages, used to resolve blockedByStageId into a short upstream name. */
 	stages?: readonly StageSnapshot[];
 	/**
-	 * Counts appear beside status, or replace the response/model row while
-	 * awaiting input, so queued messages stay visible outside the stage chat.
+	 * Counts occupy their own row, reusing empty space before increasing height.
 	 */
 	queuedMessageCount?: number;
 }
@@ -63,7 +62,7 @@ function queuedBadgeCount(count: number | undefined): number {
 }
 
 function queuedBadgeText(count: number): string {
-	return `✉ ${count} queued`;
+	return `✉ ${count}`;
 }
 
 function pickBorder(status: StageStatus, focused: boolean, phase: number, theme: GraphTheme): string {
@@ -173,13 +172,28 @@ function workflowChildMetaText(stage: StageSnapshot): string | undefined {
 	return undefined;
 }
 
-function joinCompactStatusMeta(status: string, meta: string, width: number, queuedCount = 0): string {
+function joinCompactStatusMeta(status: string, meta: string, width: number): string {
 	const candidates = [`${status} · ${meta}`, `${status} ·${meta}`, `${status}· ${meta}`, `${status}·${meta}`];
-	if (queuedCount > 0) {
-		// Drop badge decoration before sacrificing the node's lifecycle status.
-		candidates.push(`${status} ${queuedCount} queued`, `${status} ✉${queuedCount}`);
+	return candidates.find((candidate) => visibleWidth(candidate) <= width) ?? status;
+}
+
+/** Minimum height that preserves content and a separate queued-message row. */
+export function nodeCardHeight(
+	stage: StageSnapshot,
+	opts: Pick<NodeCardOpts, "width" | "queuedMessageCount"> = {},
+): number {
+	const queuedRows = queuedBadgeCount(opts.queuedMessageCount) > 0 ? 1 : 0;
+	const modelRows = stage.model !== undefined && stage.model !== "" ? 1 : 0;
+	let bodyRows: number;
+	if (stage.status === "awaiting_input") {
+		bodyRows = 2 + modelRows + queuedRows;
+	} else if (stage.workflowChild !== undefined || stage.workflowChildRun !== undefined) {
+		const innerWidth = Math.max(2, (opts.width ?? NODE_W) - 2);
+		bodyRows = workflowChildRunRows(stage, innerWidth).length + 1 + queuedRows;
+	} else {
+		bodyRows = 2 + modelRows + (metaText(stage) ? 1 : 0) + queuedRows;
 	}
-	return candidates.find((candidate) => visibleWidth(candidate) <= width) ?? (queuedCount > 0 ? status : meta);
+	return Math.max(NODE_H, bodyRows + 2);
 }
 
 function statusLabel(status: StageStatus): string {
@@ -266,7 +280,7 @@ function buildTitleSlot(
  */
 export function renderNodeCard(stage: StageSnapshot, opts: NodeCardOpts): string[] {
 	const width = opts.width ?? NODE_W;
-	const height = opts.height ?? NODE_H;
+	const height = opts.height ?? nodeCardHeight(stage, opts);
 	const focused = opts.focused ?? false;
 	const phase = opts.pulsePhase ?? 0;
 	const theme = opts.theme;
@@ -309,13 +323,9 @@ export function renderNodeCard(stage: StageSnapshot, opts: NodeCardOpts): string
 	const bodyHex = durationColor(stage.status, theme);
 	const statusText = `${statusIcon(stage.status)} ${stage.toolStatus ?? statusLabel(stage.status)}`;
 	const queuedCount = queuedBadgeCount(opts.queuedMessageCount);
-	const compactStatus =
-		queuedCount > 0 && stage.status !== "awaiting_input"
-			? joinCompactStatusMeta(statusText, queuedBadgeText(queuedCount), innerWidth, queuedCount)
-			: statusText;
 	const statusLine =
 		`${bg}${bc}│${RESET}` +
-		centreColored(compactStatus, innerWidth, bodyHex, bg, {
+		centreColored(statusText, innerWidth, bodyHex, bg, {
 			bold: stage.status === "running" || stage.status === "awaiting_input",
 		}) +
 		`${bg}${bc}│${RESET}`;
@@ -334,15 +344,7 @@ export function renderNodeCard(stage: StageSnapshot, opts: NodeCardOpts): string
 		(row) => `${bg}${bc}│${RESET}${centreColored(row, innerWidth, theme.dim, bg)}${bg}${bc}│${RESET}`,
 	);
 	const childMeta = workflowChildMetaText(stage);
-	const childSummary =
-		childMeta === undefined
-			? undefined
-			: joinCompactStatusMeta(
-					statusText,
-					queuedCount > 0 ? queuedBadgeText(queuedCount) : childMeta,
-					innerWidth,
-					queuedCount,
-				);
+	const childSummary = childMeta === undefined ? undefined : joinCompactStatusMeta(statusText, childMeta, innerWidth);
 	const childSummaryLine =
 		childSummary === undefined
 			? undefined
@@ -352,41 +354,41 @@ export function renderNodeCard(stage: StageSnapshot, opts: NodeCardOpts): string
 				}) +
 				`${bg}${bc}│${RESET}`;
 
+	const queuedLines =
+		queuedCount > 0
+			? [
+					`${bg}${bc}│${RESET}` +
+						centreColored(queuedBadgeText(queuedCount), innerWidth, theme.info, bg, { bold: true }) +
+						`${bg}${bc}│${RESET}`,
+				]
+			: [];
+	const modelLines = model === "" ? [] : [modelLine];
 	const interior: string[] =
 		stage.status === "awaiting_input"
 			? [
+					...modelLines,
 					statusLine,
-					model !== "" && contentRows <= 3
-						? modelLine
-						: `${bg}${bc}│${RESET}` +
-							centreColored("waiting for response", innerWidth, theme.info, bg) +
-							`${bg}${bc}│${RESET}`,
+					...(model === "" && queuedCount === 0
+						? [
+								`${bg}${bc}│${RESET}` +
+									centreColored("waiting for response", innerWidth, theme.info, bg) +
+									`${bg}${bc}│${RESET}`,
+							]
+						: []),
+					...queuedLines,
 					`${bg}${bc}│${RESET}` +
 						centreColored("↵ enter to respond", innerWidth, theme.dim, bg) +
 						`${bg}${bc}│${RESET}`,
-					modelLine,
 				]
 			: childSummaryLine === undefined
-				? [durLine, statusLine, ...(metaText(stage) ? [metaLine] : [modelLine])]
-				: [...childRunLines, childSummaryLine];
-
-	// Ordinary and child cards pack queued counts beside status. Awaiting-input
-	// cards use the response/model row so the action hint remains visible.
-	const preferredBadgeRow = stage.status === "awaiting_input" ? 1 : -1;
+				? [durLine, ...modelLines, statusLine, ...(metaText(stage) ? [metaLine] : []), ...queuedLines]
+				: [...childRunLines, childSummaryLine, ...queuedLines];
 
 	// Pad / clip to exactly `height` lines.
 	while (interior.length < contentRows) {
 		interior.push(`${bg}${bc}│${RESET}${bg}${" ".repeat(innerWidth)}${bg}${bc}│${RESET}`);
 	}
 	if (interior.length > contentRows) interior.length = contentRows;
-
-	if (queuedCount > 0 && interior.length > 0 && preferredBadgeRow >= 0) {
-		const badgeRow = preferredBadgeRow < interior.length ? preferredBadgeRow : interior.length - 1;
-		interior[badgeRow] =
-			`${bg}${bc}│${RESET}` +
-			centreColored(queuedBadgeText(queuedCount), innerWidth, theme.info, bg, { bold: true }) +
-			`${bg}${bc}│${RESET}`;
-	}
 
 	return [top, ...interior, bottom];
 }
