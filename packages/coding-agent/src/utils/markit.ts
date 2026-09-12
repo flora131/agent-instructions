@@ -6,7 +6,64 @@ export interface MarkitConversionResult {
 	error?: string;
 }
 
+/**
+ * MuPDF ships as an Emscripten module whose fd 1 and fd 2 sinks default to
+ * `console.log` / `console.error` (`mupdf/dist/mupdf-wasm.js`:
+ * `t.print&&(T=t.print),t.printErr&&(j=t.printErr)`), and
+ * `mupdf/dist/mupdf.js` builds that module at import time from
+ * `globalThis["$libmupdf_wasm_Module"]`. A PDF with a damaged `/FlateDecode`
+ * stream therefore writes diagnostics straight to the terminal. Capture a
+ * bounded batch and deliver it through the active TUI sink or console.log.
+ * RPC mode's stdout guard forwards console.log to the host through stderr.
+ */
+const MUPDF_MODULE_GLOBAL = "$libmupdf_wasm_Module";
+const MAX_MUPDF_DIAGNOSTIC_LINES = 32;
+const MAX_MUPDF_DIAGNOSTIC_LENGTH = 4096;
+let diagnosticSink: ((message: string) => void) | undefined;
+
+/** Bind the in-process interactive renderer for its lifetime. */
+export function setMarkitDiagnosticSink(sink: (message: string) => void): () => void {
+	const previous = diagnosticSink;
+	diagnosticSink = sink;
+	return () => {
+		if (diagnosticSink === sink) diagnosticSink = previous;
+	};
+}
+
+function logMupdfDiagnostics(): void {
+	if (mupdfDiagnostics.length === 0) return;
+	const message = mupdfDiagnostics.join("\n");
+	if (diagnosticSink) diagnosticSink(message);
+	else console.log(message);
+}
+
+// Process-global because the MuPDF module is: concurrent conversions may
+// cross-attribute a line. The text is advisory suffix on an error message,
+// never a decision input, so that imprecision is acceptable.
+let mupdfDiagnostics: string[] = [];
+
+function recordMupdfDiagnostic(line: string): void {
+	if (mupdfDiagnostics.length >= MAX_MUPDF_DIAGNOSTIC_LINES) mupdfDiagnostics.shift();
+	mupdfDiagnostics.push(line.slice(0, MAX_MUPDF_DIAGNOSTIC_LENGTH));
+}
+
+/** Must run before the first `import("markit-ai")`; mupdf reads the global at module evaluation. */
+function captureMupdfDiagnostics(): void {
+	const globals = globalThis as Record<string, unknown>;
+	const existing = (globals[MUPDF_MODULE_GLOBAL] ?? {}) as Record<string, unknown>;
+	globals[MUPDF_MODULE_GLOBAL] = { ...existing, print: recordMupdfDiagnostic, printErr: recordMupdfDiagnostic };
+}
+
+function withMupdfDiagnostics(message: string): string {
+	if (mupdfDiagnostics.length === 0) return message;
+	logMupdfDiagnostics();
+	const detail = mupdfDiagnostics.join("; ");
+	mupdfDiagnostics = [];
+	return `${message} (mupdf: ${detail})`;
+}
+
 let markit: () => Markit | Promise<Markit> = async () => {
+	captureMupdfDiagnostics();
 	const promise = import("markit-ai").then(({ Markit }) => {
 		const instance = new Markit();
 		markit = () => instance;
@@ -34,6 +91,7 @@ function abortError(): Error {
 async function runMarkitConversion<T>(task: (markit: Markit) => Promise<T>, signal?: AbortSignal): Promise<T> {
 	if (signal?.aborted) throw abortError();
 	const instance = await markit();
+	mupdfDiagnostics = [];
 	if (!signal) return task(instance);
 	return await new Promise<T>((resolve, reject) => {
 		const abort = () => reject(abortError());
@@ -45,9 +103,12 @@ async function runMarkitConversion<T>(task: (markit: Markit) => Promise<T>, sign
 }
 
 function finalizeConversion(markdown?: string): MarkitConversionResult {
-	return typeof markdown === "string" && markdown.length > 0
-		? { content: markdown, ok: true }
-		: { content: "", ok: false, error: "Conversion produced no output" };
+	if (typeof markdown === "string" && markdown.length > 0) {
+		logMupdfDiagnostics();
+		mupdfDiagnostics = [];
+		return { content: markdown, ok: true };
+	}
+	return { content: "", ok: false, error: withMupdfDiagnostics("Conversion produced no output") };
 }
 
 export async function convertFileWithMarkit(filePath: string, signal?: AbortSignal): Promise<MarkitConversionResult> {
@@ -57,7 +118,7 @@ export async function convertFileWithMarkit(filePath: string, signal?: AbortSign
 		);
 	} catch (error) {
 		if (error instanceof Error && error.name === "AbortError") throw error;
-		return { content: "", ok: false, error: normalizeError(error) };
+		return { content: "", ok: false, error: withMupdfDiagnostics(normalizeError(error)) };
 	}
 }
 
@@ -74,6 +135,6 @@ export async function convertBufferWithMarkit(
 		);
 	} catch (error) {
 		if (error instanceof Error && error.name === "AbortError") throw error;
-		return { content: "", ok: false, error: normalizeError(error) };
+		return { content: "", ok: false, error: withMupdfDiagnostics(normalizeError(error)) };
 	}
 }

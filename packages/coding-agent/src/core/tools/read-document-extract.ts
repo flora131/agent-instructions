@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { convertBufferWithMarkit, convertFileWithMarkit } from "../../utils/markit.ts";
+import { convertBufferWithMarkit, convertFileWithMarkit } from "../../utils/markit.js";
 import { type ReadLineRange, selectExactReadRanges, selectReadRanges } from "./read-selectors.ts";
 
 const DOCUMENT_EXTENSIONS = /\.(?:pdf|doc|docx|ppt|pptx|xls|xlsx|rtf|epub|ipynb)(?:$|[?#])/i;

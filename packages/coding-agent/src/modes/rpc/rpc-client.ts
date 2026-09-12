@@ -23,10 +23,11 @@ import { RpcClientApi, type RpcCommandBody } from "./rpc-client-api.ts";
 import {
 	appendBoundedStderr,
 	createInteractiveJsonlOptions,
+	createStderrReporter,
 	restartCliArgs,
 	spawnRpcClientProcess,
 	terminateRpcClientProcess,
-} from "./rpc-client-process.ts";
+} from "./rpc-client-process.js";
 import { collectRpcEvents, runUserBashWithUpdates, waitForRpcIdle } from "./rpc-client-waits.ts";
 import { DEFAULT_REQUEST_TIMEOUT_MS, LONG_LIVED_COMMANDS, RESTART_CANCELLED_MESSAGE } from "./rpc-command-timeouts.ts";
 import { RpcEventBuffer } from "./rpc-event-buffer.ts";
@@ -163,10 +164,24 @@ export class RpcClient extends RpcClientApi {
 		);
 		childProcess.once("error", (rawError) => this.failGeneration(rawError, generation, "process-error"));
 		childProcess.stdin?.on("error", (rawError) => this.failGeneration(rawError, generation, "stdin-error"));
-		childProcess.stderr?.on("data", (data) => {
+		const reportStderr = createStderrReporter((message) => {
 			if (generation !== this.generation) return;
-			this.stderr = appendBoundedStderr(this.stderr, data.toString());
-			process.stderr.write(data);
+			if (this.options.interactiveEngine) {
+				this.options.interactiveEngine.onDiagnostic({
+					activity: undefined,
+					elapsedMs: 0,
+					level: "blocking",
+					source: "stderr",
+					message,
+				});
+			} else console.log(message);
+		});
+		// Decode continuously per child, including split code points and the final incomplete sequence at EOF.
+		childProcess.stderr?.setEncoding("utf8");
+		childProcess.stderr?.on("data", (data: string) => {
+			if (generation !== this.generation) return;
+			this.stderr = appendBoundedStderr(this.stderr, data);
+			reportStderr(data);
 		});
 		const readerOptions = createInteractiveJsonlOptions(this.engineMonitor !== undefined);
 		let markStdoutDrained!: () => void;

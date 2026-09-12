@@ -149,5 +149,26 @@ const MAX_STDERR_BYTES = 256 * 1024;
 export function appendBoundedStderr(existing: string, chunk: string): string {
 	const next = existing + chunk;
 	if (Buffer.byteLength(next, "utf8") <= MAX_STDERR_BYTES) return next;
-	return `${Buffer.from(next).subarray(-MAX_STDERR_BYTES).toString("utf8")}\n[stderr truncated]`;
+	const marker = "\n[stderr truncated]";
+	const bytes = Buffer.from(next);
+	let start = bytes.length - MAX_STDERR_BYTES + Buffer.byteLength(marker);
+	while (start < bytes.length && (bytes[start]! & 0xc0) === 0x80) start++;
+	return `${bytes.subarray(start).toString("utf8")}${marker}`;
+}
+
+/** Batch noisy child output outside the pipe callback without filesystem work. */
+export function createStderrReporter(report: (message: string) => void): (data: string) => void {
+	let pending = "";
+	let scheduled = false;
+	return (data) => {
+		pending = appendBoundedStderr(pending, data);
+		if (scheduled) return;
+		scheduled = true;
+		setImmediate(() => {
+			const message = pending;
+			pending = "";
+			scheduled = false;
+			report(message);
+		});
+	};
 }

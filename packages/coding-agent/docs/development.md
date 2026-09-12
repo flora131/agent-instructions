@@ -50,6 +50,17 @@ Never use `__dirname` directly for package assets.
 
 For startup measurements, see the [Windows startup benchmark](https://github.com/bastani-inc/atomic/blob/main/scripts/perf/windows-startup/README.md). Internal timing marks do not prove terminal first paint.
 
+## PDF and engine diagnostics
+
+PDF conversion and engine diagnostics appear as status messages in interactive sessions
+and console output otherwise. Conversion failures also include diagnostic details in
+their error result. Long or noisy diagnostics may be truncated. Interactive sessions keep
+only recent diagnostics; older diagnostics are discarded without removing normal chat.
+
+Diagnostics are displayed as text, not terminal commands. RPC clients receive diagnostics
+separately from JSON responses. No `atomic-engine-stderr.log` file is written; include the
+displayed diagnostic and conversion error when reporting a PDF problem.
+
 ## Testing
 
 ```bash

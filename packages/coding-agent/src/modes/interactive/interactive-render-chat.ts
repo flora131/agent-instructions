@@ -7,6 +7,7 @@ import { buildContextEntries, type SessionEntry, sessionEntryToContextMessages }
 import { yieldToEventLoop } from "../../utils/event-loop.ts";
 import { IsolatedInteractiveRuntime } from "../interactive-engine/isolated-runtime.js";
 import { RemoteCustomMessageComponent, RemoteToolExecutionComponent } from "../interactive-engine/remote-renderer.ts";
+import { appendBoundedStderr } from "../rpc/rpc-client-process.js";
 import { CustomEntryComponent } from "./components/custom-entry.ts";
 import { createMermaidMarkdownTransformer } from "./components/mermaid.ts";
 import { InteractiveModeBase } from "./interactive-mode-base.ts";
@@ -64,23 +65,49 @@ InteractiveModeBase.prototype.maybeShowAssistantDiagnostics = function (
 	}
 };
 
-InteractiveModeBase.prototype.showStatus = function (this: InteractiveModeBase, message: string): void {
+// Weak keys leave cleared/rebuilt transcripts collectible without separate lifecycle state.
+// Only persistent diagnostic statuses participate; ordinary chat/status is never evicted.
+const diagnosticStatuses = new WeakMap<Component, { spacer: Spacer; bytes: number }>();
+const MAX_DIAGNOSTIC_STATUSES = 64;
+const MAX_DIAGNOSTIC_HISTORY_BYTES = 256 * 1024;
+
+InteractiveModeBase.prototype.showStatus = function (
+	this: InteractiveModeBase,
+	message: string,
+	persist = false,
+): void {
 	const children = this.chatContainer.children;
 	const last = children.length > 0 ? children[children.length - 1] : undefined;
 	const secondLast = children.length > 1 ? children[children.length - 2] : undefined;
 
-	if (last && secondLast && last === this.lastStatusText && secondLast === this.lastStatusSpacer) {
+	if (!persist && last && secondLast && last === this.lastStatusText && secondLast === this.lastStatusSpacer) {
 		this.lastStatusText.setText(theme.fg("dim", message));
 		this.ui.requestRender();
 		return;
 	}
 
+	if (persist) message = appendBoundedStderr("", message);
 	const spacer = new Spacer(1);
 	const text = new Text(theme.fg("dim", message), 1, 0);
 	this.chatContainer.addChild(spacer);
 	this.chatContainer.addChild(text);
-	this.lastStatusSpacer = spacer;
-	this.lastStatusText = text;
+	this.lastStatusSpacer = persist ? undefined : spacer;
+	this.lastStatusText = persist ? undefined : text;
+	if (persist) {
+		diagnosticStatuses.set(text, { spacer, bytes: Buffer.byteLength(message) });
+		let count = 0;
+		let bytes = 0;
+		for (const child of [...children].reverse()) {
+			const diagnostic = diagnosticStatuses.get(child);
+			if (!diagnostic) continue;
+			count++;
+			bytes += diagnostic.bytes;
+			if (count > MAX_DIAGNOSTIC_STATUSES || bytes > MAX_DIAGNOSTIC_HISTORY_BYTES) {
+				this.chatContainer.removeChild(child);
+				this.chatContainer.removeChild(diagnostic.spacer);
+			}
+		}
+	}
 	this.ui.requestRender();
 };
 

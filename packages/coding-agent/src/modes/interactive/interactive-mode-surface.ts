@@ -250,7 +250,7 @@ declare module "./interactive-mode-base.ts" {
 		subscribeToAgent(): void;
 		handleEvent(event: AgentSessionEvent | JsonAgentSessionEvent): Promise<void>;
 		getUserMessageText(message: Message): string;
-		showStatus(message: string): void;
+		showStatus(message: string, persist?: boolean): void;
 		/** Report a managed-tool (fd/rg) readiness update inside the transcript. */
 		showManagedToolStatus(status: ToolStatus): void;
 		/** Bring fd/rg to readiness after first paint; progress lands in the transcript. */

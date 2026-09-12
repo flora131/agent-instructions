@@ -281,6 +281,7 @@ describe("interactive TUI renderer", () => {
 		const context = Object.assign(Object.create(InteractiveMode.prototype), {
 			renderer,
 			ui: renderer,
+			disposeMarkitDiagnosticSink: vi.fn(),
 		}) as unknown as InteractiveMode;
 
 		renderer.start();
@@ -289,6 +290,7 @@ describe("interactive TUI renderer", () => {
 		expect(renderer.mode).toBe("fullscreen");
 		expect([terminal.startCount, terminal.stopCount]).toEqual([1, 1]);
 		expect(terminal.cursorVisible).toBe(true);
+		expect(context.disposeMarkitDiagnosticSink).toHaveBeenCalledOnce();
 	});
 	test("keeps the fullscreen dock fixed and offers a clickable jump to latest while scrolled up", async () => {
 		const previousKeybindings = getKeybindings();

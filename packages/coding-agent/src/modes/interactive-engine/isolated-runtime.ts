@@ -475,7 +475,7 @@ export class IsolatedInteractiveRuntime extends AgentSessionRuntime {
 	}
 
 	emitDiagnostic(diagnostic: ActivityWatchdogDiagnostic): void {
-		this.engineCallbackActive = true;
+		if (diagnostic.source !== "stderr") this.engineCallbackActive = true;
 		this.health.publish(diagnostic);
 	}
 
