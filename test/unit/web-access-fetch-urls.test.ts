@@ -173,6 +173,33 @@ test("fetch_content reports each failed URL and recovery steps when a batch fail
 	assert.deepEqual(result.content, [{ type: "text", text: error }]);
 });
 
+// PR #3002: extraction errors can retain useful partial markdown.
+test("fetch_content exposes retained excerpts when every extraction reports an error", async () => {
+	const urls = ["https://example.com/empty", "https://example.com/partial"];
+	for (const firstContent of ["", "First retained excerpt"]) {
+		fetchAllContent.mockResolvedValueOnce([
+			{ url: urls[0], title: "", content: firstContent, error: "Incomplete extraction" },
+			{ url: urls[1], title: "", content: "Retained evidence " + "x".repeat(1100), error: "Incomplete extraction" },
+		]);
+		const result = await registrations
+			.heavy()
+			.execute("test", { urls }, new AbortController().signal, undefined, {} as ExtensionContext);
+		assert.ok(typeof result.details === "object" && result.details !== null && "error" in result.details);
+		assert.ok("outcome" in result.details && result.details.outcome === "all_failed");
+		assert.ok("successful" in result.details && result.details.successful === 0);
+		const text = String(result.details.error);
+		assert.match(text, /Partial content was retained/);
+		assert.match(text, /https:\/\/example.com\/partial: Error - Incomplete extraction/);
+		assert.match(text, /Partial content \(incomplete\):\nRetained evidence/);
+		assert.match(text, /Partial content truncated/);
+		assert.doesNotMatch(text, /x{1001}/);
+		if (firstContent) assert.ok(text.includes(firstContent));
+		assert.doesNotMatch(text, /No content was retrieved|cannot recover content from these failed fetches/);
+		assert.match(text, /Retry transient failures/);
+		assert.deepEqual(result.content, [{ type: "text", text }]);
+	}
+});
+
 test("fetch_content preserves successful content retrieval guidance for mixed batches", async () => {
 	const urls = ["https://example.com/good", "https://example.com/blocked"];
 	fetchAllContent.mockResolvedValueOnce([

@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- `fetch_content` now shows each URL's error and recovery steps when an entire batch fails, instead of hiding the causes behind a generic failure count or suggesting retrieval of content that was not fetched.
+- `fetch_content` now shows each URL's error and recovery steps when an entire batch fails, instead of hiding the causes behind a generic failure count. Retained partial content is shown as incomplete excerpts rather than incorrectly reported as absent.
 
 ## [0.9.19-alpha.6] - 2026-09-11
 
