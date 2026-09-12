@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.9.19-alpha.9] - 2026-09-12
+
 ### Fixed
 
 - `fetch_content` ignores video frame options for non-video inputs, so webpages and mixed batches no longer fail with video-only errors. Tool and parameter descriptions now distinguish ordinary page fetching, video analysis, and frame extraction.

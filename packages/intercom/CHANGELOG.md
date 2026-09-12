@@ -4,6 +4,8 @@ All notable changes to the `pi-intercom` extension will be documented in this fi
 
 ## [Unreleased]
 
+## [0.9.19-alpha.9] - 2026-09-12
+
 ### Breaking Changes
 
 - Explicit `reply` selectors now fail closed: stale, unknown, empty, or sender-mismatched `replyTo` values no longer fall back to another active or pending thread. Use `pending` to select the exact unresolved question.
